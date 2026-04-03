@@ -563,9 +563,46 @@ function updateLobbySlots(players){
 }
 
 // ─── PATH PICK ────────────────────────────────────────────────────────────────
+// ─── TRADITIONS DATA (mirrors server) ────────────────────────────────────────
+const TRADITION_INFO = {
+  fire:           {label:'Fire',           desc:'Offensive fire magic. Flame Missile → Fire Blast → Fireball → Conflagration. Scales with INT.'},
+  life:           {label:'Life',           desc:'Healing tradition. Minor Healing → Light Healing → Moderate Healing → Vitality Burst. Scales with WIL.'},
+  death:          {label:'Death',          desc:'Necrotic attacks. Spectral Grasp → Grave Grasp (leeches HP) → Bone Splinters → Harvest Soul.'},
+  shadow:         {label:'Shadow',         desc:'Darkness magic. Shadow Bolt → Darksight (+2 Def) → Shadow Strike (ignores armor) → Enervation.'},
+  battle:         {label:'Battle',         desc:'War magic. Augmented Attack → Close Wounds → Battle Prowess (group boon) → Meteoric Assault.'},
+  celestial:      {label:'Celestial',      desc:'Holy light. Burning Beam → Flash → Radiation → Rainbow Burst. Pure offensive damage.'},
+  chaos:          {label:'Chaos',          desc:'Chaos magic. Chaos Boon (reroll) → Fold Space (+2 Def) → Singularity → Rend Reality.'},
+  earth:          {label:'Earth',          desc:'Stone and rock. Earth Spike → Avalanche → Eruption (area) → Earthquake (stun).'},
+  storm:          {label:'Storm',          desc:'Lightning and ice. Forked Lightning → Freezing Fog → Lightning Bolt → Leaping Lightning.'},
+  protection:     {label:'Protection',     desc:'Defensive wards. Force Field (+2 Def) → Evade (boon) → Vigor (heal) → Protective Field (group +3 Def).'},
+  illusion:       {label:'Illusion',       desc:'Trickery. Figment (enemy bane) → Decoy (def boon) → Phantasm (psychic dmg) → Mirage (enemy misses).'},
+  nature:         {label:'Nature',         desc:'Wild magic. Oak Hide (+2 Def) → Healing Berries → Wrath of Nature → Overgrowth.'},
+  transformation: {label:'Transformation',desc:'Shape-shifting. Beast Within (+1d6 dmg) → Bounding Step (boon) → Mist Form (invulnerable) → Speed Healing.'},
+  time:           {label:'Time',           desc:'Temporal magic. Swiftness (extra action) → Rewrite Moment (reroll) → Precognition (full buff) → Time Jump (skip enemy).'},
+};
+
 function showPathPick(me){
   pathPickPending=true; show('screen-pathpick');
   const tier=me.char.pendingPathTier||'novice';
+
+  // Tradition pick (gain a new tradition spell at certain levels)
+  if(tier==='tradition'){
+    el('pp-heading').textContent='Learn a Spell Tradition';
+    el('pp-sub').textContent='Choose a new magical tradition. You will learn spells from it as your Power grows.';
+    const grid=el('pp-grid'); grid.innerHTML='';
+    const knownTraditions=me.char.traditions||[];
+    Object.entries(TRADITION_INFO).forEach(([id,info])=>{
+      const already=knownTraditions.includes(id);
+      const btn=document.createElement('button'); btn.className='pp-btn';
+      btn.disabled=already;
+      btn.style.opacity=already?'0.4':'1';
+      btn.innerHTML=`<span class="ppn">${info.label}${already?' ✓':''}</span><span class="ppd">${info.desc}</span><span class="ppb">${already?'Already known':'Learn this tradition'}</span>`;
+      if(!already) btn.onclick=()=>{ pathPickPending=false; send('PLAYER_ACTION',{action:'APPLY_PATH',data:{pathId:'tradition:'+id}}); show('screen-game'); if(lastState)renderState(lastState); };
+      grid.appendChild(btn);
+    });
+    return;
+  }
+
   const titles={novice:'Choose Your Novice Path (Level 1)',expert:'Choose Your Expert Path (Level 3)',master:'Choose Your Master Path (Level 7)'};
   el('pp-heading').textContent=titles[tier]||'Choose Your Path';
   el('pp-sub').textContent=tier==='novice'?'Your career archetype — unlocks talents and abilities.'
@@ -573,10 +610,8 @@ function showPathPick(me){
     :'Your pinnacle. All master paths available.';
   const grid=el('pp-grid'); grid.innerHTML='';
   const infoMap=tier==='novice'?NOVICE_INFO:tier==='expert'?EXPERT_INFO:MASTER_INFO;
-  // Show ALL paths at each tier — no career filtering
   Object.entries(infoMap).forEach(([id,info])=>{
     const btn=document.createElement('button'); btn.className='pp-btn';
-    // Show the recommended careers as a hint only
     const hint=info.forCareers?`<span style="font-size:10px;color:var(--text-dim);font-family:'Cinzel',serif">Suits: ${info.forCareers.join(', ')}</span><br>`:'';
     btn.innerHTML=`<span class="ppn">${info.name}</span><span class="ppd">${info.desc||''}</span><span class="ppb">${hint}${info.gains}</span>`;
     btn.onclick=()=>{ pathPickPending=false; send('PLAYER_ACTION',{action:'APPLY_PATH',data:{pathId:id}}); show('screen-game'); if(lastState)renderState(lastState); };
@@ -746,18 +781,25 @@ function buildCard(p,gs,isMe){
 function renderAbilities(char, inCombat, targetId='my-ab'){
   const el2=el(targetId); if(!el2)return;
   let html='';
-  // Spells
-  if(char.knownSpells&&char.knownSpells.length){
+  // Known traditions + spells
+  const traditions=char.traditions||[];
+  const allSpells=char.knownSpells||[];
+  if(allSpells.length||traditions.length){
     html+=`<div class="ab-section"><div class="ab-title">Spells</div>`;
-    char.knownSpells.forEach(sp=>{
-      const castingsLeft=char.power-char.castingsUsed;
+    const castingsLeft=char.power-char.castingsUsed;
+    allSpells.forEach(sp=>{
       const avail=sp.rank===0||castingsLeft>0;
-      const badge=sp.rank===0?'<span class="ab-badge ab-passive">Free</span>'
+      const typeLabel=sp.type==='heal'?'Heal':sp.type==='utility'?'Utility':'Attack';
+      const badge=sp.rank===0
+        ?'<span class="ab-badge ab-passive">Free</span>'
         :avail?`<span class="ab-badge ab-ready">${castingsLeft} left</span>`
         :`<span class="ab-badge ab-used">0 left</span>`;
-      const desc=SPELL_DESCS[sp.name]||`Rank ${sp.rank} ${sp.heal?'heal':'attack'} spell.`;
-      html+=`<div class="ab-item tip"><span class="ab-name">${sp.name}</span>&nbsp;${badge}<span class="tiptext">${desc}</span></div>`;
+      const desc=sp.desc||(SPELL_DESCS&&SPELL_DESCS[sp.name])||`Rank ${sp.rank} ${typeLabel} spell.`;
+      html+=`<div class="ab-item tip"><span class="ab-name">${sp.name}</span>&nbsp;<span style="font-size:9px;color:var(--text-dim)">[R${sp.rank} ${typeLabel}]</span>&nbsp;${badge}<span class="tiptext">${desc}</span></div>`;
     });
+    if(traditions.length){
+      html+=`<div style="font-size:11px;color:var(--text-dim);margin-top:4px;font-style:italic">Traditions: ${traditions.map(t=>TRADITION_INFO[t]?.label||t).join(', ')}</div>`;
+    }
     html+='</div>';
   }
   // Active talents
@@ -901,13 +943,17 @@ function renderActions(gs,players,me){
     addBtn(g,'Attack',wpnStr,'am-',()=>send('PLAYER_ACTION',{action:'ATTACK'}),false,`Attack the enemy with your weapon. ${wpnStr}. Natural 1 = fumble. Natural 20 = critical hit (double dice).`);
     (char.knownSpells||[]).forEach(sp=>{
       const avail=sp.rank===0||(char.power-char.castingsUsed)>0;
-      const desc=SPELL_DESCS[sp.name]||`Rank ${sp.rank} spell.`;
-      if(sp.heal){
+      const desc=sp.desc||`Rank ${sp.rank} spell.`;
+      const isHeal=(sp.type==='heal'||sp.heal);
+      const isUtil=(sp.type==='utility');
+      if(isHeal){
         addBtn(g,sp.name,'Heal self','as-',()=>send('PLAYER_ACTION',{action:'CAST_SPELL',data:{spellName:sp.name,targetId:myId}}),!avail,desc);
         if(lastState&&lastState.players.filter(p=>p.id!==myId&&p.char&&p.char.alive).length>0)
           addBtn(g,sp.name+' →','Heal ally','as-',()=>castAlly(sp.name),!avail,desc+' (Target an ally.)');
+      } else if(isUtil){
+        addBtn(g,sp.name,`Utility·R${sp.rank}`,'as-',()=>send('PLAYER_ACTION',{action:'CAST_SPELL',data:{spellName:sp.name}}),!avail,desc);
       } else {
-        addBtn(g,sp.name,`Rank ${sp.rank}`,'as-',()=>send('PLAYER_ACTION',{action:'CAST_SPELL',data:{spellName:sp.name}}),!avail,desc);
+        addBtn(g,sp.name,`Attack·R${sp.rank}`,'as-',()=>send('PLAYER_ACTION',{action:'CAST_SPELL',data:{spellName:sp.name}}),!avail,desc);
       }
     });
     if(char.catchBreath&&!char.catchBreathUsed) addBtn(g,'Catch Breath',`~${Math.floor(char.maxHealth/4)} HP`,'at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'catchBreath'}}),false,TALENT_DESCS.catchBreath);

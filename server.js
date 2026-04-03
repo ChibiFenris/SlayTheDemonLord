@@ -217,40 +217,181 @@ const MASTER_PATHS = {
     desc:'Master of death magic. Overcast and Spell Surge for powerful necromantic spellcasting.' },
 };
 
+
+// ─── SPELL TRADITIONS ─────────────────────────────────────────────────────────
+// Each tradition has spells at ranks 0-3 usable in our combat system.
+// Rank 0 = free (no casting spent), Rank 1+ = costs 1 casting.
+// Attack spells deal damage (INT mod x2 bonus). Utility spells have special effects.
+const TRADITIONS = {
+  fire: {
+    label:'Fire',
+    spells:[
+      {name:'Flame Missile',   rank:0, type:'attack', dmg:'1d6',  desc:'A bolt of fire — 1d6 + INT×2 damage.'},
+      {name:'Fire Blast',      rank:1, type:'attack', dmg:'2d6',  desc:'Cone of flame — 2d6 + INT×2 damage.'},
+      {name:'Fireball',        rank:2, type:'attack', dmg:'3d6',  desc:'Explosive sphere — 3d6 + INT×2 damage.'},
+      {name:'Conflagration',   rank:3, type:'attack', dmg:'5d6',  desc:'Massive fire explosion — 5d6 + INT×2 damage.'},
+    ]
+  },
+  life: {
+    label:'Life',
+    spells:[
+      {name:'Minor Healing',   rank:0, type:'heal',   dmg:'1d6',  desc:'Heals 1d6 + WIL mod HP.'},
+      {name:'Light Healing',   rank:1, type:'heal',   dmg:'2d6',  desc:'Heals 2d6 + WIL mod HP.'},
+      {name:'Moderate Healing',rank:2, type:'heal',   dmg:'3d6',  desc:'Heals 3d6 + WIL mod HP.'},
+      {name:'Vitality Burst',  rank:3, type:'heal',   dmg:'4d6',  desc:'Burst of life — heals 4d6 + WIL mod HP.'},
+    ]
+  },
+  death: {
+    label:'Death (Necromancy)',
+    spells:[
+      {name:'Spectral Grasp',  rank:0, type:'attack', dmg:'1d6',  desc:'Necrotic bolt — 1d6 + INT×2 damage.'},
+      {name:'Grave Grasp',     rank:1, type:'attack', dmg:'2d6',  desc:'Death energy — 2d6 + INT×2 damage, heals you for half.', lifeLeech:true},
+      {name:'Bone Splinters',  rank:2, type:'attack', dmg:'3d6',  desc:'Shards of bone — 3d6 + INT×2 damage.'},
+      {name:'Harvest Soul',    rank:3, type:'attack', dmg:'4d6',  desc:'Soul rend — 4d6 + INT×2 damage.'},
+    ]
+  },
+  shadow: {
+    label:'Shadow',
+    spells:[
+      {name:'Shadow Bolt',     rank:0, type:'attack', dmg:'1d6',  desc:'Missile of darkness — 1d6 + INT×2 damage.'},
+      {name:'Darksight',       rank:1, type:'utility',dmg:'0',    desc:'You gain darksight and +2 Defense until next rest.', defBonus:2},
+      {name:'Shadow Strike',   rank:2, type:'attack', dmg:'3d6',  desc:'Shadow energy — 3d6 + INT×2 damage, ignores armor.'},
+      {name:'Enervation',      rank:3, type:'attack', dmg:'5d6',  desc:'Drain of shadows — 5d6 + INT×2 damage.'},
+    ]
+  },
+  battle: {
+    label:'Battle',
+    spells:[
+      {name:'Augmented Attack',rank:0, type:'utility',dmg:'0',    desc:'Your next attack deals +1d6 damage.', dmgBuff:true},
+      {name:'Close Wounds',    rank:1, type:'heal',   dmg:'1d6',  desc:'Battle magic closes wounds — 1d6 + WIL mod HP.'},
+      {name:'Battle Prowess',  rank:2, type:'utility',dmg:'0',    desc:'All allies gain 1 boon on attacks this round.', groupBoon:true},
+      {name:'Meteoric Assault',rank:3, type:'attack', dmg:'4d6',  desc:'Arcane assault — 4d6 + INT×2 damage.'},
+    ]
+  },
+  celestial: {
+    label:'Celestial',
+    spells:[
+      {name:'Burning Beam',    rank:0, type:'attack', dmg:'1d6',  desc:'Beam of holy light — 1d6 + INT×2 damage.'},
+      {name:'Flash',           rank:1, type:'attack', dmg:'2d6',  desc:'Blinding flash — 2d6 + INT×2 damage.'},
+      {name:'Radiation',       rank:2, type:'attack', dmg:'3d6',  desc:'Divine radiation — 3d6 + INT×2 damage.'},
+      {name:'Rainbow Burst',   rank:3, type:'attack', dmg:'5d6',  desc:'Prismatic explosion — 5d6 + INT×2 damage.'},
+    ]
+  },
+  chaos: {
+    label:'Chaos',
+    spells:[
+      {name:'Chaos Boon',      rank:0, type:'utility',dmg:'0',    desc:'Twist fate — reroll any one die this round.', reroll:true},
+      {name:'Fold Space',      rank:1, type:'utility',dmg:'0',    desc:'Warp — teleport, gain +2 Defense until next turn.', defBonus:2},
+      {name:'Singularity',     rank:2, type:'attack', dmg:'4d6',  desc:'Chaos implosion — 4d6 + INT×2 damage.'},
+      {name:'Rend Reality',    rank:3, type:'attack', dmg:'6d6',  desc:'Reality tears — 6d6 + INT×2 damage.'},
+    ]
+  },
+  earth: {
+    label:'Earth',
+    spells:[
+      {name:'Earth Spike',     rank:0, type:'attack', dmg:'1d6',  desc:'Stone spike — 1d6 + INT×2 damage.'},
+      {name:'Avalanche',       rank:1, type:'attack', dmg:'2d6',  desc:'Crushing rocks — 2d6 + INT×2 damage.'},
+      {name:'Eruption',        rank:2, type:'attack', dmg:'3d6',  desc:'Ground erupts — 3d6 + INT×2 damage to all enemies.'},
+      {name:'Earthquake',      rank:3, type:'attack', dmg:'5d6',  desc:'Seismic blast — 5d6 + INT×2 damage, enemy stunned.'},
+    ]
+  },
+  storm: {
+    label:'Storm',
+    spells:[
+      {name:'Forked Lightning', rank:0,type:'attack', dmg:'1d6',  desc:'Lightning bolt — 1d6 + INT×2 damage.'},
+      {name:'Freezing Fog',     rank:1,type:'attack', dmg:'2d6',  desc:'Icy fog — 2d6 + INT×2 damage.'},
+      {name:'Lightning Bolt',   rank:2,type:'attack', dmg:'3d6',  desc:'Crackling bolt — 3d6 + INT×2 damage.'},
+      {name:"Leaping Lightning",rank:3,type:'attack', dmg:'5d6',  desc:'Chain lightning — 5d6 + INT×2 damage.'},
+    ]
+  },
+  protection: {
+    label:'Protection',
+    spells:[
+      {name:'Force Field',     rank:0, type:'utility',dmg:'0',    desc:'+2 Defense until start of your next turn.', defBonus:2},
+      {name:'Evade',           rank:1, type:'utility',dmg:'0',    desc:'Magical evasion — gain 1 boon on all Defense rolls this round.', evasionBuff:true},
+      {name:'Vigor',           rank:2, type:'heal',   dmg:'2d6',  desc:'Protective vigor — heal 2d6 + WIL mod HP.'},
+      {name:'Protective Field',rank:3, type:'utility',dmg:'0',    desc:'All allies gain +3 Defense until your next turn.', groupDefBonus:3},
+    ]
+  },
+  illusion: {
+    label:'Illusion',
+    spells:[
+      {name:'Figment',         rank:0, type:'utility',dmg:'0',    desc:'Distract the enemy — it attacks with 1 bane next round.', enemyBane:true},
+      {name:'Decoy',           rank:1, type:'utility',dmg:'0',    desc:'Create a decoy — gain 1 boon on Defense this round.', defBoon:true},
+      {name:'Phantasm',        rank:2, type:'attack', dmg:'3d6',  desc:'Illusory horror — 3d6 + INT×2 psychic damage.'},
+      {name:'Mirage',          rank:3, type:'utility',dmg:'0',    desc:'Total illusion — enemy misses its next attack.', enemyMiss:true},
+    ]
+  },
+  nature: {
+    label:'Nature',
+    spells:[
+      {name:'Oak Hide',        rank:0, type:'utility',dmg:'0',    desc:'Bark skin — +2 Defense until next rest.', defBonus:2},
+      {name:'Healing Berries', rank:1, type:'heal',   dmg:'2d6',  desc:'Natural healing — 2d6 + WIL mod HP.'},
+      {name:'Wrath of Nature', rank:2, type:'attack', dmg:'3d6',  desc:'Thorns and roots — 3d6 + INT×2 damage.'},
+      {name:'Overgrowth',      rank:3, type:'attack', dmg:'5d6',  desc:'Crushing vines — 5d6 + INT×2 damage.'},
+    ]
+  },
+  transformation: {
+    label:'Transformation',
+    spells:[
+      {name:'Beast Within',    rank:0, type:'utility',dmg:'0',    desc:'Channel beast — +1d6 damage on next attack.', dmgBuff:true},
+      {name:'Bounding Step',   rank:1, type:'utility',dmg:'0',    desc:'Blur of motion — gain 1 boon on next attack.', atkBoon:true},
+      {name:'Mist Form',       rank:2, type:'utility',dmg:'0',    desc:'Become mist — enemy attacks miss this round.', untouchable:true},
+      {name:'Speed Healing',   rank:3, type:'heal',   dmg:'3d6',  desc:'Rapid regeneration — 3d6 + WIL mod HP.'},
+    ]
+  },
+  time: {
+    label:'Time',
+    spells:[
+      {name:'Swiftness',       rank:0, type:'utility',dmg:'0',    desc:'Haste — take two actions this round.', extraAction:true},
+      {name:'Rewrite Moment',  rank:1, type:'utility',dmg:'0',    desc:'Rewind a miss — reroll your last attack.', reroll:true},
+      {name:'Precognition',    rank:2, type:'utility',dmg:'0',    desc:'+2 Defense and 1 boon on all rolls this round.', fullBuff:true},
+      {name:'Time Jump',       rank:3, type:'utility',dmg:'0',    desc:'Skip enemy turn — enemy loses its next action.', skipEnemy:true},
+    ]
+  },
+};
+
+// Helper: get spells up to rank for a power level
+function getSpellsForPower(traditionId, power) {
+  const t = TRADITIONS[traditionId];
+  if (!t) return [];
+  return t.spells.filter(s => s.rank <= Math.min(power, 3));
+}
+
 // ─── ENEMY POOLS ─────────────────────────────────────────────────────────────
 // All ATK values are 0 — hit is purely d20 vs Defense
 const ENEMY_POOLS = {
   low: [
     {name:'Skaven Clanrat',     type:'Skaven',  threat:'Low',      hp:8,  ac:12,atk:0,xp:1,gold:[2,8]},
-    {name:'Beastman Gor',       type:'Chaos',   threat:'Low',      hp:12, ac:13,atk:0,xp:1,gold:[3,10]},
+    {name:'Beastman Gor',       type:'Chaos',   threat:'Low',      hp:12, ac:13,atk:0,xp:1,gold:[3,10],chaos:true},
     {name:'Undead Skeleton',    type:'Undead',  threat:'Low',      hp:15, ac:10,atk:0,xp:1,gold:[0,5],  undead:true},
-    {name:'Mutant Thug',        type:'Cultist', threat:'Low',      hp:10, ac:11,atk:0,xp:1,gold:[5,15]},
+    {name:'Mutant Thug',        type:'Cultist', threat:'Low',      hp:10, ac:11,atk:0,xp:1,gold:[5,15],chaos:true},
   ],
   mid: [
-    {name:'Chaos Marauder',     type:'Chaos',   threat:'Moderate', hp:20, ac:14,atk:2,xp:2,gold:[10,25]},
+    {name:'Chaos Marauder',     type:'Chaos',   threat:'Moderate', hp:20, ac:14,atk:2,xp:2,gold:[10,25],chaos:true},
     {name:'Skaven Stormvermin', type:'Skaven',  threat:'Moderate', hp:18, ac:15,atk:2,xp:2,gold:[8,20]},
     {name:'Wight',              type:'Undead',  threat:'Moderate', hp:28, ac:12,atk:2,xp:2,gold:[5,15],  undead:true,lifeLeech:true},
-    {name:'Plague Monk',        type:'Chaos',   threat:'Moderate', hp:19, ac:13,atk:2,xp:2,gold:[0,0],   diseased:true},
+    {name:'Plague Monk',        type:'Chaos',   threat:'Moderate', hp:19, ac:13,atk:2,xp:2,gold:[0,0],   diseased:true,chaos:true},
   ],
   high: [
-    {name:'Chaos Warrior',      type:'Chaos',   threat:'High',     hp:35, ac:16,atk:3,xp:3,gold:[15,40]},
+    {name:'Chaos Warrior',      type:'Chaos',   threat:'High',     hp:35, ac:16,atk:3,xp:3,gold:[15,40],chaos:true},
     {name:'Vampire Count',      type:'Undead',  threat:'High',     hp:40, ac:15,atk:3,xp:3,gold:[20,60], undead:true,lifeLeech:true},
-    {name:'Bloodletter',        type:'Daemon',  threat:'High',     hp:45, ac:15,atk:3,xp:3,gold:[25,50], insanityAtk:true},
+    {name:'Bloodletter',        type:'Daemon',  threat:'High',     hp:45, ac:15,atk:3,xp:3,gold:[25,50], insanityAtk:true,chaos:true},
     {name:'Skaven Warlord',     type:'Skaven',  threat:'High',     hp:32, ac:14,atk:3,xp:3,gold:[10,30], diseased:true},
   ],
   // Boss 1 (depth 10) — random, ATK +0
   boss1: [
     {name:'Skaven Warlord Gnashteeth', type:'Skaven Boss', threat:'Boss',hp:80, ac:15,atk:0,xp:5,gold:[30,80]},
-    {name:'Beastlord Kragthor',        type:'Chaos Boss',  threat:'Boss',hp:95, ac:16,atk:0,xp:5,gold:[25,70]},
+    {name:'Beastlord Kragthor',        type:'Chaos Boss',  threat:'Boss',hp:95, ac:16,atk:0,xp:5,gold:[25,70],chaos:true},
   ],
   // Boss 2 (depth 20) — random, ATK +3
   boss2: [
-    {name:'Varghulf',            type:'Undead Boss', threat:'Boss',hp:120,ac:15,atk:3,xp:5,gold:[40,100],undead:true,lifeLeech:true,regen:true},
-    {name:'Bonebreaker Ratogre', type:'Daemon Boss', threat:'Boss',hp:120,ac:16,atk:3,xp:5,gold:[50,120],insanityAtk:true},
+    {name:'Varghulf',            type:'Undead Boss', threat:'Boss',hp:138,ac:15,atk:3,xp:5,gold:[200,200],undead:true,lifeLeech:true,regen:true},
+    {name:'Bonebreaker Ratogre', type:'Daemon Boss', threat:'Boss',hp:138,ac:16,atk:3,xp:5,gold:[200,200],insanityAtk:true},
   ],
   // Boss 3 (depth 30) — always Saurian Ancient, ATK +4
   boss3: [
-    {name:'Saurian Ancient',     type:'Ancient Boss',threat:'Boss',hp:200,ac:15,atk:4,xp:5,gold:[60,150]},
+    {name:'Saurian Ancient',     type:'Ancient Boss',threat:'Boss',hp:250,ac:15,atk:4,xp:5,gold:[60,150]},
   ],
 };
 
@@ -268,7 +409,8 @@ function enemyDmgDice(threat, isElite, bossCount) {
 
 function scaleEnemy(tmpl, playerCount, isElite, bossCount) {
   const e = JSON.parse(JSON.stringify(tmpl));
-  e.hp = e.maxHp = Math.round(e.hp * (1 + (playerCount-1)*0.5));
+  const bossHpMult = (bossCount > 0 && e.threat !== 'Boss') ? 1.15 : 1.0;
+  e.hp = e.maxHp = Math.round(e.hp * (1 + (playerCount-1)*0.5) * bossHpMult);
   e.conditions = []; e.isElite = isElite;
   const dd = enemyDmgDice(e.threat, isElite, bossCount);
   e.dmgNum=dd.n; e.dmgSides=dd.s; e.dmgBonus=dd.b;
@@ -344,13 +486,13 @@ function buildChar(career) {
     // Equipment
     equippedWeapon:startWpn, equippedArmor:startArmor,
     weaponDmgBonus:0, weaponAtkBonus:0,
-    scrollSpells:{}, stimulantBoon:0, sharpeningStone:false, luckyPendant:false,
+    traditions:[], scrollSpells:{}, stimulantBoon:0, sharpeningStone:false, luckyPendant:false,
     alive:true,
     spellcaster:c.spellcaster, tradition:c.tradition||null,
     knownSpells:c.spellcaster
       ? (c.tradition==='fire'
-          ? [{name:'Ignite',rank:0,heal:false,dmg:'1d6'},{name:'Burning Hands',rank:1,heal:false,dmg:'3d6'}]
-          : [{name:'Minor Healing',rank:0,heal:true,dmg:'1d6'},{name:'Light Healing',rank:1,heal:true,dmg:'2d6'}])
+          ? getSpellsForPower('fire',1)
+          : getSpellsForPower('life',1))
       : [],
     merchantStock:null, lootOptions:null, pendingRevive:false,
   };
@@ -377,6 +519,8 @@ function rollAttack(char, enemy, extraBoons=0) {
   if (char.weaponTraining) boons++;
   if (char.stimulantBoon>0) { boons++; char.stimulantBoon--; }
   if (extraBoons) boons+=extraBoons;
+  if (char.holyFervor && enemy && (enemy.undead||enemy.chaos)) boons++; // boon vs undead/chaos
+  if (char.warlordAura) boons++; // aura from warlord
   if (char.conditions.includes('Frightened')) banes++;
   if (char.conditions.includes('Stunned'))    banes++;
   const forceCrit=char.luckyPendant; if(forceCrit) char.luckyPendant=false;
@@ -435,7 +579,18 @@ function checkLevelUp(char) {
     if (newLevel===1&&!char.novicePath) { char.pendingLevelUp=true; char.pendingPathTier='novice'; }
     else if (newLevel===3&&!char.expertPath) { char.pendingLevelUp=true; char.pendingPathTier='expert'; }
     else if (newLevel===7&&!char.masterPath) { char.pendingLevelUp=true; char.pendingPathTier='master'; }
+    // Spellcasters gain a new tradition or new spells at levels 2,4,6,8,10
+    else if (char.spellcaster && [2,4,6,8,10].includes(newLevel)) {
+      char.pendingLevelUp=true; char.pendingPathTier='tradition';
+    }
     else { char.pendingLevelUp=false; }
+    // Refresh known spells from all traditions whenever power changes
+    if (char.traditions && char.traditions.length) {
+      char.traditions.forEach(tId=>{
+        const newSpells=getSpellsForPower(tId,char.power);
+        newSpells.forEach(sp=>{if(!char.knownSpells.find(k=>k.name===sp.name))char.knownSpells.push({...sp,heal:sp.type==='heal'});});
+      });
+    }
     const hpGain=getPathHpGain(char, newLevel);
     char.maxHealth+=hpGain; char.health=Math.min(char.health+hpGain,char.maxHealth);
     return {leveled:true,newLevel,hpGain};
@@ -705,12 +860,14 @@ function resolveEnemyDeath(room) {
   });
   const survivors=room.players.filter(p=>p.char&&p.char.alive);
   const xpEach=Math.max(1, Math.floor(e.xp * 0.75)); // 25% XP reduction
-  // Boss 1 gold: flat 150 per survivor. Other enemies: normal roll halved.
+  // Boss gold: flat per survivor. Other enemies: roll halved.
   let goldTotal;
   if (e.threat==='Boss' && gs.bossCount===0) {
-    goldTotal = 150 * survivors.length; // 150 per survivor for first boss
+    goldTotal = 150 * survivors.length; // 150 per survivor — boss 1
+  } else if (e.threat==='Boss' && gs.bossCount===1) {
+    goldTotal = 200 * survivors.length; // 200 per survivor — boss 2
   } else {
-    goldTotal=e.gold?Math.floor(rd(e.gold[0]||1,e.gold[1]||6)*0.5):0;
+    goldTotal=e.gold?Math.floor((e.gold[0]+Math.floor(Math.random()*(e.gold[1]-e.gold[0]+1)))*0.5):0;
   }
   const goldEach=Math.floor(goldTotal/Math.max(1,survivors.length));
   addLog(room,`Each survivor: +<strong>${xpEach} XP</strong>, +<strong>${goldEach} silver</strong>.`,'loot');
@@ -945,7 +1102,19 @@ function handlePlayerAction(room,playerId,payload,ws){
   if(action==='APPLY_PATH'){
     if(!char.pendingLevelUp)return;
     const tier=char.pendingPathTier||'novice';
-    if(tier==='novice'){applyNovicePath(char,data.pathId);addLog(room,`${player.name} walks the <strong>${data.pathId}</strong> novice path.`,'spell');}
+    if(tier==='tradition'){
+      // Handle tradition:id format
+      const tradId=data.pathId.replace('tradition:','');
+      if(TRADITIONS[tradId]&&!char.traditions.includes(tradId)){
+        char.traditions.push(tradId);
+        // Grant spells up to current power level
+        const newSpells=getSpellsForPower(tradId,char.power);
+        newSpells.forEach(sp=>{if(!char.knownSpells.find(k=>k.name===sp.name))char.knownSpells.push({...sp,heal:sp.type==='heal'});});
+        addLog(room,`${player.name} learns the <strong>${TRADITIONS[tradId].label}</strong> tradition!`,'spell');
+      }
+      char.pendingLevelUp=false; char.pendingPathTier=null;
+    }
+    else if(tier==='novice'){applyNovicePath(char,data.pathId);addLog(room,`${player.name} walks the <strong>${data.pathId}</strong> novice path.`,'spell');}
     else if(tier==='expert'){applyExpertPath(char,data.pathId);addLog(room,`${player.name} chooses the <strong>${EXPERT_PATHS[data.pathId]?.label}</strong> expert path.`,'spell');}
     else if(tier==='master'){applyMasterPath(char,data.pathId);addLog(room,`${player.name} ascends the <strong>${MASTER_PATHS[data.pathId]?.label}</strong> master path.`,'spell');}
     return;
@@ -1017,40 +1186,63 @@ function handlePlayerAction(room,playerId,payload,ws){
   }
   else if(action==='CAST_SPELL'){
     const spell=char.knownSpells.find(s=>s.name===data.spellName); if(!spell)return;
-    // Spell surge: cast for free once per combat
     const freeCast=char.spellsurge&&!char.spellsurgeUsed&&data.useSurge;
     if(freeCast){char.spellsurgeUsed=true;addLog(room,`${player.name} uses Spell Surge!`,'spell');}
     else if(spell.rank>0&&char.power-char.castingsUsed<=0){addLog(room,`${player.name}: no castings left.`,'sys');return;}
     if(!freeCast&&spell.rank>0)char.castingsUsed++;
-    if(spell.heal){
-      const[n,s]=spell.dmg.split('d').map(Number);
-      const roll=rd(n,s); const wilMod=Math.max(0,modVal(char.attrs.wil)); const amt=roll+wilMod;
-      const targetPlayer=data.targetId?room.players.find(p=>p.id===data.targetId&&p.char&&p.char.alive):null;
-      const target=targetPlayer?targetPlayer.char:char;
-      const targetName=targetPlayer?targetPlayer.name:player.name;
-      // Mass Heal: heal all allies
-      if(spell.name==='Mass Heal'){
-        if(char.massHealUsed){addLog(room,`${player.name}: Mass Heal already used.`,'sys');return;}
-        char.massHealUsed=true;
-        room.players.forEach(p=>{ if(p.char&&p.char.alive){const h=rd(1,6);p.char.health=Math.min(p.char.maxHealth,p.char.health+h);addLog(room,`${p.name} healed for ${h} HP.`,'heal');} });
-      } else if(spell.name==='Miracle Heal'){
-        if(char.miracleUsed){addLog(room,`${player.name}: Miracle Heal already used.`,'sys');return;}
-        char.miracleUsed=true;
-        target.health=target.maxHealth;
-        addLog(room,`${player.name} casts Miracle Heal on ${targetName} — fully restored!`,'heal');
-      } else {
-        target.health=Math.min(target.maxHealth,target.health+amt);
-        addLog(room,`${player.name} casts <strong>${spell.name}</strong> on ${targetName} — ${n}d${s}(${roll})+${wilMod} WIL = +<strong>${amt}</strong> HP.`,'heal');
+
+    // ── HEAL spells ──
+    if(spell.type==='heal'||spell.heal){
+      const dStr=spell.dmg||spell.dmgDice||'1d6'; if(dStr==='0'){addLog(room,`${player.name} casts ${spell.name}.`,'spell');acted=true;}
+      else {
+        const[n,s]=dStr.split('d').map(Number);
+        const roll=rd(n,s); const wilMod=Math.max(0,modVal(char.attrs.wil)); const amt=roll+wilMod;
+        const targetPlayer=data.targetId?room.players.find(p=>p.id===data.targetId&&p.char&&p.char.alive):null;
+        const target=targetPlayer?targetPlayer.char:char;
+        const targetName=targetPlayer?targetPlayer.name:player.name;
+        if(spell.name==='Mass Heal'){
+          if(char.massHealUsed){addLog(room,`${player.name}: Mass Heal already used.`,'sys');return;}
+          char.massHealUsed=true;
+          room.players.forEach(p=>{ if(p.char&&p.char.alive){const h=rd(1,6);p.char.health=Math.min(p.char.maxHealth,p.char.health+h);addLog(room,`${p.name} healed for ${h} HP.`,'heal');} });
+        } else if(spell.name==='Miracle Heal'){
+          if(char.miracleUsed){addLog(room,`${player.name}: Miracle Heal already used.`,'sys');return;}
+          char.miracleUsed=true; target.health=target.maxHealth;
+          addLog(room,`${player.name} casts Miracle Heal on ${targetName} — fully restored!`,'heal');
+        } else {
+          target.health=Math.min(target.maxHealth,target.health+amt);
+          addLog(room,`${player.name} casts <strong>${spell.name}</strong> on ${targetName} — ${n}d${s}(${roll})+${wilMod} WIL = +<strong>${amt}</strong> HP.`,'heal');
+        }
       }
-    } else {
-      const[n,s]=spell.dmg.split('d').map(Number); let roll=rd(n,s);
+    }
+    // ── UTILITY spells ──
+    else if(spell.type==='utility'){
+      if(spell.defBonus){char.defense+=spell.defBonus;addLog(room,`${player.name} casts <strong>${spell.name}</strong> — +${spell.defBonus} Defense this round.`,'spell');}
+      else if(spell.dmgBuff){char.stimulantBoon=1;addLog(room,`${player.name} casts <strong>${spell.name}</strong> — next attack deals +1d6 damage.`,'spell');}
+      else if(spell.atkBoon){char.stimulantBoon=(char.stimulantBoon||0)+1;addLog(room,`${player.name} casts <strong>${spell.name}</strong> — 1 boon on next attack.`,'spell');}
+      else if(spell.groupBoon){addLog(room,`${player.name} casts <strong>${spell.name}</strong> — all allies gain 1 boon on attacks this round.`,'spell');}
+      else if(spell.groupDefBonus){room.players.forEach(p=>{if(p.char&&p.char.alive)p.char.defense+=spell.groupDefBonus;});addLog(room,`${player.name} casts <strong>${spell.name}</strong> — all allies +${spell.groupDefBonus} Defense this round.`,'spell');}
+      else if(spell.enemyBane){if(gs.enemy){gs.enemy.atk=Math.max(-3,gs.enemy.atk-2);addLog(room,`${player.name} casts <strong>${spell.name}</strong> — ${gs.enemy.name} attacks with 1 bane.`,'spell');}}
+      else if(spell.enemyMiss){if(gs.enemy){gs.enemy._missNext=true;addLog(room,`${player.name} casts <strong>${spell.name}</strong> — ${gs.enemy.name} misses next attack!`,'spell');}}
+      else if(spell.reroll){addLog(room,`${player.name} casts <strong>${spell.name}</strong> — may reroll one die this round.`,'spell');}
+      else if(spell.untouchable){char.defense+=10;addLog(room,`${player.name} casts <strong>${spell.name}</strong> — untouchable this round!`,'spell');}
+      else if(spell.skipEnemy){if(gs.enemy){gs.enemy._skipTurn=true;addLog(room,`${player.name} casts <strong>${spell.name}</strong> — ${gs.enemy.name} loses its next action!`,'spell');}}
+      else if(spell.fullBuff){char.defense+=2;char.stimulantBoon=(char.stimulantBoon||0)+1;addLog(room,`${player.name} casts <strong>${spell.name}</strong> — +2 Defense and 1 boon on all rolls.`,'spell');}
+      else{addLog(room,`${player.name} casts <strong>${spell.name}</strong>.`,'spell');}
+    }
+    // ── ATTACK spells ──
+    else {
+      if(!gs.enemy){addLog(room,`${player.name}: no target.`,'sys');return;}
+      const dStr=spell.dmg||spell.dmgDice||'1d6';
+      const[n,s]=dStr.split('d').map(Number); const roll=rd(n,s);
       const intMod=Math.max(0,modVal(char.attrs.int))*2;
-      // Burning Soul: fire spells +1d6
       let burnBonus=0;
-      if(char.burningSoul&&(spell.name==='Ignite'||spell.name==='Burning Hands'||spell.name==='Firewall')){burnBonus=rd(1,6);}
-      const total=roll+intMod+burnBonus;
+      const fireNames=['Flame Missile','Fire Blast','Fireball','Conflagration','Burning Hands','Firewall'];
+      if(char.burningSoul&&fireNames.includes(spell.name)){burnBonus=rd(1,6);}
+      let total=roll+intMod+burnBonus;
+      // Life Leech spells heal caster for half
+      if(spell.lifeLeech){const heal=Math.floor(total/2);char.health=Math.min(char.maxHealth,char.health+heal);addLog(room,`${player.name} leeches ${heal} HP!`,'heal');}
       gs.enemy.hp-=total;
-      addLog(room,`${player.name} casts <strong>${spell.name}</strong> — ${n}d${s}(${roll})+${intMod} INT${burnBonus?'+'+burnBonus+' burn':''} = <strong>${total}</strong> dmg!`,'spell');
+      addLog(room,`${player.name} casts <strong>${spell.name}</strong> — ${n}d${s}(${roll})+${intMod} INT${burnBonus?'+'+burnBonus+' burn':''} = <strong>${total}</strong> dmg! [${gs.enemy.name} ${Math.max(0,gs.enemy.hp)}/${gs.enemy.maxHp} HP]`,'spell');
       if(gs.enemy.hp<=0){resolveEnemyDeath(room);return;}
     }
     acted=true;
