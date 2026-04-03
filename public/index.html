@@ -178,6 +178,40 @@ input::placeholder{color:var(--text-dim);font-style:italic;}
 .end-sub{color:var(--parch-dark);font-size:15px;line-height:1.7;max-width:480px;margin:0 auto 20px;}
 
 @media(max-width:880px){.game-grid{grid-template-columns:1fr;}.action-grid{grid-template-columns:1fr 1fr;}.path-nodes,.loot-opts{grid-template-columns:1fr 1fr;}.shop-grid,.pp-grid,.lobby-wrap{grid-template-columns:1fr;}}
+
+/* ── BATTLE UI ── */
+.battle-arena{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center;padding:10px 0;min-height:200px;}
+.battle-side{display:flex;flex-direction:column;gap:6px;}
+.battle-side.players{align-items:flex-start;}
+.battle-side.enemy-side{align-items:flex-end;}
+.battle-vs{font-family:'UnifrakturMaguntia',cursive;font-size:28px;color:var(--blood);opacity:.5;align-self:center;}
+.token-row{display:flex;align-items:center;gap:8px;width:100%;}
+.token-row.enemy-row{flex-direction:row-reverse;}
+.token-wrap{position:relative;flex-shrink:0;}
+.token-img{width:70px;height:70px;border-radius:50%;object-fit:cover;border:2px solid var(--border-bright);display:block;transition:transform .2s;}
+.token-img.fallen{filter:grayscale(1) brightness(.4);transform:rotate(90deg);}
+.token-img.acted{border-color:#4a9a4a;box-shadow:0 0 8px rgba(74,154,74,.5);}
+.token-img.my-token{border-color:var(--gold);box-shadow:0 0 10px rgba(201,162,53,.4);}
+.token-img.enemy-token{border-color:var(--blood);box-shadow:0 0 10px rgba(139,26,26,.4);}
+.token-info{flex:1;min-width:0;}
+.token-name{font-family:'Cinzel',serif;font-size:10px;color:var(--gold);letter-spacing:.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.token-career{font-size:9px;color:var(--text-dim);margin-bottom:3px;}
+.token-hp-bar{height:4px;border-radius:2px;overflow:hidden;background:rgba(60,10,10,.5);margin-top:2px;}
+.token-hp-fill{height:100%;border-radius:2px;transition:width .4s;}
+.token-hp-text{font-size:9px;color:var(--text-dim);margin-top:1px;font-family:'Cinzel',serif;}
+.token-badge{font-size:8px;font-family:'Cinzel',serif;padding:1px 4px;border-radius:4px;margin-top:2px;display:inline-block;}
+.badge-acted{background:rgba(40,80,40,.3);color:#80c080;border:1px solid rgba(50,120,50,.4);}
+.badge-fallen{background:rgba(100,10,10,.3);color:#cc4040;border:1px solid rgba(160,20,20,.4);}
+.badge-me{background:rgba(150,100,0,.2);color:var(--gold);border:1px solid rgba(200,150,0,.4);}
+.enemy-name-big{font-family:'UnifrakturMaguntia',cursive;font-size:16px;color:var(--blood-bright);text-align:right;line-height:1.1;}
+.enemy-threat-badge{font-size:9px;font-family:'Cinzel',serif;padding:1px 5px;border-radius:4px;text-align:right;}
+.threat-low{color:#80b080;border:1px solid rgba(80,140,80,.4);background:rgba(30,60,30,.3);}
+.threat-mid{color:#c09040;border:1px solid rgba(180,130,50,.4);background:rgba(60,40,10,.3);}
+.threat-high{color:#cc5050;border:1px solid rgba(180,40,40,.4);background:rgba(80,20,20,.3);}
+.threat-boss{color:var(--gold-bright);border:1px solid rgba(200,160,50,.5);background:rgba(80,50,0,.4);animation:pulse 1.5s infinite;}
+.enemy-stats-mini{display:flex;gap:6px;font-size:9px;color:var(--text-dim);justify-content:flex-end;flex-wrap:wrap;margin-top:3px;}
+.enemy-stats-mini span{color:var(--parch);}
+.no-token{width:70px;height:70px;border-radius:50%;background:rgba(30,20,8,.8);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;}
 </style>
 </head>
 <body>
@@ -254,18 +288,21 @@ input::placeholder{color:var(--text-dim);font-style:italic;}
       </div>
       <div class="panel narrative" id="g-narrative"></div>
 
-      <!-- Enemy -->
-      <div class="panel enemy-panel" id="g-enemy-panel">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:7px">
-          <div><div class="enemy-name" id="e-name">Enemy</div><div class="enemy-sub" id="e-type">Beast</div></div>
-          <div style="font-family:'Cinzel',serif;font-size:11px;color:var(--blood);text-align:right" id="e-hp-val">10/10</div>
+      <!-- BATTLE ARENA -->
+      <div class="panel" id="g-battle-panel" style="display:none;padding:10px 14px">
+        <div class="battle-arena">
+          <!-- Players left -->
+          <div class="battle-side players" id="battle-players"></div>
+          <div class="battle-vs">VS</div>
+          <!-- Enemy right -->
+          <div class="battle-side enemy-side" id="battle-enemy"></div>
         </div>
-        <div class="bar-track enemy-track" style="margin-bottom:6px"><div class="enemy-fill" id="e-hp-bar" style="width:100%"></div></div>
-        <div class="enemy-stats">
-          <div>Def <span id="e-def">10</span></div>
-          <div>ATK <span id="e-atk">+2</span></div>
-          <div>DMG <span id="e-dmg">1d6</span></div>
-          <div>Threat <span id="e-cr">Low</span></div>
+        <!-- hidden compat fields for other code -->
+        <div style="display:none">
+          <span id="e-name"></span><span id="e-type"></span><span id="e-hp-val"></span>
+          <div id="e-hp-bar"></div><span id="e-def"></span><span id="e-atk"></span>
+          <span id="e-dmg"></span><span id="e-cr"></span>
+          <div class="enemy-panel" id="g-enemy-panel"></div>
         </div>
       </div>
 
@@ -417,6 +454,7 @@ function renderState(state){
 
   renderLog(gs.log);
   renderEnemy(gs.enemy);
+  renderBattleArena(gs,players,me);
   renderPlayerCards(players,gs);
   renderActions(gs,players,me);
 
@@ -441,21 +479,73 @@ function renderLog(log){
 }
 
 function renderEnemy(enemy){
-  const panel=document.getElementById('g-enemy-panel');
-  if(!enemy){panel.classList.remove('vis');return;}
-  panel.classList.add('vis');
-  document.getElementById('e-name').textContent=enemy.name;
-  document.getElementById('e-type').textContent=enemy.type+(enemy.isElite?' (Elite)':'');
-  document.getElementById('e-def').textContent=enemy.ac;
-  document.getElementById('e-atk').textContent=(enemy.atk>=0?'+':'')+enemy.atk;
-  document.getElementById('e-dmg').textContent=enemy.dmgDisplay||`${enemy.dmgNum}d${enemy.dmgSides}${enemy.dmgBonus?'+'+enemy.dmgBonus:''}`;
-  document.getElementById('e-cr').textContent=enemy.threat;
-  const pct=Math.max(0,enemy.hp/enemy.maxHp*100);
-  document.getElementById('e-hp-bar').style.width=pct+'%';
-  document.getElementById('e-hp-val').textContent=Math.max(0,enemy.hp)+'/'+enemy.maxHp;
+  // Legacy compat — main display now in battle arena
+  if(!enemy){ document.getElementById('g-battle-panel').style.display='none'; return; }
+  document.getElementById('g-battle-panel').style.display='block';
 }
 
-function modStr(score){const m=score-10;return(m>=0?'+':'')+m;}
+function renderBattleArena(gs, players, me){
+  const panel=document.getElementById('g-battle-panel');
+  const inCombat = gs.phase==='combat' && gs.enemy;
+  panel.style.display = inCombat ? 'block' : 'none';
+  if(!inCombat) return;
+
+  const e = gs.enemy;
+
+  // ── ENEMY SIDE (right) ──
+  const enemyEl = document.getElementById('battle-enemy');
+  enemyEl.innerHTML='';
+  const tokenSrc = TOKEN_DATA[e.name];
+  const hpPct = Math.max(0, e.hp/e.maxHp*100);
+  const threatClass = e.threat==='Boss'?'threat-boss':e.threat==='Elite'||e.threat==='High'?'threat-high':e.threat==='Moderate'?'threat-mid':'threat-low';
+
+  const eRow = document.createElement('div');
+  eRow.className='token-row enemy-row';
+  eRow.innerHTML=`
+    <div class="token-info" style="text-align:right">
+      <div class="enemy-name-big">${e.name}</div>
+      <div class="enemy-threat-badge ${threatClass}">${e.threat}</div>
+      <div class="token-hp-bar" style="margin-top:4px"><div class="token-hp-fill" style="width:${hpPct}%;background:var(--blood)"></div></div>
+      <div class="token-hp-text" style="text-align:right">${Math.max(0,e.hp)}/${e.maxHp} HP</div>
+      <div class="enemy-stats-mini">Def <span>${e.ac}</span> ATK <span>${(e.atk>=0?'+':'')+e.atk}</span> DMG <span>${e.dmgDisplay||'1d6'}</span></div>
+    </div>
+    <div class="token-wrap">
+      ${tokenSrc
+        ? `<img class="token-img enemy-token" src="${tokenSrc}" alt="${e.name}">`
+        : `<div class="no-token">💀</div>`}
+    </div>`;
+  enemyEl.appendChild(eRow);
+
+  // ── PLAYERS SIDE (left) ──
+  const playersEl = document.getElementById('battle-players');
+  playersEl.innerHTML='';
+  players.forEach(p=>{
+    if(!p.char) return;
+    const c=p.char;
+    const isMe=p.id===myId;
+    const hasActed=gs.playersActedThisRound&&gs.playersActedThisRound.includes(p.id);
+    const hpPct2=Math.max(0,c.health/c.maxHealth*100);
+    const tokenSrc2=TOKEN_DATA[p.career];
+    const tokenClass=['token-img',!c.alive?'fallen':hasActed?'acted':'',isMe?'my-token':''].join(' ').trim();
+
+    const pRow=document.createElement('div');
+    pRow.className='token-row';
+    pRow.innerHTML=`
+      <div class="token-wrap">
+        ${tokenSrc2
+          ? `<img class="${tokenClass}" src="${tokenSrc2}" alt="${p.name}">`
+          : `<div class="no-token">⚔</div>`}
+      </div>
+      <div class="token-info">
+        <div class="token-name">${p.name}</div>
+        <div class="token-career">${CAREER_LABELS[p.career]||''}</div>
+        <div class="token-hp-bar"><div class="token-hp-fill" style="width:${hpPct2}%;background:${hpPct2<30?'#cc2222':hpPct2<60?'#c07020':'#2a7a2a'}"></div></div>
+        <div class="token-hp-text">${c.health}/${c.maxHealth} HP</div>
+        ${!c.alive?'<span class="token-badge badge-fallen">Fallen</span>':hasActed?'<span class="token-badge badge-acted">Acted ✓</span>':gs.phase==='combat'?'<span class="token-badge badge-me" style="'+(isMe?'':'opacity:.5')+'">'+(isMe?'Your turn':'Waiting')+'</span>':''}
+      </div>`;
+    playersEl.appendChild(pRow);
+  });
+}
 
 function renderPlayerCards(players,gs){
   const leftEl=document.getElementById('sidebar-left'),rightEl=document.getElementById('sidebar-right');
@@ -467,7 +557,6 @@ function renderPlayerCards(players,gs){
     const card=buildPlayerCard(p,hasActed,isMe,gs);
     if(isMe){
       leftEl.appendChild(card);
-      // My inventory
       const invPanel=document.createElement('div'); invPanel.className='panel';
       invPanel.innerHTML='<div class="ph">Inventory</div><ul class="inv-list" id="my-inv"></ul>';
       leftEl.appendChild(invPanel);
@@ -478,7 +567,7 @@ function renderPlayerCards(players,gs){
   });
 }
 
-function buildPlayerCard(p,hasActed,isMe,gs){
+function modStr(score){const m=score-10;return(m>=0?'+':'')+m;}
   const c=p.char,div=document.createElement('div');
   div.className='panel pcard'+(c.alive?'':' dead-overlay');
   const lvl=c.level,curXP=XP_T[Math.min(lvl,XP_T.length-1)]||0,nxtXP=XP_T[Math.min(lvl+1,XP_T.length-1)]||XP_T[XP_T.length-1];
