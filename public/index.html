@@ -242,7 +242,14 @@ input::placeholder{color:var(--text-dim);font-style:italic;}
 </head>
 <body>
 <div id="app">
-<div class="head"><h1>Shadows Over Reikland</h1><div class="sub">Co-op · Shadow of the Demon Lord</div></div>
+<div class="head">
+  <h1>Shadows Over Reikland</h1>
+  <div class="sub">Co-op · Shadow of the Demon Lord</div>
+  <div style="margin-top:8px;display:flex;align-items:center;justify-content:center;gap:12px;">
+    <button id="audio-toggle" class="btn" style="font-size:11px;padding:5px 12px" onclick="setMute(!audioMuted)">🔊 Mute</button>
+    <input type="range" min="0" max="1" step="0.05" value="0.5" style="width:90px;accent-color:var(--gold);cursor:pointer" oninput="setVolume(parseFloat(this.value))" title="Volume">
+  </div>
+</div>
 
 <!-- CONNECTING -->
 <div class="screen active" id="screen-connect">
@@ -582,13 +589,14 @@ function renderState(st){
   const{gs,players}=st;
   const me=players.find(p=>p.id===myId);
   if(!me){ updateLobbySlots(players); return; }
-  if(gs.phase==='lobby'){ show('screen-lobby'); updateLobbySlots(players); return; }
-  if(gs.phase==='gameover'){ show('screen-end'); el('end-title').className='end-title death'; el('end-title').textContent='The Warband Has Fallen'; el('end-sub').innerHTML=`Depth: <strong>${gs.depth}/30</strong>`; return; }
-  if(gs.phase==='victory'){ show('screen-end'); el('end-title').className='end-title victory'; el('end-title').textContent='Victory!'; el('end-sub').innerHTML=`The warband conquers the depths!<br>Depth: ${gs.depth}/30`; return; }
+  if(gs.phase==='lobby'){ show('screen-lobby'); updateLobbySlots(players); updateAudio(gs,players); return; }
+  if(gs.phase==='gameover'){ show('screen-end'); el('end-title').className='end-title death'; el('end-title').textContent='The Warband Has Fallen'; el('end-sub').innerHTML=`Depth: <strong>${gs.depth}/30</strong>`; updateAudio(gs,players); return; }
+  if(gs.phase==='victory'){ show('screen-end'); el('end-title').className='end-title victory'; el('end-title').textContent='Victory!'; el('end-sub').innerHTML=`The warband conquers the depths!<br>Depth: ${gs.depth}/30`; updateAudio(gs,players); return; }
   if(me.char&&me.char.pendingLevelUp&&me.char.pendingPathTier&&!pathPickPending){ showPathPick(me); return; }
   if(pathPickPending) return;
 
   show('screen-game');
+  updateAudio(gs,players);
   el('g-loc').textContent=LOCS[Math.min(gs.depth,LOCS.length-1)];
   el('g-depth').textContent=gs.depth;
   const dt=el('g-depth-track'); dt.innerHTML='';
@@ -1157,6 +1165,103 @@ function renderBestiary(){
   content.innerHTML=html;
 }
 
+// ─── AUDIO SYSTEM ────────────────────────────────────────────────────────────
+const TRACKS = {
+  lobby:      'audio/Main Theme.wav',
+  explore:    'audio/Explore Theme.wav',
+  battle:     ['audio/Battle Theme.wav', 'audio/2ndBattle Theme.wav'],
+  elite:      'audio/Elite Theme.wav',
+  boss1:      'audio/1stBoss Theme.wav',
+  boss2:      'audio/2ndBoss Theme.wav',
+  boss3:      'audio/Final Boss Theme.wav',
+  merchant:   'audio/Merchant Theme.wav',
+  victory:    'audio/Victory Theme.wav',
+  defeat:     'audio/Defeat Theme.wav',
+};
+
+let audioEl = null;
+let currentTrackKey = null;
+let audioMuted = false;
+let audioVolume = 0.5;
+
+function getTrackKey(gs, players) {
+  if (!gs) return 'lobby';
+  if (gs.phase === 'lobby')    return 'lobby';
+  if (gs.phase === 'gameover') return 'defeat';
+  if (gs.phase === 'victory')  return 'victory';
+  if (gs.phase === 'merchant') return 'merchant';
+  if (gs.phase === 'loot' || gs.phase === 'event' || gs.phase === 'path') return 'explore';
+  if (gs.phase === 'combat' && gs.enemy) {
+    const threat = gs.enemy.threat;
+    if (threat === 'Boss') {
+      // Determine which boss by bossCount (before this boss increments it)
+      if (gs.depth >= 30) return 'boss3';
+      if (gs.bossCount === 0) return 'boss1';
+      if (gs.bossCount === 1) return 'boss2';
+      return 'boss3';
+    }
+    if (threat === 'Elite') return 'elite';
+    // Normal combat — randomly pick between the two battle themes (chosen once per encounter)
+    return 'battle';
+  }
+  return 'explore';
+}
+
+function pickTrackSrc(key) {
+  const t = TRACKS[key];
+  if (!t) return null;
+  if (Array.isArray(t)) return t[Math.floor(Math.random() * t.length)];
+  return t;
+}
+
+function playTrack(key) {
+  if (key === currentTrackKey) return; // already playing
+  currentTrackKey = key;
+  const src = pickTrackSrc(key);
+  if (!src) return;
+
+  if (audioEl) { audioEl.pause(); audioEl.src = ''; }
+  audioEl = new Audio(src);
+  audioEl.loop = true;
+  audioEl.volume = audioMuted ? 0 : audioVolume;
+  audioEl.play().catch(() => {
+    // Autoplay blocked — wait for user gesture then retry
+    document.addEventListener('click', () => {
+      if (audioEl && audioEl.paused && !audioMuted) audioEl.play().catch(()=>{});
+    }, { once: true });
+  });
+}
+
+function setMute(muted) {
+  audioMuted = muted;
+  if (audioEl) audioEl.volume = muted ? 0 : audioVolume;
+  const btn = el('audio-toggle');
+  if (btn) btn.textContent = muted ? '🔇 Unmute' : '🔊 Mute';
+  localStorage.setItem('audioMuted', muted ? '1' : '0');
+}
+
+function setVolume(v) {
+  audioVolume = v;
+  if (audioEl && !audioMuted) audioEl.volume = v;
+}
+
+function initAudio() {
+  // Restore mute pref
+  if (localStorage.getItem('audioMuted') === '1') audioMuted = true;
+  playTrack('lobby');
+}
+
+// Hook audio into renderState
+const _origRenderState = window.renderState || null;
+function updateAudio(gs, players) {
+  const key = getTrackKey(gs, players);
+  // For battle, always pick a new random track on each new encounter
+  if (key === 'battle' && currentTrackKey !== 'battle') {
+    currentTrackKey = null; // force re-pick
+  }
+  playTrack(key);
+}
+
 // ─── FLOATING DAMAGE NUMBERS ─────────────────────────────────────────────────
 // We track previous HP values to detect changes and spawn floats
 const prevHp = {}; // key: playerId or 'enemy'
@@ -1209,4 +1314,5 @@ function checkFloats(gs,players){
 }
 
 connect();
+initAudio();
 </script>
