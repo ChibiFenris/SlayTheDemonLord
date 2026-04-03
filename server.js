@@ -546,7 +546,7 @@ function scaleEnemy(tmpl, playerCount, isElite, bossCount) {
   const e = JSON.parse(JSON.stringify(tmpl));
   const bossHpMult = (bossCount > 0 && e.threat !== 'Boss') ? 1.15 : 1.0;
   e.hp = e.maxHp = Math.round(e.hp * (1 + (playerCount-1)*0.5) * bossHpMult);
-  e.conditions = []; e.isElite = isElite;
+  e.conditions = []; e.activeDebuffs = []; e.isElite = isElite;
   const dd = enemyDmgDice(e.threat, isElite, bossCount);
   e.dmgNum=dd.n; e.dmgSides=dd.s; e.dmgBonus=dd.b;
   // Elite encounters: +2 ATK, +3 flat damage bonus
@@ -587,7 +587,7 @@ function buildChar(career) {
     defense:baseDefense, baseAgiDef:attrs.agi,
     perception:attrs.int,
     power:0, maxPower:0, castingPools:{}, castingsUsed:0, // castingsUsed kept for compat
-    insanity:0, corruption:0, conditions:[],
+    insanity:0, corruption:0, conditions:[], activeBuffs:[],
     inventory:[
       {name:'Healing Draught',qty:2},
       {itemObj:startWpn,name:startWpn.name,qty:1,type:'weapon'},
@@ -658,6 +658,8 @@ function rollAttack(char, enemy, extraBoons=0) {
   if (char.conditions.includes('Frightened')) banes++;
   if (char.conditions.includes('Stunned'))    banes++;
   const forceCrit=char.luckyPendant; if(forceCrit) char.luckyPendant=false;
+  // Active buff bonuses
+  const atkBuff=getBuffVal(char,'atkBoon'||0); boons+=atkBuff;
   const {base,final}=rollD20boons(boons,banes);
   const fumble=base===1&&!forceCrit, crit=forceCrit||base===20;
   const total=final+atkMod, hit=!fumble&&(crit||total>=enemy.ac);
@@ -675,6 +677,9 @@ function rollAttack(char, enemy, extraBoons=0) {
     if (char.combatExpertise) { const r=rd(1,6); dmg+=r; dmgParts.push(`+${r} expertise`); }
     if (char.sharpeningStone) { const r=rd(1,6); dmg+=r; dmgParts.push(`+${r} sharpened`); }
     if (char.trickery&&char.trickeryUsed<char.trickeryMax) { const r=rd(1,6); dmg+=r; char.trickeryUsed++; dmgParts.push(`+${r} trickery`); }
+    const dmgBuff=getBuffVal(char,'dmgBonus'); if(dmgBuff){dmg+=dmgBuff;dmgParts.push(`+${dmgBuff} buff`);}
+    const battleProwessBuff=(char.activeBuffs||[]).some(b=>b.battleProwess);
+    if(battleProwessBuff){const r=rd(1,6);dmg+=r;dmgParts.push(`+${r} prowess`);}
     dmg=Math.max(1,dmg);
   }
   const boonInfo=boons>0?` (${boons} boon)`:banes>0?` (${banes} bane)`:'';
@@ -683,18 +688,51 @@ function rollAttack(char, enemy, extraBoons=0) {
 }
 
 function rollEnemyAttack(enemy, char) {
-  const base=d(20), total=base+enemy.atk, crit=base===20;
-  const hit=base!==1&&(crit||total>=char.defense);
+  // Apply active debuffs (bane from Figment/Glamer/Vertigo)
+  const baneDebuff=getDebuffVal(enemy,'bane');
+  const skipDebuff=(enemy.activeDebuffs||[]).some(d=>d.skipTurn);
+  if(skipDebuff){ enemy.activeDebuffs=enemy.activeDebuffs.filter(d=>!d.skipTurn); return {hit:false,crit:false,dmg:0,dmgRoll:0,critRoll:0,total:0,base:0,skipped:true}; }
+  const base=d(20);
+  const boonInfo=baneDebuff>0?` (${baneDebuff} bane from debuffs)`:'';
+  const baneRoll=baneDebuff>0?Math.max(...Array.from({length:Math.min(baneDebuff,4)},()=>d(6))):0;
+  const adjBase=baneDebuff>0?Math.max(1,base-baneRoll):base;
+  const total=adjBase+enemy.atk, crit=adjBase===20;
+  const hit=adjBase!==1&&(crit||total>=char.defense);
   let dmg=0, dmgRoll=0, critRoll=0;
   if (hit) {
     dmgRoll=rd(enemy.dmgNum,enemy.dmgSides);
     dmg=dmgRoll+enemy.dmgBonus;
     if (crit) { critRoll=rd(enemy.dmgNum,enemy.dmgSides); dmg+=critRoll; }
     if (char.toughness) dmg=Math.max(0,dmg-1);
+    const dmgBuff=getBuffVal(char,'dmgBonus'); if(dmgBuff){dmg+=dmgBuff;dmgParts.push(`+${dmgBuff} buff`);}
+    const battleProwessBuff=(char.activeBuffs||[]).some(b=>b.battleProwess);
+    if(battleProwessBuff){const r=rd(1,6);dmg+=r;dmgParts.push(`+${r} prowess`);}
     dmg=Math.max(1,dmg);
   }
   return {hit,crit,dmg,dmgRoll,critRoll,total,base};
 }
+
+
+// ─── BUFF / DEBUFF SYSTEM ────────────────────────────────────────────────────
+let _buffId=0;
+function addBuff(char, name, effects, duration=1){
+  if(!char.activeBuffs) char.activeBuffs=[];
+  char.activeBuffs.push({id:_buffId++, name, duration, ...effects});
+}
+function addDebuff(enemy, name, effects, duration=1){
+  if(!enemy.activeDebuffs) enemy.activeDebuffs=[];
+  enemy.activeDebuffs.push({id:_buffId++, name, duration, ...effects});
+}
+function tickBuffs(char){
+  if(!char.activeBuffs) return;
+  char.activeBuffs=char.activeBuffs.filter(b=>{ b.duration--; return b.duration>0; });
+}
+function tickDebuffs(enemy){
+  if(!enemy.activeDebuffs) return;
+  enemy.activeDebuffs=enemy.activeDebuffs.filter(d=>{ d.duration--; return d.duration>0; });
+}
+function getBuffVal(char, key){ return (char.activeBuffs||[]).filter(b=>b[key]).reduce((s,b)=>s+b[key],0); }
+function getDebuffVal(enemy, key){ return (enemy.activeDebuffs||[]).filter(d=>d[key]).reduce((s,d)=>s+d[key],0); }
 
 // ─── LEVEL UP & PATHS ────────────────────────────────────────────────────────
 // XP thresholds (50% of SotDL base)
@@ -824,6 +862,16 @@ function applyMasterPath(char, pathId) {
   }
 }
 
+
+// Get the currently targeted enemy (supports multi-enemy)
+function getTargetEnemy(gs) {
+  if(gs.enemies&&gs.enemies.length>0){
+    const idx=Math.min(gs.activeEnemyIdx||0,gs.enemies.length-1);
+    return gs.enemies[idx]||gs.enemies[0]||null;
+  }
+  return gs.enemy||null;
+}
+
 // ─── PATH/NODE LOGIC ─────────────────────────────────────────────────────────
 const NODE_TYPES = ['combat','combat','rest','merchant','loot','elite','unknown','unknown'];
 function pickThreeNodes() {
@@ -874,11 +922,27 @@ function enterNode(room, nodeType) {
   const playerCount=room.players.filter(p=>p.connected&&p.char&&p.char.alive).length;
   if(nodeType==='combat'||nodeType==='elite'||nodeType==='boss') {
     const isBoss=nodeType==='boss', isElite=nodeType==='elite';
-    gs.enemy=pickEnemy(gs.depth,isElite,isBoss,playerCount,gs.bossCount);
+    gs.enemies=[];
+    gs.activeEnemyIdx=0;
+    // Elite encounter: 50% chance = 2 normal enemies instead of 1 elite
+    if(isElite && Math.random()<0.5){
+      const e1=pickEnemy(gs.depth,false,false,playerCount,gs.bossCount);
+      const e2=pickEnemy(gs.depth,false,false,playerCount,gs.bossCount);
+      e1.id='e1'; e2.id='e2';
+      gs.enemies=[e1,e2];
+      gs.enemy=gs.enemies[0];
+      addLog(room,`⚔ Elite Encounter — Two enemies appear!`,'dmg');
+      gs.enemies.forEach(e=>addLog(room,`&nbsp;▸ <strong>${e.name}</strong> (${e.hp}/${e.maxHp} HP, DMG: ${e.dmgDisplay})`,'dmg'));
+    } else {
+      const e=pickEnemy(gs.depth,isElite,isBoss,playerCount,gs.bossCount);
+      e.id='e0';
+      gs.enemies=[e];
+      gs.enemy=e;
+      const tag=isBoss?'⚠ BOSS — ':isElite?'Elite — ':'';
+      addLog(room,`⚔ ${tag}<strong>${e.name}</strong> appears! DMG: ${e.dmgDisplay}`,'dmg');
+    }
     gs.inCombat=true; gs.phase='combat'; gs.playersActedThisRound=[]; gs.enemyHasActed=false; gs.roundNumber=1;
-    const tag=isBoss?'⚠ BOSS — ':isElite?'Elite — ':'';
-    addLog(room,`⚔ ${tag}<strong>${gs.enemy.name}</strong> appears! DMG: ${gs.enemy.dmgDisplay}`,'dmg');
-    addLog(room,'All warriors act first — then the enemy strikes!','sys');
+    addLog(room,'All warriors act first — then the enemies strike!','sys');
     return;
   }
   if(nodeType==='rest') {
@@ -892,7 +956,7 @@ function enterNode(room, nodeType) {
       p.char.trickeryUsed=0; p.char.sharpeningStone=false; p.char.metamagicUsed=false;
       p.char.divineSmiteUsed=false; p.char.massHealUsed=false; p.char.resurrectionUsed=false;
       p.char.unstoppableUsed=false; p.char.rallyingUsed=false; p.char.spellsurgeUsed=false; p.char.miracleUsed=false;
-      p.char.conditions=p.char.conditions.filter(c=>c==='Diseased');
+      p.char.conditions=p.char.conditions.filter(c=>c==='Diseased'); p.char.activeBuffs=[];
       addLog(room,`${p.name} recovers ${amt} HP.`,'heal');
     });
     restorePower(room,'Rest site');
@@ -956,38 +1020,51 @@ function maybeEnemyAttack(room) {
   if(gs.enemyHasActed||!gs.enemy||!gs.inCombat) return;
   gs.enemyHasActed=true;
   const e=gs.enemy;
-  addLog(room,`--- ${e.name} retaliates! (${e.dmgDisplay}) ---`,'sys');
+  addLog(room,`--- ${gs.enemies&&gs.enemies.length>1?gs.enemies.map(en=>en.name).join(' & '):e.name} retaliates! ---`,'sys');
   if(e.regen&&e.hp<e.maxHp){const r=rd(1,6);e.hp=Math.min(e.maxHp,e.hp+r);addLog(room,`${e.name} regenerates ${r} HP.`,'chaos');}
+  // Apply DoT debuffs on all active enemies
+  if(gs.enemies) gs.enemies.forEach(ae=>{
+    if(!ae||ae.hp<=0) return;
+    (ae.activeDebuffs||[]).filter(d=>d.dotDmg).forEach(d=>{
+      ae.hp=Math.min(ae.maxHp,ae.hp-d.dotDmg);
+      addLog(room,`${ae.name} takes <strong>${d.dotDmg}</strong> from <em>${d.name}</em>! (${Math.max(0,ae.hp)}/${ae.maxHp} HP)`,'spell');
+      if(ae.hp<=0){resolveEnemyDeath(room,ae);}
+    });
+  });
   const alive=room.players.filter(p=>p.char&&p.char.alive);
+  const attackingEnemies=gs.enemies&&gs.enemies.length>0?gs.enemies.filter(ae=>ae.hp>0):[e];
   // Holy Aura: +2 defense to all (applied inline)
+  attackingEnemies.forEach(ae=>{
+  if(attackingEnemies.length>1) addLog(room,`▸ <strong>${ae.name}</strong> attacks!`,'sys');
   alive.forEach(p=>{
     const auraBonus=room.players.some(q=>q.char&&q.char.alive&&q.char.holyAura)?2:0;
-    const r=rollEnemyAttack(e,{...p.char,defense:p.char.defense+auraBonus});
+    const r=rollEnemyAttack(ae,{...p.char,defense:p.char.defense+auraBonus});
     if(r.hit){
       p.char.health=Math.max(0,p.char.health-r.dmg);
       const critLabel=r.crit?' 💥 CRIT!':'';
-      const dmgBreak=`${e.dmgNum}d${e.dmgSides}(${r.dmgRoll})${e.dmgBonus?'+'+e.dmgBonus:''}${r.critRoll?'+'+r.critRoll+' crit':''}`;
-      addLog(room,`${e.name} hits <strong>${p.name}</strong> — <strong class="num-dmg">−${r.dmg} dmg</strong>${critLabel} [d20:<strong>${r.base}</strong>+atk<strong>${e.atk>=0?'+':''}${e.atk}</strong>=<strong>${r.total}</strong> vs Def<strong>${p.char.defense+auraBonus}</strong>] [dmg: ${dmgBreak}] → ${p.name} <strong>${Math.max(0,p.char.health)}</strong>/${p.char.maxHealth} HP`,'dmg-taken');
-      if(e.lifeLeech){
+      const dmgBreak=`${ae.dmgNum}d${ae.dmgSides}(${r.dmgRoll})${ae.dmgBonus?'+'+ae.dmgBonus:''}${r.critRoll?'+'+r.critRoll+' crit':''}`;
+      addLog(room,`${ae.name} hits <strong>${p.name}</strong> — <strong class="num-dmg">−${r.dmg} dmg</strong>${critLabel} [d20:<strong>${r.base}</strong>+atk<strong>${e.atk>=0?'+':''}${e.atk}</strong>=<strong>${r.total}</strong> vs Def<strong>${p.char.defense+auraBonus}</strong>] [dmg: ${dmgBreak}] → ${p.name} <strong>${Math.max(0,p.char.health)}</strong>/${p.char.maxHealth} HP`,'dmg-taken');
+      if(ae.lifeLeech){
         // Varghulf: heals 1/4 of ALL damage dealt this round to all players
         // Standard life leech: heals 1/2 of single hit
-        const isVarghulf = e.name==='Varghulf';
+        const isVarghulf = ae.name==='Varghulf';
         if(isVarghulf){
           // Accumulate - will heal after all players attacked
-          e._leechAccum = (e._leechAccum||0) + r.dmg;
+          ae._leechAccum = (ae._leechAccum||0) + r.dmg;
         } else {
           const l=Math.floor(r.dmg/2); e.hp=Math.min(e.maxHp,e.hp+l);
           addLog(room,`${e.name} leeches ${l} HP!`,'chaos');
         }
       }
-      if(e.insanityAtk&&d(6)>=4){p.char.insanity++;addLog(room,`${p.name} gains 1 Insanity!`,'chaos');}
-      if(e.diseased&&d(6)>=5&&!p.char.conditions.includes('Diseased')){p.char.conditions.push('Diseased');addLog(room,`${p.name} contracts disease!`,'chaos');}
+      if(ae.insanityAtk&&d(6)>=4){p.char.insanity++;addLog(room,`${p.name} gains 1 Insanity!`,'chaos');}
+      if(ae.diseased&&d(6)>=5&&!p.char.conditions.includes('Diseased')){p.char.conditions.push('Diseased');addLog(room,`${p.name} contracts disease!`,'chaos');}
       checkDeath(room,p);
     } else {
-      addLog(room,`${e.name} <em>misses</em> ${p.name} — d20:<strong>${r.base}</strong>+<strong>${e.atk>=0?'+':''}${e.atk}</strong>=<strong>${r.total}</strong> vs Def<strong>${p.char.defense+auraBonus}</strong>.`,'sys');
+      if(!r.skipped) addLog(room,`${ae.name} <em>misses</em> ${p.name} — d20:<strong>${r.base}</strong>+<strong>${ae.atk>=0?'+':''}${ae.atk}</strong>=<strong>${r.total}</strong> vs Def<strong>${p.char.defense+auraBonus}</strong>.`,'sys');
     }
   });
-  if(e.multi){
+  }); // end attackingEnemies
+  if(ae&&ae.multi){
     const t=alive[Math.floor(Math.random()*alive.length)];
     if(t){const r2=rollEnemyAttack(e,t.char);if(r2.hit){t.char.health=Math.max(0,t.char.health-r2.dmg);addLog(room,`${e.name} bonus attack on ${t.name} for <strong>${r2.dmg}</strong>!`,'dmg');checkDeath(room,t);}}
   }
@@ -1001,6 +1078,9 @@ function maybeEnemyAttack(room) {
   }
   if(nowAlive.length===0){gs.phase='gameover';addLog(room,'💀 The entire warband has fallen.','death');return;}
   room.players.forEach(p=>{if(p.char&&!p.char.alive){p.char.pendingRevive=true;}});
+  // Tick buffs/debuffs each round
+  room.players.forEach(p=>{if(p.char&&p.char.alive)tickBuffs(p.char);});
+  if(gs.enemies) gs.enemies.forEach(e=>tickDebuffs(e));
   gs.playersActedThisRound=[]; gs.enemyHasActed=false;
   gs.roundNumber=(gs.roundNumber||1)+1;
   addLog(room,'--- New round — warriors act! ---','sys');
@@ -1018,8 +1098,9 @@ function checkDeath(room, player) {
   }
 }
 
-function resolveEnemyDeath(room) {
-  const gs=room.gs, e=gs.enemy;
+function resolveEnemyDeath(room, deadEnemy) {
+  const gs=room.gs;
+  const e=deadEnemy||gs.enemy;
   addLog(room,`⚔ <strong>${e.name}</strong> is slain! FOR SIGMAR!`,'crit');
   room.players.forEach(p=>{
     if(p.char&&(!p.char.alive||p.char.pendingRevive)){
@@ -1048,7 +1129,20 @@ function resolveEnemyDeath(room) {
     const lv=checkLevelUp(p.char);
     if(lv.leveled) addLog(room,`🌟 ${p.name} reaches <strong>Level ${lv.newLevel}</strong>! (+${lv.hpGain} max HP)${p.char.pendingLevelUp?' — Choose a path!':''}`, 'spell');
   });
-  gs.inCombat=false; gs.enemy=null; gs.phase='event';
+  // Remove dead enemy from pool
+  if(gs.enemies) gs.enemies=gs.enemies.filter(en=>en!==e&&en.hp>0);
+  // If more enemies remain, continue combat targeting next alive enemy
+  if(gs.enemies&&gs.enemies.length>0){
+    gs.enemy=gs.enemies[0]; gs.activeEnemyIdx=0;
+    addLog(room,`<strong>${gs.enemies[0].name}</strong> is next! (${gs.enemies[0].hp}/${gs.enemies[0].maxHp} HP)`,'sys');
+    // Reset round — players act again
+    gs.playersActedThisRound=[]; gs.enemyHasActed=false;
+    gs.roundNumber=(gs.roundNumber||1)+1;
+    // Revive fallen players between enemies
+    room.players.forEach(p=>{if(p.char&&(!p.char.alive||p.char.pendingRevive)){p.char.health=1;p.char.alive=true;p.char.pendingRevive=false;addLog(room,`${p.name} recovers — 1 HP!`,'heal');}});
+    return;
+  }
+  gs.inCombat=false; gs.enemy=null; gs.enemies=[]; gs.phase='event';
   gs.playersActedThisRound=[]; gs.enemyHasActed=false;
   // Victory after defeating the Saurian Ancient at depth 30
   if(gs.depth>=30){gs.phase='victory';addLog(room,'🏆 The Saurian Ancient falls! The warband conquers the depths! FOR SIGMAR!','crit');}
@@ -1193,15 +1287,15 @@ function useItemLogic(room,player,itemName,inCombat=false){
   let consumed=true;
   if(itemName==='Healing Draught'){const h=rd(1,6);char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} drinks Healing Draught — +<strong>${h}</strong> HP.`,'heal');}
   else if(itemName==='Greater Healing Draught'){const h=rd(2,6);char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} drinks Greater Healing — +<strong>${h}</strong> HP.`,'heal');}
-  else if(itemName==='Flask of Oil'){if(inCombat&&room.gs.enemy){const dmg=rd(2,6);room.gs.enemy.hp-=dmg;addLog(room,`${player.name} throws Flask of Oil — <strong>${dmg}</strong> fire dmg!`,'spell');if(room.gs.enemy.hp<=0){resolveEnemyDeath(room);return true;}}else{consumed=false;}}
-  else if(itemName==='Fire Jar'){if(inCombat&&room.gs.enemy){const dmg=rd(3,6);room.gs.enemy.hp-=dmg;addLog(room,`${player.name} smashes Fire Jar — <strong>${dmg}</strong> fire dmg!`,'spell');if(room.gs.enemy.hp<=0){resolveEnemyDeath(room);return true;}}else{consumed=false;}}
+  else if(itemName==='Flask of Oil'){const _te=getTargetEnemy(room.gs);if(inCombat&&_te){const dmg=rd(2,6);_te.hp-=dmg;addLog(room,`${player.name} throws Flask of Oil — <strong>${dmg}</strong> fire dmg!`,'spell');if(_te.hp<=0){resolveEnemyDeath(room,_te);return true;}}else{consumed=false;}}
+  else if(itemName==='Fire Jar'){const _te=getTargetEnemy(room.gs);if(inCombat&&_te){const dmg=rd(3,6);_te.hp-=dmg;addLog(room,`${player.name} smashes Fire Jar — <strong>${dmg}</strong> fire dmg!`,'spell');if(_te.hp<=0){resolveEnemyDeath(room,_te);return true;}}else{consumed=false;}}
   else if(itemName==='Lucky Pendant'){char.luckyPendant=true;addLog(room,`${player.name} activates Lucky Pendant — next attack is a CRIT!`,'loot');}
   else if(itemName==='Sharpening Stone'){char.sharpeningStone=true;addLog(room,`${player.name} uses Sharpening Stone — +1d6 dmg this combat!`,'loot');}
   else if(itemName.startsWith('Scroll:')){
     const spell=char.scrollSpells[itemName];
     if(!spell){addLog(room,`${player.name}: scroll crumbles.`,'sys');return false;}
     if(spell.type==='heal'){const[n,s]=spell.dmgDice.split('d').map(Number);const roll=rd(n,s);const amt=roll+4;char.health=Math.min(char.maxHealth,char.health+amt);addLog(room,`${player.name} reads ${itemName} — ${n}d${s}(${roll})+4 = +<strong>${amt}</strong> HP.`,'heal');}
-    else if(inCombat&&room.gs.enemy){const[n,s]=spell.dmgDice.split('d').map(Number);const dmg=rd(n,s);room.gs.enemy.hp-=dmg;addLog(room,`${player.name} reads ${itemName} — ${n}d${s} = <strong>${dmg}</strong> dmg!`,'spell');if(room.gs.enemy.hp<=0){resolveEnemyDeath(room);return true;}}
+    else if(inCombat){const _te=getTargetEnemy(room.gs);if(_te){const[n,s]=spell.dmgDice.split('d').map(Number);const dmg=rd(n,s);_te.hp-=dmg;addLog(room,`${player.name} reads ${itemName} — ${n}d${s} = <strong>${dmg}</strong> dmg!`,'spell');if(_te.hp<=0){resolveEnemyDeath(room,_te);return true;}}}
     else{consumed=false;}
   } else {consumed=false;}
   if(consumed){char.inventory[idx].qty--;if(char.inventory[idx].qty<=0)char.inventory.splice(idx,1);}
@@ -1306,6 +1400,16 @@ function handlePlayerAction(room,playerId,payload,ws){
     else if(tier==='master'){applyMasterPath(char,data.pathId);addLog(room,`${player.name} ascends the <strong>${MASTER_PATHS[data.pathId]?.label}</strong> master path.`,'spell');}
     return;
   }
+  if(action==='TARGET_ENEMY'){
+    if(!gs.inCombat||!gs.enemies||gs.enemies.length<=1) return;
+    const idx=parseInt(data.idx)||0;
+    if(idx>=0&&idx<gs.enemies.length&&gs.enemies[idx].hp>0){
+      gs.activeEnemyIdx=idx;
+      gs.enemy=gs.enemies[idx];
+      addLog(room,`${player.name} targets <strong>${gs.enemy.name}</strong>.`,'sys');
+    }
+    return;
+  }
   if(action==='BUY_ITEM'){handleBuy(room,player,data.itemId);return;}
   if(action==='SELL_ITEM'){handleSell(room,player,data.invIndex);return;}
   if(action==='LEAVE_SHOP'){
@@ -1356,16 +1460,18 @@ function handlePlayerAction(room,playerId,payload,ws){
   if(action==='ATTACK'){
     const rogueBoon=(char.career==='rogue'&&gs.roundNumber===1)?1:0;
     // Quick strike: second attack on round 1 if not used
-    const r=rollAttack(char,gs.enemy,rogueBoon);
+    const targetEnemy=getTargetEnemy(gs);
+    if(!targetEnemy){addLog(room,'No target.','sys');return;}
+    const r=rollAttack(char,targetEnemy,rogueBoon);
     if(r.fumble){
       addLog(room,`${player.name} <em>fumbles!</em> d20 rolled 1 — automatic miss.`,'sys');
     } else if(r.hit){
-      gs.enemy.hp=Math.min(gs.enemy.maxHp, gs.enemy.hp-r.dmg);
+      targetEnemy.hp=Math.min(targetEnemy.maxHp, targetEnemy.hp-r.dmg);
       const cl=r.forceCrit?' ⚡ Lucky Pendant CRIT!':r.crit?' 💥 CRITICAL HIT!':'';
       const rollBreak=`d20:<strong>${r.base}</strong>${r.boonInfo}+atk<strong>${r.atkMod>=0?'+':''}${r.atkMod}</strong>=<strong>${r.total}</strong> vs Def<strong>${gs.enemy.ac}</strong>`;
       const dmgBreak=r.dmgParts.length?` [dmg: ${r.dmgParts.join(' ')} = <strong>${r.dmg}</strong>]`:'';
-      addLog(room,`${player.name} ${r.crit?'<strong>CRITS</strong>':'hits'} ${gs.enemy.name} — <strong class="num-dmg">−${r.dmg} dmg</strong>${cl} [${rollBreak}]${dmgBreak} → ${gs.enemy.name} ${Math.max(0,gs.enemy.hp)}/${gs.enemy.maxHp} HP`,r.crit?'crit':'dmg');
-      if(gs.enemy.hp<=0){resolveEnemyDeath(room);return;}
+      addLog(room,`${player.name} ${r.crit?'<strong>CRITS</strong>':'hits'} ${targetEnemy.name} — <strong class="num-dmg">−${r.dmg} dmg</strong>${cl} [${rollBreak}]${dmgBreak} → ${targetEnemy.name} ${Math.max(0,targetEnemy.hp)}/${targetEnemy.maxHp} HP`,r.crit?'crit':'dmg');
+      if(targetEnemy.hp<=0){resolveEnemyDeath(room,targetEnemy);return;}
     } else {
       addLog(room,`${player.name} <em>misses</em> — d20:<strong>${r.base}</strong>${r.boonInfo}+<strong>${r.atkMod>=0?'+':''}${r.atkMod}</strong>=<strong>${r.total}</strong> vs Def<strong>${gs.enemy.ac}</strong>.`,'sys');
     }
@@ -1438,22 +1544,78 @@ function handlePlayerAction(room,playerId,payload,ws){
     }
     // ── UTILITY spells ──
     else if(spell.type==='utility'){
-      if(spell.defBonus){char.defense+=spell.defBonus;addLog(room,`${player.name} casts <strong>${spell.name}</strong> — +${spell.defBonus} Defense this round.`,'spell');}
-      else if(spell.dmgBuff){char.stimulantBoon=1;addLog(room,`${player.name} casts <strong>${spell.name}</strong> — next attack deals +1d6 damage.`,'spell');}
-      else if(spell.atkBoon){char.stimulantBoon=(char.stimulantBoon||0)+1;addLog(room,`${player.name} casts <strong>${spell.name}</strong> — 1 boon on next attack.`,'spell');}
-      else if(spell.groupBoon){addLog(room,`${player.name} casts <strong>${spell.name}</strong> — all allies gain 1 boon on attacks this round.`,'spell');}
-      else if(spell.groupDefBonus){room.players.forEach(p=>{if(p.char&&p.char.alive)p.char.defense+=spell.groupDefBonus;});addLog(room,`${player.name} casts <strong>${spell.name}</strong> — all allies +${spell.groupDefBonus} Defense this round.`,'spell');}
-      else if(spell.enemyBane){if(gs.enemy){gs.enemy.atk=Math.max(-3,gs.enemy.atk-2);addLog(room,`${player.name} casts <strong>${spell.name}</strong> — ${gs.enemy.name} attacks with 1 bane.`,'spell');}}
-      else if(spell.enemyMiss){if(gs.enemy){gs.enemy._missNext=true;addLog(room,`${player.name} casts <strong>${spell.name}</strong> — ${gs.enemy.name} misses next attack!`,'spell');}}
-      else if(spell.reroll){addLog(room,`${player.name} casts <strong>${spell.name}</strong> — may reroll one die this round.`,'spell');}
-      else if(spell.untouchable){char.defense+=10;addLog(room,`${player.name} casts <strong>${spell.name}</strong> — untouchable this round!`,'spell');}
-      else if(spell.skipEnemy){if(gs.enemy){gs.enemy._skipTurn=true;addLog(room,`${player.name} casts <strong>${spell.name}</strong> — ${gs.enemy.name} loses its next action!`,'spell');}}
-      else if(spell.fullBuff){char.defense+=2;char.stimulantBoon=(char.stimulantBoon||0)+1;addLog(room,`${player.name} casts <strong>${spell.name}</strong> — +2 Defense and 1 boon on all rolls.`,'spell');}
-      else{addLog(room,`${player.name} casts <strong>${spell.name}</strong>.`,'spell');}
+      const te=getTargetEnemy(gs);
+      if(spell.defBonus){
+        addBuff(char,spell.name+' (Def)',{defBonus:spell.defBonus},2);
+        char.defense+=spell.defBonus;
+        addLog(room,`${player.name} casts <strong>${spell.name}</strong> — +${spell.defBonus} Defense for 2 rounds.`,'spell');
+      } else if(spell.healthBonus){
+        addBuff(char,spell.name+' (HP)',{tempHp:spell.healthBonus},8);
+        char.health=Math.min(char.maxHealth+spell.healthBonus,char.health+spell.healthBonus);
+        char.maxHealth+=spell.healthBonus;
+        addLog(room,`${player.name} casts <strong>${spell.name}</strong> — +${spell.healthBonus} max Health for 8 rounds.`,'spell');
+      } else if(spell.dmgBuff){
+        addBuff(char,spell.name+' (+1d6 dmg)',{dmgBonus:rd(1,6)},1);
+        addLog(room,`${player.name} casts <strong>${spell.name}</strong> — next attack +1d6 damage.`,'spell');
+      } else if(spell.atkBoon){
+        addBuff(char,spell.name+' (atk boon)',{atkBoon:1},1);
+        addLog(room,`${player.name} casts <strong>${spell.name}</strong> — 1 boon on next attack.`,'spell');
+      } else if(spell.battleProwessSpell){
+        addBuff(char,spell.name,{battleProwess:true,atkBoon:1},6);
+        addLog(room,`${player.name} casts <strong>${spell.name}</strong> — roll attacks twice + bonus dmg for 6 rounds!`,'spell');
+      } else if(spell.groupBoon){
+        room.players.forEach(p=>{if(p.char&&p.char.alive)addBuff(p.char,spell.name+' (boon)',{atkBoon:1},1);});
+        addLog(room,`${player.name} casts <strong>${spell.name}</strong> — all allies gain 1 boon this round.`,'spell');
+      } else if(spell.groupDefBonus){
+        room.players.forEach(p=>{if(p.char&&p.char.alive){addBuff(p.char,spell.name+' (Def)',{defBonus:spell.groupDefBonus},2);p.char.defense+=spell.groupDefBonus;}});
+        addLog(room,`${player.name} casts <strong>${spell.name}</strong> — all allies +${spell.groupDefBonus} Defense.`,'spell');
+      } else if(spell.enemyBane){
+        if(te){addDebuff(te,spell.name+' (bane)',{bane:2},2);addLog(room,`${player.name} casts <strong>${spell.name}</strong> — ${te.name} attacks with 1 bane for 2 rounds.`,'spell');}
+      } else if(spell.enemyMiss||spell.skipEnemy||spell.vanish){
+        if(te){addDebuff(te,spell.name+' (skip)',{skipTurn:true},1);addLog(room,`${player.name} casts <strong>${spell.name}</strong> — ${te.name} loses next action!`,'spell');}
+      } else if(spell.untouchable){
+        addBuff(char,spell.name+' (untouchable)',{defBonus:15},1);
+        char.defense+=15;
+        addLog(room,`${player.name} casts <strong>${spell.name}</strong> — untouchable this round!`,'spell');
+      } else if(spell.fullBuff){
+        addBuff(char,spell.name,{defBonus:2,atkBoon:1},2);
+        char.defense+=2;
+        addLog(room,`${player.name} casts <strong>${spell.name}</strong> — +2 Defense and 1 boon for 2 rounds.`,'spell');
+      } else if(spell.reroll){
+        addBuff(char,spell.name+' (reroll)',{reroll:true},2);
+        addLog(room,`${player.name} casts <strong>${spell.name}</strong> — may reroll dice for 2 rounds.`,'spell');
+      } else if(spell.sanctuary){
+        addBuff(char,spell.name+' (hidden)',{sanctuary:true},2);
+        char.defense+=5;
+        addLog(room,`${player.name} casts <strong>${spell.name}</strong> — hidden from enemies for 2 rounds (+5 Def).`,'spell');
+      } else if(spell.forceField){
+        addBuff(char,spell.name+' (shield)',{forceField:10},4);
+        addLog(room,`${player.name} casts <strong>${spell.name}</strong> — Force Field absorbs 10 damage!`,'spell');
+      } else if(spell.shadowBlade){
+        addBuff(char,spell.name,{dmgBonus:rd(1,6)},4);
+        addLog(room,`${player.name} casts <strong>${spell.name}</strong> — shadow blade deals +dmg for 4 rounds.`,'spell');
+      } else if(spell.mightyAtk){
+        addBuff(char,spell.name,{dmgBonus:rd(2,6),atkBoon:1},1);
+        addLog(room,`${player.name} casts <strong>${spell.name}</strong> — next attack +2d6 with 1 boon.`,'spell');
+      } else if(spell.speedBuff){
+        addBuff(char,spell.name+' (speed)',{speedBuff:true},4);
+        addLog(room,`${player.name} casts <strong>${spell.name}</strong> — +10 Speed for 4 rounds.`,'spell');
+      } else if(spell.cure){
+        if(char.conditions&&char.conditions.length>0){
+          const removed=char.conditions.shift();
+          addLog(room,`${player.name} casts <strong>Cure</strong> — removes ${removed}.`,'heal');
+        } else {
+          const h=Math.max(1,Math.floor(healingRate(char)/2));
+          char.health=Math.min(char.maxHealth,char.health+h);
+          addLog(room,`${player.name} casts <strong>Cure</strong> — heals ${h} HP.`,'heal');
+        }
+      } else {
+        addLog(room,`${player.name} casts <strong>${spell.name}</strong>.`,'spell');
+      }
     }
     // ── ATTACK spells ──
     else {
-      if(!gs.enemy){addLog(room,`${player.name}: no target.`,'sys');return;}
+      if(!getTargetEnemy(gs)){addLog(room,`${player.name}: no target.`,'sys');return;}
       const dStr=spell.dmg||spell.dmgDice||'1d6';
       // Parse "NdS" or "NdS+B" format safely
       const dMatch=dStr.match(/^(\d+)d(\d+)(?:\+(\d+))?$/);
@@ -1473,9 +1635,19 @@ function handlePlayerAction(room,playerId,payload,ws){
         total=parseInt(dStr)||0;
         addLog(room,`${player.name} casts <strong>${spell.name}</strong> — <strong>${total}</strong> dmg!`,'spell');
       }
-      gs.enemy.hp=Math.min(gs.enemy.maxHp, gs.enemy.hp-total);
-      addLog(room,`${gs.enemy.name}: <strong>${Math.max(0,gs.enemy.hp)}</strong>/${gs.enemy.maxHp} HP remaining.`,'sys');
-      if(gs.enemy.hp<=0){resolveEnemyDeath(room);return;}
+      const spellTarget=getTargetEnemy(gs);
+      if(!spellTarget){addLog(room,`${player.name}: no target.`,'sys');return;}
+      spellTarget.hp=Math.min(spellTarget.maxHp, spellTarget.hp-total);
+      // Apply on-hit spell debuffs
+      if(spell.prone)        { addDebuff(spellTarget,'Prone',     {bane:1},1);       addLog(room,`${spellTarget.name} falls prone — 1 bane next attack.`,'spell'); }
+      if(spell.blind)        { addDebuff(spellTarget,'Blinded',   {bane:2},1);       addLog(room,`${spellTarget.name} is blinded — 2 banes for 1 round.`,'spell'); }
+      if(spell.slowDebuff)   { addDebuff(spellTarget,'Slowed',    {bane:1},2);       addLog(room,`${spellTarget.name} is slowed — 1 bane for 2 rounds.`,'spell'); }
+      if(spell.graveDot)     { const d=rd(1,6); addDebuff(spellTarget,'Grave Grasp',{dotDmg:d},3); addLog(room,`${spellTarget.name} is grasped — ${d} dmg/round for 3 rounds.`,'spell'); }
+      if(spell.bleed)        { const d=rd(1,6); addDebuff(spellTarget,'Bleeding',   {dotDmg:d},3); addLog(room,`${spellTarget.name} bleeds — ${d} dmg/round.`,'spell'); }
+      if(spell.vertigoDebuff){ addDebuff(spellTarget,'Vertigo',   {bane:2},3);       addLog(room,`${spellTarget.name} reels with vertigo — 2 banes for 3 rounds.`,'spell'); }
+      if(spell.chaosExplosion&&rd(1,6)%2===1){ const ex=rd(3,6); spellTarget.hp-=ex; addLog(room,`Chaos explosion! +${ex} extra dmg!`,'spell'); }
+      addLog(room,`${spellTarget.name}: <strong>${Math.max(0,spellTarget.hp)}</strong>/${spellTarget.maxHp} HP remaining.`,'sys');
+      if(spellTarget.hp<=0){resolveEnemyDeath(room,spellTarget);return;}
     }
     acted=true;
   }
@@ -1485,7 +1657,7 @@ function handlePlayerAction(room,playerId,payload,ws){
     else if(t==='nimbleRecovery'){if(char.nimbleUsed){addLog(room,`${player.name}: already used.`,'sys');return;}char.nimbleUsed=true;const h=healingRate(char);char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} uses Nimble Recovery — +<strong>${h}</strong> HP.`,'heal');}
     else if(t==='sharedRecovery'){if(char.sharedUsed){addLog(room,`${player.name}: already used.`,'sys');return;}char.sharedUsed=true;const h=healingRate(char);char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} uses Shared Recovery — +<strong>${h}</strong> HP.`,'heal');}
     else if(t==='spellRecovery'){if(char.spellRecoveryUsed){addLog(room,`${player.name}: already used.`,'sys');return;}char.spellRecoveryUsed=true;const h=healingRate(char);char.health=Math.min(char.maxHealth,char.health+h);const rr=regainCasting(char,1);addLog(room,`${player.name} uses Spell Recovery — +<strong>${h}</strong> HP + 1 rank ${Math.max(0,rr)} casting.`,'spell');}
-    else if(t==='divineSmite'){if(char.divineSmiteUsed){addLog(room,`${player.name}: Divine Smite already used.`,'sys');return;}char.divineSmiteUsed=true;const dmg=rd(3,6);gs.enemy.hp-=dmg;addLog(room,`${player.name} calls Divine Smite — <strong>${dmg}</strong> holy dmg!`,'spell');if(gs.enemy.hp<=0){resolveEnemyDeath(room);return;}}
+    else if(t==='divineSmite'){if(char.divineSmiteUsed){addLog(room,`${player.name}: Divine Smite already used.`,'sys');return;}char.divineSmiteUsed=true;const _te=getTargetEnemy(gs);if(!_te)return;const dmg=rd(3,6);_te.hp-=dmg;addLog(room,`${player.name} calls Divine Smite — <strong>${dmg}</strong> holy dmg!`,'spell');if(_te.hp<=0){resolveEnemyDeath(room,_te);return;}}
     else if(t==='rallyingCry'){if(char.rallyingUsed){addLog(room,`${player.name}: Rallying Cry already used.`,'sys');return;}char.rallyingUsed=true;room.players.forEach(p=>{if(p.char&&p.char.alive){const h=healingRate(p.char);p.char.health=Math.min(p.char.maxHealth,p.char.health+h);addLog(room,`${p.name} rallies — +${h} HP.`,'heal');}});}
     acted=true;
   }

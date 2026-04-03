@@ -233,6 +233,7 @@ input::placeholder{color:var(--text-dim);font-style:italic;}
 .float-num.dmg{color:#ff3333;text-shadow:0 0 8px rgba(255,0,0,.6),1px 1px 2px rgba(0,0,0,.9);}
 .float-num.heal{color:#44dd44;text-shadow:0 0 8px rgba(0,255,0,.4),1px 1px 2px rgba(0,0,0,.9);}
 .float-num.crit{color:#ffcc00;font-size:22px;text-shadow:0 0 12px rgba(255,200,0,.8),1px 1px 2px rgba(0,0,0,.9);}
+.float-num.miss{color:#aaaaaa;font-size:16px;text-shadow:1px 1px 2px rgba(0,0,0,.9);}
 @keyframes floatUp{0%{opacity:1;transform:translateY(0) scale(1);}20%{opacity:1;transform:translateY(-8px) scale(1.15);}100%{opacity:0;transform:translateY(-50px) scale(.9);}}
 /* DMG NUM in log */
 .num-dmg{color:#ff4444;font-weight:700;}
@@ -722,7 +723,7 @@ function renderState(st){
   const{gs,players}=st;
   const me=players.find(p=>p.id===myId);
   if(!me){ updateLobbySlots(players); return; }
-  if(gs.phase==='lobby'){ show('screen-lobby'); updateLobbySlots(players); updateAudio(gs,players); return; }
+  if(gs.phase==='lobby'){ show('screen-lobby'); updateLobbySlots(players); updateAudio(gs,players); prevLogLen=0; Object.keys(prevHp).forEach(k=>delete prevHp[k]); return; }
   if(gs.phase==='gameover'){ show('screen-end'); el('end-title').className='end-title death'; el('end-title').textContent='The Warband Has Fallen'; el('end-sub').innerHTML=`Depth: <strong>${gs.depth}/30</strong>`; updateAudio(gs,players); return; }
   if(gs.phase==='victory'){ show('screen-end'); el('end-title').className='end-title victory'; el('end-title').textContent='Victory!'; el('end-sub').innerHTML=`The warband conquers the depths!<br>Depth: ${gs.depth}/30`; updateAudio(gs,players); return; }
   if(me.char&&me.char.pendingLevelUp&&me.char.pendingPathTier&&!pathPickPending){ showPathPick(me); return; }
@@ -768,22 +769,36 @@ function renderBattle(gs,players,me){
   const panel=el('g-battle');
   if(gs.phase!=='combat'||!gs.enemy){ panel.style.display='none'; return; }
   panel.style.display='block';
-  const e=gs.enemy;
+  const enemies=gs.enemies&&gs.enemies.length>0?gs.enemies:[gs.enemy].filter(Boolean);
+  const activeIdx=gs.activeEnemyIdx||0;
   const eEl=el('ba-enemy'); eEl.innerHTML='';
-  const eTok=TOKEN_DATA[e.name];
-  const hpPct=Math.max(0,e.hp/e.maxHp*100);
-  const tCls=e.threat==='Boss'?'tb':e.threat==='Elite'||e.threat==='High'?'th':e.threat==='Moderate'?'tm':'tl';
-  const eRow=document.createElement('div'); eRow.className='token-row er';
-  eRow.innerHTML=`
-    <div class="tok-info" style="text-align:right">
-      <div class="e-name">${e.name}</div>
-      <div class="e-sub"><span class="threat-b ${tCls}">${e.threat}</span></div>
-      <div class="tok-hp-track" style="margin-top:4px"><div class="tok-hp-fill" style="width:${hpPct}%;background:var(--blood)"></div></div>
-      <div class="tok-hp-txt" style="text-align:right">${Math.max(0,e.hp)}/${e.maxHp} HP</div>
-      <div class="e-stats">Def<span>${e.ac}</span>ATK<span>${(e.atk>=0?'+':'')+e.atk}</span>DMG<span>${e.dmgDisplay||'1d6'}</span></div>
-    </div>
-    ${eTok?`<img class="tok enemy" src="${eTok}" alt="${e.name}">`:`<div class="tok-ph">💀</div>`}`;
-  eEl.appendChild(eRow);
+  enemies.forEach((e,idx)=>{
+    if(!e||e.hp<=0)return;
+    const eTok=TOKEN_DATA[e.name];
+    const hpPct=Math.max(0,e.hp/e.maxHp*100);
+    const tCls=e.threat==='Boss'?'tb':e.threat==='Elite'||e.threat==='High'?'th':e.threat==='Moderate'?'tm':'tl';
+    const isTarget=idx===activeIdx;
+    const eRow=document.createElement('div'); eRow.className='token-row er';
+    eRow.style.cssText=enemies.length>1&&isTarget?'border:2px solid var(--gold);border-radius:6px;padding:2px;':'';
+    // Debuffs display
+    const debuffs=e.activeDebuffs||[];
+    const debuffHtml=debuffs.length?`<div style="font-size:9px;color:var(--blood-bright);margin-top:2px">${debuffs.map(d=>`${d.name}(${d.duration}r)`).join(' · ')}</div>`:'';
+    // Target button for multi-enemy
+    const targetBtn=enemies.length>1&&!isTarget
+      ?`<button class="btn" style="font-size:9px;padding:2px 6px;margin-top:3px" onclick="send('PLAYER_ACTION',{action:'TARGET_ENEMY',data:{idx:${idx}}})">Target</button>`
+      :enemies.length>1?'<div style="font-size:9px;color:var(--gold);margin-top:2px">▶ Targeted</div>':'';
+    eRow.innerHTML=`
+      <div class="tok-info" style="text-align:right">
+        <div class="e-name">${e.name}</div>
+        <div class="e-sub"><span class="threat-b ${tCls}">${e.threat}</span></div>
+        <div class="tok-hp-track" style="margin-top:4px"><div class="tok-hp-fill" style="width:${hpPct}%;background:var(--blood)"></div></div>
+        <div class="tok-hp-txt" style="text-align:right">${Math.max(0,e.hp)}/${e.maxHp} HP</div>
+        <div class="e-stats">Def<span>${e.ac}</span>ATK<span>${(e.atk>=0?'+':'')+e.atk}</span>DMG<span>${e.dmgDisplay||'1d6'}</span></div>
+        ${debuffHtml}${targetBtn}
+      </div>
+      ${eTok?`<img class="tok enemy" src="${eTok}" alt="${e.name}">`:`<div class="tok-ph">💀</div>`}`;
+    eEl.appendChild(eRow);
+  });
   const pEl=el('ba-players'); pEl.innerHTML='';
   players.forEach(p=>{
     if(!p.char)return;
@@ -941,6 +956,26 @@ function renderAbilities(char, inCombat, targetId='my-ab'){
       const label=k.replace(/([A-Z])/g,' $1').replace(/^./,s=>s.toUpperCase());
       const desc=TALENT_DESCS[k]||label;
       html+=`<div class="ab-item tip"><span class="ab-name">${label}</span>&nbsp;<span class="ab-badge ab-passive">Passive</span><span class="tiptext">${desc}</span></div>`;
+    });
+    html+='</div>';
+  }
+  // Active buffs on this character
+  const buffs=char.activeBuffs||[];
+  if(buffs.length){
+    html+=`<div class="ab-section"><div class="ab-title" style="color:var(--gold)">Active Buffs</div>`;
+    buffs.forEach(b=>{
+      const effects=[];
+      if(b.defBonus)  effects.push(`+${b.defBonus} Def`);
+      if(b.dmgBonus)  effects.push(`+${b.dmgBonus} dmg`);
+      if(b.atkBoon)   effects.push(`+${b.atkBoon} atk boon`);
+      if(b.tempHp)    effects.push(`+${b.tempHp} max HP`);
+      if(b.battleProwess) effects.push('roll attacks twice');
+      if(b.reroll)    effects.push('reroll dice');
+      if(b.sanctuary) effects.push('hidden');
+      if(b.forceField)effects.push(`${b.forceField} HP shield`);
+      if(b.speedBuff) effects.push('+10 Speed');
+      const effStr=effects.join(', ')||'active';
+      html+=`<div class="ab-item"><span class="ab-name" style="color:var(--gold)">${b.name}</span>&nbsp;<span class="ab-badge ab-ready">${b.duration}r</span>&nbsp;<span style="font-size:10px;color:var(--text-dim)">${effStr}</span></div>`;
     });
     html+='</div>';
   }
@@ -1413,6 +1448,7 @@ function updateAudio(gs, players) {
 // ─── FLOATING DAMAGE NUMBERS ─────────────────────────────────────────────────
 // We track previous HP values to detect changes and spawn floats
 const prevHp = {}; // key: playerId or 'enemy'
+let prevLogLen = 0; // track log length to detect new entries
 
 function spawnFloat(anchorEl, text, type='dmg'){
   if(!anchorEl) return;
@@ -1426,38 +1462,102 @@ function spawnFloat(anchorEl, text, type='dmg'){
   float.addEventListener('animationend',()=>float.remove());
 }
 
+// Find a player's token element by name
+function getPlayerTok(name){
+  const allToks=document.querySelectorAll('#ba-players .token-row');
+  let targetEl=null;
+  allToks.forEach(row=>{
+    const nameEl=row.querySelector('.tok-name');
+    if(nameEl&&nameEl.textContent.includes(name)) targetEl=row.querySelector('.tok');
+  });
+  return targetEl;
+}
+
+// Get the active enemy token element
+function getActiveEnemyTok(){
+  const eRows=document.querySelectorAll('#ba-enemy .token-row');
+  const idx=lastState&&lastState.gs?lastState.gs.activeEnemyIdx||0:0;
+  const row=eRows[idx]||eRows[0];
+  return row?row.querySelector('.tok'):null;
+}
+
 function checkFloats(gs,players){
-  // Enemy damage dealt (player attacking)
-  if(gs.enemy){
-    const prev=prevHp['enemy'];
-    if(prev!==undefined&&gs.enemy.hp<prev){
-      const diff=prev-gs.enemy.hp;
-      const eEl=document.querySelector('#ba-enemy .tok');
+  // ── HP-change floats (damage & healing) ──────────────────────────────────
+  const enemies=gs.enemies&&gs.enemies.length>0?gs.enemies:[gs.enemy].filter(Boolean);
+  enemies.forEach((e,idx)=>{
+    if(!e) return;
+    const key='enemy_'+idx;
+    const prev=prevHp[key];
+    if(prev!==undefined&&e.hp<prev){
+      const diff=prev-e.hp;
+      const eRows=document.querySelectorAll('#ba-enemy .token-row');
+      const eEl=eRows[idx]?eRows[idx].querySelector('.tok'):null;
       spawnFloat(eEl,'-'+diff,diff>15?'crit':'dmg');
     }
-    prevHp['enemy']=gs.enemy.hp;
-  } else {
-    delete prevHp['enemy'];
-  }
-  // Player damage taken / healed
+    prevHp[key]=e.hp;
+  });
+  // Clean up stale enemy keys when enemies die
+  Object.keys(prevHp).forEach(k=>{ if(k.startsWith('enemy_')&&!enemies[parseInt(k.split('_')[1])]) delete prevHp[k]; });
+
   players.forEach(p=>{
     if(!p.char) return;
     const prev=prevHp[p.id];
     if(prev!==undefined&&p.char.health!==prev){
       const diff=p.char.health-prev;
-      const pEl=document.querySelector(`img[alt="${CSS.escape(p.name)}"]`) ||
-                document.querySelector('#ba-players .tok');
-      // Find the specific token for this player
-      const allToks=document.querySelectorAll('#ba-players .token-row');
-      let targetEl=null;
-      allToks.forEach(row=>{
-        const nameEl=row.querySelector('.tok-name');
-        if(nameEl&&nameEl.textContent.includes(p.name)) targetEl=row.querySelector('.tok');
-      });
+      const targetEl=getPlayerTok(p.name);
       if(diff<0) spawnFloat(targetEl,String(diff),Math.abs(diff)>15?'crit':'dmg');
       else if(diff>0) spawnFloat(targetEl,'+'+diff,'heal');
     }
     prevHp[p.id]=p.char.health;
+  });
+
+  // ── Miss floats — scan new log entries ───────────────────────────────────
+  const log=gs.log||[];
+  const newEntries=log.slice(prevLogLen);
+  prevLogLen=log.length;
+
+  newEntries.forEach(entry=>{
+    const msg=entry.msg||'';
+    // Strip HTML tags for matching
+    const plain=msg.replace(/<[^>]*>/g,'');
+
+    // Player weapon attack misses: "<Name> misses —"
+    const playerMissMatch=plain.match(/^(\S+)\s+misses\s+—/);
+    if(playerMissMatch){
+      // Find which player missed
+      const nameGuess=playerMissMatch[1];
+      const p=players.find(pl=>pl.name===nameGuess||pl.name.startsWith(nameGuess));
+      const tok=p?getPlayerTok(p.name):getPlayerTok(nameGuess);
+      spawnFloat(tok,'Miss','miss');
+      return;
+    }
+
+    // Enemy misses a player: "<EnemyName> misses <PlayerName>"
+    const enemyMissMatch=plain.match(/misses\s+(\S+)\s+—/);
+    if(enemyMissMatch){
+      const playerName=enemyMissMatch[1];
+      const p=players.find(pl=>pl.name===playerName||pl.name.startsWith(playerName));
+      const tok=p?getPlayerTok(p.name):null;
+      spawnFloat(tok,'Miss','miss');
+      // Also float on the enemy to show it missed
+      spawnFloat(getActiveEnemyTok(),'Miss','miss');
+      return;
+    }
+
+    // Fumble
+    if(plain.includes('fumbles!')){
+      const fumbleMatch=plain.match(/^(\S+)\s+fumbles/);
+      if(fumbleMatch){
+        const p=players.find(pl=>pl.name===fumbleMatch[1]);
+        const tok=p?getPlayerTok(p.name):null;
+        spawnFloat(tok,'Fumble!','miss');
+      }
+    }
+
+    // Enemy action skipped (skipTurn debuff)
+    if(plain.includes('loses its next action')){
+      spawnFloat(getActiveEnemyTok(),'Skipped!','miss');
+    }
   });
 }
 
