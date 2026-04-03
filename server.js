@@ -32,6 +32,7 @@ function initGameState() {
     phase: 'lobby',
     playersActedThisRound: [],
     enemyHasActed: false,
+    roundNumber: 0,
     log: [],
     pathChoices: null,
     pathVotes: {},
@@ -121,6 +122,8 @@ function scaleEnemy(tmpl, playerCount, isElite, bossCount) {
   e.dmgNum = dd.n; e.dmgSides = dd.s; e.dmgBonus = dd.b;
   e.dmgDisplay = `${dd.n}d${dd.s}${dd.b?'+'+dd.b:''}`;
   if (isElite && e.threat !== 'Boss') e.threat = 'Elite';
+  // Pre-first-boss: no attack bonus for normal/elite/boss-1
+  if (bossCount === 0) e.atk = 0;
   return e;
 }
 
@@ -194,7 +197,7 @@ function rollD20boons(boons, banes) {
   return {base, final:base};
 }
 
-function rollAttack(char, enemy) {
+function rollAttack(char, enemy, extraBoons=0) {
   const wpn = char.equippedWeapon;
   const wpnStat = wpn ? wpn.stat : (CAREERS[char.career].weaponStr ? 'str' : 'agi');
   const wpnDice = (wpn && wpn.dice) ? wpn.dice : '1d6';   // all weapons are d6-based
@@ -205,6 +208,7 @@ function rollAttack(char, enemy) {
   let boons=0, banes=0;
   if (char.weaponTraining) boons++;
   if (char.stimulantBoon>0) { boons++; char.stimulantBoon--; }
+  if (extraBoons) boons += extraBoons;
   if (char.conditions.includes('Frightened')) banes++;
   if (char.conditions.includes('Stunned'))    banes++;
 
@@ -320,7 +324,7 @@ function enterNode(room, nodeType) {
     const isBoss=nodeType==='boss', isElite=nodeType==='elite';
     gs.enemy=pickEnemy(gs.depth,isElite,isBoss,playerCount,gs.bossCount);
     gs.inCombat=true; gs.phase='combat';
-    gs.playersActedThisRound=[]; gs.enemyHasActed=false;
+    gs.playersActedThisRound=[]; gs.enemyHasActed=false; gs.roundNumber=1;
     const tag=isBoss?'⚠ BOSS — ':isElite?'Elite — ':'';
     addLog(room,`⚔ ${tag}<strong>${gs.enemy.name}</strong> (${gs.enemy.type}) appears! Damage: ${gs.enemy.dmgDisplay}`,'dmg');
     addLog(room,'All warriors act first — then the enemy strikes!','sys');
@@ -440,6 +444,7 @@ function maybeEnemyAttack(room) {
   // New round
   gs.playersActedThisRound=[];
   gs.enemyHasActed=false;
+  gs.roundNumber=(gs.roundNumber||1)+1;
   addLog(room,'--- New round — warriors act! ---','sys');
 }
 
@@ -614,8 +619,8 @@ function useItemLogic(room,player,itemName,inCombat=false){
   else if(itemName.startsWith('Scroll:')){
     const spell=char.scrollSpells[itemName];
     if(!spell){addLog(room,`${player.name}: scroll crumbles.`,'sys');return false;}
-    if(spell.type==='heal'){const[n,s]=spell.dmgDice.split('d').map(Number);const amt=rd(n,s)+4;char.health=Math.min(char.maxHealth,char.health+amt);addLog(room,`${player.name} reads ${itemName} — +<strong>${amt}</strong> HP.`,'heal');}
-    else if(inCombat&&room.gs.enemy){const[n,s]=spell.dmgDice.split('d').map(Number);const dmg=rd(n,s);room.gs.enemy.hp-=dmg;addLog(room,`${player.name} reads ${itemName} — <strong>${dmg}</strong> dmg!`,'spell');if(room.gs.enemy.hp<=0){resolveEnemyDeath(room);return true;}}
+    if(spell.type==='heal'){const[n,s]=spell.dmgDice.split('d').map(Number);const roll=rd(n,s);const amt=roll+4;char.health=Math.min(char.maxHealth,char.health+amt);addLog(room,`${player.name} reads ${itemName} — rolled ${n}d${s}(${roll})+4 = +<strong>${amt}</strong> HP.`,'heal');}
+    else if(inCombat&&room.gs.enemy){const[n,s]=spell.dmgDice.split('d').map(Number);const dmg=rd(n,s);room.gs.enemy.hp-=dmg;addLog(room,`${player.name} reads ${itemName} — rolled ${n}d${s} = <strong>${dmg}</strong> dmg!`,'spell');if(room.gs.enemy.hp<=0){resolveEnemyDeath(room);return true;}}
     else{addLog(room,`No valid target.`,'sys');consumed=false;}
   } else {consumed=false;}
 
@@ -712,11 +717,12 @@ function handlePlayerAction(room,playerId,payload,ws){
         addToInventory(char,opts.consumable);
         addLog(room,`${player.name} takes ${opts.consumable}.`,'loot');
       }
-    } else if(data.pick==='gear'){
-      // Weapon and armor both go to inventory
+    } else if(data.pick==='weapon'){
       addToInventory(char,opts.weapon.name,opts.weapon);
+      addLog(room,`${player.name} takes ${opts.weapon.name} (${opts.weapon.dice}+${opts.weapon.bonus}) — added to inventory.`,'loot');
+    } else if(data.pick==='armor'){
       addToInventory(char,opts.armor.name,opts.armor);
-      addLog(room,`${player.name} takes ${opts.weapon.name} (${opts.weapon.dice}+${opts.weapon.bonus}) and ${opts.armor.name} (+${opts.armor.defBonus} Def).`,'loot');
+      addLog(room,`${player.name} takes ${opts.armor.name} (+${opts.armor.defBonus} Def) — added to inventory.`,'loot');
     } else {
       addLog(room,`${player.name} takes nothing.`,'sys');
     }
@@ -746,7 +752,8 @@ function handlePlayerAction(room,playerId,payload,ws){
   let acted=false;
 
   if(action==='ATTACK'){
-    const r=rollAttack(char,gs.enemy);
+    const rogueBoon = (char.career==='rogue' && gs.roundNumber===1) ? 1 : 0;
+    const r=rollAttack(char,gs.enemy,rogueBoon);
     if(r.fumble){addLog(room,`${player.name} fumbles (natural 1)! Attack fails.`,'sys');}
     else if(r.hit){
       gs.enemy.hp-=r.dmg;
@@ -760,8 +767,40 @@ function handlePlayerAction(room,playerId,payload,ws){
     const spell=char.knownSpells.find(s=>s.name===data.spellName);if(!spell)return;
     if(spell.rank>0&&char.power-char.castingsUsed<=0){addLog(room,`${player.name}: no castings left.`,'sys');return;}
     if(spell.rank>0)char.castingsUsed++;
-    if(spell.heal){const[n,s]=spell.dmg.split('d').map(Number);const amt=rd(n,s)+Math.max(0,modVal(char.attrs.wil));char.health=Math.min(char.maxHealth,char.health+amt);addLog(room,`${player.name} casts <strong>${spell.name}</strong> — +<strong>${amt}</strong> HP.`,'heal');}
-    else{const[n,s]=spell.dmg.split('d').map(Number);const dmg=rd(n,s);gs.enemy.hp-=dmg;addLog(room,`${player.name} casts <strong>${spell.name}</strong> — <strong>${dmg}</strong> dmg!`,'spell');if(gs.enemy.hp<=0){resolveEnemyDeath(room);return;}}
+    if(spell.heal){
+      const[n,s]=spell.dmg.split('d').map(Number);
+      const roll=rd(n,s); const wilMod=Math.max(0,modVal(char.attrs.wil)); const amt=roll+wilMod;
+      // Ally target if specified, else self
+      const targetPlayer = data.targetId ? room.players.find(p=>p.id===data.targetId&&p.char&&p.char.alive) : null;
+      const target = targetPlayer ? targetPlayer.char : char;
+      const targetName = targetPlayer ? targetPlayer.name : player.name;
+      target.health=Math.min(target.maxHealth,target.health+amt);
+      addLog(room,`${player.name} casts <strong>${spell.name}</strong> on ${targetName} — rolled ${n}d${s}(${roll})+${wilMod} = +<strong>${amt}</strong> HP.`,'heal');
+    } else {
+      const[n,s]=spell.dmg.split('d').map(Number);
+      const roll=rd(n,s);
+      gs.enemy.hp-=roll;
+      addLog(room,`${player.name} casts <strong>${spell.name}</strong> — rolled ${n}d${s} = <strong>${roll}</strong> dmg to ${gs.enemy.name}! (${Math.max(0,gs.enemy.hp)}/${gs.enemy.maxHp} HP)`,'spell');
+      if(gs.enemy.hp<=0){resolveEnemyDeath(room);return;}
+    }
+    acted=true;
+  }
+  else if(action==='USE_ITEM_ALLY'){
+    // Healing Draught or Greater Healing Draught used on ally
+    const targetPlayer=room.players.find(p=>p.id===data.targetId&&p.char&&p.char.alive);
+    if(!targetPlayer){addLog(room,`${player.name}: target not found.`,'sys');return;}
+    const tchar=targetPlayer.char;
+    const idx=char.inventory.findIndex(i=>i.name===data.itemName);
+    if(idx===-1)return;
+    if(data.itemName==='Healing Draught'){
+      const h=rd(1,6); tchar.health=Math.min(tchar.maxHealth,tchar.health+h);
+      addLog(room,`${player.name} gives a Healing Draught to ${targetPlayer.name} — +<strong>${h}</strong> HP.`,'heal');
+    } else if(data.itemName==='Greater Healing Draught'){
+      const h=rd(2,6); tchar.health=Math.min(tchar.maxHealth,tchar.health+h);
+      addLog(room,`${player.name} gives Greater Healing to ${targetPlayer.name} — +<strong>${h}</strong> HP.`,'heal');
+    } else { addLog(room,`${player.name}: can't use that on an ally.`,'sys'); return; }
+    char.inventory[idx].qty--;
+    if(char.inventory[idx].qty<=0) char.inventory.splice(idx,1);
     acted=true;
   }
   else if(action==='USE_TALENT'){

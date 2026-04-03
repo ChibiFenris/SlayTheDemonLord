@@ -154,7 +154,7 @@ input::placeholder{color:var(--text-dim);font-style:italic;}
 
 /* LOOT ROOM */
 .loot-panel{padding:14px;}
-.loot-opts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px;}
+.loot-opts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
 .loot-opt{background:rgba(12,8,3,0.9);border:1px solid var(--border);border-radius:4px;padding:12px;text-align:center;cursor:pointer;transition:all .2s;display:flex;flex-direction:column;gap:5px;align-items:center;}
 .loot-opt:hover:not(.picked){border-color:var(--border-bright);}
 .loot-opt.picked{opacity:.35;cursor:default;}
@@ -514,11 +514,13 @@ const CAREER_LABELS={warrior:'State Soldier',rogue:'Roadwarden',wizard:'Bright W
 function renderMyInventory(char,inCombat){
   const el=document.getElementById('my-inv'); if(!el)return;
   const USABLE=['Healing Draught','Greater Healing Draught','Flask of Oil','Fire Jar','Lucky Pendant','Sharpening Stone'];
+  const ALLY_USABLE=['Healing Draught','Greater Healing Draught'];
   let html='';
   char.inventory.forEach((item,idx)=>{
     const isWpn=item.type==='weapon';
     const isArmor=item.type==='armor';
     const usable=USABLE.includes(item.name)||item.name.startsWith('Scroll:');
+    const allyUsable=ALLY_USABLE.includes(item.name);
     const isEquippedWpn=isWpn&&char.equippedWeapon&&item.itemObj&&item.itemObj.id===char.equippedWeapon.id;
     const isEquippedArmor=isArmor&&char.equippedArmor&&item.itemObj&&item.itemObj.id===char.equippedArmor.id;
     const equipLabel=isEquippedWpn?'<span style="font-size:9px;color:var(--gold);font-family:Cinzel,serif"> ★WPN</span>':isEquippedArmor?'<span style="font-size:9px;color:var(--gold);font-family:Cinzel,serif"> ★ARM</span>':'';
@@ -526,6 +528,7 @@ function renderMyInventory(char,inCombat){
     if(isWpn&&!isEquippedWpn) btns+=`<button class="use-btn" onclick="equipInventoryItem(${idx})">Equip</button>`;
     if(isArmor&&!isEquippedArmor) btns+=`<button class="use-btn" onclick="equipInventoryItem(${idx})">Equip</button>`;
     if(usable) btns+=`<button class="use-btn" onclick="useItem('${item.name.replace(/'/g,"\\'")}',${inCombat})">Use</button>`;
+    if(allyUsable&&inCombat) btns+=`<button class="use-btn" style="color:#80c080;border-color:#4a7a4a" onclick="useItemOnAlly('${item.name.replace(/'/g,"\\'")}')">Ally</button>`;
     const statInfo=isWpn&&item.itemObj?` · ${item.itemObj.dice}+${item.itemObj.bonus}`:isArmor&&item.itemObj?` · +${item.itemObj.defBonus} Def`:'';
     html+=`<li><span class="iname">${item.name}${item.qty>1?' ('+item.qty+')':''}${statInfo}${equipLabel}</span><span>${btns}</span></li>`;
   });
@@ -534,6 +537,57 @@ function renderMyInventory(char,inCombat){
 
 function useItem(name,inCombat){sendMsg('PLAYER_ACTION',{action:inCombat?'USE_ITEM':'USE_ITEM_OOC',data:{itemName:name}});}
 function equipInventoryItem(idx){sendMsg('PLAYER_ACTION',{action:'EQUIP_ITEM',data:{inventoryIndex:idx}});}
+
+function useItemOnAlly(itemName){
+  // Show a quick ally picker inline
+  if(!lastState)return;
+  const allies=lastState.players.filter(p=>p.id!==myId&&p.char&&p.char.alive);
+  if(!allies.length){useItem(itemName,true);return;}  // only self, use on self
+  const choice=buildAllyPicker(allies,(targetId)=>{
+    sendMsg('PLAYER_ACTION',{action:'USE_ITEM_ALLY',data:{itemName,targetId}});
+    hideAllyPicker();
+  });
+  showAllyPicker(choice);
+}
+
+function castSpellOnAlly(spellName){
+  if(!lastState)return;
+  const allies=lastState.players.filter(p=>p.id!==myId&&p.char&&p.char.alive);
+  if(!allies.length){
+    sendMsg('PLAYER_ACTION',{action:'CAST_SPELL',data:{spellName,targetId:myId}});
+    return;
+  }
+  const choice=buildAllyPicker([...allies,{id:myId,name:'Yourself'}],(targetId)=>{
+    sendMsg('PLAYER_ACTION',{action:'CAST_SPELL',data:{spellName,targetId}});
+    hideAllyPicker();
+  });
+  showAllyPicker(choice);
+}
+
+function buildAllyPicker(players, onPick){
+  const wrap=document.createElement('div');
+  wrap.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:300';
+  const box=document.createElement('div');
+  box.className='panel';
+  box.style.cssText='padding:16px;max-width:320px;width:90%';
+  box.innerHTML='<div class="ph">Choose Target</div>';
+  players.forEach(p=>{
+    const btn=document.createElement('button');
+    btn.className='act-btn act-talent';
+    btn.style.cssText='width:100%;margin-bottom:6px;display:block';
+    btn.innerHTML=`<span class="abl">${p.name}</span>`;
+    btn.onclick=()=>onPick(p.id);
+    box.appendChild(btn);
+  });
+  const cancel=document.createElement('button');
+  cancel.className='btn';cancel.textContent='Cancel';cancel.style.marginTop='4px';
+  cancel.onclick=hideAllyPicker;
+  box.appendChild(cancel);
+  wrap.appendChild(box);
+  return wrap;
+}
+function showAllyPicker(el){document.getElementById('app').appendChild(el);el.id='ally-picker';}
+function hideAllyPicker(){const el=document.getElementById('ally-picker');if(el)el.remove();}
 
 // ══════════════════════════════════════════════
 // ACTIONS PANEL
@@ -585,7 +639,14 @@ function renderActions(gs,players,me){
     addBtn(grid,'Attack',wpnLabel(char),'act-melee',()=>sendMsg('PLAYER_ACTION',{action:'ATTACK'}));
     if(char.knownSpells) char.knownSpells.forEach(sp=>{
       const avail=sp.rank===0||(char.power-char.castingsUsed)>0;
-      addBtn(grid,sp.name,`Rank ${sp.rank} · ${sp.heal?'Heal':'Atk'}`,'act-spell',()=>sendMsg('PLAYER_ACTION',{action:'CAST_SPELL',data:{spellName:sp.name}}),!avail);
+      if(sp.heal){
+        // Heal spells get self + ally target option
+        addBtn(grid,sp.name,`Rank ${sp.rank} · Heal self`,'act-spell',()=>sendMsg('PLAYER_ACTION',{action:'CAST_SPELL',data:{spellName:sp.name,targetId:myId}}),!avail);
+        if(lastState&&lastState.players.filter(p=>p.id!==myId&&p.char&&p.char.alive).length>0)
+          addBtn(grid,sp.name+' →ally',`Heal ally`,'act-spell',()=>castSpellOnAlly(sp.name),!avail);
+      } else {
+        addBtn(grid,sp.name,`Rank ${sp.rank} · Atk`,'act-spell',()=>sendMsg('PLAYER_ACTION',{action:'CAST_SPELL',data:{spellName:sp.name}}),!avail);
+      }
     });
     if(char.catchBreath&&!char.catchBreathUsed) addBtn(grid,'Catch Your Breath',`~${Math.floor(char.maxHealth/4)} HP`,'act-talent',()=>sendMsg('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'catchBreath'}}));
     if(char.nimbleRecovery&&!char.nimbleUsed) addBtn(grid,'Nimble Recovery',`~${Math.floor(char.maxHealth/4)} HP`,'act-talent',()=>sendMsg('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'nimbleRecovery'}}));
@@ -621,7 +682,7 @@ function renderLootRoom(gs,me){
   const loot=gs.lootRoom; if(!loot)return;
   const hasPicked=gs.lootPicked&&gs.lootPicked.includes(myId);
   const opts=loot.options;
-  document.getElementById('g-loot-desc').textContent='Choose one of three options:';
+  document.getElementById('g-loot-desc').textContent='Choose one — coins, consumable, a weapon, or armour:';
   const el=document.getElementById('g-loot-opts'); el.innerHTML='';
 
   const pickedMsg=document.getElementById('g-loot-picked-msg');
@@ -642,11 +703,16 @@ function renderLootRoom(gs,me){
   consDiv.onclick=()=>sendMsg('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'consumable'}});
   el.appendChild(consDiv);
 
-  // Option C: Weapon + Armor (both go to inventory)
-  const gearDiv=document.createElement('div'); gearDiv.className='loot-opt';
-  gearDiv.innerHTML=`<div class="loot-icon">⚔</div><div class="loot-name">Weapon &amp; Armour</div><div class="loot-desc"><strong>${opts.weapon.name}</strong> ${opts.weapon.dice}+${opts.weapon.bonus} · <strong>${opts.armor.name}</strong> +${opts.armor.defBonus} Def<br><span style="font-size:9px;color:var(--gold)">Both added to inventory — equip via your inventory panel</span></div>`;
-  gearDiv.onclick=()=>sendMsg('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'gear'}});
-  el.appendChild(gearDiv);
+  // Option C: Weapon OR Armor (separate picks)
+  const wpnDiv=document.createElement('div'); wpnDiv.className='loot-opt';
+  wpnDiv.innerHTML=`<div class="loot-icon">⚔</div><div class="loot-name">${opts.weapon.name}</div><div class="loot-desc">${opts.weapon.dice}+${opts.weapon.bonus} · ${opts.weapon.stat.toUpperCase()}<br><span style="font-size:9px;color:var(--gold)">Added to inventory</span></div>`;
+  wpnDiv.onclick=()=>sendMsg('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'weapon'}});
+  el.appendChild(wpnDiv);
+
+  const armDiv=document.createElement('div'); armDiv.className='loot-opt';
+  armDiv.innerHTML=`<div class="loot-icon">🛡</div><div class="loot-name">${opts.armor.name}</div><div class="loot-desc">+${opts.armor.defBonus} Defense<br><span style="font-size:9px;color:var(--gold)">Added to inventory</span></div>`;
+  armDiv.onclick=()=>sendMsg('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'armor'}});
+  el.appendChild(armDiv);
 }
 
 function getConsDesc(name){
