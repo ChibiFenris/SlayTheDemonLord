@@ -223,7 +223,12 @@ input::placeholder{color:var(--text-dim);font-style:italic;}
 
 <!-- CONNECTING -->
 <div class="screen active" id="screen-connect">
-  <div style="text-align:center;padding:60px 20px;color:var(--text-dim);font-family:'Cinzel',serif;letter-spacing:2px;font-size:13px" id="conn-msg">Connecting to server...</div>
+  <div style="text-align:center;padding:60px 20px">
+    <div style="font-family:'UnifrakturMaguntia',cursive;font-size:28px;color:var(--blood);margin-bottom:12px">Shadows Over Reikland</div>
+    <div style="color:var(--text-dim);font-family:'Cinzel',serif;letter-spacing:2px;font-size:12px;margin-bottom:20px" id="conn-msg">Connecting to server...</div>
+    <div style="font-size:11px;color:var(--text-dim);font-style:italic;max-width:400px;margin:0 auto">If this persists, check that the Railway server is running and the domain is correct. The page will retry automatically every 3 seconds.</div>
+    <button class="btn gold" style="margin-top:20px" onclick="connect()">Retry Now</button>
+  </div>
 </div>
 
 <!-- LOBBY -->
@@ -346,16 +351,41 @@ input::placeholder{color:var(--text-dim);font-style:italic;}
 // CLIENT STATE
 // ══════════════════════════════════════════════
 let ws=null,myId=null,lastState=null,selectedCareer='warrior',pathPickPending=false;
+let reconnectTimer=null;
 
 function connect(){
+  clearTimeout(reconnectTimer);
   const proto=location.protocol==='https:'?'wss:':'ws:';
-  ws=new WebSocket(`${proto}//${location.host}`);
-  ws.onopen=()=>{ show('screen-lobby'); };
-  ws.onclose=()=>{ document.getElementById('conn-msg').textContent='Disconnected. Reload to reconnect.'; show('screen-connect'); };
-  ws.onerror=()=>{ document.getElementById('conn-msg').textContent='Connection error. Check the server is running.'; show('screen-connect'); };
+  const url=`${proto}//${location.host}`;
+  document.getElementById('conn-msg').textContent='Connecting...';
+  show('screen-connect');
+
+  try { ws=new WebSocket(url); } catch(e){ scheduleReconnect('Could not create connection.'); return; }
+
+  ws.onopen=()=>{
+    clearTimeout(reconnectTimer);
+    show('screen-lobby');
+  };
   ws.onmessage=e=>{ try{handle(JSON.parse(e.data));}catch(ex){console.error(ex);} };
+  ws.onclose=e=>{
+    // Only show reconnect screen if we didn't cleanly navigate away
+    if(document.getElementById('screen-game').classList.contains('active')||
+       document.getElementById('screen-lobby').classList.contains('active')){
+      scheduleReconnect(`Disconnected (${e.code}). Reconnecting...`);
+    }
+  };
+  ws.onerror=()=>{ /* onclose will fire too, handle there */ };
 }
-function sendMsg(type,payload={}){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({type,payload})); }
+
+function scheduleReconnect(msg){
+  document.getElementById('conn-msg').textContent=msg;
+  show('screen-connect');
+  reconnectTimer=setTimeout(connect, 3000);
+}
+function sendMsg(type,payload={}){
+  if(ws&&ws.readyState===1) ws.send(JSON.stringify({type,payload}));
+  else console.warn('WS not open, dropping msg:', type);
+}
 
 function handle(msg){
   if(msg.type==='ROOM_CREATED'||msg.type==='ROOM_JOINED'){

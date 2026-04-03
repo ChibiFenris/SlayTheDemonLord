@@ -8,6 +8,12 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
+// Health check for Railway
+app.get('/health', (req, res) => res.send('OK'));
+
+// Allow Railway proxy headers
+app.set('trust proxy', 1);
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 const rooms = new Map();
