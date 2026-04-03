@@ -356,7 +356,7 @@ let reconnectTimer=null;
 function connect(){
   clearTimeout(reconnectTimer);
   const proto=location.protocol==='https:'?'wss:':'ws:';
-  const url=`${proto}//${location.host}`;
+  const url=`${proto}//${location.host}/ws`;
   document.getElementById('conn-msg').textContent='Connecting...';
   show('screen-connect');
 

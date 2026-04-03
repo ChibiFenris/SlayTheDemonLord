@@ -6,13 +6,19 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({ server, path: '/ws' });
 
 // Health check for Railway
 app.get('/health', (req, res) => res.send('OK'));
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 // Allow Railway proxy headers
 app.set('trust proxy', 1);
+
+// Log WebSocket upgrades for debugging
+server.on('upgrade', (req) => {
+  console.log('WS upgrade request:', req.url, req.headers.host);
+});
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -893,5 +899,6 @@ wss.on('connection',ws=>{
   });
 });
 
-const PORT=process.env.PORT||3000;
-server.listen(PORT,()=>console.log(`Shadows Over Reikland on port ${PORT}`));
+const PORT = process.env.PORT || 3000;
+const HOST = '0.0.0.0';
+server.listen(PORT, HOST, () => console.log(`Shadows Over Reikland running on ${HOST}:${PORT}`));
