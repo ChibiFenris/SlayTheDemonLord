@@ -40,6 +40,7 @@ function initGameState() {
     bossCount: 0,
     lootRoom: null,
     lootPicked: [],
+    lastPowerRestoreDepth: 0,
   };
 }
 
@@ -122,8 +123,15 @@ function scaleEnemy(tmpl, playerCount, isElite, bossCount) {
   e.dmgNum = dd.n; e.dmgSides = dd.s; e.dmgBonus = dd.b;
   e.dmgDisplay = `${dd.n}d${dd.s}${dd.b?'+'+dd.b:''}`;
   if (isElite && e.threat !== 'Boss') e.threat = 'Elite';
-  // Pre-first-boss: no attack bonus for normal/elite/boss-1
-  if (bossCount === 0) e.atk = 0;
+  if (bossCount === 0) {
+    // Pre-first-boss: no attack bonus at all
+    e.atk = 0;
+  } else {
+    // Post-first-boss: cap ATK by threat tier
+    const isBossEnemy = e.threat === 'Boss';
+    const cap = isBossEnemy ? 5 : isElite ? 4 : 3;
+    e.atk = Math.min(e.atk, cap);
+  }
   return e;
 }
 
@@ -287,10 +295,27 @@ function pickThreeNodes() {
   return chosen;
 }
 
+function restorePower(room, reason) {
+  let restored=false;
+  room.players.forEach(p=>{
+    if(!p.char||!p.char.alive) return;
+    if(p.char.castingsUsed>0||p.char.spellRecoveryUsed){
+      p.char.castingsUsed=0;
+      p.char.spellRecoveryUsed=false;
+      restored=true;
+    }
+  });
+  if(restored) addLog(room,`✨ ${reason} — all spellcasters regain their power.`,'spell');
+}
+
 function showPathChoices(room) {
   const gs=room.gs;
   gs.pathVotes={};
-  if (gs.depth>0 && gs.depth%10===0) {
+  // Depth 30 is always a final boss
+  if (gs.depth>=29) {
+    gs.phase='path'; gs.bossNode=true; gs.pathChoices=['boss'];
+    addLog(room,'💀 The Final Darkness. A monstrous power bars your path. Face it or fall.','chaos');
+  } else if (gs.depth>0 && gs.depth%10===0) {
     gs.phase='path'; gs.bossNode=true; gs.pathChoices=['boss'];
     addLog(room,'💀 A monstrous power bars your path. Face it or fall.','chaos');
   } else {
@@ -337,12 +362,13 @@ function enterNode(room, nodeType) {
       if (!p.char||!p.char.alive) return;
       const amt=Math.ceil(p.char.maxHealth*0.6);
       p.char.health=Math.min(p.char.maxHealth,p.char.health+amt);
-      p.char.castingsUsed=0; p.char.catchBreathUsed=false; p.char.nimbleUsed=false;
-      p.char.sharedUsed=false; p.char.spellRecoveryUsed=false; p.char.trickeryUsed=0;
+      p.char.catchBreathUsed=false; p.char.nimbleUsed=false;
+      p.char.sharedUsed=false; p.char.trickeryUsed=0;
       p.char.sharpeningStone=false;
       p.char.conditions=p.char.conditions.filter(c=>c==='Diseased');
-      addLog(room,`${p.name} recovers ${amt} HP and refreshes abilities.`,'heal');
+      addLog(room,`${p.name} recovers ${amt} HP.`,'heal');
     });
+    restorePower(room,'Rest site');
     addLog(room,'Rest complete. Press onward.','sys');
     return;
   }
@@ -355,9 +381,13 @@ function enterNode(room, nodeType) {
   if (nodeType==='loot') {
     gs.phase='loot';
     const coins=5+Math.floor(Math.random()*46);
-    gs.lootRoom={coins,options:buildLootOptions()};
+    gs.lootRoom={coins};
     gs.lootPicked=[];
-    addLog(room,`📦 A cache! ${coins} coins — and each warrior may claim one item.`,'loot');
+    // Each alive player gets their own random loot options
+    room.players.forEach(p=>{
+      if(p.char&&p.char.alive) p.char.lootOptions=buildLootOptions();
+    });
+    addLog(room,`📦 A cache! ${coins} coins — each warrior finds their own haul.`,'loot');
     return;
   }
   if (nodeType==='unknown') {
@@ -518,7 +548,11 @@ const SCROLL_SPELLS_SHOP=[
 ];
 
 function genWpn(){
-  const b=WEAPON_BASES[Math.floor(Math.random()*WEAPON_BASES.length)];
+  // 2d6 weapons are rarer — only ~20% of drops
+  const light=WEAPON_BASES.filter(b=>b.dice==='1d6');
+  const heavy=WEAPON_BASES.filter(b=>b.dice==='2d6');
+  const pool=d(5)===1 ? heavy : light;  // 1-in-5 chance of 2d6 weapon
+  const b=pool[Math.floor(Math.random()*pool.length)];
   const bonus=d(6);
   const costBase=b.dice==='2d6'?20:15;
   return{id:'w'+uuidv4(),name:b.name,dice:b.dice,stat:b.stat,bonus,cost:costBase+bonus*8,bought:false,type:'weapon',desc:`${b.dice}+${bonus} · ${b.stat.toUpperCase()}`};
@@ -531,8 +565,12 @@ function genArmor(){
 function genShopScroll(){const sp=SCROLL_SPELLS_SHOP[Math.floor(Math.random()*SCROLL_SPELLS_SHOP.length)];return{id:'sc'+uuidv4(),name:`Scroll: ${sp.name}`,spell:sp,cost:35,bought:false,type:'scroll',desc:sp.desc};}
 
 function buildPlayerShop(){
-  const shuffled=[...SHOP_CONSUMABLES].sort(()=>Math.random()-0.5).slice(0,3);
-  const cons=shuffled.map(c=>({id:'c'+uuidv4(),name:c.name,cost:c.cost,desc:c.desc,bought:false,type:'consumable'}));
+  // Always stock 2 Healing Draughts + 1 random non-draught consumable
+  const hd1={id:'hd1'+uuidv4(),name:'Healing Draught',cost:10,desc:'Heal 1d6 HP',bought:false,type:'consumable'};
+  const hd2={id:'hd2'+uuidv4(),name:'Healing Draught',cost:10,desc:'Heal 1d6 HP',bought:false,type:'consumable'};
+  const otherPool=SHOP_CONSUMABLES.filter(c=>c.name!=='Healing Draught').sort(()=>Math.random()-0.5);
+  const other=otherPool[0]?{id:'c'+uuidv4(),name:otherPool[0].name,cost:otherPool[0].cost,desc:otherPool[0].desc,bought:false,type:'consumable'}:hd1;
+  const cons=[hd1,hd2,other];
   return{
     weaponEnhance:{id:'we'+uuidv4(),name:'Weapon Enhancement',desc:'+1 dmg & +1 boon to hit',cost:25,bought:false,type:'enhance'},
     statBoost:    {id:'sb'+uuidv4(),name:'+1 Primary Stat',   desc:'Increase highest attribute by 1',cost:35,bought:false,type:'statboost'},
@@ -704,7 +742,8 @@ function handlePlayerAction(room,playerId,payload,ws){
   if(action==='PICK_LOOT'){
     if(gs.phase!=='loot'||!gs.lootRoom||gs.lootPicked.includes(playerId))return;
     gs.lootPicked.push(playerId);
-    const opts=gs.lootRoom.options;
+    const opts=char.lootOptions||{};
+    char.lootOptions=null;
     if(data.pick==='coins'){
       char.gold+=gs.lootRoom.coins;
       addLog(room,`${player.name} takes the coins — +${gs.lootRoom.coins} silver.`,'loot');
@@ -739,7 +778,12 @@ function handlePlayerAction(room,playerId,payload,ws){
     return;
   }
   if(action==='PRESS_ONWARD'){
-    if(gs.depth>=30){gs.phase='victory';addLog(room,'🏆 FOR SIGMAR!','crit');return;}
+    // Check power restore every 3 depths
+    if(gs.depth>0 && gs.depth%3===0 && gs.depth!==gs.lastPowerRestoreDepth){
+      gs.lastPowerRestoreDepth=gs.depth;
+      restorePower(room,`Depth ${gs.depth} milestone`);
+    }
+    if(gs.depth>=30){gs.phase='victory';addLog(room,'🏆 The warband conquers the depths! FOR SIGMAR!','crit');return;}
     showPathChoices(room);return;
   }
   if(action==='USE_ITEM_OOC'){useItemLogic(room,player,data.itemName,false);return;}
@@ -769,18 +813,21 @@ function handlePlayerAction(room,playerId,payload,ws){
     if(spell.rank>0)char.castingsUsed++;
     if(spell.heal){
       const[n,s]=spell.dmg.split('d').map(Number);
-      const roll=rd(n,s); const wilMod=Math.max(0,modVal(char.attrs.wil)); const amt=roll+wilMod;
-      // Ally target if specified, else self
+      const roll=rd(n,s);
+      const wilMod=Math.max(0,modVal(char.attrs.wil));  // +1 heal per WIL modifier
+      const amt=roll+wilMod;
       const targetPlayer = data.targetId ? room.players.find(p=>p.id===data.targetId&&p.char&&p.char.alive) : null;
       const target = targetPlayer ? targetPlayer.char : char;
       const targetName = targetPlayer ? targetPlayer.name : player.name;
       target.health=Math.min(target.maxHealth,target.health+amt);
-      addLog(room,`${player.name} casts <strong>${spell.name}</strong> on ${targetName} — rolled ${n}d${s}(${roll})+${wilMod} = +<strong>${amt}</strong> HP.`,'heal');
+      addLog(room,`${player.name} casts <strong>${spell.name}</strong> on ${targetName} — ${n}d${s}(${roll})+${wilMod} WIL = +<strong>${amt}</strong> HP.`,'heal');
     } else {
       const[n,s]=spell.dmg.split('d').map(Number);
       const roll=rd(n,s);
-      gs.enemy.hp-=roll;
-      addLog(room,`${player.name} casts <strong>${spell.name}</strong> — rolled ${n}d${s} = <strong>${roll}</strong> dmg to ${gs.enemy.name}! (${Math.max(0,gs.enemy.hp)}/${gs.enemy.maxHp} HP)`,'spell');
+      const intMod=Math.max(0,modVal(char.attrs.int))*2;  // +2 dmg per INT modifier
+      const total=roll+intMod;
+      gs.enemy.hp-=total;
+      addLog(room,`${player.name} casts <strong>${spell.name}</strong> — ${n}d${s}(${roll})+${intMod} INT = <strong>${total}</strong> dmg to ${gs.enemy.name}! (${Math.max(0,gs.enemy.hp)}/${gs.enemy.maxHp} HP)`,'spell');
       if(gs.enemy.hp<=0){resolveEnemyDeath(room);return;}
     }
     acted=true;

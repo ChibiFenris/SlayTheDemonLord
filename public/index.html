@@ -681,13 +681,22 @@ function wpnLabel(char){
 function renderLootRoom(gs,me){
   const loot=gs.lootRoom; if(!loot)return;
   const hasPicked=gs.lootPicked&&gs.lootPicked.includes(myId);
-  const opts=loot.options;
   document.getElementById('g-loot-desc').textContent='Choose one — coins, consumable, a weapon, or armour:';
   const el=document.getElementById('g-loot-opts'); el.innerHTML='';
-
   const pickedMsg=document.getElementById('g-loot-picked-msg');
-  if(hasPicked){ pickedMsg.style.display='block'; el.innerHTML='<div style="text-align:center;color:var(--text-dim);font-style:italic;grid-column:1/-1;padding:10px">You have made your choice — waiting for others.</div>'; return; }
+
+  if(hasPicked){
+    pickedMsg.style.display='block';
+    el.innerHTML='<div style="text-align:center;color:var(--text-dim);font-style:italic;grid-column:1/-1;padding:10px">You have made your choice — waiting for others.</div>';
+    return;
+  }
   pickedMsg.style.display='none';
+
+  const opts=me.char&&me.char.lootOptions;
+  if(!opts){
+    el.innerHTML='<div style="text-align:center;color:var(--text-dim);font-style:italic;grid-column:1/-1;padding:10px">Loading your loot...</div>';
+    return;
+  }
 
   // Option A: Coins only
   const coinsDiv=document.createElement('div'); coinsDiv.className='loot-opt';
