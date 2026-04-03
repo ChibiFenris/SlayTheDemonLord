@@ -60,10 +60,10 @@ const modVal = score => score - 10;
 
 // ─── CAREERS ───────────────────────────────────────────────────────────────
 const CAREERS = {
-  warrior: { label:'State Soldier',    startAttrs:{str:11,agi:10,int:9,wil:10},  armorDef:3, weaponDmg:'1d8', weaponStr:true,  spellcaster:false },
+  warrior: { label:'State Soldier',    startAttrs:{str:11,agi:10,int:9,wil:10},  armorDef:3, weaponDmg:'1d6', weaponStr:true,  spellcaster:false },
   rogue:   { label:'Roadwarden',       startAttrs:{str:10,agi:11,int:10,wil:9},  armorDef:1, weaponDmg:'1d6', weaponStr:false, spellcaster:false },
   wizard:  { label:'Bright Wizard',    startAttrs:{str:9,agi:10,int:11,wil:10},  armorDef:0, weaponDmg:'1d6', weaponStr:true,  spellcaster:true, tradition:'fire' },
-  priest:  { label:'Sigmarite Priest', startAttrs:{str:10,agi:9,int:10,wil:11},  armorDef:3, weaponDmg:'1d8', weaponStr:true,  spellcaster:true, tradition:'life' },
+  priest:  { label:'Sigmarite Priest', startAttrs:{str:10,agi:9,int:10,wil:11},  armorDef:3, weaponDmg:'1d6', weaponStr:true,  spellcaster:true, tradition:'life' },
 };
 
 // ─── NOVICE PATHS ───────────────────────────────────────────────────────────
@@ -137,14 +137,22 @@ function pickEnemy(depth, isElite, isBoss, playerCount, bossCount) {
 function buildChar(career) {
   const c = CAREERS[career];
   const attrs = {...c.startAttrs};
+  const baseDefense = attrs.agi + c.armorDef;
+  // Give starting weapon & armor as inventory items
+  const startWpn = {id:'w_start_'+uuidv4(),name:'Starting Weapon',dice:'1d6',stat:c.weaponStr?'str':'agi',bonus:0,type:'weapon',desc:'1d6 · starting gear'};
+  const startArmor = c.armorDef>0 ? {id:'a_start_'+uuidv4(),name:'Starting Armour',defBonus:c.armorDef,type:'armor',desc:`+${c.armorDef} Defense`} : null;
   return {
     career, attrs,
     health: attrs.str, maxHealth: attrs.str,
-    defense: attrs.agi + c.armorDef,
+    defense: baseDefense, baseAgiDef: attrs.agi,
     perception: attrs.int,
     power: 0, maxPower: 0, castingsUsed: 0,
     insanity: 0, corruption: 0, conditions: [],
-    inventory: [{name:'Healing Draught',qty:2}],
+    inventory: [
+      {name:'Healing Draught',qty:2},
+      {itemObj:startWpn, name:startWpn.name, qty:1, type:'weapon'},
+      ...(startArmor ? [{itemObj:startArmor, name:startArmor.name, qty:1, type:'armor'}] : []),
+    ],
     gold: 15,
     level: 0, xp: 0,
     novicePath: null, pendingLevelUp: false,
@@ -155,8 +163,10 @@ function buildChar(career) {
     nimbleRecovery:false, nimbleUsed:false,
     spellRecovery:false,  spellRecoveryUsed:false,
     sharedRecovery:false, sharedUsed:false,
-    // Equipment
-    equippedWeapon:null, weaponDmgBonus:0, weaponAtkBonus:0, equippedArmorDef:0,
+    // Equipment slots — null means unequipped
+    equippedWeapon: startWpn,
+    equippedArmor: startArmor,
+    weaponDmgBonus:0, weaponAtkBonus:0,
     scrollSpells:{}, stimulantBoon:0, sharpeningStone:false, luckyPendant:false,
     alive:true,
     spellcaster: c.spellcaster, tradition: c.tradition||null,
@@ -187,8 +197,8 @@ function rollD20boons(boons, banes) {
 function rollAttack(char, enemy) {
   const wpn = char.equippedWeapon;
   const wpnStat = wpn ? wpn.stat : (CAREERS[char.career].weaponStr ? 'str' : 'agi');
-  const wpnDice = wpn ? wpn.dice : CAREERS[char.career].weaponDmg;
-  const wpnDmgBonus = (wpn?wpn.bonus:0) + char.weaponDmgBonus;
+  const wpnDice = (wpn && wpn.dice) ? wpn.dice : '1d6';   // all weapons are d6-based
+  const wpnDmgBonus = ((wpn && wpn.bonus) ? wpn.bonus : 0) + char.weaponDmgBonus;
   const [num,sides] = wpnDice.split('d').map(Number);
   const atkMod = modVal(char.attrs[wpnStat]) + char.weaponAtkBonus;
 
@@ -361,23 +371,29 @@ function enterNode(room, nodeType) {
   }
 }
 
-// ─── LOOT ROOM ───────────────────────────────────────────────────────────────
+// ─── LOOT ROOM — 3 distinct picks per player ─────────────────────────────────
 const SCROLL_SPELLS_LIST = [
-  {name:'Fireball',desc:'8d6 fire dmg',type:'attack',dmgDice:'8d6'},
-  {name:'Smite',desc:'4d6 holy dmg',type:'attack',dmgDice:'4d6'},
-  {name:'Ice Lance',desc:'3d8 cold dmg',type:'attack',dmgDice:'3d8'},
-  {name:'Lightning Bolt',desc:'6d6 lightning',type:'attack',dmgDice:'6d6'},
-  {name:"Sigmar's Wrath",desc:'5d6 holy dmg',type:'attack',dmgDice:'5d6'},
-  {name:'Cure Wounds',desc:'Heal 3d6+4 HP',type:'heal',dmgDice:'3d6'},
+  {name:'Fireball',     desc:'8d6 fire dmg',   type:'attack', dmgDice:'8d6'},
+  {name:'Smite',        desc:'4d6 holy dmg',   type:'attack', dmgDice:'4d6'},
+  {name:'Chain Lightning',desc:'6d6 lightning',type:'attack', dmgDice:'6d6'},
+  {name:"Sigmar's Wrath",desc:'5d6 holy dmg',  type:'attack', dmgDice:'5d6'},
+  {name:'Cure Wounds',  desc:'Heal 3d6+4 HP',  type:'heal',   dmgDice:'3d6'},
 ];
 const LOOT_CONS_LIST=['Healing Draught','Greater Healing Draught','Flask of Oil','Fire Jar','Lucky Pendant','Sharpening Stone'];
 
 function buildLootOptions() {
-  const useScroll=d(6)>=4;
-  const consumable=useScroll?'Spell Scroll':LOOT_CONS_LIST[Math.floor(Math.random()*LOOT_CONS_LIST.length)];
-  const scrollSpell=useScroll?SCROLL_SPELLS_LIST[Math.floor(Math.random()*SCROLL_SPELLS_LIST.length)]:null;
-  const weapon=genWpn();
-  return {consumable,scrollSpell,weapon};
+  // Pick A: coins only (nothing else)
+  // Pick B: a consumable or scroll
+  // Pick C: a weapon + armor (both go to inventory)
+  const useScroll = d(6) >= 4;
+  const consumable = useScroll ? 'Spell Scroll' : LOOT_CONS_LIST[Math.floor(Math.random()*LOOT_CONS_LIST.length)];
+  const scrollSpell = useScroll ? SCROLL_SPELLS_LIST[Math.floor(Math.random()*SCROLL_SPELLS_LIST.length)] : null;
+  return {
+    consumable,
+    scrollSpell,
+    weapon: genWpn(),
+    armor:  genArmor(),
+  };
 }
 
 // ─── COMBAT FLOW: ALL PLAYERS FIRST, THEN ENEMY ──────────────────────────────
@@ -468,30 +484,45 @@ function resolveEnemyDeath(room) {
 }
 
 // ─── MERCHANT (per-player shop) ──────────────────────────────────────────────
+// All weapons use d6 dice only — bonus adds on top
 const WEAPON_BASES=[
-  {name:'Reiklander Sword',dice:'1d8',stat:'str'},{name:'Duelling Sabre',dice:'1d6',stat:'agi'},
-  {name:'War Axe',dice:'1d8',stat:'str'},{name:'Halberd',dice:'1d10',stat:'str'},
-  {name:'Crossbow',dice:'1d8',stat:'agi'},{name:'Silvered Rapier',dice:'1d6',stat:'agi'},
+  {name:'Reiklander Sword', dice:'1d6', stat:'str'},
+  {name:'Duelling Sabre',   dice:'1d6', stat:'agi'},
+  {name:'War Axe',          dice:'2d6', stat:'str'},
+  {name:'Halberd',          dice:'2d6', stat:'str'},
+  {name:'Crossbow',         dice:'1d6', stat:'agi'},
+  {name:'Silvered Rapier',  dice:'1d6', stat:'agi'},
+  {name:'Warhammer',        dice:'2d6', stat:'str'},
+  {name:'Pistol',           dice:'1d6', stat:'agi'},
 ];
 const ARMOR_BASES=[{name:'Leather Jack',def:1},{name:'Chain Shirt',def:2},{name:'Breastplate',def:3},{name:'Full Plate',def:4}];
 const SHOP_CONSUMABLES=[
-  {name:'Healing Draught',        desc:'Heal 1d6 HP',                            cost:10},
-  {name:'Greater Healing Draught',desc:'Heal 2d6 HP',                            cost:20},
-  {name:'Flask of Oil',           desc:'2d6 fire damage',                         cost:15},
-  {name:'Fire Jar',               desc:'3d6 fire damage',                         cost:25},
-  {name:'Lucky Pendant',          desc:'Next attack is a critical hit (one use)',  cost:40},
-  {name:'Sharpening Stone',       desc:'+1d6 weapon damage this combat',           cost:40},
+  {name:'Healing Draught',        desc:'Heal 1d6 HP',                           cost:10},
+  {name:'Greater Healing Draught',desc:'Heal 2d6 HP',                           cost:20},
+  {name:'Flask of Oil',           desc:'2d6 fire damage',                        cost:15},
+  {name:'Fire Jar',               desc:'3d6 fire damage',                        cost:25},
+  {name:'Lucky Pendant',          desc:'Next attack is a critical hit (one use)',cost:40},
+  {name:'Sharpening Stone',       desc:'+1d6 weapon damage this combat',          cost:40},
 ];
 const SCROLL_SPELLS_SHOP=[
-  {name:'Fireball',desc:'8d6 fire dmg',type:'attack',dmgDice:'8d6'},
-  {name:'Smite',desc:'4d6 holy dmg',type:'attack',dmgDice:'4d6'},
-  {name:'Lightning Bolt',desc:'6d6 lightning',type:'attack',dmgDice:'6d6'},
-  {name:"Sigmar's Wrath",desc:'5d6 holy dmg',type:'attack',dmgDice:'5d6'},
-  {name:'Cure Wounds',desc:'Heal 3d6+4 HP',type:'heal',dmgDice:'3d6'},
+  {name:'Fireball',      desc:'8d6 fire dmg',   type:'attack', dmgDice:'8d6'},
+  {name:'Smite',         desc:'4d6 holy dmg',   type:'attack', dmgDice:'4d6'},
+  {name:'Chain Lightning',desc:'6d6 lightning', type:'attack', dmgDice:'6d6'},
+  {name:"Sigmar's Wrath",desc:'5d6 holy dmg',   type:'attack', dmgDice:'5d6'},
+  {name:'Cure Wounds',   desc:'Heal 3d6+4 HP',  type:'heal',   dmgDice:'3d6'},
 ];
 
-function genWpn(){const b=WEAPON_BASES[Math.floor(Math.random()*WEAPON_BASES.length)];const bonus=d(6);return{id:'w'+uuidv4(),name:b.name,dice:b.dice,stat:b.stat,bonus,cost:15+bonus*8,bought:false,type:'weapon',desc:`${b.dice}+${bonus} · ${b.stat.toUpperCase()}`};}
-function genArmor(){const b=ARMOR_BASES[Math.floor(Math.random()*ARMOR_BASES.length)];const bonus=d(6);return{id:'a'+uuidv4(),name:b.name,defBonus:b.def+bonus,cost:20+bonus*10,bought:false,type:'armor',desc:`+${b.def+bonus} Defense`};}
+function genWpn(){
+  const b=WEAPON_BASES[Math.floor(Math.random()*WEAPON_BASES.length)];
+  const bonus=d(6);
+  const costBase=b.dice==='2d6'?20:15;
+  return{id:'w'+uuidv4(),name:b.name,dice:b.dice,stat:b.stat,bonus,cost:costBase+bonus*8,bought:false,type:'weapon',desc:`${b.dice}+${bonus} · ${b.stat.toUpperCase()}`};
+}
+function genArmor(){
+  const b=ARMOR_BASES[Math.floor(Math.random()*ARMOR_BASES.length)];
+  const bonus=d(6);
+  return{id:'a'+uuidv4(),name:b.name,defBonus:b.def+bonus,cost:20+bonus*10,bought:false,type:'armor',desc:`+${b.def+bonus} Defense`};
+}
 function genShopScroll(){const sp=SCROLL_SPELLS_SHOP[Math.floor(Math.random()*SCROLL_SPELLS_SHOP.length)];return{id:'sc'+uuidv4(),name:`Scroll: ${sp.name}`,spell:sp,cost:35,bought:false,type:'scroll',desc:sp.desc};}
 
 function buildPlayerShop(){
@@ -505,7 +536,43 @@ function buildPlayerShop(){
   };
 }
 
-function addToInventory(char,name){const ex=char.inventory.find(i=>i.name===name);if(ex)ex.qty++;else char.inventory.push({name,qty:1});}
+function addToInventory(char,name,itemObj=null){
+  if(itemObj&&(itemObj.type==='weapon'||itemObj.type==='armor')){
+    // Each weapon/armor is a unique item — always add as new entry
+    char.inventory.push({name:itemObj.name,qty:1,type:itemObj.type,itemObj});
+  } else {
+    const ex=char.inventory.find(i=>i.name===name&&!i.itemObj);
+    if(ex)ex.qty++;
+    else char.inventory.push({name,qty:1});
+  }
+}
+
+function equipItem(char,inventoryIndex){
+  const entry=char.inventory[inventoryIndex];
+  if(!entry||!entry.itemObj)return false;
+  const item=entry.itemObj;
+  if(item.type==='weapon'){
+    // Put old equipped weapon back in inventory if different
+    if(char.equippedWeapon&&char.equippedWeapon.id!==item.id){
+      char.inventory.push({name:char.equippedWeapon.name,qty:1,type:'weapon',itemObj:char.equippedWeapon});
+    }
+    char.equippedWeapon=item;
+    char.inventory.splice(inventoryIndex,1);
+    return `Equipped ${item.name} (${item.dice}+${item.bonus})`;
+  }
+  if(item.type==='armor'){
+    // Recalc defense: remove old armor bonus, add new
+    const oldBonus=char.equippedArmor?char.equippedArmor.defBonus:0;
+    if(char.equippedArmor&&char.equippedArmor.id!==item.id){
+      char.inventory.push({name:char.equippedArmor.name,qty:1,type:'armor',itemObj:char.equippedArmor});
+    }
+    char.equippedArmor=item;
+    char.defense=char.baseAgiDef+item.defBonus;
+    char.inventory.splice(inventoryIndex,1);
+    return `Equipped ${item.name} (+${item.defBonus} Def, now ${char.defense})`;
+  }
+  return false;
+}
 
 function handleBuy(room,player,itemId){
   const char=player.char;
@@ -518,8 +585,15 @@ function handleBuy(room,player,itemId){
   char.gold-=item.cost; item.bought=true;
   if(item.type==='enhance'){char.weaponDmgBonus++;char.weaponAtkBonus++;addLog(room,`${player.name}: Weapon Enhancement applied.`,'loot');}
   else if(item.type==='statboost'){const ks=Object.keys(char.attrs);let best=ks[0];ks.forEach(k=>{if(modVal(char.attrs[k])>modVal(char.attrs[best]))best=k;});char.attrs[best]++;addLog(room,`${player.name}: +1 ${best.toUpperCase()} (now ${char.attrs[best]}).`,'loot');}
-  else if(item.type==='weapon'){char.equippedWeapon=item;addLog(room,`${player.name} equips ${item.name} (${item.dice}+${item.bonus}).`,'loot');}
-  else if(item.type==='armor'){const old=char.equippedArmorDef||0;char.equippedArmorDef=item.defBonus;char.defense+=(item.defBonus-old);addLog(room,`${player.name} equips ${item.name} (+${item.defBonus} Def, now ${char.defense}).`,'loot');}
+  else if(item.type==='weapon'){
+    // Add to inventory — player equips manually
+    addToInventory(char,item.name,item);
+    addLog(room,`${player.name} buys ${item.name} (${item.dice}+${item.bonus}) — added to inventory.`,'loot');
+  }
+  else if(item.type==='armor'){
+    addToInventory(char,item.name,item);
+    addLog(room,`${player.name} buys ${item.name} (+${item.defBonus} Def) — added to inventory.`,'loot');
+  }
   else if(item.type==='scroll'){addToInventory(char,item.name);char.scrollSpells[item.name]=item.spell;addLog(room,`${player.name} buys ${item.name}.`,'loot');}
   else if(item.type==='consumable'){addToInventory(char,item.name);addLog(room,`${player.name} buys ${item.name}.`,'loot');}
 }
@@ -625,18 +699,37 @@ function handlePlayerAction(room,playerId,payload,ws){
   if(action==='PICK_LOOT'){
     if(gs.phase!=='loot'||!gs.lootRoom||gs.lootPicked.includes(playerId))return;
     gs.lootPicked.push(playerId);
-    char.gold+=gs.lootRoom.coins;
-    addLog(room,`${player.name} takes ${gs.lootRoom.coins} silver.`,'loot');
     const opts=gs.lootRoom.options;
-    if(data.pick==='consumable'){
-      if(opts.consumable==='Spell Scroll'&&opts.scrollSpell){const sn=`Scroll: ${opts.scrollSpell.name}`;addToInventory(char,sn);char.scrollSpells[sn]=opts.scrollSpell;addLog(room,`${player.name} takes ${sn}.`,'loot');}
-      else{addToInventory(char,opts.consumable);addLog(room,`${player.name} takes ${opts.consumable}.`,'loot');}
-    } else if(data.pick==='weapon'){
-      char.equippedWeapon=opts.weapon;
-      addLog(room,`${player.name} takes ${opts.weapon.name} (${opts.weapon.dice}+${opts.weapon.bonus}).`,'loot');
-    } else {addLog(room,`${player.name} takes nothing.`,'sys');}
+    if(data.pick==='coins'){
+      char.gold+=gs.lootRoom.coins;
+      addLog(room,`${player.name} takes the coins — +${gs.lootRoom.coins} silver.`,'loot');
+    } else if(data.pick==='consumable'){
+      if(opts.consumable==='Spell Scroll'&&opts.scrollSpell){
+        const sn=`Scroll: ${opts.scrollSpell.name}`;
+        addToInventory(char,sn);char.scrollSpells[sn]=opts.scrollSpell;
+        addLog(room,`${player.name} takes ${sn}.`,'loot');
+      } else {
+        addToInventory(char,opts.consumable);
+        addLog(room,`${player.name} takes ${opts.consumable}.`,'loot');
+      }
+    } else if(data.pick==='gear'){
+      // Weapon and armor both go to inventory
+      addToInventory(char,opts.weapon.name,opts.weapon);
+      addToInventory(char,opts.armor.name,opts.armor);
+      addLog(room,`${player.name} takes ${opts.weapon.name} (${opts.weapon.dice}+${opts.weapon.bonus}) and ${opts.armor.name} (+${opts.armor.defBonus} Def).`,'loot');
+    } else {
+      addLog(room,`${player.name} takes nothing.`,'sys');
+    }
     const alive=room.players.filter(p=>p.char&&p.char.alive);
     if(alive.every(p=>gs.lootPicked.includes(p.id))){gs.phase='event';gs.lootRoom=null;addLog(room,'Loot divided. Press onward.','sys');}
+    return;
+  }
+  if(action==='EQUIP_ITEM'){
+    // data.inventoryIndex — index into char.inventory
+    const idx=data.inventoryIndex;
+    if(idx===undefined||idx<0||idx>=char.inventory.length)return;
+    const result=equipItem(char,idx);
+    if(result) addLog(room,`${player.name}: ${result}.`,'loot');
     return;
   }
   if(action==='PRESS_ONWARD'){

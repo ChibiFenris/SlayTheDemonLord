@@ -500,6 +500,8 @@ function buildPlayerCard(p,hasActed,isMe,gs){
     </div>
     <div class="mini-s">Defense <span>${c.defense}</span></div>
     <div class="mini-s">Power <span>${c.power-c.castingsUsed}/${c.power}</span></div>
+    <div class="mini-s">Weapon <span style="color:var(--gold-bright)">${c.equippedWeapon?c.equippedWeapon.name+' '+c.equippedWeapon.dice+'+'+(c.equippedWeapon.bonus||0):'None'}</span></div>
+    <div class="mini-s">Armour <span style="color:var(--gold-bright)">${c.equippedArmor?c.equippedArmor.name+' +'+c.equippedArmor.defBonus:'None'}</span></div>
     ${c.novicePath?`<div class="mini-s">Path <span style="color:var(--gold)">${NOVICE_PATHS_C[c.novicePath]?.name||c.novicePath}</span></div>`:''}
     <div class="gold-s">Silver <span>${c.gold} ss</span></div>
     <div class="cond-row">${(c.conditions||[]).map(cd=>`<span class="cond">${cd}</span>`).join('')}${c.luckyPendant?'<span class="cond" style="color:#e8c050">Lucky</span>':''}${c.sharpeningStone?'<span class="cond" style="color:#c0a0e0">Sharpened</span>':''}</div>
@@ -513,14 +515,25 @@ function renderMyInventory(char,inCombat){
   const el=document.getElementById('my-inv'); if(!el)return;
   const USABLE=['Healing Draught','Greater Healing Draught','Flask of Oil','Fire Jar','Lucky Pendant','Sharpening Stone'];
   let html='';
-  char.inventory.forEach(item=>{
+  char.inventory.forEach((item,idx)=>{
+    const isWpn=item.type==='weapon';
+    const isArmor=item.type==='armor';
     const usable=USABLE.includes(item.name)||item.name.startsWith('Scroll:');
-    html+=`<li><span class="iname">${item.name}${item.qty>1?' ('+item.qty+')':''}</span>${usable?`<button class="use-btn" onclick="useItem('${item.name.replace(/'/g,"\\'")}',${inCombat})">Use</button>`:''}</li>`;
+    const isEquippedWpn=isWpn&&char.equippedWeapon&&item.itemObj&&item.itemObj.id===char.equippedWeapon.id;
+    const isEquippedArmor=isArmor&&char.equippedArmor&&item.itemObj&&item.itemObj.id===char.equippedArmor.id;
+    const equipLabel=isEquippedWpn?'<span style="font-size:9px;color:var(--gold);font-family:Cinzel,serif"> ★WPN</span>':isEquippedArmor?'<span style="font-size:9px;color:var(--gold);font-family:Cinzel,serif"> ★ARM</span>':'';
+    let btns='';
+    if(isWpn&&!isEquippedWpn) btns+=`<button class="use-btn" onclick="equipInventoryItem(${idx})">Equip</button>`;
+    if(isArmor&&!isEquippedArmor) btns+=`<button class="use-btn" onclick="equipInventoryItem(${idx})">Equip</button>`;
+    if(usable) btns+=`<button class="use-btn" onclick="useItem('${item.name.replace(/'/g,"\\'")}',${inCombat})">Use</button>`;
+    const statInfo=isWpn&&item.itemObj?` · ${item.itemObj.dice}+${item.itemObj.bonus}`:isArmor&&item.itemObj?` · +${item.itemObj.defBonus} Def`:'';
+    html+=`<li><span class="iname">${item.name}${item.qty>1?' ('+item.qty+')':''}${statInfo}${equipLabel}</span><span>${btns}</span></li>`;
   });
   el.innerHTML=html||'<li style="color:var(--text-dim)">Empty</li>';
 }
 
 function useItem(name,inCombat){sendMsg('PLAYER_ACTION',{action:inCombat?'USE_ITEM':'USE_ITEM_OOC',data:{itemName:name}});}
+function equipInventoryItem(idx){sendMsg('PLAYER_ACTION',{action:'EQUIP_ITEM',data:{inventoryIndex:idx}});}
 
 // ══════════════════════════════════════════════
 // ACTIONS PANEL
@@ -535,7 +548,6 @@ function renderActions(gs,players,me){
     const icons={combat:'⚔',elite:'💀',rest:'🔥',merchant:'🛒',loot:'📦',unknown:'❓',boss:'💀'};
     const descs={combat:'An enemy emerges.',elite:'A powerful foe.',rest:'A campfire, rest here.',merchant:'A merchant with wares.',loot:'A cache to plunder.',unknown:'The path is unclear.',boss:'⚠ BOSS — face your fate.'};
     const nodes=document.createElement('div'); nodes.className='path-nodes';
-    // Tally votes
     const tally={};
     if(gs.pathVotes) Object.values(gs.pathVotes).forEach(v=>{tally[v]=(tally[v]||0)+1;});
     gs.pathChoices.forEach(t=>{
@@ -583,7 +595,6 @@ function renderActions(gs,players,me){
     addBtn(grid,'Flee',isBoss?'No escape':'AGI vs DC 10','act-move',()=>sendMsg('PLAYER_ACTION',{action:'FLEE'}),isBoss);
     body.appendChild(grid);
 
-    // Show how many players remain to act
     const alive=lastState?lastState.players.filter(p=>p.char&&p.char.alive):[];
     const acted=gs.playersActedThisRound?gs.playersActedThisRound.length:0;
     if(alive.length>1) body.insertAdjacentHTML('beforeend',`<div style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:5px;font-family:'Cinzel',serif">${acted}/${alive.length} warriors acted this round</div>`);
@@ -597,42 +608,45 @@ function addBtn(parent,label,sub,cls,onClick,disabled=false){
   btn.innerHTML=`<span class="abl">${label}</span><span class="abs">${sub}</span>`;
   btn.onclick=onClick; parent.appendChild(btn);
 }
-function wpnLabel(char){const w=char.equippedWeapon;if(w)return`${w.name} ${w.dice}+${w.bonus+char.weaponDmgBonus}`;const b={warrior:'Longsword 1d8',rogue:'Sabre 1d6',wizard:'Staff 1d6',priest:'Hammer 1d8'};return(b[char.career]||'1d6')+(char.weaponTraining?' +boon':'');}
+function wpnLabel(char){
+  const w=char.equippedWeapon;
+  if(w) return`${w.name} ${w.dice}+${(w.bonus||0)+(char.weaponDmgBonus||0)}${char.weaponTraining?' +boon':''}`;
+  return `Unarmed 1d6${char.weaponTraining?' +boon':''}`;
+}
 
 // ══════════════════════════════════════════════
-// LOOT ROOM
+// LOOT ROOM — 3 distinct picks
 // ══════════════════════════════════════════════
 function renderLootRoom(gs,me){
   const loot=gs.lootRoom; if(!loot)return;
   const hasPicked=gs.lootPicked&&gs.lootPicked.includes(myId);
   const opts=loot.options;
-  document.getElementById('g-loot-desc').textContent=`${loot.coins} silver awaits — pick one item:`;
+  document.getElementById('g-loot-desc').textContent='Choose one of three options:';
   const el=document.getElementById('g-loot-opts'); el.innerHTML='';
 
   const pickedMsg=document.getElementById('g-loot-picked-msg');
-  if(hasPicked){ pickedMsg.style.display='block'; el.innerHTML='<div style="text-align:center;color:var(--text-dim);font-style:italic;grid-column:1/-1;padding:10px">You have made your choice.</div>'; return; }
+  if(hasPicked){ pickedMsg.style.display='block'; el.innerHTML='<div style="text-align:center;color:var(--text-dim);font-style:italic;grid-column:1/-1;padding:10px">You have made your choice — waiting for others.</div>'; return; }
   pickedMsg.style.display='none';
 
+  // Option A: Coins only
+  const coinsDiv=document.createElement('div'); coinsDiv.className='loot-opt';
+  coinsDiv.innerHTML=`<div class="loot-icon">💰</div><div class="loot-name">${loot.coins} Silver</div><div class="loot-desc">Cold hard coin — reliable in any market.</div>`;
+  coinsDiv.onclick=()=>sendMsg('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'coins'}});
+  el.appendChild(coinsDiv);
+
+  // Option B: Consumable or Scroll
   const consumeName=opts.consumable==='Spell Scroll'&&opts.scrollSpell?`Scroll: ${opts.scrollSpell.name}`:opts.consumable;
   const consDesc=opts.scrollSpell?opts.scrollSpell.desc:getConsDesc(opts.consumable);
+  const consDiv=document.createElement('div'); consDiv.className='loot-opt';
+  consDiv.innerHTML=`<div class="loot-icon">🧪</div><div class="loot-name">${consumeName}</div><div class="loot-desc">${consDesc}</div>`;
+  consDiv.onclick=()=>sendMsg('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'consumable'}});
+  el.appendChild(consDiv);
 
-  // Option 1: Consumable
-  const c=document.createElement('div'); c.className='loot-opt';
-  c.innerHTML=`<div class="loot-icon">🧪</div><div class="loot-name">${consumeName}</div><div class="loot-desc">${consDesc}</div><div style="font-size:10px;color:var(--gold);margin-top:4px;font-family:'Cinzel',serif">Pick this</div>`;
-  c.onclick=()=>sendMsg('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'consumable'}});
-  el.appendChild(c);
-
-  // Option 2: Weapon
-  const w=document.createElement('div'); w.className='loot-opt';
-  w.innerHTML=`<div class="loot-icon">⚔</div><div class="loot-name">${opts.weapon.name}</div><div class="loot-desc">${opts.weapon.dice}+${opts.weapon.bonus} · ${opts.weapon.stat.toUpperCase()}</div><div style="font-size:10px;color:var(--gold);margin-top:4px;font-family:'Cinzel',serif">Equip this</div>`;
-  w.onclick=()=>sendMsg('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'weapon'}});
-  el.appendChild(w);
-
-  // Option 3: Nothing
-  const n=document.createElement('div'); n.className='loot-opt';
-  n.innerHTML=`<div class="loot-icon">👁</div><div class="loot-name">Take Nothing</div><div class="loot-desc">Leave the loot. Press on.</div>`;
-  n.onclick=()=>sendMsg('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'nothing'}});
-  el.appendChild(n);
+  // Option C: Weapon + Armor (both go to inventory)
+  const gearDiv=document.createElement('div'); gearDiv.className='loot-opt';
+  gearDiv.innerHTML=`<div class="loot-icon">⚔</div><div class="loot-name">Weapon &amp; Armour</div><div class="loot-desc"><strong>${opts.weapon.name}</strong> ${opts.weapon.dice}+${opts.weapon.bonus} · <strong>${opts.armor.name}</strong> +${opts.armor.defBonus} Def<br><span style="font-size:9px;color:var(--gold)">Both added to inventory — equip via your inventory panel</span></div>`;
+  gearDiv.onclick=()=>sendMsg('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'gear'}});
+  el.appendChild(gearDiv);
 }
 
 function getConsDesc(name){
