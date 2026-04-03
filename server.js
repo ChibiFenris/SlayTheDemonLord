@@ -1269,15 +1269,25 @@ function handlePlayerAction(room,playerId,payload,ws){
     return;
   }
   if(action==='APPLY_PATH'){
-    if(!char.pendingLevelUp)return;
+    if(!char.pendingLevelUp){
+      console.log('[APPLY_PATH] rejected — pendingLevelUp=false for',player.name,'tier=',char.pendingPathTier,'pathId=',data.pathId);
+      return;
+    }
     const tier=char.pendingPathTier||'novice';
+    console.log('[APPLY_PATH]',player.name,'tier=',tier,'pathId=',data.pathId,'pendingSpellChoices=',char.pendingSpellChoices);
     if(tier==='tradition'){
       const raw=data.pathId;
       const tradId=raw.replace('tradition:','');
       const trad=TRADITIONS[tradId];
+      console.log('[TRADITION] tradId=',tradId,'trad found=',!!trad,'already known=',char.traditions.includes(tradId));
       if(trad && !char.traditions.includes(tradId)){
         grantTradition(char, tradId);
         addLog(room,`${player.name} discovers the <strong>${trad.label}</strong> tradition — all eligible spells granted!`,'spell');
+        console.log('[TRADITION] granted. traditions now:',char.traditions,'spells now:',char.knownSpells.map(s=>s.name));
+      } else if(!trad){
+        addLog(room,`Unknown tradition: ${tradId}`,'sys');
+      } else {
+        addLog(room,`${player.name} already knows the ${trad.label} tradition.`,'sys');
       }
       char.pendingSpellChoices=Math.max(0,(char.pendingSpellChoices||1)-1);
       if(char.pendingSpellChoices>0){
