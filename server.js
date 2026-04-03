@@ -1333,7 +1333,7 @@ function handlePlayerAction(room,playerId,payload,ws){
     if(r.fumble){
       addLog(room,`${player.name} <em>fumbles!</em> d20 rolled 1 — automatic miss.`,'sys');
     } else if(r.hit){
-      gs.enemy.hp-=r.dmg;
+      gs.enemy.hp=Math.min(gs.enemy.maxHp, gs.enemy.hp-r.dmg);
       const cl=r.forceCrit?' ⚡ Lucky Pendant CRIT!':r.crit?' 💥 CRITICAL HIT!':'';
       const rollBreak=`d20:<strong>${r.base}</strong>${r.boonInfo}+atk<strong>${r.atkMod>=0?'+':''}${r.atkMod}</strong>=<strong>${r.total}</strong> vs Def<strong>${gs.enemy.ac}</strong>`;
       const dmgBreak=r.dmgParts.length?` [dmg: ${r.dmgParts.join(' ')} = <strong>${r.dmg}</strong>]`:'';
@@ -1428,16 +1428,26 @@ function handlePlayerAction(room,playerId,payload,ws){
     else {
       if(!gs.enemy){addLog(room,`${player.name}: no target.`,'sys');return;}
       const dStr=spell.dmg||spell.dmgDice||'1d6';
-      const[n,s]=dStr.split('d').map(Number); const roll=rd(n,s);
-      const intMod=Math.max(0,modVal(char.attrs.int))*2;
-      let burnBonus=0;
-      const fireNames=['Flame Missile','Fire Blast','Fireball','Conflagration','Burning Hands','Firewall'];
-      if(char.burningSoul&&fireNames.includes(spell.name)){burnBonus=rd(1,6);}
-      let total=roll+intMod+burnBonus;
-      // Life Leech spells heal caster for half
-      if(spell.lifeLeech){const heal=Math.floor(total/2);char.health=Math.min(char.maxHealth,char.health+heal);addLog(room,`${player.name} leeches ${heal} HP!`,'heal');}
-      gs.enemy.hp-=total;
-      addLog(room,`${player.name} casts <strong>${spell.name}</strong> — ${n}d${s}(${roll})+${intMod} INT${burnBonus?'+'+burnBonus+' burn':''} = <strong>${total}</strong> dmg! [${gs.enemy.name} ${Math.max(0,gs.enemy.hp)}/${gs.enemy.maxHp} HP]`,'spell');
+      // Parse "NdS" or "NdS+B" format safely
+      const dMatch=dStr.match(/^(\d+)d(\d+)(?:\+(\d+))?$/);
+      let total=0;
+      if(dMatch){
+        const n=parseInt(dMatch[1]),s=parseInt(dMatch[2]),b=parseInt(dMatch[3]||0);
+        const roll=rd(n,s);
+        const intMod=Math.max(0,modVal(char.attrs.int))*2;
+        let burnBonus=0;
+        const fireNames=['Flame Missile','Meteor','Fiery Volley','Fireball','Immolate','Fire Blast','Burning Hands','Firewall'];
+        if(char.burningSoul&&fireNames.includes(spell.name)){burnBonus=rd(1,6);}
+        total=roll+b+intMod+burnBonus;
+        if(spell.lifeLeech){const heal=Math.floor(total/2);char.health=Math.min(char.maxHealth,char.health+heal);addLog(room,`${player.name} leeches ${heal} HP!`,'heal');}
+        addLog(room,`${player.name} casts <strong>${spell.name}</strong> — ${n}d${s}(${roll})${b?'+'+b:''}+${intMod} INT${burnBonus?'+'+burnBonus+' burn':''} = <strong>${total}</strong> dmg!`,'spell');
+      } else {
+        // Fallback for unusual dmg strings — treat as flat value
+        total=parseInt(dStr)||0;
+        addLog(room,`${player.name} casts <strong>${spell.name}</strong> — <strong>${total}</strong> dmg!`,'spell');
+      }
+      gs.enemy.hp=Math.min(gs.enemy.maxHp, gs.enemy.hp-total);
+      addLog(room,`${gs.enemy.name}: <strong>${Math.max(0,gs.enemy.hp)}</strong>/${gs.enemy.maxHp} HP remaining.`,'sys');
       if(gs.enemy.hp<=0){resolveEnemyDeath(room);return;}
     }
     acted=true;
