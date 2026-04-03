@@ -617,11 +617,10 @@ function buildChar(career) {
     traditions:[], scrollSpells:{}, stimulantBoon:0, sharpeningStone:false, luckyPendant:false,
     alive:true,
     spellcaster:c.spellcaster, tradition:c.tradition||null,
-    knownSpells:c.spellcaster
-      ? (c.tradition==='fire'
-          ? getSpellsForPower('fire',1)
-          : getSpellsForPower('life',1))
-      : [],
+    // Spells start empty — granted when traditions are discovered at Level 1 novice pick
+    knownSpells:[],
+    // Pending spell choices: array of {choices: N} meaning player must make N picks
+    pendingSpellChoices:0,
     merchantStock:null, lootOptions:null, pendingRevive:false,
   };
 }
@@ -707,9 +706,17 @@ function checkLevelUp(char) {
     if (newLevel===1&&!char.novicePath) { char.pendingLevelUp=true; char.pendingPathTier='novice'; }
     else if (newLevel===3&&!char.expertPath) { char.pendingLevelUp=true; char.pendingPathTier='expert'; }
     else if (newLevel===7&&!char.masterPath) { char.pendingLevelUp=true; char.pendingPathTier='master'; }
-    // Spellcasters gain a new tradition or new spells at levels 2,4,6,8,10
-    else if (char.spellcaster && [2,4,6,8,10].includes(newLevel)) {
+    // PDF spell learning at levels 2, 5, 8 for spellcaster novice paths
+    // Level 2 Magician: 2 choices (discover/learn). Level 2 Priest: 2 choices.
+    // Level 5 Expert: Power+1, discover OR learn. Level 8 Master: discover OR learn.
+    // Also level 4, 6 for expert path spellcaster gains, level 9,10 for master
+    else if (char.spellcaster && [2,4,5,6,8,9,10].includes(newLevel)) {
       char.pendingLevelUp=true; char.pendingPathTier='tradition';
+      // Number of choices this level
+      if (newLevel===2)      char.pendingSpellChoices=2; // L2 Magician/Priest: 2 choices
+      else if (newLevel===5) char.pendingSpellChoices=1; // Expert level
+      else if (newLevel===8) char.pendingSpellChoices=1; // Master level
+      else                   char.pendingSpellChoices=1; // Other levels: 1 choice
     }
     else { char.pendingLevelUp=false; }
     // Refresh known spells from all traditions whenever power changes
@@ -762,15 +769,37 @@ function applyTalentList(char, talents) {
 
 function applyNovicePath(char, pathId) {
   char.novicePath=pathId; char.pendingLevelUp=false; char.pendingPathTier=null;
+  char.pendingSpellChoices=0;
   const np=NOVICE_PATHS[pathId]; if(!np) return;
   char.maxHealth+=np.hpGain; char.health=Math.min(char.health+np.hpGain,char.maxHealth);
-  if (np.power)           { char.power+=np.power; char.maxPower+=np.power; refreshCastingPools(char); }
+  if (np.power) { char.power+=np.power; char.maxPower+=np.power; refreshCastingPools(char); }
   if (np.weaponTraining)  char.weaponTraining=true;
   if (np.catchBreath)     char.catchBreath=true;
   if (np.trickery)        char.trickery=true;
   if (np.nimbleRecovery)  char.nimbleRecovery=true;
   if (np.spellRecovery)   char.spellRecovery=true;
   if (np.sharedRecovery)  char.sharedRecovery=true;
+  // PDF: Magician L1 = discover 1 tradition + 3 choices (discover/learn)
+  //      Priest L1   = discover 1 tradition (religion) + 2 choices
+  // The starter tradition is granted immediately (rank 0 spell from it)
+  // Remaining choices are queued as pendingSpellChoices
+  if (char.spellcaster) {
+    const starterTradition = char.tradition; // 'fire' or 'life'
+    if (starterTradition && !char.traditions.includes(starterTradition)) {
+      char.traditions.push(starterTradition);
+      // Cantrip: discover tradition → learn rank 0 spell from it
+      const rank0=TRADITIONS[starterTradition]?.spells.filter(s=>s.rank===0)||[];
+      rank0.forEach(sp=>{if(!char.knownSpells.find(k=>k.name===sp.name))char.knownSpells.push({...sp,heal:sp.type==='heal'});});
+      refreshCastingPools(char);
+    }
+    // Remaining choices to make (will trigger 'tradition' pendingPathTier picks)
+    const extraChoices = (pathId==='magician') ? 3 : (pathId==='priest') ? 2 : 0;
+    if (extraChoices > 0) {
+      char.pendingLevelUp=true;
+      char.pendingPathTier='tradition';
+      char.pendingSpellChoices=extraChoices;
+    }
+  }
 }
 
 function applyExpertPath(char, pathId) {
@@ -1251,26 +1280,43 @@ function handlePlayerAction(room,playerId,payload,ws){
     if(tier==='tradition'){
       const raw=data.pathId;
       if(raw.startsWith('spell:')){
-        // spell:traditionId:spellName — grant specific spell
+        // spell:traditionId:spellName — learn a specific spell (rank must be ≤ Power)
         const parts=raw.split(':'); const tradId=parts[1]; const spellName=parts.slice(2).join(':');
         const trad=TRADITIONS[tradId];
         if(trad){
           const sp=trad.spells.find(s=>s.name===spellName);
-          if(sp&&!char.knownSpells.find(k=>k.name===sp.name)){
+          if(sp && sp.rank<=char.power && !char.knownSpells.find(k=>k.name===sp.name)){
             char.knownSpells.push({...sp,heal:sp.type==='heal'});
-            refreshCastingPools(char); addLog(room,`${player.name} learns <strong>${sp.name}</strong> (${TRADITIONS[tradId].label} rank ${sp.rank}).`,'spell');
+            refreshCastingPools(char);
+            addLog(room,`${player.name} learns <strong>${sp.name}</strong> (${trad.label} rank ${sp.rank}).`,'spell');
           }
         }
-        char.pendingLevelUp=false; char.pendingPathTier=null;
       } else {
         // tradition:id — discover a new tradition
+        // Per PDF: discovering grants the rank 0 spell (Cantrip rule)
         const tradId=raw.replace('tradition:','');
-        if(TRADITIONS[tradId]&&!char.traditions.includes(tradId)){
+        const trad=TRADITIONS[tradId];
+        if(trad&&!char.traditions.includes(tradId)){
           char.traditions.push(tradId);
-          const newSpells=getSpellsForPower(tradId,char.power);
-          newSpells.forEach(sp=>{if(!char.knownSpells.find(k=>k.name===sp.name))char.knownSpells.push({...sp,heal:sp.type==='heal'});});
-          refreshCastingPools(char); addLog(room,`${player.name} learns the <strong>${TRADITIONS[tradId].label}</strong> tradition!`,'spell');
+          // Grant rank 0 spell (Cantrip: discover → learn rank 0 from that tradition)
+          const rank0=trad.spells.filter(s=>s.rank===0);
+          rank0.forEach(sp=>{if(!char.knownSpells.find(k=>k.name===sp.name))char.knownSpells.push({...sp,heal:sp.type==='heal'});});
+          // Also grant any spells of rank ≤ Power (for higher-power characters discovering late)
+          if(char.power>0){
+            trad.spells.filter(s=>s.rank>0&&s.rank<=char.power).forEach(sp=>{
+              if(!char.knownSpells.find(k=>k.name===sp.name))char.knownSpells.push({...sp,heal:sp.type==='heal'});
+            });
+          }
+          refreshCastingPools(char);
+          addLog(room,`${player.name} discovers the <strong>${trad.label}</strong> tradition — learns rank 0 spell!`,'spell');
         }
+      }
+      // Decrement choices remaining; re-queue if more picks needed
+      char.pendingSpellChoices=Math.max(0,(char.pendingSpellChoices||1)-1);
+      if(char.pendingSpellChoices>0){
+        // Stay in tradition tier — player must pick again
+        addLog(room,`${player.name}: ${char.pendingSpellChoices} more choice${char.pendingSpellChoices>1?'s':''} remaining.`,'sys');
+      } else {
         char.pendingLevelUp=false; char.pendingPathTier=null;
       }
     }
