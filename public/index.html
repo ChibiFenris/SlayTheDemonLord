@@ -565,41 +565,59 @@ function updateLobbySlots(players){
 // ─── PATH PICK ────────────────────────────────────────────────────────────────
 // ─── TRADITIONS DATA (mirrors server) ────────────────────────────────────────
 const TRADITION_INFO = {
-  fire:           {label:'Fire',           desc:'Offensive fire magic. Flame Missile → Fire Blast → Fireball → Conflagration. Scales with INT.'},
-  life:           {label:'Life',           desc:'Healing tradition. Minor Healing → Light Healing → Moderate Healing → Vitality Burst. Scales with WIL.'},
-  death:          {label:'Death',          desc:'Necrotic attacks. Spectral Grasp → Grave Grasp (leeches HP) → Bone Splinters → Harvest Soul.'},
-  shadow:         {label:'Shadow',         desc:'Darkness magic. Shadow Bolt → Darksight (+2 Def) → Shadow Strike (ignores armor) → Enervation.'},
-  battle:         {label:'Battle',         desc:'War magic. Augmented Attack → Close Wounds → Battle Prowess (group boon) → Meteoric Assault.'},
-  celestial:      {label:'Celestial',      desc:'Holy light. Burning Beam → Flash → Radiation → Rainbow Burst. Pure offensive damage.'},
-  chaos:          {label:'Chaos',          desc:'Chaos magic. Chaos Boon (reroll) → Fold Space (+2 Def) → Singularity → Rend Reality.'},
-  earth:          {label:'Earth',          desc:'Stone and rock. Earth Spike → Avalanche → Eruption (area) → Earthquake (stun).'},
-  storm:          {label:'Storm',          desc:'Lightning and ice. Forked Lightning → Freezing Fog → Lightning Bolt → Leaping Lightning.'},
-  protection:     {label:'Protection',     desc:'Defensive wards. Force Field (+2 Def) → Evade (boon) → Vigor (heal) → Protective Field (group +3 Def).'},
-  illusion:       {label:'Illusion',       desc:'Trickery. Figment (enemy bane) → Decoy (def boon) → Phantasm (psychic dmg) → Mirage (enemy misses).'},
-  nature:         {label:'Nature',         desc:'Wild magic. Oak Hide (+2 Def) → Healing Berries → Wrath of Nature → Overgrowth.'},
-  transformation: {label:'Transformation',desc:'Shape-shifting. Beast Within (+1d6 dmg) → Bounding Step (boon) → Mist Form (invulnerable) → Speed Healing.'},
-  time:           {label:'Time',           desc:'Temporal magic. Swiftness (extra action) → Rewrite Moment (reroll) → Precognition (full buff) → Time Jump (skip enemy).'},
+  fire:           {label:'Fire',           desc:'Flame Missile (free, 1d6) → Meteor/Fiery Volley (R1) → Fireball (R2, 5d6 sphere) → Immolate (R3, 4d6+fire). Bright Wizard specialty.'},
+  life:           {label:'Life',           desc:'Minor Healing (free, half rate) → Cure/Light Healing (R1) → Moderate Healing/Vitality Burst (R2) → Major Healing (R3, 3× rate). Sigmarite specialty.'},
+  death:          {label:'Death',          desc:'Spectral Grasp (free, 1d3+bane) → Grave Grasp (R1, area immobilize) → Bone Splinters (R2, 3d6+5) → Cannibalize Magic (R3, 3d6+regain casting). Dark magic.'},
+  shadow:         {label:'Shadow',         desc:'Nightfall Blade (free, shadow weapon) → Shadow Dart (R1, 2d6) → Shadow Strike (R2, 2d6×3 targets) → Enervation (R3, −20 Health 1h+impaired).'},
+  battle:         {label:'Battle',         desc:'Augmented Attack (free, attack+boon+1d6) → Close Wounds/Mighty Attack (R1) → Battle Prowess (R3, 1min: roll twice+1d6). Risk of Battle Madness.'},
+  celestial:      {label:'Celestial',      desc:'Burning Beam (free, 1d6+blind chance) → Flash (R1, blind) → Sunrays (R2, 1d6×3 targets) → Radiation (R3, 1d6/round area). INT-based.'},
+  chaos:          {label:'Chaos',          desc:'Erratic Bolt (free, 1d6 may chain) → Capricious Devastation (R1, 2d6+chaos) → Color of Magic (R2, explosion+3d6) → Chaotic Lance (R3, 4d6 line).'},
+  earth:          {label:'Earth',          desc:'Earth Spike (free, 1d6+prone) → Stone Blades (R1, 2d6 cone+bleed) → Avalanche (R2, 4d6 area) → Eruption (R3, 5d6+push+impaired). INT-based.'},
+  storm:          {label:'Storm',          desc:'Forked Lightning (free, 1d6+2×2 targets) → Freezing Fog (R1, area slow) → Call Lightning (R2, 3d6+5) → Lightning Bolt (R3, 5d6 bouncing). INT-based.'},
+  protection:     {label:'Protection',     desc:'Force Field (free, 10HP shield) → Sanctuary (R1, hidden from all) → Vigor (R2, +10 Health) → Protective Field (R3, barrier for allies). Defensive.'},
+  illusion:       {label:'Illusion',       desc:'Figment (free, enemy 1 bane) → Vertigo (R1, vertigo affliction) → Glamer (R2, audio+visual+bane) → Phantasm (R3, 4d6 psychic). INT-based.'},
+  nature:         {label:'Nature',         desc:'Oak Hide (free, +2 Def) → Healing Berries/Shillelagh (R1) → Wrath of Nature (R3, 3d6×5 targets+immobilize). Cannot cast in heavy armor.'},
+  transformation: {label:'Transformation', desc:'Beast Within (free, +1d6 next attack) → Dire Beast (R1, size+1d6) → Mist Form (R2, invulnerable) → Speed Healing (R3, 3× Healing Rate).'},
+  time:           {label:'Time',           desc:'Swiftness (free, +10 Speed) → Rewrite Moment (R1, reroll dice) → Minor Paradox (R2, target vanishes 1 round) → Precognition (R3, 2 banes on attackers).'},
 };
 
 function showPathPick(me){
   pathPickPending=true; show('screen-pathpick');
   const tier=me.char.pendingPathTier||'novice';
 
-  // Tradition pick (gain a new tradition spell at certain levels)
+  // Tradition pick — offer choice: new tradition OR learn spell from existing
   if(tier==='tradition'){
-    el('pp-heading').textContent='Learn a Spell Tradition';
-    el('pp-sub').textContent='Choose a new magical tradition. You will learn spells from it as your Power grows.';
-    const grid=el('pp-grid'); grid.innerHTML='';
     const knownTraditions=me.char.traditions||[];
-    Object.entries(TRADITION_INFO).forEach(([id,info])=>{
-      const already=knownTraditions.includes(id);
-      const btn=document.createElement('button'); btn.className='pp-btn';
-      btn.disabled=already;
-      btn.style.opacity=already?'0.4':'1';
-      btn.innerHTML=`<span class="ppn">${info.label}${already?' ✓':''}</span><span class="ppd">${info.desc}</span><span class="ppb">${already?'Already known':'Learn this tradition'}</span>`;
-      if(!already) btn.onclick=()=>{ pathPickPending=false; send('PLAYER_ACTION',{action:'APPLY_PATH',data:{pathId:'tradition:'+id}}); show('screen-game'); if(lastState)renderState(lastState); };
-      grid.appendChild(btn);
-    });
+    const grid=el('pp-grid'); grid.innerHTML='';
+
+    if(knownTraditions.length===0){
+      el('pp-heading').textContent='Learn a Spell Tradition';
+      el('pp-sub').textContent='You have no traditions yet. Choose one to begin learning spells.';
+      _buildTraditionButtons(grid, knownTraditions);
+    } else {
+      el('pp-heading').textContent='Advance Your Magic';
+      el('pp-sub').textContent='Discover a new tradition, or learn a new spell from one you already know.';
+
+      const btnA=document.createElement('button'); btnA.className='pp-btn';
+      btnA.innerHTML=`<span class="ppn">🌟 Discover New Tradition</span>
+        <span class="ppd">Learn a brand-new magical tradition. Immediately unlock its rank 0 spell.</span>
+        <span class="ppb">Known: ${knownTraditions.map(t=>TRADITION_INFO[t]?.label||t).join(', ')}</span>`;
+      btnA.onclick=()=>{
+        el('pp-heading').textContent='Choose a New Tradition';
+        el('pp-sub').textContent='Pick any tradition you have not yet discovered.';
+        grid.innerHTML='';
+        _buildTraditionButtons(grid, knownTraditions);
+      };
+      grid.appendChild(btnA);
+
+      const btnB=document.createElement('button'); btnB.className='pp-btn';
+      const maxRank=Math.min(me.char.power,3);
+      btnB.innerHTML=`<span class="ppn">📖 Learn a New Spell</span>
+        <span class="ppd">Gain one spell from a tradition you already know, up to rank ${maxRank} (your Power).</span>
+        <span class="ppb">Known traditions: ${knownTraditions.map(t=>TRADITION_INFO[t]?.label||t).join(', ')}</span>`;
+      btnB.onclick=()=>{ _buildSpellPicker(grid, me, knownTraditions, maxRank); };
+      grid.appendChild(btnB);
+    }
     return;
   }
 
@@ -616,6 +634,77 @@ function showPathPick(me){
     btn.innerHTML=`<span class="ppn">${info.name}</span><span class="ppd">${info.desc||''}</span><span class="ppb">${hint}${info.gains}</span>`;
     btn.onclick=()=>{ pathPickPending=false; send('PLAYER_ACTION',{action:'APPLY_PATH',data:{pathId:id}}); show('screen-game'); if(lastState)renderState(lastState); };
     grid.appendChild(btn);
+  });
+}
+
+// ── Tradition picker helper ────────────────────────────────────────────────────
+function _buildTraditionButtons(grid, knownTraditions){
+  grid.innerHTML='';
+  Object.entries(TRADITION_INFO).forEach(([id,info])=>{
+    const already=knownTraditions.includes(id);
+    const btn=document.createElement('button'); btn.className='pp-btn';
+    btn.disabled=already;
+    btn.style.opacity=already?'0.4':'1';
+    btn.innerHTML=`<span class="ppn">${info.label}${already?' ✓':''}</span>
+      <span class="ppd">${info.desc}</span>
+      <span class="ppb">${already?'Already known — pick a different one.':'Unlock rank 0 spell immediately. Higher ranks unlock as Power grows.'}</span>`;
+    if(!already) btn.onclick=()=>{
+      pathPickPending=false;
+      send('PLAYER_ACTION',{action:'APPLY_PATH',data:{pathId:'tradition:'+id}});
+      show('screen-game');
+      if(lastState)renderState(lastState);
+    };
+    grid.appendChild(btn);
+  });
+}
+
+// ── Spell picker helper ────────────────────────────────────────────────────────
+const TRADITION_SPELLS_CLIENT = {
+  fire:           [{name:'Flame Missile',rank:0,desc:'[R0] 1d6 fire dmg at one target. Free cast.'},{name:'Meteor',rank:1,desc:'[R1] 2d6+2 fire explosion in 1-yard sphere.'},{name:'Fiery Volley',rank:1,desc:'[R1] 1d6+1 to up to 3 targets.'},{name:'Fireball',rank:2,desc:'[R2] 5d6 fire explosion in 5-yard sphere.'},{name:'Immolate',rank:3,desc:'[R3] 4d6 + target catches fire.'}],
+  life:           [{name:'Minor Healing',rank:0,desc:'[R0] Heal half Healing Rate. Free cast.'},{name:'Cure',rank:1,desc:'[R1] Remove one affliction or heal half rate.'},{name:'Light Healing',rank:1,desc:'[R1] Heal full Healing Rate.'},{name:'Moderate Healing',rank:2,desc:'[R2] Heal 2× Healing Rate.'},{name:'Vitality Burst',rank:2,desc:'[R2] Up to 3 allies each heal full Healing Rate.'},{name:'Major Healing',rank:3,desc:'[R3] Heal 3× Healing Rate.'}],
+  death:          [{name:'Spectral Grasp',rank:0,desc:'[R0] 1d3 dmg, target has 1 bane on attacks 1 round.'},{name:'Grave Grasp',rank:1,desc:'[R1] Area grasps — 1d6 dmg and immobilized each round for 1 min.'},{name:'Bone Splinters',rank:2,desc:'[R2] 3d6+5 dmg, kills instantly on incapacitation.'},{name:'Cannibalize Magic',rank:3,desc:'[R3] 3d6 dmg + regain a spell casting.'}],
+  shadow:         [{name:'Nightfall Blade',rank:0,desc:'[R0] Create shadow blade 1d6, +1d6 in darkness. Free cast.'},{name:'Shadow Dart',rank:1,desc:'[R1] 2d6 darkness missile at one target.'},{name:'Shadow Strike',rank:2,desc:'[R2] 2d6 each to up to 3 targets, pushed back.'},{name:'Enervation',rank:3,desc:'[R3] −20 Health penalty for 1 hour + impaired.'}],
+  battle:         [{name:'Augmented Attack',rank:0,desc:'[R0] Attack with 1 boon + INT, next attack +1d6. Free cast.'},{name:'Close Wounds',rank:1,desc:'[R1] Heal your full Healing Rate.'},{name:'Mighty Attack',rank:1,desc:'[R1] Attack with 1 boon, +2d6 extra on hit.'},{name:'Battle Prowess',rank:3,desc:'[R3] For 1 min: roll attacks twice, take better, +1d6 dmg.'}],
+  celestial:      [{name:'Burning Beam',rank:0,desc:'[R0] 1d6 holy dmg, may blind. Free cast.'},{name:'Flash',rank:1,desc:'[R1] Blind one creature for 1 round (1 min on 20+).'},{name:'Sunrays',rank:2,desc:'[R2] 1d6 dmg to up to 3 targets + impaired.'},{name:'Radiation',rank:3,desc:'[R3] 1d6/round area damage for 1 minute.'}],
+  chaos:          [{name:'Erratic Bolt',rank:0,desc:'[R0] 1d6 chaos dmg, may chain. Free cast.'},{name:'Capricious Devastation',rank:1,desc:'[R1] 2d6 dmg with chaos die modifier.'},{name:'Color of Magic',rank:2,desc:'[R2] 1d6+1 area explosion, may deal +3d6.'},{name:'Chaotic Lance',rank:3,desc:'[R3] 4d6 in a 15-yard shapeable line.'}],
+  earth:          [{name:'Earth Spike',rank:0,desc:'[R0] 1d6 + prone. Free cast.'},{name:'Stone Blades',rank:1,desc:'[R1] 2d6 cone + bleeding wound.'},{name:'Avalanche',rank:2,desc:'[R2] 4d6 to everything in area.'},{name:'Eruption',rank:3,desc:'[R3] 5d6 eruption + pushed + impaired.'}],
+  storm:          [{name:'Forked Lightning',rank:0,desc:'[R0] 1d6+2 to 2 targets. Free cast.'},{name:'Freezing Fog',rank:1,desc:'[R1] Area slows + 1d3 dmg/round for 1 min.'},{name:'Call Lightning',rank:2,desc:'[R2] 3d6+5 to all within 3 yards of point.'},{name:'Lightning Bolt',rank:3,desc:'[R3] 5d6 bouncing lightning in 30-yard line.'}],
+  protection:     [{name:'Force Field',rank:0,desc:'[R0] Shield with 10 HP absorbs all incoming damage. Free cast.'},{name:'Sanctuary',rank:1,desc:'[R1] Target becomes hidden from all creatures.'},{name:'Vigor',rank:2,desc:'[R2] +10 Health bonus for 1 hour.'},{name:'Protective Field',rank:3,desc:'[R3] Barrier blocks enemies from reaching allies.'}],
+  illusion:       [{name:'Figment',rank:0,desc:'[R0] Visual illusion, enemy has 1 bane. Free cast.'},{name:'Vertigo',rank:1,desc:'[R1] Target afflicted with vertigo for 1 min.'},{name:'Glamer',rank:2,desc:'[R2] Visual+audio illusion, enemy attacks with 1 bane.'},{name:'Phantasm',rank:3,desc:'[R3] Massive illusion deals 4d6 psychic dmg.'}],
+  nature:         [{name:'Oak Hide',rank:0,desc:'[R0] +2 Defense for 1 hour. Free cast.'},{name:'Healing Berries',rank:1,desc:'[R1] 3 berries, each heals half rate when eaten.'},{name:'Shillelagh',rank:1,desc:'[R1] +2 Speed, weapon deals +1d6 for 1 hour.'},{name:'Wrath of Nature',rank:3,desc:'[R3] 3d6 to 5 targets + immobilized.'}],
+  transformation: [{name:'Beast Within',rank:0,desc:'[R0] 1 boon STR, +1d6 next attack. Free cast.'},{name:'Dire Beast',rank:1,desc:'[R1] Size+1, attacks +1d6 for 1 min.'},{name:'Mist Form',rank:2,desc:'[R2] Cannot be hit by weapons for 1 min.'},{name:'Speed Healing',rank:3,desc:'[R3] Heal 3× Healing Rate.'}],
+  time:           [{name:'Swiftness',rank:0,desc:'[R0] +10 Speed for 1 min. Free cast.'},{name:'Rewrite Moment',rank:1,desc:'[R1] Reroll any die once per round for 1 min.'},{name:'Minor Paradox',rank:2,desc:'[R2] Target ceases to exist for 1 round.'},{name:'Precognition',rank:3,desc:'[R3] 2 banes on attacks vs you, 2 boons for you for 1 min.'}],
+};
+
+function _buildSpellPicker(grid, me, knownTraditions, maxRank){
+  el('pp-heading').textContent='Learn a New Spell';
+  el('pp-sub').textContent=`Choose one spell (rank 0–${maxRank}) from your known traditions. Already-known spells are greyed out.`;
+  grid.innerHTML='';
+  grid.style.gridTemplateColumns='1fr';
+  const knownNames=new Set((me.char.knownSpells||[]).map(s=>s.name));
+  knownTraditions.forEach(tid=>{
+    const tradInfo=TRADITION_INFO[tid];
+    const tradSpells=TRADITION_SPELLS_CLIENT[tid]||[];
+    const eligible=tradSpells.filter(s=>s.rank<=maxRank);
+    if(!eligible.length)return;
+    const header=document.createElement('div');
+    header.style.cssText='font-family:"Cinzel",serif;font-size:11px;color:var(--gold);letter-spacing:2px;padding:6px 0 3px;border-bottom:1px solid var(--border);margin-top:6px;';
+    header.textContent=tradInfo?.label||tid;
+    grid.appendChild(header);
+    eligible.forEach(sp=>{
+      const already=knownNames.has(sp.name);
+      const btn=document.createElement('button'); btn.className='pp-btn';
+      btn.disabled=already;
+      btn.style.cssText=`text-align:left;width:100%;margin-bottom:4px;${already?'opacity:0.35;':''}`;
+      btn.innerHTML=`<span class="ppn" style="font-size:14px">${sp.name}${already?' ✓':''} <span style="font-size:10px;color:var(--text-dim)">(Rank ${sp.rank}${sp.rank===0?' — Free':''})</span></span><span class="ppd">${sp.desc}</span>`;
+      if(!already) btn.onclick=()=>{
+        pathPickPending=false;
+        send('PLAYER_ACTION',{action:'APPLY_PATH',data:{pathId:'spell:'+tid+':'+sp.name}});
+        show('screen-game');
+        if(lastState)renderState(lastState);
+      };
+      grid.appendChild(btn);
+    });
   });
 }
 

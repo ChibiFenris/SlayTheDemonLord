@@ -226,127 +226,190 @@ const TRADITIONS = {
   fire: {
     label:'Fire',
     spells:[
-      {name:'Flame Missile',   rank:0, type:'attack', dmg:'1d6',  desc:'A bolt of fire — 1d6 + INT×2 damage.'},
-      {name:'Fire Blast',      rank:1, type:'attack', dmg:'2d6',  desc:'Cone of flame — 2d6 + INT×2 damage.'},
-      {name:'Fireball',        rank:2, type:'attack', dmg:'3d6',  desc:'Explosive sphere — 3d6 + INT×2 damage.'},
-      {name:'Conflagration',   rank:3, type:'attack', dmg:'5d6',  desc:'Massive fire explosion — 5d6 + INT×2 damage.'},
+      {name:'Flame Missile', rank:0, type:'attack', dmg:'1d6',
+       desc:'[FIRE ATTACK 0] Loose a fiery missile at one creature within long range. Will attack vs Agility. On success: 1d6 damage (+1d6 on roll of 20+). Bonus: +INT×2. Bright Wizard specialty.'},
+      {name:'Meteor',        rank:1, type:'attack', dmg:'2d6+2',
+       desc:'[FIRE ATTACK 1] Hurl a fiery stone at a point within medium range. It explodes in a 1-yard sphere, dealing 2d6+2 damage to everything in the area. Half damage on Agility challenge success.'},
+      {name:'Fiery Volley',  rank:1, type:'attack', dmg:'1d6+1',
+       desc:'[FIRE ATTACK 2] Launch three fiery missiles, divided among up to three targets within medium range. Will vs Agility per missile. Each hit: 1d6+1 damage (+1d3 on roll of 20+).'},
+      {name:'Fireball',      rank:2, type:'attack', dmg:'5d6',
+       desc:'[FIRE ATTACK 3] Fling a globe of fire at a point within long range. Explodes in a 5-yard sphere dealing 5d6 damage. Half damage on Agility challenge success. Bonus: +INT×2.'},
+      {name:'Immolate',      rank:3, type:'attack', dmg:'4d6',
+       desc:'[FIRE ATTACK 3] Target smolders and catches fire. Will vs Agility. On success: 4d6 damage and target catches fire (+2d6 on roll of 20+). Bonus: +INT×2.'},
     ]
   },
   life: {
     label:'Life',
     spells:[
-      {name:'Minor Healing',   rank:0, type:'heal',   dmg:'1d6',  desc:'Heals 1d6 + WIL mod HP.'},
-      {name:'Light Healing',   rank:1, type:'heal',   dmg:'2d6',  desc:'Heals 2d6 + WIL mod HP.'},
-      {name:'Moderate Healing',rank:2, type:'heal',   dmg:'3d6',  desc:'Heals 3d6 + WIL mod HP.'},
-      {name:'Vitality Burst',  rank:3, type:'heal',   dmg:'4d6',  desc:'Burst of life — heals 4d6 + WIL mod HP.'},
+      {name:'Minor Healing',    rank:0, type:'heal', dmg:'half_rate',
+       desc:'[LIFE UTILITY 0] Touch one creature. It heals damage equal to half its Healing Rate (MaxHP÷8). Free to cast (rank 0). Foundation of the healing tradition.'},
+      {name:'Cure',             rank:1, type:'utility', dmg:'0',
+       desc:'[LIFE UTILITY 1] Touch one creature. Remove one affliction (diseased, fatigued, impaired, poisoned), remove 1 Insanity, remove any Health penalty, OR heal half the target\'s Healing Rate.',
+       cure:true},
+      {name:'Light Healing',    rank:1, type:'heal', dmg:'rate',
+       desc:'[LIFE UTILITY 1] Touch one creature. It heals damage equal to its full Healing Rate (MaxHP÷4). Rank 1 — costs 1 casting.'},
+      {name:'Moderate Healing', rank:2, type:'heal', dmg:'double_rate',
+       desc:'[LIFE UTILITY 2] Touch one creature. It heals damage equal to twice its Healing Rate (MaxHP÷2). Rank 2 — costs 1 casting.'},
+      {name:'Vitality Burst',   rank:2, type:'heal', dmg:'rate_multi',
+       desc:'[LIFE UTILITY 2] Up to three living creatures within short range each heal their full Healing Rate simultaneously. Rank 2 — costs 1 casting.', multiTarget:true},
+      {name:'Major Healing',    rank:3, type:'heal', dmg:'triple_rate',
+       desc:'[LIFE UTILITY 3] Touch one creature. It heals damage equal to three times its Healing Rate (3/4 MaxHP). Rank 3 — costs 1 casting.'},
     ]
   },
   death: {
     label:'Death (Necromancy)',
     spells:[
-      {name:'Spectral Grasp',  rank:0, type:'attack', dmg:'1d6',  desc:'Necrotic bolt — 1d6 + INT×2 damage.'},
-      {name:'Grave Grasp',     rank:1, type:'attack', dmg:'2d6',  desc:'Death energy — 2d6 + INT×2 damage, heals you for half.', lifeLeech:true},
-      {name:'Bone Splinters',  rank:2, type:'attack', dmg:'3d6',  desc:'Shards of bone — 3d6 + INT×2 damage.'},
-      {name:'Harvest Soul',    rank:3, type:'attack', dmg:'4d6',  desc:'Soul rend — 4d6 + INT×2 damage.'},
+      {name:'Spectral Grasp',   rank:0, type:'attack', dmg:'1d3',
+       desc:'[NECROMANCY ATTACK 0] A shadowy hand streaks at one creature within medium range. Intellect vs Agility. On success: 1d3 damage and target attacks with 1 bane for 1 round. (+1d6 on roll of 20+).'},
+      {name:'Grave Grasp',      rank:1, type:'attack', dmg:'1d6', graveDot:true,
+       desc:'[NECROMANCY ATTACK 1] Darkness and bony hands erupt in a 5-yard area. Agility challenge each round — failure: 1d6 damage and immobilized for 1 min. Lasts 1 minute.'},
+      {name:'Bone Splinters',   rank:2, type:'attack', dmg:'3d6+5',
+       desc:'[NECROMANCY ATTACK 2] Bone shards fly from target\'s body. Intellect vs Strength. On success: 3d6+5 damage. If incapacitated: killed instantly, bones explode in cone. Bonus: +INT×2.'},
+      {name:'Cannibalize Magic',rank:3, type:'attack', dmg:'3d6',
+       desc:'[NECROMANCY ATTACK 3] Drain magical energy. Intellect vs Strength. On success: 3d6 damage and you regain one rank 1 casting. On roll of 20+: 3d6+2d6 extra, regain rank 2 casting.'},
     ]
   },
   shadow: {
     label:'Shadow',
     spells:[
-      {name:'Shadow Bolt',     rank:0, type:'attack', dmg:'1d6',  desc:'Missile of darkness — 1d6 + INT×2 damage.'},
-      {name:'Darksight',       rank:1, type:'utility',dmg:'0',    desc:'You gain darksight and +2 Defense until next rest.', defBonus:2},
-      {name:'Shadow Strike',   rank:2, type:'attack', dmg:'3d6',  desc:'Shadow energy — 3d6 + INT×2 damage, ignores armor.'},
-      {name:'Enervation',      rank:3, type:'attack', dmg:'5d6',  desc:'Drain of shadows — 5d6 + INT×2 damage.'},
+      {name:'Nightfall Blade',  rank:0, type:'utility', dmg:'0',
+       desc:'[SHADOW UTILITY 0] Wisps form a shadow blade in your hand for 1 min. Functions as a 1d6 finesse weapon. Deals +1d6 bonus damage in shadowy or dark areas. Cast then attack immediately.', shadowBlade:true},
+      {name:'Shadow Dart',      rank:1, type:'attack', dmg:'2d6',
+       desc:'[SHADOW ATTACK 1] A missile of inky darkness leaps at one creature within medium range. Intellect vs Agility. On success: 2d6 damage. (+1d6 on roll of 20+). Bonus: +INT×2.'},
+      {name:'Shadow Strike',    rank:2, type:'attack', dmg:'2d6', multi3:true,
+       desc:'[SHADOW ATTACK 3] Three missiles of darkness strike up to three targets within medium range. Intellect vs Agility each. On success: 2d6 damage and target pushed 1d6 yards. Bonus: +INT×2.'},
+      {name:'Enervation',       rank:3, type:'attack', dmg:'0', healthPenalty:20,
+       desc:'[SHADOW ATTACK 5] A black beam hits one creature within long range. Intellect vs Agility. On success: target suffers −20 penalty to Health for 1 hour (−30 on roll of 20+) and becomes impaired.'},
     ]
   },
   battle: {
     label:'Battle',
     spells:[
-      {name:'Augmented Attack',rank:0, type:'utility',dmg:'0',    desc:'Your next attack deals +1d6 damage.', dmgBuff:true},
-      {name:'Close Wounds',    rank:1, type:'heal',   dmg:'1d6',  desc:'Battle magic closes wounds — 1d6 + WIL mod HP.'},
-      {name:'Battle Prowess',  rank:2, type:'utility',dmg:'0',    desc:'All allies gain 1 boon on attacks this round.', groupBoon:true},
-      {name:'Meteoric Assault',rank:3, type:'attack', dmg:'4d6',  desc:'Arcane assault — 4d6 + INT×2 damage.'},
+      {name:'Augmented Attack', rank:0, type:'utility', dmg:'0', dmgBuff:true,
+       desc:'[BATTLE ATTACK 0] As part of casting, you attack with a weapon with 1 boon, using Intellect instead of normal attribute. Your next weapon attack gains +1d6 bonus damage.'},
+      {name:'Close Wounds',     rank:1, type:'heal', dmg:'rate',
+       desc:'[BATTLE UTILITY 1] You heal damage equal to your Healing Rate (MaxHP÷4). Can be used as a triggered action to heal half your Healing Rate when taking damage.'},
+      {name:'Mighty Attack',    rank:1, type:'utility', dmg:'2d6extra', mightyAtk:true,
+       desc:'[BATTLE ATTACK 1] As part of casting, make a weapon attack with 1 boon using Intellect. On success, target takes 2d6 extra damage beyond normal weapon damage.'},
+      {name:'Battle Prowess',   rank:3, type:'utility', dmg:'0', battleProwessSpell:true,
+       desc:'[BATTLE UTILITY 3] For 1 minute: make all weapon attack rolls twice and use the better result. Your weapon attacks deal +1d6 extra damage for the duration.'},
     ]
   },
   celestial: {
     label:'Celestial',
     spells:[
-      {name:'Burning Beam',    rank:0, type:'attack', dmg:'1d6',  desc:'Beam of holy light — 1d6 + INT×2 damage.'},
-      {name:'Flash',           rank:1, type:'attack', dmg:'2d6',  desc:'Blinding flash — 2d6 + INT×2 damage.'},
-      {name:'Radiation',       rank:2, type:'attack', dmg:'3d6',  desc:'Divine radiation — 3d6 + INT×2 damage.'},
-      {name:'Rainbow Burst',   rank:3, type:'attack', dmg:'5d6',  desc:'Prismatic explosion — 5d6 + INT×2 damage.'},
+      {name:'Burning Beam',  rank:0, type:'attack', dmg:'1d6',
+       desc:'[CELESTIAL ATTACK 0] A fiery beam leaps from your hand at one creature within medium range. Will vs Agility. On success: 1d6 damage. On roll of 20+: also blinded for 1 round.'},
+      {name:'Flash',         rank:1, type:'attack', dmg:'0', blind:true,
+       desc:'[CELESTIAL ATTACK 1] Brilliant light flashes before one creature within short range. Will vs Perception. On success: target blinded for 1 round. On 20+: blinded for 1 minute.'},
+      {name:'Sunrays',       rank:2, type:'attack', dmg:'1d6', multi3:true,
+       desc:'[CELESTIAL ATTACK 2] Three blazing beams fly at up to three targets within medium range. Will vs Agility per beam. Each hit: 1d6 damage and target impaired for 1 round. Bonus: +INT×2.'},
+      {name:'Radiation',     rank:3, type:'attack', dmg:'1d6', dotArea:true,
+       desc:'[CELESTIAL ATTACK 3] Green radiation fills a 3-yard sphere within long range for 1 min. Everything in area: 1d6 damage each round. Strength challenge or become fatigued. Bonus: +INT×2.'},
     ]
   },
   chaos: {
     label:'Chaos',
     spells:[
-      {name:'Chaos Boon',      rank:0, type:'utility',dmg:'0',    desc:'Twist fate — reroll any one die this round.', reroll:true},
-      {name:'Fold Space',      rank:1, type:'utility',dmg:'0',    desc:'Warp — teleport, gain +2 Defense until next turn.', defBonus:2},
-      {name:'Singularity',     rank:2, type:'attack', dmg:'4d6',  desc:'Chaos implosion — 4d6 + INT×2 damage.'},
-      {name:'Rend Reality',    rank:3, type:'attack', dmg:'6d6',  desc:'Reality tears — 6d6 + INT×2 damage.'},
+      {name:'Erratic Bolt',          rank:0, type:'attack', dmg:'1d6',
+       desc:'[CHAOS ATTACK 0] A fizzing blob of color flies at one creature within medium range. Will vs Agility. On success: 1d6 damage. On roll of 6 on d6 follow-up: chains to another target. Bonus: +INT×2.'},
+      {name:'Capricious Devastation',rank:1, type:'attack', dmg:'2d6',
+       desc:'[CHAOS ATTACK 1] A flickering energy ball hits one creature. Will vs Agility with chaos die modifier (odd = penalty, even = bonus). On success: 2d6 damage (+2d6 extra if you had penalty). Bonus: +INT×2.'},
+      {name:'Color of Magic',        rank:2, type:'attack', dmg:'1d6+1', chaosExplosion:true,
+       desc:'[CHAOS ATTACK 2] A colorful globe explodes in a 1-yard sphere. 1d6+1 damage to all in area. If odd damage die result: everything takes 3d6 extra damage. Bonus: +INT×2.'},
+      {name:'Chaotic Lance',         rank:3, type:'attack', dmg:'4d6',
+       desc:'[CHAOS ATTACK 3] Unstable energy in a shapeable 15-yard line. 4d6 damage to everything in area. Strength challenge or become impaired. Bonus: +INT×2.'},
     ]
   },
   earth: {
     label:'Earth',
     spells:[
-      {name:'Earth Spike',     rank:0, type:'attack', dmg:'1d6',  desc:'Stone spike — 1d6 + INT×2 damage.'},
-      {name:'Avalanche',       rank:1, type:'attack', dmg:'2d6',  desc:'Crushing rocks — 2d6 + INT×2 damage.'},
-      {name:'Eruption',        rank:2, type:'attack', dmg:'3d6',  desc:'Ground erupts — 3d6 + INT×2 damage to all enemies.'},
-      {name:'Earthquake',      rank:3, type:'attack', dmg:'5d6',  desc:'Seismic blast — 5d6 + INT×2 damage, enemy stunned.'},
+      {name:'Earth Spike',   rank:0, type:'attack', dmg:'1d6', prone:true,
+       desc:'[EARTH ATTACK 0] A sharp spike erupts under one creature on the ground within short range. Will vs Agility. On success: 1d6 damage and target falls prone. (+1d6 on roll of 20+). Bonus: +INT×2.'},
+      {name:'Stone Blades',  rank:1, type:'attack', dmg:'2d6', bleed:true,
+       desc:'[EARTH ATTACK 1] Fling stone shards in a 3-yard cone. 2d6 damage to all in area. Half on Agility success. On failure: target suffers a bleeding wound (1d6 each round until healed). Bonus: +INT×2.'},
+      {name:'Avalanche',     rank:2, type:'attack', dmg:'4d6',
+       desc:'[EARTH ATTACK 2] Raise and hurl ground in a 2-yard circle + 5-yard cone. 4d6 damage to everything in cone. Half on Agility challenge success. Ground becomes difficult terrain. Bonus: +INT×2.'},
+      {name:'Eruption',      rank:3, type:'attack', dmg:'5d6',
+       desc:'[EARTH ATTACK 3] Ground erupts in a 10-yard-tall, 2-yard-radius cylinder. 5d6 damage and targets pushed 1d6 yards. Strength challenge or become impaired. Bonus: +INT×2.'},
     ]
   },
   storm: {
     label:'Storm',
     spells:[
-      {name:'Forked Lightning', rank:0,type:'attack', dmg:'1d6',  desc:'Lightning bolt — 1d6 + INT×2 damage.'},
-      {name:'Freezing Fog',     rank:1,type:'attack', dmg:'2d6',  desc:'Icy fog — 2d6 + INT×2 damage.'},
-      {name:'Lightning Bolt',   rank:2,type:'attack', dmg:'3d6',  desc:'Crackling bolt — 3d6 + INT×2 damage.'},
-      {name:"Leaping Lightning",rank:3,type:'attack', dmg:'5d6',  desc:'Chain lightning — 5d6 + INT×2 damage.'},
+      {name:'Forked Lightning', rank:0, type:'attack', dmg:'1d6+2',
+       desc:'[STORM ATTACK 1] Strike two targets within short range of each other. Will vs Agility per target. On success: 1d6+2 damage each (+1 boon vs metal targets). (+1d6 on roll of 20+). Bonus: +INT×2.'},
+      {name:'Freezing Fog',    rank:1, type:'attack', dmg:'1d3', slowDebuff:true,
+       desc:'[STORM ATTACK 1] Icy fog fills a 5-yard cylinder within medium range for 1 min. Each round: Strength challenge or 1d3 damage and slowed for 1 round. Ground becomes difficult terrain.'},
+      {name:'Call Lightning',  rank:2, type:'attack', dmg:'3d6+5',
+       desc:'[STORM ATTACK 2] A bolt strikes a point outdoors within long range. 3d6+5 damage to all within 3 yards. Strength challenge or deafened 1 hour. Half damage on success. Bonus: +INT×2.'},
+      {name:'Lightning Bolt',  rank:3, type:'attack', dmg:'5d6',
+       desc:'[STORM ATTACK 3] Lightning travels a 30-yard line, rebounding off solid objects. 5d6 damage to all in line (+1 bane vs metal). Half on Agility success. Bonus: +INT×2.'},
     ]
   },
   protection: {
     label:'Protection',
     spells:[
-      {name:'Force Field',     rank:0, type:'utility',dmg:'0',    desc:'+2 Defense until start of your next turn.', defBonus:2},
-      {name:'Evade',           rank:1, type:'utility',dmg:'0',    desc:'Magical evasion — gain 1 boon on all Defense rolls this round.', evasionBuff:true},
-      {name:'Vigor',           rank:2, type:'heal',   dmg:'2d6',  desc:'Protective vigor — heal 2d6 + WIL mod HP.'},
-      {name:'Protective Field',rank:3, type:'utility',dmg:'0',    desc:'All allies gain +3 Defense until your next turn.', groupDefBonus:3},
+      {name:'Force Field',      rank:0, type:'utility', dmg:'0', forceField:true,
+       desc:'[PROTECTION UTILITY 1] An invisible field surrounds you with 10 Health for 1 minute. All damage hits the field first. When the field\'s 10 HP is depleted, the effect ends.'},
+      {name:'Sanctuary',        rank:1, type:'utility', dmg:'0', sanctuary:true,
+       desc:'[PROTECTION UTILITY 1] Touch one creature. It becomes hidden from all creatures for 1 minute. Effect ends immediately if the target makes an attack.'},
+      {name:'Vigor',            rank:2, type:'utility', dmg:'0', healthBonus:10,
+       desc:'[PROTECTION UTILITY 2] Touch one creature. It gains +10 bonus to Health for 1 hour. Bonus applies on top of current HP and increases max HP for the duration.'},
+      {name:'Protective Field', rank:3, type:'utility', dmg:'0', groupDefBonus:3,
+       desc:'[PROTECTION UTILITY 3] An immobile invisible barrier in a 3-yard sphere for 1 minute. Designated allies pass freely. No other creature can enter or make melee attacks through the barrier.'},
     ]
   },
   illusion: {
     label:'Illusion',
     spells:[
-      {name:'Figment',         rank:0, type:'utility',dmg:'0',    desc:'Distract the enemy — it attacks with 1 bane next round.', enemyBane:true},
-      {name:'Decoy',           rank:1, type:'utility',dmg:'0',    desc:'Create a decoy — gain 1 boon on Defense this round.', defBoon:true},
-      {name:'Phantasm',        rank:2, type:'attack', dmg:'3d6',  desc:'Illusory horror — 3d6 + INT×2 psychic damage.'},
-      {name:'Mirage',          rank:3, type:'utility',dmg:'0',    desc:'Total illusion — enemy misses its next attack.', enemyMiss:true},
+      {name:'Figment',   rank:0, type:'utility', dmg:'0', enemyBane:true,
+       desc:'[ILLUSION UTILITY 1] A silent visual illusion appears in a 2-yard cube within short range for 1 hour. Creates distraction — enemy makes its next attack with 1 bane while it believes the illusion.'},
+      {name:'Vertigo',   rank:1, type:'attack', dmg:'0', vertigoDebuff:true,
+       desc:'[ILLUSION ATTACK 1] Target perceives its environs as spinning. Intellect vs Perception. On success: target afflicted with vertigo for 1 min — must roll Agility or fall prone when moving.'},
+      {name:'Glamer',    rank:2, type:'utility', dmg:'0', enemyBane:true,
+       desc:'[ILLUSION UTILITY 2] A visual and auditory illusion in a 2-yard cube for 1 hour. If dangerous (fire/boiling): 2d6 damage on contact. Enemies treat the area with suspicion — attack rolls with 1 bane.'},
+      {name:'Phantasm',  rank:3, type:'attack', dmg:'4d6',
+       desc:'[ILLUSION UTILITY 3] A massive illusion in a 5-yard area within long range for 1 hour. Illusion attacks deal 4d6 psychic damage to those who believe it. Intellect vs Perception. Bonus: +INT×2.'},
     ]
   },
   nature: {
     label:'Nature',
     spells:[
-      {name:'Oak Hide',        rank:0, type:'utility',dmg:'0',    desc:'Bark skin — +2 Defense until next rest.', defBonus:2},
-      {name:'Healing Berries', rank:1, type:'heal',   dmg:'2d6',  desc:'Natural healing — 2d6 + WIL mod HP.'},
-      {name:'Wrath of Nature', rank:2, type:'attack', dmg:'3d6',  desc:'Thorns and roots — 3d6 + INT×2 damage.'},
-      {name:'Overgrowth',      rank:3, type:'attack', dmg:'5d6',  desc:'Crushing vines — 5d6 + INT×2 damage.'},
+      {name:'Oak Hide',        rank:0, type:'utility', dmg:'0', defBonus:2,
+       desc:'[NATURE UTILITY 0] For 1 hour: gain +2 bonus to Defense and make Agility challenge rolls to hide in forests with 1 boon. Cannot cast while wearing heavy armor.'},
+      {name:'Healing Berries', rank:1, type:'heal', dmg:'half_rate',
+       desc:'[NATURE UTILITY 1] Imbue up to three berries with magic for 8 hours. Each berry heals damage equal to half the consumer\'s Healing Rate when eaten. Share with allies freely.'},
+      {name:'Shillelagh',      rank:1, type:'utility', dmg:'0', dmgBuff:true,
+       desc:'[NATURE UTILITY 1] Imbue one club or staff you hold for 1 hour. Gain +2 Speed and weapon deals +1d6 extra damage for the duration. Effect ends if you drop the weapon.'},
+      {name:'Wrath of Nature', rank:3, type:'attack', dmg:'3d6',
+       desc:'[NATURE ATTACK 4] Whip-like vines strike up to five creatures within medium range. 3d6 damage each. Agility challenge or moved 6 yards and immobilized for 1 min. Bonus: +INT×2.'},
     ]
   },
   transformation: {
     label:'Transformation',
     spells:[
-      {name:'Beast Within',    rank:0, type:'utility',dmg:'0',    desc:'Channel beast — +1d6 damage on next attack.', dmgBuff:true},
-      {name:'Bounding Step',   rank:1, type:'utility',dmg:'0',    desc:'Blur of motion — gain 1 boon on next attack.', atkBoon:true},
-      {name:'Mist Form',       rank:2, type:'utility',dmg:'0',    desc:'Become mist — enemy attacks miss this round.', untouchable:true},
-      {name:'Speed Healing',   rank:3, type:'heal',   dmg:'3d6',  desc:'Rapid regeneration — 3d6 + WIL mod HP.'},
+      {name:'Beast Within', rank:0, type:'utility', dmg:'0', dmgBuff:true,
+       desc:'[PRIMAL UTILITY 0] Awaken your beast form. For 1 minute: gain 1 boon on Strength rolls. Your next melee attack gains +1d6 bonus damage as bestial power surges through your strike.'},
+      {name:'Dire Beast',   rank:1, type:'utility', dmg:'0', dmgBuff:true,
+       desc:'[PRIMAL UTILITY 2] You or one target becomes a savage beast for 1 minute. Size increases by 1 and attacks with unarmed strikes and natural weapons deal +1d6 extra damage.'},
+      {name:'Mist Form',    rank:2, type:'utility', dmg:'0', untouchable:true,
+       desc:'[TRANSFORMATION UTILITY 3] You become mist for up to 1 minute. You cannot be targeted by weapon attacks. You can move through small gaps. Effect ends if you make an attack.'},
+      {name:'Speed Healing',rank:3, type:'heal', dmg:'triple_rate',
+       desc:'[TRANSFORMATION UTILITY 3] Rapid regeneration for 1 minute. You heal damage equal to three times your Healing Rate at the start of each of your turns. Useful after taking heavy damage.'},
     ]
   },
   time: {
     label:'Time',
     spells:[
-      {name:'Swiftness',       rank:0, type:'utility',dmg:'0',    desc:'Haste — take two actions this round.', extraAction:true},
-      {name:'Rewrite Moment',  rank:1, type:'utility',dmg:'0',    desc:'Rewind a miss — reroll your last attack.', reroll:true},
-      {name:'Precognition',    rank:2, type:'utility',dmg:'0',    desc:'+2 Defense and 1 boon on all rolls this round.', fullBuff:true},
-      {name:'Time Jump',       rank:3, type:'utility',dmg:'0',    desc:'Skip enemy turn — enemy loses its next action.', skipEnemy:true},
+      {name:'Swiftness',       rank:0, type:'utility', dmg:'0', speedBuff:true,
+       desc:'[TIME UTILITY 0] Touch one creature that is not fatigued. For 1 minute: it gains +10 bonus to Speed. When the effect ends, the target becomes fatigued for 1 minute.'},
+      {name:'Rewrite Moment',  rank:1, type:'utility', dmg:'0', reroll:true,
+       desc:'[TIME UTILITY 1] For 1 minute: once per round when you roll a die, you can discard the result and roll again. You must use the second number. Invaluable on failed attack rolls.'},
+      {name:'Minor Paradox',   rank:2, type:'attack', dmg:'0', vanish:true,
+       desc:'[TIME ATTACK 1] Target ceases to exist for 1 round. Intellect vs Intellect. On success: target disappears and reappears in its former space next round. On 20+: you regain this casting.'},
+      {name:'Precognition',    rank:3, type:'utility', dmg:'0', fullBuff:true,
+       desc:'[DIVINATION UTILITY ...] See the future for 1 minute: movement doesn\'t trigger free attacks, impose 2 banes on attacks against you, make Agility challenge rolls with 2 boons. Combined +2 Defense effect.'},
     ]
   },
 };
@@ -817,7 +880,18 @@ function maybeEnemyAttack(room) {
       const critLabel=r.crit?' 💥 CRIT!':'';
       const dmgBreak=`${e.dmgNum}d${e.dmgSides}(${r.dmgRoll})${e.dmgBonus?'+'+e.dmgBonus:''}${r.critRoll?'+'+r.critRoll+' crit':''}`;
       addLog(room,`${e.name} hits <strong>${p.name}</strong> — <strong class="num-dmg">−${r.dmg} dmg</strong>${critLabel} [d20:<strong>${r.base}</strong>+atk<strong>${e.atk>=0?'+':''}${e.atk}</strong>=<strong>${r.total}</strong> vs Def<strong>${p.char.defense+auraBonus}</strong>] [dmg: ${dmgBreak}] → ${p.name} <strong>${Math.max(0,p.char.health)}</strong>/${p.char.maxHealth} HP`,'dmg-taken');
-      if(e.lifeLeech){const l=Math.floor(r.dmg/2);e.hp=Math.min(e.maxHp,e.hp+l);addLog(room,`${e.name} leeches ${l} HP!`,'chaos');}
+      if(e.lifeLeech){
+        // Varghulf: heals 1/4 of ALL damage dealt this round to all players
+        // Standard life leech: heals 1/2 of single hit
+        const isVarghulf = e.name==='Varghulf';
+        if(isVarghulf){
+          // Accumulate - will heal after all players attacked
+          e._leechAccum = (e._leechAccum||0) + r.dmg;
+        } else {
+          const l=Math.floor(r.dmg/2); e.hp=Math.min(e.maxHp,e.hp+l);
+          addLog(room,`${e.name} leeches ${l} HP!`,'chaos');
+        }
+      }
       if(e.insanityAtk&&d(6)>=4){p.char.insanity++;addLog(room,`${p.name} gains 1 Insanity!`,'chaos');}
       if(e.diseased&&d(6)>=5&&!p.char.conditions.includes('Diseased')){p.char.conditions.push('Diseased');addLog(room,`${p.name} contracts disease!`,'chaos');}
       checkDeath(room,p);
@@ -830,6 +904,13 @@ function maybeEnemyAttack(room) {
     if(t){const r2=rollEnemyAttack(e,t.char);if(r2.hit){t.char.health=Math.max(0,t.char.health-r2.dmg);addLog(room,`${e.name} bonus attack on ${t.name} for <strong>${r2.dmg}</strong>!`,'dmg');checkDeath(room,t);}}
   }
   const nowAlive=room.players.filter(p=>p.char&&p.char.alive);
+  // Resolve Varghulf's accumulated 1/4 life leech
+  if(e && e.name==='Varghulf' && e._leechAccum>0){
+    const leech=Math.floor(e._leechAccum/4);
+    e.hp=Math.min(e.maxHp,e.hp+leech);
+    addLog(room,`Varghulf leeches <strong>${leech}</strong> HP (¼ of ${e._leechAccum} total damage dealt)!`,'chaos');
+    e._leechAccum=0;
+  }
   if(nowAlive.length===0){gs.phase='gameover';addLog(room,'💀 The entire warband has fallen.','death');return;}
   room.players.forEach(p=>{if(p.char&&!p.char.alive){p.char.pendingRevive=true;}});
   gs.playersActedThisRound=[]; gs.enemyHasActed=false;
@@ -1103,16 +1184,30 @@ function handlePlayerAction(room,playerId,payload,ws){
     if(!char.pendingLevelUp)return;
     const tier=char.pendingPathTier||'novice';
     if(tier==='tradition'){
-      // Handle tradition:id format
-      const tradId=data.pathId.replace('tradition:','');
-      if(TRADITIONS[tradId]&&!char.traditions.includes(tradId)){
-        char.traditions.push(tradId);
-        // Grant spells up to current power level
-        const newSpells=getSpellsForPower(tradId,char.power);
-        newSpells.forEach(sp=>{if(!char.knownSpells.find(k=>k.name===sp.name))char.knownSpells.push({...sp,heal:sp.type==='heal'});});
-        addLog(room,`${player.name} learns the <strong>${TRADITIONS[tradId].label}</strong> tradition!`,'spell');
+      const raw=data.pathId;
+      if(raw.startsWith('spell:')){
+        // spell:traditionId:spellName — grant specific spell
+        const parts=raw.split(':'); const tradId=parts[1]; const spellName=parts.slice(2).join(':');
+        const trad=TRADITIONS[tradId];
+        if(trad){
+          const sp=trad.spells.find(s=>s.name===spellName);
+          if(sp&&!char.knownSpells.find(k=>k.name===sp.name)){
+            char.knownSpells.push({...sp,heal:sp.type==='heal'});
+            addLog(room,`${player.name} learns <strong>${sp.name}</strong> (${TRADITIONS[tradId].label} rank ${sp.rank}).`,'spell');
+          }
+        }
+        char.pendingLevelUp=false; char.pendingPathTier=null;
+      } else {
+        // tradition:id — discover a new tradition
+        const tradId=raw.replace('tradition:','');
+        if(TRADITIONS[tradId]&&!char.traditions.includes(tradId)){
+          char.traditions.push(tradId);
+          const newSpells=getSpellsForPower(tradId,char.power);
+          newSpells.forEach(sp=>{if(!char.knownSpells.find(k=>k.name===sp.name))char.knownSpells.push({...sp,heal:sp.type==='heal'});});
+          addLog(room,`${player.name} learns the <strong>${TRADITIONS[tradId].label}</strong> tradition!`,'spell');
+        }
+        char.pendingLevelUp=false; char.pendingPathTier=null;
       }
-      char.pendingLevelUp=false; char.pendingPathTier=null;
     }
     else if(tier==='novice'){applyNovicePath(char,data.pathId);addLog(room,`${player.name} walks the <strong>${data.pathId}</strong> novice path.`,'spell');}
     else if(tier==='expert'){applyExpertPath(char,data.pathId);addLog(room,`${player.name} chooses the <strong>${EXPERT_PATHS[data.pathId]?.label}</strong> expert path.`,'spell');}
@@ -1193,25 +1288,54 @@ function handlePlayerAction(room,playerId,payload,ws){
 
     // ── HEAL spells ──
     if(spell.type==='heal'||spell.heal){
-      const dStr=spell.dmg||spell.dmgDice||'1d6'; if(dStr==='0'){addLog(room,`${player.name} casts ${spell.name}.`,'spell');acted=true;}
-      else {
+      const targetPlayer=data.targetId?room.players.find(p=>p.id===data.targetId&&p.char&&p.char.alive):null;
+      const target=targetPlayer?targetPlayer.char:char;
+      const targetName=targetPlayer?targetPlayer.name:player.name;
+      let amt=0;
+      // PDF-accurate healing: Life spells use Healing Rate, others use dice
+      const hr=Math.max(1,Math.floor(target.maxHealth/4)); // healing rate = MaxHP÷4
+      const dStr=spell.dmg||'1d6';
+      if(dStr==='half_rate')     { amt=Math.max(1,Math.floor(hr/2)); }
+      else if(dStr==='rate')     { amt=hr; }
+      else if(dStr==='double_rate') { amt=hr*2; }
+      else if(dStr==='triple_rate') { amt=hr*3; }
+      else if(dStr==='rate_multi')  { amt=hr; } // multi-target handled below
+      else if(dStr!=='0') {
         const[n,s]=dStr.split('d').map(Number);
-        const roll=rd(n,s); const wilMod=Math.max(0,modVal(char.attrs.wil)); const amt=roll+wilMod;
-        const targetPlayer=data.targetId?room.players.find(p=>p.id===data.targetId&&p.char&&p.char.alive):null;
-        const target=targetPlayer?targetPlayer.char:char;
-        const targetName=targetPlayer?targetPlayer.name:player.name;
-        if(spell.name==='Mass Heal'){
-          if(char.massHealUsed){addLog(room,`${player.name}: Mass Heal already used.`,'sys');return;}
-          char.massHealUsed=true;
-          room.players.forEach(p=>{ if(p.char&&p.char.alive){const h=rd(1,6);p.char.health=Math.min(p.char.maxHealth,p.char.health+h);addLog(room,`${p.name} healed for ${h} HP.`,'heal');} });
-        } else if(spell.name==='Miracle Heal'){
-          if(char.miracleUsed){addLog(room,`${player.name}: Miracle Heal already used.`,'sys');return;}
-          char.miracleUsed=true; target.health=target.maxHealth;
-          addLog(room,`${player.name} casts Miracle Heal on ${targetName} — fully restored!`,'heal');
+        const roll=rd(n,s); const wilMod=Math.max(0,modVal(char.attrs.wil)); amt=roll+wilMod;
+      }
+      if(spell.name==='Mass Heal'){
+        if(char.massHealUsed){addLog(room,`${player.name}: Mass Heal already used.`,'sys');return;}
+        char.massHealUsed=true;
+        room.players.forEach(p=>{ if(p.char&&p.char.alive){const h=rd(1,6);p.char.health=Math.min(p.char.maxHealth,p.char.health+h);addLog(room,`${p.name} healed for ${h} HP.`,'heal');} });
+      } else if(spell.name==='Miracle Heal'){
+        if(char.miracleUsed){addLog(room,`${player.name}: Miracle Heal already used.`,'sys');return;}
+        char.miracleUsed=true; target.health=target.maxHealth;
+        addLog(room,`${player.name} casts Miracle Heal on ${targetName} — fully restored!`,'heal');
+      } else if(spell.multiTarget){
+        // Vitality Burst: heal all alive players their healing rate
+        room.players.forEach(p=>{
+          if(p.char&&p.char.alive){
+            const phr=Math.max(1,Math.floor(p.char.maxHealth/4));
+            p.char.health=Math.min(p.char.maxHealth,p.char.health+phr);
+            addLog(room,`${p.name} healed for ${phr} HP.`,'heal');
+          }
+        });
+        addLog(room,`${player.name} casts <strong>${spell.name}</strong> — all allies healed!`,'heal');
+      } else if(spell.cure){
+        // Cure: remove an affliction
+        if(target.conditions&&target.conditions.length>0){
+          const removed=target.conditions.shift();
+          addLog(room,`${player.name} casts <strong>Cure</strong> on ${targetName} — removes ${removed}.`,'heal');
         } else {
-          target.health=Math.min(target.maxHealth,target.health+amt);
-          addLog(room,`${player.name} casts <strong>${spell.name}</strong> on ${targetName} — ${n}d${s}(${roll})+${wilMod} WIL = +<strong>${amt}</strong> HP.`,'heal');
+          const h=Math.max(1,Math.floor(hr/2)); target.health=Math.min(target.maxHealth,target.health+h);
+          addLog(room,`${player.name} casts <strong>Cure</strong> on ${targetName} — heals ${h} HP.`,'heal');
         }
+      } else if(amt>0){
+        target.health=Math.min(target.maxHealth,target.health+amt);
+        addLog(room,`${player.name} casts <strong>${spell.name}</strong> on ${targetName} — +<strong>${amt}</strong> HP.`,'heal');
+      } else {
+        addLog(room,`${player.name} casts <strong>${spell.name}</strong>.`,'heal');
       }
     }
     // ── UTILITY spells ──
