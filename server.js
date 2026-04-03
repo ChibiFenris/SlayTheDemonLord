@@ -241,44 +241,51 @@ function maxCastings(power, rank) {
   return row[Math.min(rank, 3)] || 0;
 }
 
-// Init or refresh casting pools on a char based on current power + known spells
+// castingPools keyed by spell name: { 'Flame Missile': 3, 'Fireball': 1, ... }
 function refreshCastingPools(char) {
   if (!char.castingPools) char.castingPools = {};
   char.knownSpells.forEach(sp => {
-    const key = 'r' + sp.rank;
-    const max = maxCastings(char.power, sp.rank);
-    // Only init if not already set (preserve used castings)
-    if (char.castingPools[key] === undefined) char.castingPools[key] = max;
+    if (char.castingPools[sp.name] === undefined) {
+      char.castingPools[sp.name] = maxCastings(char.power, sp.rank);
+    }
   });
 }
 
 function restoreCastingPools(char) {
   char.castingPools = {};
-  [0,1,2,3].forEach(rank => {
-    const max = maxCastings(char.power, rank);
-    if (max > 0) char.castingPools['r'+rank] = max;
+  char.knownSpells.forEach(sp => {
+    char.castingPools[sp.name] = maxCastings(char.power, sp.rank);
   });
 }
 
-function castingsLeft(char, rank) {
+function castingsLeft(char, spellName, rank) {
   if (!char.castingPools) refreshCastingPools(char);
-  return char.castingPools['r'+rank] || 0;
+  const v = char.castingPools[spellName];
+  return v !== undefined ? v : maxCastings(char.power, rank);
 }
 
-function spendCasting(char, rank) {
+function spendCasting(char, spellName, rank) {
   if (!char.castingPools) refreshCastingPools(char);
-  const key = 'r'+rank;
-  if ((char.castingPools[key]||0) > 0) { char.castingPools[key]--; return true; }
+  if ((char.castingPools[spellName] || 0) > 0) {
+    char.castingPools[spellName]--;
+    return true;
+  }
   return false;
 }
 
 function regainCasting(char, maxRank) {
-  // Regain the lowest-rank spent casting up to maxRank
-  for (let r = 0; r <= maxRank; r++) {
-    const key = 'r'+r;
-    const max = maxCastings(char.power, r);
-    if ((char.castingPools[key]||0) < max) { char.castingPools[key]++; return r; }
-  }
+  // Regain one casting of the lowest-rank spent spell up to maxRank
+  if (!char.castingPools) refreshCastingPools(char);
+  let bestSpell = null, bestRank = 99;
+  char.knownSpells.forEach(sp => {
+    if (sp.rank <= maxRank && sp.rank < bestRank) {
+      const max = maxCastings(char.power, sp.rank);
+      if ((char.castingPools[sp.name] || 0) < max) {
+        bestSpell = sp; bestRank = sp.rank;
+      }
+    }
+  });
+  if (bestSpell) { char.castingPools[bestSpell.name]++; return bestRank; }
   return -1;
 }
 
@@ -1355,11 +1362,11 @@ function handlePlayerAction(room,playerId,payload,ws){
     if(freeCast){char.spellsurgeUsed=true;addLog(room,`${player.name} uses Spell Surge!`,'spell');}
     else {
       if(!char.castingPools) refreshCastingPools(char);
-      const avail=castingsLeft(char,spell.rank);
+      const avail=castingsLeft(char,spell.name,spell.rank);
       if(avail<=0){
-        addLog(room,`${player.name}: no rank ${spell.rank} castings left (0/${maxCastings(char.power,spell.rank)}).`,'sys');return;
+        addLog(room,`${player.name}: no castings left for ${spell.name} (0/${maxCastings(char.power,spell.rank)}).`,'sys');return;
       }
-      if(!spendCasting(char,spell.rank)){addLog(room,`${player.name}: casting failed.`,'sys');return;}
+      if(!spendCasting(char,spell.name,spell.rank)){addLog(room,`${player.name}: casting failed.`,'sys');return;}
     }
 
     // ── HEAL spells ──
