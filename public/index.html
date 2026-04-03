@@ -641,6 +641,15 @@ function showPathPick(me){
 // ── Tradition picker helper ────────────────────────────────────────────────────
 function _buildTraditionButtons(grid, knownTraditions){
   grid.innerHTML='';
+
+  // Back button — returns to the main discover/learn choice screen
+  const backBtn=document.createElement('button');
+  backBtn.className='btn';
+  backBtn.style.cssText='margin-bottom:10px;width:100%;font-size:12px;';
+  backBtn.textContent='<- Back';
+  backBtn.onclick=()=>{ if(lastState){ const me2=lastState.players.find(p=>p.id===myId); if(me2) showPathPick(me2); } };
+  grid.appendChild(backBtn);
+
   Object.entries(TRADITION_INFO).forEach(([id,info])=>{
     const already=knownTraditions.includes(id);
     const btn=document.createElement('button'); btn.className='pp-btn';
@@ -679,10 +688,35 @@ const TRADITION_SPELLS_CLIENT = {
 
 function _buildSpellPicker(grid, me, knownTraditions, maxRank){
   el('pp-heading').textContent='Learn a New Spell';
-  el('pp-sub').textContent=`Choose one spell (rank 0–${maxRank}) from your known traditions. Already-known spells are greyed out.`;
   grid.innerHTML='';
   grid.style.gridTemplateColumns='1fr';
   const knownNames=new Set((me.char.knownSpells||[]).map(s=>s.name));
+
+  // Check if any new spells are actually available
+  let anyAvailable=false;
+  knownTraditions.forEach(tid=>{
+    const eligible=(TRADITION_SPELLS_CLIENT[tid]||[]).filter(s=>s.rank<=maxRank);
+    if(eligible.some(s=>!knownNames.has(s.name))) anyAvailable=true;
+  });
+
+  // Always show a Back button at the top
+  const backBtn=document.createElement('button');
+  backBtn.className='btn';
+  backBtn.style.cssText='margin-bottom:10px;width:100%;font-size:12px;';
+  backBtn.textContent='<- Back';
+  backBtn.onclick=()=>{ if(lastState){ const me2=lastState.players.find(p=>p.id===myId); if(me2) showPathPick(me2); } };
+  grid.appendChild(backBtn);
+
+  if(!anyAvailable){
+    el('pp-sub').textContent='You already know all available spells for your traditions at this Power level. Go back and discover a new tradition instead.';
+    const msg=document.createElement('div');
+    msg.style.cssText='padding:14px;color:var(--text-dim);font-style:italic;font-size:13px;text-align:center;border:1px solid var(--border);border-radius:4px;';
+    msg.textContent='All spells up to rank '+maxRank+' are already learned from your known traditions. Choose "Discover New Tradition" instead.';
+    grid.appendChild(msg);
+    return;
+  }
+
+  el('pp-sub').textContent='Choose one spell (rank 0\u2013'+maxRank+') from your known traditions. Greyed out = already known.';
   knownTraditions.forEach(tid=>{
     const tradInfo=TRADITION_INFO[tid];
     const tradSpells=TRADITION_SPELLS_CLIENT[tid]||[];
@@ -697,7 +731,7 @@ function _buildSpellPicker(grid, me, knownTraditions, maxRank){
       const btn=document.createElement('button'); btn.className='pp-btn';
       btn.disabled=already;
       btn.style.cssText=`text-align:left;width:100%;margin-bottom:4px;${already?'opacity:0.35;':''}`;
-      btn.innerHTML=`<span class="ppn" style="font-size:14px">${sp.name}${already?' ✓':''} <span style="font-size:10px;color:var(--text-dim)">(Rank ${sp.rank}${sp.rank===0?' — Free':''})</span></span><span class="ppd">${sp.desc}</span>`;
+      btn.innerHTML=`<span class="ppn" style="font-size:14px">${sp.name}${already?' \u2713':''} <span style="font-size:10px;color:var(--text-dim)">(Rank ${sp.rank}${sp.rank===0?' \u2014 Free':''})</span></span><span class="ppd">${sp.desc}</span>`;
       if(!already) btn.onclick=()=>{
         pathPickPending=false;
         send('PLAYER_ACTION',{action:'APPLY_PATH',data:{pathId:'spell:'+tid+':'+sp.name}});
