@@ -6,566 +6,488 @@
 <title>Shadows Over Reikland — Co-op</title>
 <link href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&family=IM+Fell+English:ital@0;1&family=Cinzel:wght@400;600&display=swap" rel="stylesheet">
 <style>
-:root{--blood:#8b1a1a;--blood-bright:#cc2222;--gold:#c9a235;--gold-bright:#e8c050;--chaos-bright:#9b20b0;--text-dim:#6a5a3a;--border:rgba(100,70,20,0.4);--border-bright:rgba(180,130,50,0.6);--parchment:#f5e6c8;--parchment-dark:#e8d4a8;}
+:root{--blood:#8b1a1a;--blood-bright:#cc2222;--gold:#c9a235;--gold-bright:#e8c050;--chaos:#9b20b0;--text-dim:#6a5a3a;--border:rgba(100,70,20,0.4);--border-bright:rgba(180,130,50,0.6);--parch:#f5e6c8;--parch-dark:#e8d4a8;}
 *{box-sizing:border-box;margin:0;padding:0;}
-body{background:#0d0a06;color:var(--parchment);font-family:'IM Fell English',Georgia,serif;font-size:15px;min-height:100vh;background-image:radial-gradient(ellipse at 50% 0%,rgba(139,26,26,0.08) 0%,transparent 60%);}
-#app{max-width:1200px;margin:0 auto;padding:16px;}
-.masthead{text-align:center;padding:18px 0 12px;border-bottom:1px solid var(--border-bright);}
-.masthead h1{font-family:'UnifrakturMaguntia',cursive;font-size:40px;color:var(--blood);text-shadow:0 0 40px rgba(139,26,26,0.4),2px 2px 0 rgba(0,0,0,0.8);}
-.masthead .sub{font-family:'Cinzel',serif;font-size:10px;color:var(--gold);letter-spacing:4px;margin-top:4px;opacity:.8;}
+body{background:#0d0a06;color:var(--parch);font-family:'IM Fell English',Georgia,serif;font-size:15px;min-height:100vh;background-image:radial-gradient(ellipse at 50% 0%,rgba(139,26,26,0.07)0%,transparent 60%);}
+#app{max-width:1200px;margin:0 auto;padding:12px;}
+.head{text-align:center;padding:16px 0 10px;border-bottom:1px solid var(--border-bright);}
+.head h1{font-family:'UnifrakturMaguntia',cursive;font-size:38px;color:var(--blood);text-shadow:0 0 30px rgba(139,26,26,0.4),2px 2px 0 rgba(0,0,0,0.8);}
+.head .sub{font-family:'Cinzel',serif;font-size:10px;color:var(--gold);letter-spacing:4px;margin-top:3px;opacity:.8;}
 .screen{display:none;}.screen.active{display:block;}
-.panel{background:linear-gradient(160deg,#2a1e0e 0%,#1e1508 100%);border:1px solid var(--border-bright);border-radius:4px;padding:16px;position:relative;}
-.panel::before{content:'';position:absolute;inset:2px;border:1px solid rgba(180,130,50,0.12);border-radius:3px;pointer-events:none;}
-.ph{font-family:'Cinzel',serif;font-size:10px;color:var(--gold);letter-spacing:3px;text-transform:uppercase;border-bottom:1px solid var(--border);padding-bottom:7px;margin-bottom:12px;}
-input[type=text]{width:100%;background:rgba(15,10,4,0.9);border:1px solid var(--border);border-radius:3px;color:var(--parchment);font-family:'IM Fell English',serif;font-size:15px;padding:9px 12px;outline:none;margin-bottom:10px;}
+.panel{background:linear-gradient(160deg,#2a1e0e,#1e1508);border:1px solid var(--border-bright);border-radius:4px;padding:14px;position:relative;}
+.panel::before{content:'';position:absolute;inset:2px;border:1px solid rgba(180,130,50,0.1);border-radius:3px;pointer-events:none;}
+.ph{font-family:'Cinzel',serif;font-size:10px;color:var(--gold);letter-spacing:3px;text-transform:uppercase;border-bottom:1px solid var(--border);padding-bottom:6px;margin-bottom:10px;}
+input[type=text]{width:100%;background:rgba(12,8,2,0.9);border:1px solid var(--border);border-radius:3px;color:var(--parch);font-family:'IM Fell English',serif;font-size:15px;padding:8px 11px;outline:none;margin-bottom:8px;}
 input[type=text]:focus{border-color:var(--gold);}
-input[type=text]::placeholder{color:var(--text-dim);font-style:italic;}
-.btn{padding:10px 18px;background:rgba(80,20,20,0.5);border:1px solid var(--blood);color:var(--parchment);font-family:'Cinzel',serif;font-size:12px;letter-spacing:2px;cursor:pointer;border-radius:3px;transition:all .15s;display:inline-block;}
-.btn:hover{background:rgba(120,25,25,0.6);}
-.btn.gold{border-color:var(--gold);background:rgba(60,40,5,0.5);}
-.btn.gold:hover{background:rgba(90,60,5,0.6);}
+input::placeholder{color:var(--text-dim);font-style:italic;}
+.btn{padding:9px 16px;background:rgba(70,15,15,0.5);border:1px solid var(--blood);color:var(--parch);font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px;cursor:pointer;border-radius:3px;transition:all .15s;display:inline-block;}
+.btn:hover{background:rgba(110,20,20,0.6);}
+.btn.gold{border-color:var(--gold);background:rgba(55,35,0,0.5);}
+.btn.gold:hover{background:rgba(85,55,0,0.6);}
 .btn:disabled{opacity:.3;cursor:not-allowed;}
-.btn-wide{width:100%;margin-top:8px;}
+.btn-w{width:100%;margin-top:7px;}
+.err{color:#e05050;font-size:12px;padding:5px 0;font-style:italic;min-height:20px;}
 
 /* LOBBY */
-#screen-lobby{padding:20px 0;}
-.lobby-wrap{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:700px;margin:0 auto;}
-.room-code{font-family:'Cinzel',serif;font-size:32px;color:var(--gold-bright);letter-spacing:8px;text-align:center;padding:16px;background:rgba(10,7,2,0.8);border:1px solid var(--border-bright);border-radius:4px;margin:10px 0;}
-.player-slot{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(60,40,10,0.4);}
-.player-slot:last-child{border-bottom:none;}
-.player-dot{width:10px;height:10px;border-radius:50%;background:var(--blood);flex-shrink:0;}
-.player-dot.ready{background:#4a9a4a;}
-.player-dot.empty{background:rgba(80,60,30,0.3);border:1px solid var(--border);}
-.career-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-.career-btn{background:rgba(18,12,5,0.9);border:1px solid var(--border);color:var(--parchment-dark);font-family:'IM Fell English',serif;font-size:14px;padding:10px 8px;cursor:pointer;text-align:left;border-radius:3px;transition:all .15s;line-height:1.3;}
-.career-btn:hover{border-color:var(--border-bright);}
-.career-btn.selected{border-color:var(--gold);background:rgba(50,35,10,0.9);}
-.career-btn .cn{font-size:14px;color:var(--gold-bright);display:block;font-weight:600;}
-.career-btn .cd{font-size:11px;color:var(--text-dim);display:block;margin-top:2px;font-style:italic;}
-.status-bar{font-family:'Cinzel',serif;font-size:11px;color:var(--text-dim);text-align:center;padding:6px;letter-spacing:1px;}
-.err{color:#e05050;font-size:13px;padding:6px 0;font-style:italic;}
+.lobby-wrap{display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:680px;margin:18px auto;}
+.pslot{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(60,40,10,0.4);}
+.pslot:last-child{border-bottom:none;}
+.pdot{width:9px;height:9px;border-radius:50%;background:var(--blood);flex-shrink:0;}
+.pdot.ready{background:#4a9a4a;}.pdot.empty{background:rgba(60,40,10,0.3);border:1px solid var(--border);}
+.career-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+.cbtn{background:rgba(15,10,4,0.9);border:1px solid var(--border);color:var(--parch-dark);font-family:'IM Fell English',serif;font-size:13px;padding:10px 8px;cursor:pointer;text-align:left;border-radius:3px;transition:all .15s;line-height:1.3;}
+.cbtn:hover{border-color:var(--border-bright);}
+.cbtn.sel{border-color:var(--gold);background:rgba(45,30,5,0.9);}
+.cbtn .cn{font-size:14px;color:var(--gold-bright);display:block;font-weight:600;}
+.cbtn .cd{font-size:11px;color:var(--text-dim);display:block;margin-top:2px;font-style:italic;}
 
-/* MAIN GAME */
-.game-grid{display:grid;grid-template-columns:200px 1fr 200px;gap:12px;padding:12px 0;}
-.sidebar-left,.sidebar-right{display:flex;flex-direction:column;gap:10px;}
-.main-col{display:flex;flex-direction:column;gap:10px;}
+/* GAME LAYOUT */
+.game-grid{display:grid;grid-template-columns:190px 1fr 190px;gap:10px;padding:10px 0;}
+.sidebar{display:flex;flex-direction:column;gap:8px;}
+.main-col{display:flex;flex-direction:column;gap:9px;}
 
 /* PLAYER CARDS */
-.player-card{padding:12px;margin-bottom:0;}
-.pc-name{font-family:'Cinzel',serif;font-size:13px;color:var(--gold-bright);display:flex;justify-content:space-between;align-items:center;}
-.pc-career{font-size:11px;color:var(--text-dim);letter-spacing:1px;margin:2px 0 8px;}
-.pc-turn-badge{font-size:9px;padding:2px 6px;border-radius:8px;background:rgba(200,162,53,0.2);color:var(--gold);border:1px solid rgba(200,162,53,0.4);font-family:'Cinzel',serif;letter-spacing:1px;}
-.bar-row{display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-bottom:2px;font-family:'Cinzel',serif;letter-spacing:.5px;}
-.bar-track{height:5px;border-radius:2px;overflow:hidden;margin-bottom:6px;}
-.hp-track{background:rgba(80,15,15,0.5);}
-.hp-fill{height:100%;background:#8b1a1a;transition:width .4s;border-radius:2px;}
-.xp-track{background:rgba(30,20,5,0.6);}
-.xp-fill{height:100%;background:linear-gradient(90deg,#7a5a10,#c9a235);transition:width .5s ease;border-radius:2px;}
+.pcard{padding:11px;}
+.pc-name{font-family:'Cinzel',serif;font-size:12px;color:var(--gold-bright);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:3px;}
+.pc-career{font-size:10px;color:var(--text-dim);letter-spacing:1px;margin:2px 0 7px;}
+.bar-row{display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-bottom:2px;font-family:'Cinzel',serif;}
+.bar-track{height:5px;border-radius:2px;overflow:hidden;margin-bottom:5px;}
+.hp-track{background:rgba(70,10,10,0.5);}.hp-fill{height:100%;background:#8b1a1a;transition:width .4s;border-radius:2px;}
+.xp-track{background:rgba(25,16,3,0.6);}.xp-fill{height:100%;background:linear-gradient(90deg,#7a5a10,#c9a235);transition:width .5s;border-radius:2px;}
 .attr-mini{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-top:4px;}
-.am{background:rgba(12,8,3,0.8);border:1px solid var(--border);border-radius:2px;padding:3px;text-align:center;}
-.am .al{font-family:'Cinzel',serif;font-size:7px;color:var(--text-dim);letter-spacing:.5px;}
-.am .av{font-size:13px;color:var(--parchment);font-weight:600;line-height:1.2;}
-.am .amm{font-size:9px;color:var(--text-dim);}
-.mini-stat{font-size:11px;color:var(--text-dim);margin-top:3px;display:flex;justify-content:space-between;}
-.mini-stat span{color:var(--parchment);}
-.dead-overlay{opacity:.45;filter:grayscale(0.6);}
-.dead-label{font-family:'Cinzel',serif;font-size:10px;color:var(--blood-bright);letter-spacing:1px;text-align:center;margin-top:4px;}
-.me-badge{font-size:9px;padding:1px 5px;border-radius:8px;background:rgba(30,80,30,0.3);color:#70c070;border:1px solid rgba(50,120,50,0.4);font-family:'Cinzel',serif;margin-left:4px;}
+.am{background:rgba(10,6,2,0.8);border:1px solid var(--border);border-radius:2px;padding:3px;text-align:center;}
+.am .al{font-family:'Cinzel',serif;font-size:7px;color:var(--text-dim);}
+.am .av{font-size:12px;color:var(--parch);font-weight:600;line-height:1.2;}
+.am .amm{font-size:8px;color:var(--text-dim);}
+.mini-s{font-size:10px;color:var(--text-dim);margin-top:3px;display:flex;justify-content:space-between;}
+.mini-s span{color:var(--parch);}
+.gold-s{font-size:10px;color:var(--text-dim);margin-top:4px;padding-top:4px;border-top:1px solid var(--border);display:flex;justify-content:space-between;}
+.gold-s span{color:var(--gold);}
+.dead-overlay{opacity:.4;filter:grayscale(.6);}
+.dead-label{font-family:'Cinzel',serif;font-size:9px;color:var(--blood-bright);text-align:center;margin-top:4px;}
+.me-badge{font-size:8px;padding:1px 5px;border-radius:8px;background:rgba(25,70,25,0.3);color:#70c070;border:1px solid rgba(40,110,40,0.4);font-family:'Cinzel',serif;}
+.turn-badge{font-size:8px;padding:1px 5px;border-radius:8px;background:rgba(200,162,53,0.2);color:var(--gold);border:1px solid rgba(200,162,53,0.4);font-family:'Cinzel',serif;animation:pulse 1.5s infinite;}
+.acted-badge{font-size:8px;padding:1px 5px;border-radius:8px;background:rgba(40,80,40,0.3);color:#80c080;border:1px solid rgba(50,120,50,0.4);font-family:'Cinzel',serif;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
 .cond-row{display:flex;flex-wrap:wrap;gap:2px;margin-top:4px;}
-.cond-badge{font-size:9px;font-family:'Cinzel',serif;padding:1px 5px;border-radius:8px;background:rgba(80,40,0,0.4);color:#e09040;border:1px solid rgba(160,80,0,0.4);}
-
-/* INVENTORY */
+.cond{font-size:9px;font-family:'Cinzel',serif;padding:1px 5px;border-radius:8px;background:rgba(80,40,0,0.4);color:#e09040;border:1px solid rgba(160,80,0,0.4);}
 .inv-list{list-style:none;}
-.inv-list li{font-size:12px;color:var(--text-dim);padding:3px 0;border-bottom:1px solid rgba(60,40,10,0.3);display:flex;justify-content:space-between;align-items:center;}
+.inv-list li{font-size:11px;color:var(--text-dim);padding:3px 0;border-bottom:1px solid rgba(60,40,10,0.3);display:flex;justify-content:space-between;align-items:center;}
 .inv-list li:last-child{border-bottom:none;}
-.iname{color:var(--parchment-dark);font-size:12px;}
+.iname{color:var(--parch-dark);font-size:11px;}
 .use-btn{background:none;border:1px solid var(--border);color:var(--text-dim);font-size:9px;padding:1px 5px;border-radius:2px;cursor:pointer;font-family:'Cinzel',serif;transition:all .15s;}
 .use-btn:hover{border-color:var(--gold);color:var(--gold);}
-.gold-line{font-size:12px;color:var(--text-dim);margin-top:6px;}
-.gold-line span{color:var(--gold);}
 
-/* MAP / LOG */
-.map-header{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:rgba(18,12,5,0.8);border:1px solid var(--border-bright);border-radius:4px;}
-.map-loc{font-family:'Cinzel',serif;font-size:13px;color:var(--gold);}
-.map-depth{font-size:11px;color:var(--text-dim);font-family:'Cinzel',serif;}
-.state-badge{font-size:10px;font-family:'Cinzel',serif;letter-spacing:1px;padding:3px 9px;border-radius:8px;}
-.state-combat{background:rgba(120,15,15,0.3);color:#e05050;border:1px solid rgba(180,20,20,0.5);}
-.state-explore{background:rgba(20,50,20,0.3);color:#70b870;border:1px solid rgba(30,90,30,0.4);}
-.state-event{background:rgba(150,100,10,0.2);color:var(--gold);border:1px solid rgba(200,150,20,0.4);}
-.depth-track{display:flex;flex-wrap:wrap;gap:3px;padding:8px 12px;}
-.dpip{width:10px;height:10px;border-radius:50%;background:rgba(30,20,8,0.8);border:1px solid var(--border);transition:background .3s;}
+/* MAP */
+.map-header{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:rgba(16,10,4,0.8);border:1px solid var(--border-bright);border-radius:4px;}
+.map-loc{font-family:'Cinzel',serif;font-size:12px;color:var(--gold);}
+.state-badge{font-size:9px;font-family:'Cinzel',serif;letter-spacing:1px;padding:3px 9px;border-radius:8px;}
+.s-combat{background:rgba(110,12,12,0.3);color:#e05050;border:1px solid rgba(170,18,18,0.5);}
+.s-explore{background:rgba(18,46,18,0.3);color:#70b870;border:1px solid rgba(28,80,28,0.4);}
+.s-event{background:rgba(140,90,8,0.2);color:var(--gold);border:1px solid rgba(190,140,18,0.4);}
+.depth-track{display:flex;flex-wrap:wrap;gap:3px;padding:7px 12px;}
+.dpip{width:9px;height:9px;border-radius:50%;background:rgba(28,18,6,0.8);border:1px solid var(--border);transition:background .3s;}
 .dpip.done{background:var(--gold);border-color:var(--gold-bright);}
-.dpip.current{background:var(--blood);border-color:var(--blood-bright);}
-.narrative{min-height:160px;max-height:220px;overflow-y:auto;padding:12px;scroll-behavior:smooth;}
-.narrative::-webkit-scrollbar{width:4px;}
+.dpip.cur{background:var(--blood);border-color:var(--blood-bright);}
+
+/* LOG */
+.narrative{min-height:150px;max-height:210px;overflow-y:auto;padding:11px;scroll-behavior:smooth;}
+.narrative::-webkit-scrollbar{width:3px;}
 .narrative::-webkit-scrollbar-thumb{background:var(--border-bright);border-radius:2px;}
-.log-line{font-size:13px;line-height:1.6;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid rgba(60,40,10,0.3);animation:fadeIn .3s ease;}
+.log-line{font-size:13px;line-height:1.6;margin-bottom:5px;padding-bottom:5px;border-bottom:1px solid rgba(60,40,10,0.25);animation:fadeIn .3s ease;}
 .log-line:last-child{border-bottom:none;margin-bottom:0;}
 .log-line.sys{color:var(--text-dim);font-style:italic;font-size:11px;}
-.log-line.dmg{color:#cc5050;}
-.log-line.heal{color:#60b060;}
-.log-line.spell{color:#a080d0;}
-.log-line.loot{color:var(--gold);}
-.log-line.crit{color:var(--gold-bright);font-weight:600;}
-.log-line.death{color:var(--blood-bright);font-weight:600;}
-.log-line.chaos{color:var(--chaos-bright);}
+.log-line.dmg{color:#cc5050;}.log-line.heal{color:#60b060;}.log-line.spell{color:#a080d0;}
+.log-line.loot{color:var(--gold);}.log-line.crit{color:var(--gold-bright);font-weight:600;}
+.log-line.death{color:var(--blood-bright);font-weight:600;}.log-line.chaos{color:var(--chaos);}
 @keyframes fadeIn{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:translateY(0)}}
 
 /* ENEMY */
-.enemy-panel{padding:12px;display:none;}
+.enemy-panel{padding:11px;display:none;}
 .enemy-panel.vis{display:block;}
-.enemy-name{font-family:'UnifrakturMaguntia',cursive;font-size:22px;color:var(--blood-bright);line-height:1;}
+.enemy-name{font-family:'UnifrakturMaguntia',cursive;font-size:20px;color:var(--blood-bright);line-height:1;}
 .enemy-sub{font-size:11px;color:var(--text-dim);margin-top:2px;}
-.enemy-track{background:rgba(60,10,10,0.5);}
+.enemy-track{background:rgba(55,8,8,0.5);}
 .enemy-fill{height:100%;background:var(--blood);transition:width .4s;border-radius:2px;}
-.enemy-stats{display:flex;gap:10px;margin-top:6px;font-size:11px;color:var(--text-dim);}
-.enemy-stats span{color:var(--parchment);}
+.enemy-stats{display:flex;gap:9px;margin-top:5px;font-size:11px;color:var(--text-dim);}
+.enemy-stats span{color:var(--parch);}
 
 /* ACTIONS */
-.actions-panel{padding:12px;}
+.actions-panel{padding:11px;}
 .action-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:8px;}
-.act-btn{padding:9px 6px;background:rgba(18,12,5,0.9);border:1px solid var(--border);color:var(--parchment-dark);font-family:'IM Fell English',serif;font-size:13px;cursor:pointer;border-radius:3px;transition:all .15s;text-align:center;line-height:1.2;}
-.act-btn:hover:not(:disabled){border-color:var(--border-bright);background:rgba(35,24,10,0.9);}
+.act-btn{padding:8px 6px;background:rgba(15,10,4,0.9);border:1px solid var(--border);color:var(--parch-dark);font-family:'IM Fell English',serif;font-size:13px;cursor:pointer;border-radius:3px;transition:all .15s;text-align:center;line-height:1.2;}
+.act-btn:hover:not(:disabled){border-color:var(--border-bright);background:rgba(32,22,8,0.9);}
 .act-btn:disabled{opacity:.3;cursor:not-allowed;}
 .act-btn .abl{font-size:13px;font-weight:600;display:block;}
 .act-btn .abs{font-size:10px;color:var(--text-dim);display:block;margin-top:2px;}
 .act-melee{border-left:2px solid var(--blood);}
-.act-spell{border-left:2px solid var(--chaos-bright);color:#c0a0e0!important;}
+.act-spell{border-left:2px solid var(--chaos);color:#c0a0e0!important;}
 .act-talent{border-left:2px solid #6a7a8a;}
 .act-move{border-left:2px solid #8a6820;}
-.not-my-turn{text-align:center;padding:12px;color:var(--text-dim);font-style:italic;font-size:13px;font-family:'Cinzel',serif;letter-spacing:1px;}
+.wait-msg{text-align:center;padding:14px;color:var(--text-dim);font-style:italic;font-size:13px;font-family:'Cinzel',serif;letter-spacing:1px;}
+.acted-msg{text-align:center;padding:8px;color:#80c080;font-size:12px;font-family:'Cinzel',serif;letter-spacing:1px;background:rgba(30,60,30,0.2);border:1px solid rgba(50,100,50,0.3);border-radius:3px;margin-top:6px;}
 
-/* PATH MAP */
+/* PATH NODES */
 .path-nodes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px;}
-.path-node{background:rgba(15,10,4,0.9);border:1px solid var(--border);border-radius:4px;padding:12px 10px;cursor:pointer;transition:all .2s;text-align:center;display:flex;flex-direction:column;align-items:center;gap:4px;min-height:80px;justify-content:center;}
-.path-node:hover{border-color:var(--border-bright);background:rgba(30,20,8,0.9);}
-.path-node.boss-node{border:2px solid var(--blood);grid-column:1/-1;}
-.node-icon{font-size:22px;line-height:1;}
-.node-name{font-family:'Cinzel',serif;font-size:11px;color:var(--gold);letter-spacing:1px;}
-.node-desc{font-size:11px;color:var(--text-dim);font-style:italic;line-height:1.3;}
-.host-only-msg{font-size:11px;color:var(--text-dim);font-style:italic;text-align:center;padding:8px;}
+.path-node{background:rgba(12,8,3,0.9);border:1px solid var(--border);border-radius:4px;padding:11px 9px;cursor:pointer;transition:all .2s;text-align:center;display:flex;flex-direction:column;align-items:center;gap:4px;min-height:75px;justify-content:center;}
+.path-node:hover{border-color:var(--border-bright);background:rgba(28,18,6,0.9);}
+.path-node.boss{border:2px solid var(--blood);grid-column:1/-1;}
+.path-node.voted{border-color:var(--gold);background:rgba(40,28,8,0.9);}
+.node-icon{font-size:20px;line-height:1;}
+.node-name{font-family:'Cinzel',serif;font-size:10px;color:var(--gold);letter-spacing:1px;}
+.node-desc{font-size:10px;color:var(--text-dim);font-style:italic;line-height:1.3;}
+.vote-tally{font-size:10px;color:var(--gold);margin-top:4px;font-family:'Cinzel',serif;}
 
 /* MERCHANT */
-.shop-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;}
-.shop-col{display:flex;flex-direction:column;gap:7px;}
-.shop-item{background:rgba(15,10,4,0.9);border:1px solid var(--border);border-radius:3px;padding:10px;}
-.shop-item.sold{opacity:.4;}
-.si-name{font-size:13px;color:var(--parchment-dark);font-weight:600;display:block;}
-.si-desc{font-size:11px;color:var(--text-dim);font-style:italic;margin:3px 0 5px;display:block;}
+.shop-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:9px;}
+.shop-col{display:flex;flex-direction:column;gap:6px;}
+.shop-item{background:rgba(12,8,3,0.9);border:1px solid var(--border);border-radius:3px;padding:9px;}
+.shop-item.sold{opacity:.38;}
+.si-name{font-size:12px;color:var(--parch-dark);font-weight:600;display:block;}
+.si-desc{font-size:10px;color:var(--text-dim);font-style:italic;margin:2px 0 5px;display:block;}
 .si-row{display:flex;justify-content:space-between;align-items:center;}
-.si-cost{font-size:11px;color:var(--gold);font-family:'Cinzel',serif;}
-.buy-btn{background:none;border:1px solid #8a6820;color:var(--gold);font-size:9px;padding:2px 7px;border-radius:2px;cursor:pointer;font-family:'Cinzel',serif;transition:all .15s;}
+.si-cost{font-size:10px;color:var(--gold);font-family:'Cinzel',serif;}
+.buy-btn{background:none;border:1px solid #8a6820;color:var(--gold);font-size:9px;padding:1px 6px;border-radius:2px;cursor:pointer;font-family:'Cinzel',serif;transition:all .15s;}
 .buy-btn:hover:not(:disabled){border-color:var(--gold-bright);}
 .buy-btn:disabled{opacity:.3;cursor:not-allowed;}
-.shared-gold{font-family:'Cinzel',serif;font-size:12px;color:var(--gold);text-align:right;margin-bottom:6px;letter-spacing:1px;}
+.my-gold-bar{font-family:'Cinzel',serif;font-size:11px;color:var(--gold);margin-bottom:6px;}
+
+/* LOOT ROOM */
+.loot-panel{padding:14px;}
+.loot-opts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px;}
+.loot-opt{background:rgba(12,8,3,0.9);border:1px solid var(--border);border-radius:4px;padding:12px;text-align:center;cursor:pointer;transition:all .2s;display:flex;flex-direction:column;gap:5px;align-items:center;}
+.loot-opt:hover:not(.picked){border-color:var(--border-bright);}
+.loot-opt.picked{opacity:.35;cursor:default;}
+.loot-icon{font-size:24px;}
+.loot-name{font-family:'Cinzel',serif;font-size:11px;color:var(--gold);}
+.loot-desc{font-size:11px;color:var(--text-dim);font-style:italic;}
+.loot-picked-msg{text-align:center;padding:10px;color:#80c080;font-size:12px;font-family:'Cinzel',serif;}
 
 /* PATH PICK */
-.path-pick-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
-.pp-btn{background:rgba(15,10,4,0.9);border:1px solid var(--border);border-radius:3px;padding:12px;cursor:pointer;text-align:left;transition:all .2s;font-family:'IM Fell English',serif;}
+.pp-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
+.pp-btn{background:rgba(12,8,3,0.9);border:1px solid var(--border);border-radius:3px;padding:12px;cursor:pointer;text-align:left;transition:all .2s;font-family:'IM Fell English',serif;}
 .pp-btn:hover{border-color:var(--border-bright);}
 .pp-btn .ppn{font-size:14px;color:var(--gold-bright);display:block;font-weight:600;}
-.pp-btn .ppd{font-size:11px;color:var(--text-dim);font-style:italic;display:block;margin-top:3px;}
-.pp-btn .ppb{font-size:12px;color:var(--parchment-dark);display:block;margin-top:5px;line-height:1.4;}
+.pp-btn .ppd{font-size:11px;color:var(--text-dim);font-style:italic;display:block;margin-top:2px;}
+.pp-btn .ppb{font-size:12px;color:var(--parch-dark);display:block;margin-top:5px;line-height:1.4;}
 
-/* GAMEOVER / VICTORY */
-.big-message{text-align:center;padding:40px 20px;}
-.big-title{font-family:'UnifrakturMaguntia',cursive;font-size:48px;line-height:1;margin-bottom:12px;}
-.big-title.death{color:var(--blood);}
-.big-title.victory{color:var(--gold);}
-.big-sub{color:var(--parchment-dark);font-size:15px;line-height:1.7;max-width:500px;margin:0 auto 20px;}
-.dice-display{display:none;padding:6px 12px;background:rgba(20,14,6,0.8);border:1px solid rgba(180,130,50,0.2);border-radius:3px;font-size:11px;color:var(--text-dim);}
-.dice-display.vis{display:block;}
+/* END */
+.end-wrap{text-align:center;padding:50px 20px;}
+.end-title{font-family:'UnifrakturMaguntia',cursive;font-size:50px;line-height:1;margin-bottom:12px;}
+.end-title.death{color:var(--blood);}.end-title.victory{color:var(--gold);}
+.end-sub{color:var(--parch-dark);font-size:15px;line-height:1.7;max-width:480px;margin:0 auto 20px;}
 
-/* CONNECTING */
-.connecting{text-align:center;padding:60px 20px;color:var(--text-dim);font-family:'Cinzel',serif;letter-spacing:2px;font-size:13px;}
-
-@media(max-width:900px){.game-grid{grid-template-columns:1fr;}.action-grid{grid-template-columns:1fr 1fr;}.path-nodes{grid-template-columns:1fr 1fr;}.shop-grid,.path-pick-grid{grid-template-columns:1fr;}}
+@media(max-width:880px){.game-grid{grid-template-columns:1fr;}.action-grid{grid-template-columns:1fr 1fr;}.path-nodes,.loot-opts{grid-template-columns:1fr 1fr;}.shop-grid,.pp-grid,.lobby-wrap{grid-template-columns:1fr;}}
 </style>
 </head>
 <body>
 <div id="app">
-<div class="masthead">
+<div class="head">
   <h1>Shadows Over Reikland</h1>
   <div class="sub">Co-op · Up to 4 Players · Shadow of the Demon Lord</div>
 </div>
 
 <!-- CONNECTING -->
 <div class="screen active" id="screen-connect">
-  <div class="connecting" id="conn-msg">Connecting to server...</div>
+  <div style="text-align:center;padding:60px 20px;color:var(--text-dim);font-family:'Cinzel',serif;letter-spacing:2px;font-size:13px" id="conn-msg">Connecting to server...</div>
 </div>
 
 <!-- LOBBY -->
 <div class="screen" id="screen-lobby">
-  <div style="max-width:720px;margin:20px auto;display:flex;flex-direction:column;gap:14px;">
-    <div class="panel" id="lobby-join-panel">
+  <div class="lobby-wrap">
+    <div class="panel" id="join-panel">
       <div class="ph">Join the Warband</div>
       <input type="text" id="inp-name" placeholder="Your name..." maxlength="20">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <button class="btn btn-wide gold" onclick="createRoom()">Create Room</button>
-        <div>
-          <input type="text" id="inp-code" placeholder="Room code..." maxlength="4" style="text-transform:uppercase;letter-spacing:4px;margin-bottom:6px">
-          <button class="btn btn-wide" onclick="joinRoom()">Join Room</button>
-        </div>
+      <button class="btn btn-w gold" onclick="createRoom()">Create Room</button>
+      <div style="margin-top:10px">
+        <input type="text" id="inp-code" placeholder="Room code..." maxlength="4" style="text-transform:uppercase;letter-spacing:4px">
+        <button class="btn btn-w" onclick="joinRoom()">Join Room</button>
       </div>
       <div class="err" id="lobby-err"></div>
     </div>
-
-    <div class="panel" id="lobby-room-panel" style="display:none">
-      <div class="ph">Room — <span id="disp-code" style="color:var(--gold-bright);letter-spacing:4px">----</span></div>
-      <div style="font-size:12px;color:var(--text-dim);margin-bottom:8px">Share this code with up to 3 friends.</div>
-      <div id="player-slots"></div>
-    </div>
-
-    <div class="panel" id="lobby-career-panel" style="display:none">
-      <div class="ph">Choose Your Career</div>
-      <div class="career-grid">
-        <button class="career-btn selected" data-career="warrior" onclick="selectCareer(this)"><span class="cn">State Soldier</span><span class="cd">Warrior · STR+1 INT−1</span></button>
-        <button class="career-btn" data-career="rogue" onclick="selectCareer(this)"><span class="cn">Roadwarden</span><span class="cd">Rogue · AGI+1 WIL−1</span></button>
-        <button class="career-btn" data-career="wizard" onclick="selectCareer(this)"><span class="cn">Bright Wizard</span><span class="cd">Magician · INT+1 STR−1</span></button>
-        <button class="career-btn" data-career="priest" onclick="selectCareer(this)"><span class="cn">Sigmarite Priest</span><span class="cd">Priest · WIL+1 AGI−1</span></button>
+    <div>
+      <div class="panel" id="room-panel" style="display:none">
+        <div class="ph">Room — <span id="disp-code" style="color:var(--gold-bright);letter-spacing:4px">----</span></div>
+        <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px">Share this code with friends.</div>
+        <div id="player-slots"></div>
       </div>
-      <button class="btn btn-wide gold" style="margin-top:12px" onclick="setReady()">Ready →</button>
+      <div class="panel" id="career-panel" style="display:none;margin-top:10px">
+        <div class="ph">Choose Your Career</div>
+        <div class="career-grid">
+          <button class="cbtn sel" data-career="warrior" onclick="selectCareer(this)"><span class="cn">State Soldier</span><span class="cd">Warrior · STR+1 INT−1</span></button>
+          <button class="cbtn" data-career="rogue" onclick="selectCareer(this)"><span class="cn">Roadwarden</span><span class="cd">Rogue · AGI+1 WIL−1</span></button>
+          <button class="cbtn" data-career="wizard" onclick="selectCareer(this)"><span class="cn">Bright Wizard</span><span class="cd">Magician · INT+1 STR−1</span></button>
+          <button class="cbtn" data-career="priest" onclick="selectCareer(this)"><span class="cn">Sigmarite Priest</span><span class="cd">Priest · WIL+1 AGI−1</span></button>
+        </div>
+        <button class="btn btn-w gold" style="margin-top:10px" onclick="setReady()">Ready →</button>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- NOVICE PATH PICK -->
+<!-- PATH PICK (level up) -->
 <div class="screen" id="screen-pathpick">
-  <div class="panel" style="max-width:580px;margin:30px auto;padding:20px">
+  <div class="panel" style="max-width:560px;margin:28px auto;padding:18px">
     <div class="ph" id="pp-heading">Choose Your Novice Path</div>
-    <div style="font-size:13px;color:var(--text-dim);margin-bottom:8px" id="pp-sub">Select the path that fits your character.</div>
-    <div class="path-pick-grid" id="pp-grid"></div>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:6px" id="pp-sub">Select a path that fits your experience.</div>
+    <div class="pp-grid" id="pp-grid"></div>
   </div>
 </div>
 
 <!-- MAIN GAME -->
 <div class="screen" id="screen-game">
   <div class="game-grid">
-    <!-- LEFT — my character + allies' cards -->
-    <div class="sidebar-left" id="sidebar-left"></div>
+    <!-- LEFT SIDEBAR: my char -->
+    <div class="sidebar" id="sidebar-left"></div>
 
     <!-- CENTRE -->
     <div class="main-col">
       <div class="map-header">
         <div>
           <div class="map-loc" id="g-location">The Reikland Road</div>
-          <div style="font-size:11px;color:var(--text-dim)" id="g-loc-sub">Depth <span id="g-depth">0</span>/30</div>
+          <div style="font-size:10px;color:var(--text-dim)">Depth <span id="g-depth">0</span>/30</div>
         </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
-          <div class="state-badge state-explore" id="g-state">Travelling</div>
-          <div style="font-size:11px;color:var(--text-dim)">Gold: <span style="color:var(--gold)" id="g-gold">0</span> ss</div>
-        </div>
+        <div class="state-badge s-explore" id="g-state">Travelling</div>
       </div>
-
-      <div class="panel" style="padding:8px 12px">
+      <div class="panel" style="padding:6px 11px">
         <div class="depth-track" id="g-depth-track"></div>
       </div>
-
       <div class="panel narrative" id="g-narrative"></div>
 
+      <!-- Enemy -->
       <div class="panel enemy-panel" id="g-enemy-panel">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:7px">
           <div><div class="enemy-name" id="e-name">Enemy</div><div class="enemy-sub" id="e-type">Beast</div></div>
-          <div style="font-family:'Cinzel',serif;font-size:12px;color:var(--blood);text-align:right" id="e-hp-val">10/10</div>
+          <div style="font-family:'Cinzel',serif;font-size:11px;color:var(--blood);text-align:right" id="e-hp-val">10/10</div>
         </div>
         <div class="bar-track enemy-track" style="margin-bottom:6px"><div class="enemy-fill" id="e-hp-bar" style="width:100%"></div></div>
         <div class="enemy-stats">
-          <div>Defense <span id="e-def">10</span></div>
+          <div>Def <span id="e-def">10</span></div>
           <div>ATK <span id="e-atk">+2</span></div>
           <div>DMG <span id="e-dmg">1d6</span></div>
           <div>Threat <span id="e-cr">Low</span></div>
         </div>
       </div>
 
-      <div class="dice-display" id="g-dice"></div>
-
+      <!-- Actions / Path / Loot / Shop panels -->
       <div class="panel actions-panel" id="g-actions-panel">
         <div class="ph" id="actions-heading">Actions</div>
         <div id="g-actions-body"></div>
       </div>
 
-      <!-- MERCHANT -->
-      <div class="panel" id="g-shop" style="display:none;padding:14px">
-        <div class="ph">The Travelling Merchant</div>
-        <div class="shared-gold">Shared Gold: <span id="shop-gold">0</span> ss</div>
+      <div class="panel loot-panel" id="g-loot-panel" style="display:none">
+        <div class="ph">Loot Room</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:4px" id="g-loot-desc">Choose one item:</div>
+        <div class="loot-opts" id="g-loot-opts"></div>
+        <div id="g-loot-picked-msg" style="display:none" class="loot-picked-msg">Waiting for others to pick...</div>
+      </div>
+
+      <div class="panel" id="g-shop" style="display:none;padding:13px">
+        <div class="ph">Merchant — Your Wares</div>
+        <div class="my-gold-bar">Your silver: <span id="shop-my-gold">0</span> ss</div>
         <div class="shop-grid" id="g-shop-items"></div>
-        <button class="btn btn-wide" style="margin-top:10px" onclick="leaveShop()">Leave the Merchant</button>
+        <button class="btn btn-w" style="margin-top:9px" onclick="leaveShop()">Done Shopping</button>
       </div>
     </div>
 
-    <!-- RIGHT — all players' cards -->
-    <div class="sidebar-right" id="sidebar-right"></div>
+    <!-- RIGHT SIDEBAR: other players -->
+    <div class="sidebar" id="sidebar-right"></div>
   </div>
 </div>
 
-<!-- GAMEOVER/VICTORY -->
+<!-- END -->
 <div class="screen" id="screen-end">
-  <div class="big-message">
-    <div class="big-title" id="end-title">Game Over</div>
-    <div class="big-sub" id="end-sub"></div>
-    <button class="btn gold" onclick="goHome()">Return to Altdorf</button>
+  <div class="end-wrap">
+    <div class="end-title" id="end-title">Game Over</div>
+    <div class="end-sub" id="end-sub"></div>
+    <button class="btn gold" onclick="location.reload()">Return to Altdorf</button>
   </div>
 </div>
-
-</div><!-- #app -->
 
 <script>
-// ═══════════════════════════════════════════
-// CONNECTION
-// ═══════════════════════════════════════════
-let ws = null;
-let myId = null;
-let myRoomCode = null;
-let lastState = null; // { gs, players, hostId }
-let selectedCareer = 'warrior';
-let pathPickPending = false;
+// ══════════════════════════════════════════════
+// CLIENT STATE
+// ══════════════════════════════════════════════
+let ws=null,myId=null,lastState=null,selectedCareer='warrior',pathPickPending=false;
 
-function connect() {
-  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  ws = new WebSocket(`${proto}//${location.host}`);
-  ws.onopen = () => {
-    document.getElementById('conn-msg').textContent = 'Connected. Enter your name to begin.';
-    show('screen-lobby');
-  };
-  ws.onclose = () => {
-    document.getElementById('conn-msg').textContent = 'Disconnected. Reload to reconnect.';
-    show('screen-connect');
-  };
-  ws.onmessage = e => {
-    try { handleServer(JSON.parse(e.data)); } catch(err) { console.error(err); }
-  };
+function connect(){
+  const proto=location.protocol==='https:'?'wss:':'ws:';
+  ws=new WebSocket(`${proto}//${location.host}`);
+  ws.onopen=()=>{ show('screen-lobby'); };
+  ws.onclose=()=>{ document.getElementById('conn-msg').textContent='Disconnected. Reload to reconnect.'; show('screen-connect'); };
+  ws.onerror=()=>{ document.getElementById('conn-msg').textContent='Connection error. Check the server is running.'; show('screen-connect'); };
+  ws.onmessage=e=>{ try{handle(JSON.parse(e.data));}catch(ex){console.error(ex);} };
 }
+function sendMsg(type,payload={}){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({type,payload})); }
 
-function send(type, payload = {}) {
-  if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type, payload }));
-}
-
-function handleServer(msg) {
-  switch (msg.type) {
-    case 'ROOM_CREATED':
-    case 'ROOM_JOINED':
-      myId = msg.payload.playerId;
-      myRoomCode = msg.payload.code;
-      document.getElementById('disp-code').textContent = msg.payload.code;
-      document.getElementById('lobby-join-panel').style.display = 'none';
-      document.getElementById('lobby-room-panel').style.display = 'block';
-      document.getElementById('lobby-career-panel').style.display = 'block';
-      break;
-    case 'STATE_UPDATE':
-      lastState = msg.payload;
-      renderState(msg.payload);
-      break;
-    case 'ERROR':
-      document.getElementById('lobby-err').textContent = msg.payload.msg;
-      break;
+function handle(msg){
+  if(msg.type==='ROOM_CREATED'||msg.type==='ROOM_JOINED'){
+    myId=msg.payload.playerId;
+    document.getElementById('disp-code').textContent=msg.payload.code;
+    document.getElementById('join-panel').style.display='none';
+    document.getElementById('room-panel').style.display='block';
+    document.getElementById('career-panel').style.display='block';
   }
+  if(msg.type==='STATE_UPDATE'){ lastState=msg.payload; renderState(msg.payload); }
+  if(msg.type==='ERROR'){ document.getElementById('lobby-err').textContent=msg.payload.msg; }
 }
 
-// ═══════════════════════════════════════════
+// ══════════════════════════════════════════════
 // LOBBY
-// ═══════════════════════════════════════════
-function createRoom() {
-  const name = document.getElementById('inp-name').value.trim() || 'Wanderer';
-  send('CREATE_ROOM', { name });
+// ══════════════════════════════════════════════
+function createRoom(){ sendMsg('CREATE_ROOM',{name:document.getElementById('inp-name').value.trim()||'Wanderer'}); }
+function joinRoom(){
+  const name=document.getElementById('inp-name').value.trim()||'Wanderer';
+  const code=document.getElementById('inp-code').value.trim().toUpperCase();
+  if(!code){document.getElementById('lobby-err').textContent='Enter a room code.';return;}
+  sendMsg('JOIN_ROOM',{name,code});
 }
-function joinRoom() {
-  const name = document.getElementById('inp-name').value.trim() || 'Wanderer';
-  const code = document.getElementById('inp-code').value.trim().toUpperCase();
-  if (!code) { document.getElementById('lobby-err').textContent = 'Enter a room code.'; return; }
-  send('JOIN_ROOM', { name, code });
+function selectCareer(btn){
+  document.querySelectorAll('.cbtn').forEach(b=>b.classList.remove('sel'));
+  btn.classList.add('sel'); selectedCareer=btn.dataset.career;
+  sendMsg('SELECT_CAREER',{career:selectedCareer});
 }
-function selectCareer(btn) {
-  document.querySelectorAll('.career-btn').forEach(b => b.classList.remove('selected'));
-  btn.classList.add('selected');
-  selectedCareer = btn.dataset.career;
-  send('SELECT_CAREER', { career: selectedCareer });
-}
-function setReady() {
-  send('SELECT_CAREER', { career: selectedCareer });
-  setTimeout(() => send('PLAYER_READY'), 50);
-}
-function goHome() { location.reload(); }
+function setReady(){ sendMsg('SELECT_CAREER',{career:selectedCareer}); setTimeout(()=>sendMsg('PLAYER_READY'),50); }
 
-// ═══════════════════════════════════════════
-// PATH PICK
-// ═══════════════════════════════════════════
-const NOVICE_PATHS_CLIENT = {
-  warrior: { name:'Warrior',   desc:'Weapon Training & Catch Your Breath. +5 Health.',  features:'Attack with 1 boon; recover HP once/rest' },
-  rogue:   { name:'Rogue',     desc:'Trickery & Nimble Recovery. +3 Health.',            features:'1 boon on attacks; nimble healing' },
-  magician:{ name:'Magician',  desc:'Spells, Power +1, Spell Recovery. +2 Health.',      features:'Access to spells; recover castings in rest' },
-  priest:  { name:'Priest',    desc:'Shared Recovery, Power +1. +4 Health.',             features:'Divine healing; shared recovery for allies' },
+function updateLobbySlots(players){
+  const el=document.getElementById('player-slots'); if(!el)return;
+  let html='';
+  for(let i=0;i<4;i++){
+    const p=players[i];
+    if(p) html+=`<div class="pslot"><div class="pdot${p.ready?' ready':''}"></div><span style="font-size:13px">${p.name}</span><span style="font-size:10px;color:var(--text-dim);margin-left:auto">${p.career||'choosing'} ${p.ready?'✓':''}</span></div>`;
+    else  html+=`<div class="pslot"><div class="pdot empty"></div><span style="font-size:11px;color:var(--text-dim)">Waiting...</span></div>`;
+  }
+  el.innerHTML=html;
+}
+
+// ══════════════════════════════════════════════
+// PATH PICK (level up)
+// ══════════════════════════════════════════════
+const NOVICE_PATHS_C={
+  warrior:{name:'Warrior',   desc:'+5 HP. Attack with 1 boon.',         features:'Weapon Training; Catch Your Breath (heal each rest)'},
+  rogue:  {name:'Rogue',     desc:'+3 HP. Cunning strikes.',             features:'Trickery (1 boon on attack); Nimble Recovery'},
+  magician:{name:'Magician', desc:'+2 HP, +1 Power. Access to spells.',  features:'Cantrips; Spell Recovery (heal + regain casting)'},
+  priest: {name:'Priest',    desc:'+4 HP, +1 Power. Divine healing.',    features:'Shared Recovery; Life tradition spells'},
 };
-
-function showPathPick() {
-  pathPickPending = true;
-  show('screen-pathpick');
-  document.getElementById('pp-heading').textContent = 'Choose Your Novice Path (Level 1)';
-  document.getElementById('pp-sub').textContent = 'Select the path that fits your warband experience.';
-  const grid = document.getElementById('pp-grid');
-  grid.innerHTML = '';
-  Object.entries(NOVICE_PATHS_CLIENT).forEach(([id, p]) => {
-    const btn = document.createElement('button');
-    btn.className = 'pp-btn';
-    btn.innerHTML = `<span class="ppn">${p.name}</span><span class="ppd">${p.desc}</span><span class="ppb">${p.features}</span>`;
-    btn.onclick = () => chooseNovicePath(id);
+function showPathPick(){
+  pathPickPending=true; show('screen-pathpick');
+  document.getElementById('pp-heading').textContent='Choose Your Path (Level Up!)';
+  const grid=document.getElementById('pp-grid'); grid.innerHTML='';
+  Object.entries(NOVICE_PATHS_C).forEach(([id,p])=>{
+    const btn=document.createElement('button'); btn.className='pp-btn';
+    btn.innerHTML=`<span class="ppn">${p.name}</span><span class="ppd">${p.desc}</span><span class="ppb">${p.features}</span>`;
+    btn.onclick=()=>{ pathPickPending=false; sendMsg('PLAYER_ACTION',{action:'APPLY_PATH',data:{pathId:id}}); show('screen-game'); if(lastState)renderState(lastState); };
     grid.appendChild(btn);
   });
 }
 
-function chooseNovicePath(pathId) {
-  pathPickPending = false;
-  send('PLAYER_ACTION', { action:'APPLY_PATH', data:{ pathId } });
-  show('screen-game');
-  if (lastState) renderState(lastState);
-}
+// ══════════════════════════════════════════════
+// MAIN STATE RENDERER
+// ══════════════════════════════════════════════
+const LOCATIONS=['The Reikland Road','Altdorf Sewers','The Grey Mountains','The Forest of Shadows','Bogenhafen Catacombs','Ruins of Mordheim','The Dark Moors','The Chaos Wastes','A Forsaken Temple','The River Reik','Skaven Under-warren','Corrupted Village','The Blighted Marshes','Chaos Shrine','The Final Abyss'];
+const XP_T=[0,2,3,5,8,11,14,18,23,28];
 
-// ═══════════════════════════════════════════
-// STATE RENDERER
-// ═══════════════════════════════════════════
-const LOCATIONS = ['The Reikland Road','Altdorf Sewers','The Grey Mountains','The Forest of Shadows','Bogenhafen Catacombs','Ruins of Mordheim','The Dark Moors','The Chaos Wastes','A Forsaken Temple','The River Reik','Skaven Under-warren','Corrupted Village','The Blighted Marshes','Chaos Shrine','The Final Abyss'];
-const XP_THRESHOLDS = [0,2,3,5,8,11,14,18,23,28];
+function renderState(state){
+  const{gs,players}=state;
+  const me=players.find(p=>p.id===myId);
+  if(!me){updateLobbySlots(players);return;}
 
-function renderState(state) {
-  const { gs, players, hostId } = state;
-  const me = players.find(p => p.id === myId);
-  if (!me) return;
+  if(gs.phase==='lobby'){show('screen-lobby');updateLobbySlots(players);return;}
+  if(gs.phase==='gameover'){show('screen-end');document.getElementById('end-title').className='end-title death';document.getElementById('end-title').textContent='The Warband Has Fallen';document.getElementById('end-sub').innerHTML=`Depth: <strong>${gs.depth}/30</strong>. Reikland weeps.`;return;}
+  if(gs.phase==='victory'){show('screen-end');document.getElementById('end-title').className='end-title victory';document.getElementById('end-title').textContent='Victory!';document.getElementById('end-sub').innerHTML=`The warband conquers the depths!<br>Depth: ${gs.depth}/30`;return;}
 
-  // Handle phase transitions
-  if (gs.phase === 'lobby') { show('screen-lobby'); updateLobbySlots(players); return; }
-  if (gs.phase === 'gameover') { show('screen-end'); document.getElementById('end-title').textContent='The Warband Has Fallen'; document.getElementById('end-title').className='big-title death'; document.getElementById('end-sub').innerHTML=`Depth reached: <strong>${gs.depth}/30</strong>. Reikland weeps for its lost defenders.`; return; }
-  if (gs.phase === 'victory') { show('screen-end'); document.getElementById('end-title').textContent='Victory!'; document.getElementById('end-title').className='big-title victory'; document.getElementById('end-sub').innerHTML=`The warband has conquered the depths!<br>Depth: ${gs.depth}/30 · Gold: ${gs.gold} ss`; return; }
-
-  // Check if I just levelled up and need path pick
-  if (me.char && me.char.level === 1 && !me.char.novicePath && !pathPickPending) {
-    showPathPick(); return;
-  }
-
-  if (pathPickPending) return; // waiting for player to pick
+  // Level up path pick
+  if(me.char&&me.char.pendingLevelUp&&!me.char.novicePath&&!pathPickPending){showPathPick();return;}
+  if(pathPickPending)return;
 
   show('screen-game');
 
-  // Location
-  document.getElementById('g-location').textContent = LOCATIONS[Math.min(gs.depth, LOCATIONS.length-1)];
-  document.getElementById('g-depth').textContent = gs.depth;
-  document.getElementById('g-gold').textContent = gs.gold;
-  document.getElementById('shop-gold').textContent = gs.gold;
-
+  // Location & depth
+  document.getElementById('g-location').textContent=LOCATIONS[Math.min(gs.depth,LOCATIONS.length-1)];
+  document.getElementById('g-depth').textContent=gs.depth;
   // Depth track
-  const track = document.getElementById('g-depth-track');
-  track.innerHTML = '';
-  for (let i = 0; i < 30; i++) {
-    const pip = document.createElement('div');
-    pip.className = 'dpip' + (i < gs.depth ? ' done' : i === gs.depth ? ' current' : '');
-    track.appendChild(pip);
-  }
+  const track=document.getElementById('g-depth-track'); track.innerHTML='';
+  for(let i=0;i<30;i++){const pip=document.createElement('div');pip.className='dpip'+(i<gs.depth?' done':i===gs.depth?' cur':'');track.appendChild(pip);}
 
   // State badge
-  const sb = document.getElementById('g-state');
-  if (gs.phase === 'combat') { sb.className='state-badge state-combat'; sb.textContent='In Combat'; }
-  else if (gs.phase === 'merchant') { sb.className='state-badge state-event'; sb.textContent='Merchant'; }
-  else { sb.className='state-badge state-explore'; sb.textContent='Travelling'; }
+  const sb=document.getElementById('g-state');
+  const phaseMap={combat:'s-combat',merchant:'s-event',loot:'s-event',path:'s-explore',event:'s-explore'};
+  sb.className='state-badge '+(phaseMap[gs.phase]||'s-explore');
+  sb.textContent=gs.phase==='combat'?'In Combat':gs.phase==='merchant'?'Merchant':gs.phase==='loot'?'Loot Room':'Travelling';
 
-  // Narrative log
   renderLog(gs.log);
-
-  // Enemy
   renderEnemy(gs.enemy);
+  renderPlayerCards(players,gs);
+  renderActions(gs,players,me);
 
-  // Player cards
-  renderPlayerCards(players, gs, hostId);
+  // Show/hide panels
+  const showShop=gs.phase==='merchant'&&me.char&&me.char.merchantStock;
+  const showLoot=gs.phase==='loot'&&gs.lootRoom;
+  document.getElementById('g-shop').style.display=showShop?'block':'none';
+  document.getElementById('g-loot-panel').style.display=showLoot?'block':'none';
+  document.getElementById('g-actions-panel').style.display=(!showShop&&!showLoot)?'block':'none';
 
-  // Actions
-  renderActions(gs, players, me, hostId);
-
-  // Shop
-  if (gs.phase === 'merchant' && gs.merchantStock) {
-    document.getElementById('g-shop').style.display = 'block';
-    document.getElementById('g-actions-panel').style.display = 'none';
-    renderShop(gs.merchantStock, gs.gold);
-  } else {
-    document.getElementById('g-shop').style.display = 'none';
-    document.getElementById('g-actions-panel').style.display = 'block';
-  }
+  if(showShop&&me.char){ document.getElementById('shop-my-gold').textContent=me.char.gold; renderShop(me.char.merchantStock,me.char.gold); }
+  if(showLoot){ renderLootRoom(gs,me); }
 }
 
-let lastLogLength = 0;
-function renderLog(log) {
-  const box = document.getElementById('g-narrative');
-  if (log.length === lastLogLength) return;
-  lastLogLength = log.length;
-  box.innerHTML = '';
-  log.forEach(entry => {
-    const d = document.createElement('div');
-    d.className = 'log-line' + (entry.type ? ' ' + entry.type : '');
-    d.innerHTML = entry.msg;
-    box.appendChild(d);
-  });
-  box.scrollTop = box.scrollHeight;
+let lastLogLen=0;
+function renderLog(log){
+  const box=document.getElementById('g-narrative');
+  if(log.length===lastLogLen)return; lastLogLen=log.length;
+  box.innerHTML='';
+  log.forEach(entry=>{const d=document.createElement('div');d.className='log-line'+(entry.type?' '+entry.type:'');d.innerHTML=entry.msg;box.appendChild(d);});
+  box.scrollTop=box.scrollHeight;
 }
 
-function renderEnemy(enemy) {
-  const panel = document.getElementById('g-enemy-panel');
-  if (!enemy) { panel.classList.remove('vis'); return; }
+function renderEnemy(enemy){
+  const panel=document.getElementById('g-enemy-panel');
+  if(!enemy){panel.classList.remove('vis');return;}
   panel.classList.add('vis');
-  document.getElementById('e-name').textContent = enemy.name;
-  document.getElementById('e-type').textContent = enemy.type;
-  document.getElementById('e-def').textContent = enemy.ac;
-  document.getElementById('e-atk').textContent = (enemy.atk>=0?'+':'') + enemy.atk;
-  document.getElementById('e-dmg').textContent = enemy.dmg + (enemy.dmgB ? '+'+enemy.dmgB : '');
-  document.getElementById('e-cr').textContent = enemy.threat;
-  const pct = Math.max(0, enemy.hp / enemy.maxHp * 100);
-  document.getElementById('e-hp-bar').style.width = pct + '%';
-  document.getElementById('e-hp-val').textContent = Math.max(0, enemy.hp) + '/' + enemy.maxHp;
+  document.getElementById('e-name').textContent=enemy.name;
+  document.getElementById('e-type').textContent=enemy.type+(enemy.isElite?' (Elite)':'');
+  document.getElementById('e-def').textContent=enemy.ac;
+  document.getElementById('e-atk').textContent=(enemy.atk>=0?'+':'')+enemy.atk;
+  document.getElementById('e-dmg').textContent=enemy.dmgDisplay||`${enemy.dmgNum}d${enemy.dmgSides}${enemy.dmgBonus?'+'+enemy.dmgBonus:''}`;
+  document.getElementById('e-cr').textContent=enemy.threat;
+  const pct=Math.max(0,enemy.hp/enemy.maxHp*100);
+  document.getElementById('e-hp-bar').style.width=pct+'%';
+  document.getElementById('e-hp-val').textContent=Math.max(0,enemy.hp)+'/'+enemy.maxHp;
 }
 
-function modStr(score) { const m = score - 10; return (m >= 0 ? '+' : '') + m; }
+function modStr(score){const m=score-10;return(m>=0?'+':'')+m;}
 
-function renderPlayerCards(players, gs, hostId) {
-  const alive = players.filter(p => p.char && p.char.alive);
-  const turnIdx = gs.currentTurnIndex % Math.max(1, alive.length);
-  const turnPlayerId = alive[turnIdx]?.id;
-
-  // Split: my card left, others right
-  const leftEl = document.getElementById('sidebar-left');
-  const rightEl = document.getElementById('sidebar-right');
-  leftEl.innerHTML = ''; rightEl.innerHTML = '';
-
-  players.forEach(p => {
-    if (!p.char) return;
-    const isMe = p.id === myId;
-    const isTurn = gs.phase === 'combat' && p.id === turnPlayerId;
-    const card = buildPlayerCard(p, isTurn, isMe);
-    if (isMe) leftEl.appendChild(card);
-    else rightEl.appendChild(card);
+function renderPlayerCards(players,gs){
+  const leftEl=document.getElementById('sidebar-left'),rightEl=document.getElementById('sidebar-right');
+  leftEl.innerHTML=''; rightEl.innerHTML='';
+  players.forEach(p=>{
+    if(!p.char)return;
+    const isMe=p.id===myId;
+    const hasActed=gs.phase==='combat'&&gs.playersActedThisRound&&gs.playersActedThisRound.includes(p.id);
+    const card=buildPlayerCard(p,hasActed,isMe,gs);
+    if(isMe){
+      leftEl.appendChild(card);
+      // My inventory
+      const invPanel=document.createElement('div'); invPanel.className='panel';
+      invPanel.innerHTML='<div class="ph">Inventory</div><ul class="inv-list" id="my-inv"></ul>';
+      leftEl.appendChild(invPanel);
+      renderMyInventory(p.char,gs.phase==='combat');
+    } else {
+      rightEl.appendChild(card);
+    }
   });
-
-  // My inventory on left sidebar
-  const me = players.find(p => p.id === myId);
-  if (me && me.char) {
-    const invPanel = document.createElement('div');
-    invPanel.className = 'panel';
-    invPanel.innerHTML = `<div class="ph">Inventory</div><ul class="inv-list" id="my-inv"></ul>`;
-    leftEl.appendChild(invPanel);
-    renderMyInventory(me.char, gs.phase === 'combat');
-  }
 }
 
-function buildPlayerCard(p, isTurn, isMe) {
-  const c = p.char;
-  const hpPct = Math.max(0, c.health / c.maxHealth * 100);
-  const lvl = c.level;
-  const curXP = XP_THRESHOLDS[Math.min(lvl, XP_THRESHOLDS.length-1)] || 0;
-  const nxtXP = XP_THRESHOLDS[Math.min(lvl+1, XP_THRESHOLDS.length-1)] || XP_THRESHOLDS[XP_THRESHOLDS.length-1];
-  const xpPct = lvl >= 10 ? 100 : Math.min(100, Math.round(((c.xp - curXP) / (nxtXP - curXP)) * 100));
-
-  const div = document.createElement('div');
-  div.className = 'panel player-card' + (!c.alive ? ' dead-overlay' : '');
-  div.innerHTML = `
-    <div class="pc-name">
-      ${p.name}${isMe?'<span class="me-badge">You</span>':''}
-      ${isTurn && c.alive ? '<span class="pc-turn-badge">YOUR TURN</span>' : ''}
-    </div>
-    <div class="pc-career">${CAREER_LABELS[p.career]||''} · Lv ${lvl}${!p.connected?'  ·  offline':''}</div>
+function buildPlayerCard(p,hasActed,isMe,gs){
+  const c=p.char,div=document.createElement('div');
+  div.className='panel pcard'+(c.alive?'':' dead-overlay');
+  const lvl=c.level,curXP=XP_T[Math.min(lvl,XP_T.length-1)]||0,nxtXP=XP_T[Math.min(lvl+1,XP_T.length-1)]||XP_T[XP_T.length-1];
+  const xpPct=lvl>=10?100:Math.min(100,Math.round(((c.xp-curXP)/(nxtXP-curXP))*100));
+  const hpPct=Math.max(0,c.health/c.maxHealth*100);
+  const statusBadge=hasActed?'<span class="acted-badge">Acted ✓</span>':gs.phase==='combat'&&c.alive?'<span class="turn-badge">Act now</span>':'';
+  div.innerHTML=`
+    <div class="pc-name">${p.name}${isMe?'<span class="me-badge">You</span>':''}${statusBadge}</div>
+    <div class="pc-career">${CAREER_LABELS[p.career]||''} · Lv ${lvl}${!p.connected?' · offline':''}</div>
     <div class="bar-row"><span>HP</span><span>${c.health}/${c.maxHealth}</span></div>
     <div class="bar-track hp-track"><div class="hp-fill" style="width:${hpPct}%"></div></div>
     <div class="bar-row"><span>XP</span><span>${c.xp}/${nxtXP}</span></div>
@@ -576,191 +498,170 @@ function buildPlayerCard(p, isTurn, isMe) {
       <div class="am"><div class="al">INT</div><div class="av">${c.attrs.int}</div><div class="amm">${modStr(c.attrs.int)}</div></div>
       <div class="am"><div class="al">WIL</div><div class="av">${c.attrs.wil}</div><div class="amm">${modStr(c.attrs.wil)}</div></div>
     </div>
-    <div class="mini-stat">Defense <span>${c.defense}</span></div>
-    <div class="mini-stat">Power <span>${c.power - c.castingsUsed}/${c.power}</span></div>
-    ${c.novicePath ? `<div class="mini-stat">Path <span style="color:var(--gold)">${NOVICE_PATHS_CLIENT[c.novicePath]?.name||c.novicePath}</span></div>` : ''}
-    <div class="cond-row">${(c.conditions||[]).map(cd=>`<span class="cond-badge">${cd}</span>`).join('')}</div>
-    ${!c.alive ? '<div class="dead-label">FALLEN</div>' : ''}
-  `;
+    <div class="mini-s">Defense <span>${c.defense}</span></div>
+    <div class="mini-s">Power <span>${c.power-c.castingsUsed}/${c.power}</span></div>
+    ${c.novicePath?`<div class="mini-s">Path <span style="color:var(--gold)">${NOVICE_PATHS_C[c.novicePath]?.name||c.novicePath}</span></div>`:''}
+    <div class="gold-s">Silver <span>${c.gold} ss</span></div>
+    <div class="cond-row">${(c.conditions||[]).map(cd=>`<span class="cond">${cd}</span>`).join('')}${c.luckyPendant?'<span class="cond" style="color:#e8c050">Lucky</span>':''}${c.sharpeningStone?'<span class="cond" style="color:#c0a0e0">Sharpened</span>':''}</div>
+    ${!c.alive?'<div class="dead-label">FALLEN</div>':''}`;
   return div;
 }
 
-const CAREER_LABELS = { warrior:'State Soldier', rogue:'Roadwarden', wizard:'Bright Wizard', priest:'Sigmarite Priest' };
+const CAREER_LABELS={warrior:'State Soldier',rogue:'Roadwarden',wizard:'Bright Wizard',priest:'Sigmarite Priest'};
 
-function renderMyInventory(char, inCombat) {
-  const el = document.getElementById('my-inv');
-  if (!el) return;
-  const USABLE = ['Healing Draught','Greater Healing','Warpstone Shard','Blessed Wafer'];
-  let html = '';
-  char.inventory.forEach(item => {
-    const usable = USABLE.includes(item.name) || item.name.startsWith('Scroll:');
-    html += `<li><span class="iname">${item.name}${item.qty>1?' ('+item.qty+')':''}</span>${usable?`<button class="use-btn" onclick="useItem('${item.name}','${inCombat}')">Use</button>`:''}</li>`;
+function renderMyInventory(char,inCombat){
+  const el=document.getElementById('my-inv'); if(!el)return;
+  const USABLE=['Healing Draught','Greater Healing Draught','Flask of Oil','Fire Jar','Lucky Pendant','Sharpening Stone'];
+  let html='';
+  char.inventory.forEach(item=>{
+    const usable=USABLE.includes(item.name)||item.name.startsWith('Scroll:');
+    html+=`<li><span class="iname">${item.name}${item.qty>1?' ('+item.qty+')':''}</span>${usable?`<button class="use-btn" onclick="useItem('${item.name.replace(/'/g,"\\'")}',${inCombat})">Use</button>`:''}</li>`;
   });
-  el.innerHTML = html || '<li style="color:var(--text-dim)">Empty</li>';
+  el.innerHTML=html||'<li style="color:var(--text-dim)">Empty</li>';
 }
 
-function renderActions(gs, players, me, hostId) {
-  const body = document.getElementById('g-actions-body');
-  const heading = document.getElementById('actions-heading');
-  body.innerHTML = '';
+function useItem(name,inCombat){sendMsg('PLAYER_ACTION',{action:inCombat?'USE_ITEM':'USE_ITEM_OOC',data:{itemName:name}});}
 
-  if (gs.phase === 'path') {
-    heading.textContent = gs.bossNode ? 'The Path Ahead' : 'Choose Your Path';
-    const isHost = me.id === hostId;
-    if (!isHost) { body.innerHTML = '<div class="host-only-msg">Waiting for the host to choose the path...</div>'; return; }
-    const icons = { combat:'⚔', elite:'💀', rest:'🔥', merchant:'🛒', loot:'📦', unknown:'❓', boss:'💀' };
-    const descs = { combat:'An enemy blocks your path.', elite:'A powerful foe emerges.', rest:'A campfire offers respite.', merchant:'A trader from the shadows.', loot:'A hidden cache.', unknown:'Something stirs...', boss:'A monstrous power bars your way.' };
-    const nodes = document.createElement('div');
-    nodes.className = 'path-nodes';
-    gs.pathChoices.forEach(t => {
-      const node = document.createElement('div');
-      node.className = 'path-node' + (t==='boss'?' boss-node':'');
-      node.innerHTML = `<div class="node-icon">${icons[t]}</div><div class="node-name">${t.charAt(0).toUpperCase()+t.slice(1)}</div><div class="node-desc">${descs[t]}</div>`;
-      node.onclick = () => send('CHOOSE_PATH', { nodeType: t });
+// ══════════════════════════════════════════════
+// ACTIONS PANEL
+// ══════════════════════════════════════════════
+function renderActions(gs,players,me){
+  const body=document.getElementById('g-actions-body'),heading=document.getElementById('actions-heading');
+  body.innerHTML='';
+
+  if(gs.phase==='path'){
+    heading.textContent=gs.bossNode?'The Path Ahead':'Vote Your Path';
+    const myVote=gs.pathVotes&&gs.pathVotes[myId];
+    const icons={combat:'⚔',elite:'💀',rest:'🔥',merchant:'🛒',loot:'📦',unknown:'❓',boss:'💀'};
+    const descs={combat:'An enemy emerges.',elite:'A powerful foe.',rest:'A campfire, rest here.',merchant:'A merchant with wares.',loot:'A cache to plunder.',unknown:'The path is unclear.',boss:'⚠ BOSS — face your fate.'};
+    const nodes=document.createElement('div'); nodes.className='path-nodes';
+    // Tally votes
+    const tally={};
+    if(gs.pathVotes) Object.values(gs.pathVotes).forEach(v=>{tally[v]=(tally[v]||0)+1;});
+    gs.pathChoices.forEach(t=>{
+      const node=document.createElement('div');
+      node.className='path-node'+(t==='boss'?' boss':'')+(myVote===t?' voted':'');
+      const voteCount=tally[t]||0;
+      node.innerHTML=`<div class="node-icon">${icons[t]}</div><div class="node-name">${t.charAt(0).toUpperCase()+t.slice(1)}</div><div class="node-desc">${descs[t]}</div>${voteCount?`<div class="vote-tally">${voteCount} vote${voteCount>1?'s':''}</div>`:''}`;
+      if(myVote!==t) node.onclick=()=>sendMsg('PLAYER_ACTION',{action:'VOTE_PATH',data:{nodeType:t}});
       nodes.appendChild(node);
     });
     body.appendChild(nodes);
+    if(myVote) body.insertAdjacentHTML('beforeend',`<div class="acted-msg">You voted: <strong>${myVote}</strong> — waiting for others...</div>`);
     return;
   }
 
-  if (gs.phase === 'event') {
-    heading.textContent = 'Actions';
-    const isHost = me.id === hostId;
-    const btn = document.createElement('button');
-    btn.className = 'act-btn act-move';
-    btn.style.gridColumn = '1/-1';
-    btn.innerHTML = `<span class="abl">Press Onward</span><span class="abs">Choose next path</span>`;
-    btn.disabled = !isHost;
-    btn.onclick = () => send('PLAYER_ACTION', { action: 'PRESS_ONWARD' });
-    const grid = document.createElement('div');
-    grid.className = 'action-grid';
-    grid.style.gridTemplateColumns = '1fr';
-    grid.appendChild(btn);
-    body.appendChild(grid);
-    if (!isHost) body.insertAdjacentHTML('afterbegin', '<div class="host-only-msg">Waiting for host to advance...</div>');
+  if(gs.phase==='event'){
+    heading.textContent='Actions';
+    const btn=document.createElement('button'); btn.className='act-btn act-move';
+    btn.style.gridColumn='1/-1';
+    btn.innerHTML='<span class="abl">Press Onward</span><span class="abs">Advance the journey</span>';
+    btn.onclick=()=>sendMsg('PLAYER_ACTION',{action:'PRESS_ONWARD'});
+    const grid=document.createElement('div'); grid.className='action-grid'; grid.style.gridTemplateColumns='1fr';
+    grid.appendChild(btn); body.appendChild(grid);
     return;
   }
 
-  if (gs.phase === 'combat') {
-    heading.textContent = 'Combat Actions';
-    const alive = players.filter(p => p.char && p.char.alive);
-    const turnIdx = gs.currentTurnIndex % Math.max(1, alive.length);
-    const isMyTurn = alive[turnIdx]?.id === myId;
+  if(gs.phase==='combat'){
+    heading.textContent='Combat Actions';
+    const char=me.char;
+    if(!char||!char.alive){body.innerHTML='<div class="wait-msg">You have fallen...</div>';return;}
+    const hasActed=gs.playersActedThisRound&&gs.playersActedThisRound.includes(myId);
+    if(hasActed){body.innerHTML='<div class="acted-msg">You have acted this round — waiting for others...</div>';return;}
 
-    if (!isMyTurn || !me.char || !me.char.alive) {
-      const turningPlayer = alive[turnIdx];
-      body.innerHTML = `<div class="not-my-turn">Waiting for <strong>${turningPlayer?.name || '...'}</strong> to act...</div>`;
-      return;
-    }
-
-    const char = me.char;
-    const grid = document.createElement('div');
-    grid.className = 'action-grid';
-
-    // Attack
-    addActBtn(grid, 'Attack', weaponLabel(char), 'act-melee', () => send('PLAYER_ACTION', { action:'ATTACK' }));
-
-    // Spells
-    if (char.knownSpells) {
-      char.knownSpells.forEach(sp => {
-        const avail = sp.rank === 0 || (char.power - char.castingsUsed) > 0;
-        addActBtn(grid, sp.name, `Rank ${sp.rank} · ${sp.heal?'Heal':'Attack'}`, 'act-spell', () => send('PLAYER_ACTION', { action:'CAST_SPELL', data:{ spellName:sp.name } }), !avail);
-      });
-    }
-
-    // Talents
-    if (char.catchBreath && !char.catchBreathUsed) addActBtn(grid, 'Catch Your Breath', `Heal ~${Math.floor(char.maxHealth/4)} HP`, 'act-talent', () => send('PLAYER_ACTION', { action:'USE_TALENT', data:{ talent:'catchBreath' } }));
-    if (char.nimbleRecovery && !char.nimbleUsed) addActBtn(grid, 'Nimble Recovery', `Heal ~${Math.floor(char.maxHealth/4)} HP`, 'act-talent', () => send('PLAYER_ACTION', { action:'USE_TALENT', data:{ talent:'nimbleRecovery' } }));
-    if (char.sharedRecovery && !char.sharedUsed) addActBtn(grid, 'Shared Recovery', `Heal self`, 'act-talent', () => send('PLAYER_ACTION', { action:'USE_TALENT', data:{ talent:'sharedRecovery' } }));
-    if (char.spellRecovery && !char.spellRecoveryUsed) addActBtn(grid, 'Spell Recovery', `Heal + regain casting`, 'act-spell', () => send('PLAYER_ACTION', { action:'USE_TALENT', data:{ talent:'spellRecovery' } }));
-
-    // Flee
-    const isBoss = gs.enemy && gs.enemy.threat === 'Boss';
-    addActBtn(grid, 'Flee', isBoss ? 'No escape' : 'AGI vs DC 10', 'act-move', () => send('PLAYER_ACTION', { action:'FLEE' }), isBoss);
-
+    const grid=document.createElement('div'); grid.className='action-grid';
+    addBtn(grid,'Attack',wpnLabel(char),'act-melee',()=>sendMsg('PLAYER_ACTION',{action:'ATTACK'}));
+    if(char.knownSpells) char.knownSpells.forEach(sp=>{
+      const avail=sp.rank===0||(char.power-char.castingsUsed)>0;
+      addBtn(grid,sp.name,`Rank ${sp.rank} · ${sp.heal?'Heal':'Atk'}`,'act-spell',()=>sendMsg('PLAYER_ACTION',{action:'CAST_SPELL',data:{spellName:sp.name}}),!avail);
+    });
+    if(char.catchBreath&&!char.catchBreathUsed) addBtn(grid,'Catch Your Breath',`~${Math.floor(char.maxHealth/4)} HP`,'act-talent',()=>sendMsg('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'catchBreath'}}));
+    if(char.nimbleRecovery&&!char.nimbleUsed) addBtn(grid,'Nimble Recovery',`~${Math.floor(char.maxHealth/4)} HP`,'act-talent',()=>sendMsg('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'nimbleRecovery'}}));
+    if(char.sharedRecovery&&!char.sharedUsed) addBtn(grid,'Shared Recovery',`~${Math.floor(char.maxHealth/4)} HP`,'act-talent',()=>sendMsg('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'sharedRecovery'}}));
+    if(char.spellRecovery&&!char.spellRecoveryUsed) addBtn(grid,'Spell Recovery','Heal + casting','act-spell',()=>sendMsg('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'spellRecovery'}}));
+    const isBoss=gs.enemy&&gs.enemy.threat==='Boss';
+    addBtn(grid,'Flee',isBoss?'No escape':'AGI vs DC 10','act-move',()=>sendMsg('PLAYER_ACTION',{action:'FLEE'}),isBoss);
     body.appendChild(grid);
+
+    // Show how many players remain to act
+    const alive=lastState?lastState.players.filter(p=>p.char&&p.char.alive):[];
+    const acted=gs.playersActedThisRound?gs.playersActedThisRound.length:0;
+    if(alive.length>1) body.insertAdjacentHTML('beforeend',`<div style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:5px;font-family:'Cinzel',serif">${acted}/${alive.length} warriors acted this round</div>`);
+    return;
   }
 }
 
-function addActBtn(parent, label, sub, cls, onClick, disabled=false) {
-  const btn = document.createElement('button');
-  btn.className = `act-btn ${cls}`;
-  btn.disabled = disabled;
-  btn.innerHTML = `<span class="abl">${label}</span><span class="abs">${sub}</span>`;
-  btn.onclick = onClick;
-  parent.appendChild(btn);
+function addBtn(parent,label,sub,cls,onClick,disabled=false){
+  const btn=document.createElement('button'); btn.className=`act-btn ${cls}`;
+  btn.disabled=disabled;
+  btn.innerHTML=`<span class="abl">${label}</span><span class="abs">${sub}</span>`;
+  btn.onclick=onClick; parent.appendChild(btn);
+}
+function wpnLabel(char){const w=char.equippedWeapon;if(w)return`${w.name} ${w.dice}+${w.bonus+char.weaponDmgBonus}`;const b={warrior:'Longsword 1d8',rogue:'Sabre 1d6',wizard:'Staff 1d6',priest:'Hammer 1d8'};return(b[char.career]||'1d6')+(char.weaponTraining?' +boon':'');}
+
+// ══════════════════════════════════════════════
+// LOOT ROOM
+// ══════════════════════════════════════════════
+function renderLootRoom(gs,me){
+  const loot=gs.lootRoom; if(!loot)return;
+  const hasPicked=gs.lootPicked&&gs.lootPicked.includes(myId);
+  const opts=loot.options;
+  document.getElementById('g-loot-desc').textContent=`${loot.coins} silver awaits — pick one item:`;
+  const el=document.getElementById('g-loot-opts'); el.innerHTML='';
+
+  const pickedMsg=document.getElementById('g-loot-picked-msg');
+  if(hasPicked){ pickedMsg.style.display='block'; el.innerHTML='<div style="text-align:center;color:var(--text-dim);font-style:italic;grid-column:1/-1;padding:10px">You have made your choice.</div>'; return; }
+  pickedMsg.style.display='none';
+
+  const consumeName=opts.consumable==='Spell Scroll'&&opts.scrollSpell?`Scroll: ${opts.scrollSpell.name}`:opts.consumable;
+  const consDesc=opts.scrollSpell?opts.scrollSpell.desc:getConsDesc(opts.consumable);
+
+  // Option 1: Consumable
+  const c=document.createElement('div'); c.className='loot-opt';
+  c.innerHTML=`<div class="loot-icon">🧪</div><div class="loot-name">${consumeName}</div><div class="loot-desc">${consDesc}</div><div style="font-size:10px;color:var(--gold);margin-top:4px;font-family:'Cinzel',serif">Pick this</div>`;
+  c.onclick=()=>sendMsg('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'consumable'}});
+  el.appendChild(c);
+
+  // Option 2: Weapon
+  const w=document.createElement('div'); w.className='loot-opt';
+  w.innerHTML=`<div class="loot-icon">⚔</div><div class="loot-name">${opts.weapon.name}</div><div class="loot-desc">${opts.weapon.dice}+${opts.weapon.bonus} · ${opts.weapon.stat.toUpperCase()}</div><div style="font-size:10px;color:var(--gold);margin-top:4px;font-family:'Cinzel',serif">Equip this</div>`;
+  w.onclick=()=>sendMsg('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'weapon'}});
+  el.appendChild(w);
+
+  // Option 3: Nothing
+  const n=document.createElement('div'); n.className='loot-opt';
+  n.innerHTML=`<div class="loot-icon">👁</div><div class="loot-name">Take Nothing</div><div class="loot-desc">Leave the loot. Press on.</div>`;
+  n.onclick=()=>sendMsg('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'nothing'}});
+  el.appendChild(n);
 }
 
-function weaponLabel(char) {
-  const wpn = char.equippedWeapon;
-  if (wpn) return `${wpn.name} ${wpn.dice}+${wpn.bonus + char.weaponDmgBonus}`;
-  const base = { warrior:'Longsword 1d8', rogue:'Sabre 1d6', wizard:'Staff 1d6', priest:'Hammer 1d8' };
-  return (base[char.career] || '1d6') + (char.weaponTraining?' +boon':'');
+function getConsDesc(name){
+  const m={'Healing Draught':'Heal 1d6 HP','Greater Healing Draught':'Heal 2d6 HP','Flask of Oil':'2d6 fire damage','Fire Jar':'3d6 fire damage','Lucky Pendant':'Next attack is a crit','Sharpening Stone':'+1d6 dmg this combat'};
+  return m[name]||name;
 }
 
-function useItem(name, inCombatStr) {
-  const inCombat = inCombatStr === 'true';
-  send('PLAYER_ACTION', { action: inCombat ? 'USE_ITEM' : 'USE_ITEM_OOC', data: { itemName: name } });
-}
-
+// ══════════════════════════════════════════════
 // MERCHANT
-function renderShop(stock, gold) {
-  document.getElementById('shop-gold').textContent = gold;
-  const grid = document.getElementById('g-shop-items');
-  grid.innerHTML = '';
-  const leftCol = document.createElement('div');
-  leftCol.className = 'shop-col';
-  const rightCol = document.createElement('div');
-  rightCol.className = 'shop-col';
-
-  const leftItems = [stock.weaponEnhance, stock.statBoost, stock.weapon1, stock.weapon2, stock.armor];
-  const rightItems = [...(stock.consumables||[]), stock.scroll];
-
-  leftItems.forEach(item => { if(item) leftCol.appendChild(shopItemEl(item, gold)); });
-  rightItems.forEach(item => { if(item) rightCol.appendChild(shopItemEl(item, gold)); });
-  grid.appendChild(leftCol);
-  grid.appendChild(rightCol);
+// ══════════════════════════════════════════════
+function renderShop(stock,myGold){
+  const grid=document.getElementById('g-shop-items'); grid.innerHTML='';
+  const leftCol=document.createElement('div'); leftCol.className='shop-col';
+  const rightCol=document.createElement('div'); rightCol.className='shop-col';
+  [stock.weaponEnhance,stock.statBoost,stock.weapon1,stock.weapon2,stock.armor].forEach(item=>{if(item)leftCol.appendChild(shopEl(item,myGold));});
+  [...(stock.consumables||[]),stock.scroll].forEach(item=>{if(item)rightCol.appendChild(shopEl(item,myGold));});
+  grid.appendChild(leftCol); grid.appendChild(rightCol);
 }
 
-function shopItemEl(item, gold) {
-  const div = document.createElement('div');
-  div.className = 'shop-item' + (item.bought?' sold':'');
-  div.innerHTML = `
-    <span class="si-name">${item.name}</span>
-    <span class="si-desc">${item.desc||''}</span>
-    <div class="si-row">
-      <span class="si-cost">${item.cost} ss</span>
-      <button class="buy-btn" onclick="buyItem('${item.id}')" ${item.bought||gold<item.cost?'disabled':''}>${item.bought?'Sold':'Buy'}</button>
-    </div>`;
+function shopEl(item,myGold){
+  const div=document.createElement('div'); div.className='shop-item'+(item.bought?' sold':'');
+  div.innerHTML=`<span class="si-name">${item.name}</span><span class="si-desc">${item.desc||''}</span><div class="si-row"><span class="si-cost">${item.cost} ss</span><button class="buy-btn" onclick="buyItem('${item.id}')" ${item.bought||myGold<item.cost?'disabled':''}>${item.bought?'Sold':'Buy'}</button></div>`;
   return div;
 }
+function buyItem(id){sendMsg('PLAYER_ACTION',{action:'BUY_ITEM',data:{itemId:id}});}
+function leaveShop(){sendMsg('PLAYER_ACTION',{action:'LEAVE_SHOP'});}
 
-function buyItem(id) { send('PLAYER_ACTION', { action:'BUY_ITEM', data:{ itemId:id } }); }
-function leaveShop() { send('PLAYER_ACTION', { action:'LEAVE_SHOP' }); }
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
 
-// LOBBY
-function updateLobbySlots(players) {
-  const el = document.getElementById('player-slots');
-  if (!el) return;
-  let html = '';
-  for (let i = 0; i < 4; i++) {
-    const p = players[i];
-    if (p) {
-      html += `<div class="player-slot"><div class="player-dot${p.ready?' ready':''}"></div><span style="font-size:14px">${p.name}</span><span style="font-size:11px;color:var(--text-dim);margin-left:auto">${p.career||'choosing...'} ${p.ready?'✓':''}</span></div>`;
-    } else {
-      html += `<div class="player-slot"><div class="player-dot empty"></div><span style="font-size:12px;color:var(--text-dim)">Waiting...</span></div>`;
-    }
-  }
-  el.innerHTML = html;
-}
-
-// UTIL
-function show(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-}
-
-// Boot
 connect();
 </script>
 </body>
