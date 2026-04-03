@@ -6,19 +6,7 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocketServer({ server, path: '/ws' });
-
-// Health check for Railway
-app.get('/health', (req, res) => res.send('OK'));
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-
-// Allow Railway proxy headers
-app.set('trust proxy', 1);
-
-// Log WebSocket upgrades for debugging
-server.on('upgrade', (req) => {
-  console.log('WS upgrade request:', req.url, req.headers.host);
-});
+const wss = new WebSocketServer({ server });
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -100,20 +88,20 @@ const ENEMY_POOLS = {
     {name:'Chaos Marauder',     type:'Chaos',   threat:'Moderate', hp:20, ac:14,atk:4,xp:2,gold:[10,25]},
     {name:'Skaven Stormvermin', type:'Skaven',  threat:'Moderate', hp:18, ac:15,atk:4,xp:2,gold:[8,20]},
     {name:'Wight',              type:'Undead',  threat:'Moderate', hp:25, ac:14,atk:4,xp:2,gold:[5,15], undead:true,lifeLeech:true},
-    {name:'Plague Monk',type:'Chaos',  threat:'Moderate', hp:22, ac:13,atk:3,xp:2,gold:[0,0],  diseased:true},
+    {name:'Nurgle Plaguebearer',type:'Daemon',  threat:'Moderate', hp:22, ac:13,atk:3,xp:2,gold:[0,0],  diseased:true},
   ],
   high: [
     {name:'Chaos Warrior',      type:'Chaos',   threat:'High',     hp:35, ac:16,atk:5,xp:3,gold:[15,40]},
     {name:'Vampire Count',      type:'Undead',  threat:'High',     hp:40, ac:15,atk:5,xp:3,gold:[20,60], undead:true,lifeLeech:true},
-    {name:'Bloodletter',     type:'Daemon',  threat:'High',     hp:45, ac:15,atk:6,xp:3,gold:[25,50], insanityAtk:true},
+    {name:'Greater Daemon',     type:'Daemon',  threat:'High',     hp:45, ac:15,atk:6,xp:3,gold:[25,50], insanityAtk:true},
     {name:'Plague Rat Lord',    type:'Skaven',  threat:'High',     hp:32, ac:14,atk:5,xp:3,gold:[10,30], diseased:true},
   ],
   boss: [
     {name:'Skaven Warlord Gnashteeth',type:'Skaven Boss',threat:'Boss',hp:80, ac:15,atk:6,xp:5,gold:[30,80], multi:true},
     {name:'Beastlord Kragthor',       type:'Chaos Boss', threat:'Boss',hp:95, ac:16,atk:7,xp:5,gold:[25,70]},
-    {name:'Varghulf',     type:'Undead Boss',threat:'Boss',hp:110,ac:16,atk:7,xp:5,gold:[40,100],undead:true,lifeLeech:true,regen:true},
-    {name:'Bonebreaker Ratogre',       type:'Daemon Boss',threat:'Boss',hp:120,ac:17,atk:8,xp:5,gold:[50,120],multi:true,insanityAtk:true},
-    {name:'Saurian Ancient',        type:'Undead Boss',threat:'Boss',hp:130,ac:15,atk:7,xp:5,gold:[60,150],undead:true,lifeLeech:true},
+    {name:'Nagath the Bone-King',     type:'Undead Boss',threat:'Boss',hp:110,ac:16,atk:7,xp:5,gold:[40,100],undead:true,lifeLeech:true,regen:true},
+    {name:'Varghast Bloodgore',       type:'Daemon Boss',threat:'Boss',hp:120,ac:17,atk:8,xp:5,gold:[50,120],multi:true,insanityAtk:true},
+    {name:'Heinrich von Morr',        type:'Undead Boss',threat:'Boss',hp:130,ac:15,atk:7,xp:5,gold:[60,150],undead:true,lifeLeech:true},
   ],
 };
 
@@ -899,6 +887,5 @@ wss.on('connection',ws=>{
   });
 });
 
-const PORT = process.env.PORT || 3000;
-const HOST = '0.0.0.0';
-server.listen(PORT, HOST, () => console.log(`Shadows Over Reikland running on ${HOST}:${PORT}`));
+const PORT=process.env.PORT||3000;
+server.listen(PORT,()=>console.log(`Shadows Over Reikland on port ${PORT}`));
