@@ -585,40 +585,15 @@ function showPathPick(me){
   pathPickPending=true; show('screen-pathpick');
   const tier=me.char.pendingPathTier||'novice';
 
-  // Tradition pick — discover tradition OR learn spell per PDF core rules
+  // Tradition pick — choose which tradition to discover (granted by path choice)
   if(tier==='tradition'){
     const knownTraditions=me.char.traditions||[];
     const choicesLeft=me.char.pendingSpellChoices||1;
-    const maxRank=Math.min(me.char.power,3);
     const grid=el('pp-grid'); grid.innerHTML='';
-    const unknownCount=Object.keys(TRADITION_INFO).filter(id=>!knownTraditions.includes(id)).length;
-
-    const plural=choicesLeft>1?' ('+choicesLeft+' choices remaining)':'';
-    el('pp-heading').textContent='Magic Choice'+plural;
-    el('pp-sub').textContent='SotDL rule: discover a tradition (grants rank 0 spell immediately) OR learn one spell from a known tradition (rank <= your Power of '+me.char.power+').';
-
-    if(unknownCount>0){
-      const btnA=document.createElement('button'); btnA.className='pp-btn';
-      btnA.innerHTML='<span class="ppn">Discover New Tradition</span>'
-        +'<span class="ppd">Immediately learn the rank 0 spell. Spells of higher rank unlock as your Power grows.</span>'
-        +'<span class="ppb">'+(knownTraditions.length?'Currently known: '+knownTraditions.map(function(t){return TRADITION_INFO[t]&&TRADITION_INFO[t].label||t;}).join(', '):'You have no traditions yet.')+'</span>';
-      btnA.onclick=function(){
-        el('pp-heading').textContent='Choose a Tradition';
-        el('pp-sub').textContent='Discovering grants the rank 0 spell immediately.';
-        grid.innerHTML='';
-        _buildTraditionButtons(grid, knownTraditions);
-      };
-      grid.appendChild(btnA);
-    }
-
-    if(knownTraditions.length>0){
-      const btnB=document.createElement('button'); btnB.className='pp-btn';
-      btnB.innerHTML='<span class="ppn">Learn a Spell</span>'
-        +'<span class="ppd">Choose any spell (rank 0 to '+maxRank+') from a tradition you have already discovered.</span>'
-        +'<span class="ppb">Your traditions: '+knownTraditions.map(function(t){return TRADITION_INFO[t]&&TRADITION_INFO[t].label||t;}).join(', ')+'</span>';
-      btnB.onclick=function(){ _buildSpellPicker(grid, me, knownTraditions, maxRank); };
-      grid.appendChild(btnB);
-    }
+    const plural=choicesLeft>1?' ('+choicesLeft+' remaining)':'';
+    el('pp-heading').textContent='Discover a Tradition'+plural;
+    el('pp-sub').textContent='Your path grants a new magical tradition. All spells of rank up to your Power ('+me.char.power+') are granted immediately.';
+    _buildTraditionButtons(grid, knownTraditions);
     return;
   }
 
@@ -641,15 +616,6 @@ function showPathPick(me){
 // ── Tradition picker helper ────────────────────────────────────────────────────
 function _buildTraditionButtons(grid, knownTraditions){
   grid.innerHTML='';
-
-  // Back button — returns to the main discover/learn choice screen
-  const backBtn=document.createElement('button');
-  backBtn.className='btn';
-  backBtn.style.cssText='margin-bottom:10px;width:100%;font-size:12px;';
-  backBtn.textContent='<- Back';
-  backBtn.onclick=()=>{ if(lastState){ const me2=lastState.players.find(p=>p.id===myId); if(me2) showPathPick(me2); } };
-  grid.appendChild(backBtn);
-
   Object.entries(TRADITION_INFO).forEach(([id,info])=>{
     const already=knownTraditions.includes(id);
     const btn=document.createElement('button'); btn.className='pp-btn';
