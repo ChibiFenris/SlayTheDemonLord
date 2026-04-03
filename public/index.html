@@ -856,7 +856,8 @@ function buildCard(p,gs,isMe){
       <div class="am"><div class="al">WIL</div><div class="av">${c.attrs.wil}</div><div class="amm">${modStr(c.attrs.wil)}</div></div>
     </div>
     <div class="mini-s">Defense <span>${c.defense}</span></div>
-    <div class="mini-s">Power <span>${c.power-c.castingsUsed}/${c.power}</span></div>
+    <div class="mini-s">Power <span>${c.power}</span></div>
+    ${c.power>0?`<div class="mini-s" style="font-size:10px"><span style="color:var(--text-dim)">Castings: ${[0,1,2,3].filter(r=>maxCastingsC(c.power,r)>0).map(r=>'R'+r+': '+castingsLeftC(c,r)+'/'+maxCastingsC(c.power,r)).join(' · ')}</span></div>`:''}
     <div class="mini-s">Equipped <span>${c.equippedWeapon?c.equippedWeapon.name+' '+c.equippedWeapon.dice+'+'+(c.equippedWeapon.bonus||0):'—'}</span></div>
     <div class="mini-s">Armour <span>${c.equippedArmor?c.equippedArmor.name+' +'+c.equippedArmor.defBonus:'—'}</span></div>
     ${paths?`<div class="mini-s">Paths <span style="color:var(--gold);font-size:9px">${paths}</span></div>`:''}
@@ -875,19 +876,29 @@ function renderAbilities(char, inCombat, targetId='my-ab'){
   const allSpells=char.knownSpells||[];
   if(allSpells.length||traditions.length){
     html+=`<div class="ab-section"><div class="ab-title">Spells</div>`;
-    const castingsLeft=char.power-char.castingsUsed;
-    allSpells.forEach(sp=>{
-      const avail=sp.rank===0||castingsLeft>0;
-      const typeLabel=sp.type==='heal'?'Heal':sp.type==='utility'?'Utility':'Attack';
-      const badge=sp.rank===0
-        ?'<span class="ab-badge ab-passive">Free</span>'
-        :avail?`<span class="ab-badge ab-ready">${castingsLeft} left</span>`
-        :`<span class="ab-badge ab-used">0 left</span>`;
-      const desc=sp.desc||(SPELL_DESCS&&SPELL_DESCS[sp.name])||`Rank ${sp.rank} ${typeLabel} spell.`;
-      html+=`<div class="ab-item tip"><span class="ab-name">${sp.name}</span>&nbsp;<span style="font-size:9px;color:var(--text-dim)">[R${sp.rank} ${typeLabel}]</span>&nbsp;${badge}<span class="tiptext">${desc}</span></div>`;
+    // Group by rank, show per-rank casting pool
+    const byRank={};
+    allSpells.forEach(sp=>{ const r=sp.rank; if(!byRank[r])byRank[r]=[]; byRank[r].push(sp); });
+    [0,1,2,3].forEach(rank=>{
+      const spells=byRank[rank]; if(!spells||!spells.length)return;
+      const maxC=maxCastingsC(char.power,rank);
+      const leftC=castingsLeftC(char,rank);
+      const poolLabel=rank===0?`Rank 0 — Free (${leftC}/${maxC} castings)`:`Rank ${rank} — ${leftC}/${maxC} castings left`;
+      const poolColor=leftC===0&&rank>0?'var(--blood-bright)':'var(--gold)';
+      html+=`<div style="font-size:10px;color:${poolColor};font-family:'Cinzel',serif;margin:5px 0 2px;border-top:1px solid var(--border);padding-top:3px">${poolLabel}</div>`;
+      spells.forEach(sp=>{
+        const avail=leftC>0||rank===0;
+        const typeLabel=sp.type==='heal'?'Heal':sp.type==='utility'?'Util':'Atk';
+        const badge=rank===0
+          ?'<span class="ab-badge ab-passive">Free</span>'
+          :avail?'<span class="ab-badge ab-ready">✓</span>'
+          :'<span class="ab-badge ab-used">✗</span>';
+        const desc=sp.desc||`Rank ${sp.rank} ${typeLabel} spell.`;
+        html+=`<div class="ab-item tip"><span class="ab-name">${sp.name}</span>&nbsp;<span style="font-size:9px;color:var(--text-dim)">[${typeLabel}]</span>&nbsp;${badge}<span class="tiptext">${desc}</span></div>`;
+      });
     });
     if(traditions.length){
-      html+=`<div style="font-size:11px;color:var(--text-dim);margin-top:4px;font-style:italic">Traditions: ${traditions.map(t=>TRADITION_INFO[t]?.label||t).join(', ')}</div>`;
+      html+=`<div style="font-size:10px;color:var(--text-dim);margin-top:4px;font-style:italic">Traditions: ${traditions.map(t=>TRADITION_INFO[t]?.label||t).join(', ')}</div>`;
     }
     html+='</div>';
   }
@@ -1031,7 +1042,7 @@ function renderActions(gs,players,me){
     const wpnStr=wpnLbl(char);
     addBtn(g,'Attack',wpnStr,'am-',()=>send('PLAYER_ACTION',{action:'ATTACK'}),false,`Attack the enemy with your weapon. ${wpnStr}. Natural 1 = fumble. Natural 20 = critical hit (double dice).`);
     (char.knownSpells||[]).forEach(sp=>{
-      const avail=sp.rank===0||(char.power-char.castingsUsed)>0;
+      const avail=sp.rank===0||castingsLeftC(char,sp.rank)>0;
       const desc=sp.desc||`Rank ${sp.rank} spell.`;
       const isHeal=(sp.type==='heal'||sp.heal);
       const isUtil=(sp.type==='utility');
@@ -1446,6 +1457,23 @@ function checkFloats(gs,players){
     }
     prevHp[p.id]=p.char.health;
   });
+}
+
+
+// ─── CASTINGS TABLE (mirrors server) ─────────────────────────────────────────
+const CASTINGS_TABLE_C = {
+  0:[1,0,0,0], 1:[2,1,0,0], 2:[3,2,1,0], 3:[4,2,1,1],
+  4:[5,2,2,1], 5:[6,3,2,2], 6:[7,3,2,2], 7:[8,3,2,2],
+  8:[9,3,3,2], 9:[10,3,3,3], 10:[11,3,3,3],
+};
+function maxCastingsC(power, rank) {
+  const row = CASTINGS_TABLE_C[Math.min(power,10)] || CASTINGS_TABLE_C[0];
+  return row[Math.min(rank,3)] || 0;
+}
+function castingsLeftC(char, rank) {
+  if (!char.castingPools) return maxCastingsC(char.power, rank);
+  const v = char.castingPools['r'+rank];
+  return v !== undefined ? v : maxCastingsC(char.power, rank);
 }
 
 connect();

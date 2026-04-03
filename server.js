@@ -218,6 +218,70 @@ const MASTER_PATHS = {
 };
 
 
+
+// ─── CASTINGS TABLE (PDF p.112) ──────────────────────────────────────────────
+// PDF castings by rank. We support ranks 0–3.
+// Power: [rank0, rank1, rank2, rank3]
+const CASTINGS_TABLE = {
+  0:  [1, 0, 0, 0],
+  1:  [2, 1, 0, 0],
+  2:  [3, 2, 1, 0],
+  3:  [4, 2, 1, 1],
+  4:  [5, 2, 2, 1],
+  5:  [6, 3, 2, 2],
+  6:  [7, 3, 2, 2],
+  7:  [8, 3, 2, 2],
+  8:  [9, 3, 3, 2],
+  9:  [10,3, 3, 3],
+  10: [11,3, 3, 3],
+};
+
+function maxCastings(power, rank) {
+  const row = CASTINGS_TABLE[Math.min(power, 10)] || CASTINGS_TABLE[0];
+  return row[Math.min(rank, 3)] || 0;
+}
+
+// Init or refresh casting pools on a char based on current power + known spells
+function refreshCastingPools(char) {
+  if (!char.castingPools) char.castingPools = {};
+  char.knownSpells.forEach(sp => {
+    const key = 'r' + sp.rank;
+    const max = maxCastings(char.power, sp.rank);
+    // Only init if not already set (preserve used castings)
+    if (char.castingPools[key] === undefined) char.castingPools[key] = max;
+  });
+}
+
+function restoreCastingPools(char) {
+  char.castingPools = {};
+  [0,1,2,3].forEach(rank => {
+    const max = maxCastings(char.power, rank);
+    if (max > 0) char.castingPools['r'+rank] = max;
+  });
+}
+
+function castingsLeft(char, rank) {
+  if (!char.castingPools) refreshCastingPools(char);
+  return char.castingPools['r'+rank] || 0;
+}
+
+function spendCasting(char, rank) {
+  if (!char.castingPools) refreshCastingPools(char);
+  const key = 'r'+rank;
+  if ((char.castingPools[key]||0) > 0) { char.castingPools[key]--; return true; }
+  return false;
+}
+
+function regainCasting(char, maxRank) {
+  // Regain the lowest-rank spent casting up to maxRank
+  for (let r = 0; r <= maxRank; r++) {
+    const key = 'r'+r;
+    const max = maxCastings(char.power, r);
+    if ((char.castingPools[key]||0) < max) { char.castingPools[key]++; return r; }
+  }
+  return -1;
+}
+
 // ─── SPELL TRADITIONS ─────────────────────────────────────────────────────────
 // Each tradition has spells at ranks 0-3 usable in our combat system.
 // Rank 0 = free (no casting spent), Rank 1+ = costs 1 casting.
@@ -418,7 +482,8 @@ const TRADITIONS = {
 function getSpellsForPower(traditionId, power) {
   const t = TRADITIONS[traditionId];
   if (!t) return [];
-  return t.spells.filter(s => s.rank <= Math.min(power, 3));
+  // Rank 0 always available; higher ranks require power >= rank
+  return t.spells.filter(s => s.rank === 0 || s.rank <= power);
 }
 
 // ─── ENEMY POOLS ─────────────────────────────────────────────────────────────
@@ -514,7 +579,7 @@ function buildChar(career) {
     health:attrs.str, maxHealth:attrs.str,
     defense:baseDefense, baseAgiDef:attrs.agi,
     perception:attrs.int,
-    power:0, maxPower:0, castingsUsed:0,
+    power:0, maxPower:0, castingPools:{}, castingsUsed:0, // castingsUsed kept for compat
     insanity:0, corruption:0, conditions:[],
     inventory:[
       {name:'Healing Draught',qty:2},
@@ -690,8 +755,8 @@ function applyTalentList(char, talents) {
     else char[t]=true;
     // Power gains from expert/master
     if (t==='overcast'||t==='burningSoul') { /* no power, just talent */ }
-    if (t==='spellsurge'||t==='catastrophe') { char.power+=1; char.maxPower+=1; }
-    if (t==='holyAura'||t==='miracleHeal')  { char.power+=1; char.maxPower+=1; }
+    if (t==='spellsurge'||t==='catastrophe') { char.power+=1; char.maxPower+=1; refreshCastingPools(char); }
+    if (t==='holyAura'||t==='miracleHeal')  { char.power+=1; char.maxPower+=1; refreshCastingPools(char); }
   });
 }
 
@@ -699,7 +764,7 @@ function applyNovicePath(char, pathId) {
   char.novicePath=pathId; char.pendingLevelUp=false; char.pendingPathTier=null;
   const np=NOVICE_PATHS[pathId]; if(!np) return;
   char.maxHealth+=np.hpGain; char.health=Math.min(char.health+np.hpGain,char.maxHealth);
-  if (np.power)           { char.power+=np.power; char.maxPower+=np.power; }
+  if (np.power)           { char.power+=np.power; char.maxPower+=np.power; refreshCastingPools(char); }
   if (np.weaponTraining)  char.weaponTraining=true;
   if (np.catchBreath)     char.catchBreath=true;
   if (np.trickery)        char.trickery=true;
@@ -712,7 +777,7 @@ function applyExpertPath(char, pathId) {
   char.expertPath=pathId; char.pendingLevelUp=false; char.pendingPathTier=null;
   const ep=EXPERT_PATHS[pathId]; if(!ep) return;
   char.maxHealth+=ep.hpGain; char.health=Math.min(char.health+ep.hpGain,char.maxHealth);
-  if (ep.power) { char.power+=ep.power; char.maxPower+=ep.power; }
+  if (ep.power) { char.power+=ep.power; char.maxPower+=ep.power; refreshCastingPools(char); }
   // Apply level 3 gains immediately
   if (ep.levelGains&&ep.levelGains[3]) applyTalentList(char, ep.levelGains[3]);
   // Add new spells if applicable
@@ -728,7 +793,7 @@ function applyMasterPath(char, pathId) {
   char.masterPath=pathId; char.pendingLevelUp=false; char.pendingPathTier=null;
   const mp=MASTER_PATHS[pathId]; if(!mp) return;
   char.maxHealth+=mp.hpGain; char.health=Math.min(char.health+mp.hpGain,char.maxHealth);
-  if (mp.power) { char.power+=mp.power; char.maxPower+=mp.power; }
+  if (mp.power) { char.power+=mp.power; char.maxPower+=mp.power; refreshCastingPools(char); }
   if (mp.levelGains&&mp.levelGains[7]) applyTalentList(char, mp.levelGains[7]);
   // Catastrophe spell
   if (pathId==='archmage') {
@@ -748,7 +813,7 @@ function restorePower(room, reason) {
   let restored=false;
   room.players.forEach(p=>{
     if(!p.char||!p.char.alive) return;
-    if(p.char.castingsUsed>0||p.char.spellRecoveryUsed){ p.char.castingsUsed=0; p.char.spellRecoveryUsed=false; restored=true; }
+    if(Object.values(p.char.castingPools||{}).some((v,i)=>v<maxCastings(p.char.power,i))||p.char.spellRecoveryUsed){ restoreCastingPools(p.char); p.char.spellRecoveryUsed=false; restored=true; }
   });
   if(restored) addLog(room,`✨ ${reason} — all spellcasters regain power.`,'spell');
 }
@@ -1193,7 +1258,7 @@ function handlePlayerAction(room,playerId,payload,ws){
           const sp=trad.spells.find(s=>s.name===spellName);
           if(sp&&!char.knownSpells.find(k=>k.name===sp.name)){
             char.knownSpells.push({...sp,heal:sp.type==='heal'});
-            addLog(room,`${player.name} learns <strong>${sp.name}</strong> (${TRADITIONS[tradId].label} rank ${sp.rank}).`,'spell');
+            refreshCastingPools(char); addLog(room,`${player.name} learns <strong>${sp.name}</strong> (${TRADITIONS[tradId].label} rank ${sp.rank}).`,'spell');
           }
         }
         char.pendingLevelUp=false; char.pendingPathTier=null;
@@ -1204,7 +1269,7 @@ function handlePlayerAction(room,playerId,payload,ws){
           char.traditions.push(tradId);
           const newSpells=getSpellsForPower(tradId,char.power);
           newSpells.forEach(sp=>{if(!char.knownSpells.find(k=>k.name===sp.name))char.knownSpells.push({...sp,heal:sp.type==='heal'});});
-          addLog(room,`${player.name} learns the <strong>${TRADITIONS[tradId].label}</strong> tradition!`,'spell');
+          refreshCastingPools(char); addLog(room,`${player.name} learns the <strong>${TRADITIONS[tradId].label}</strong> tradition!`,'spell');
         }
         char.pendingLevelUp=false; char.pendingPathTier=null;
       }
@@ -1283,8 +1348,14 @@ function handlePlayerAction(room,playerId,payload,ws){
     const spell=char.knownSpells.find(s=>s.name===data.spellName); if(!spell)return;
     const freeCast=char.spellsurge&&!char.spellsurgeUsed&&data.useSurge;
     if(freeCast){char.spellsurgeUsed=true;addLog(room,`${player.name} uses Spell Surge!`,'spell');}
-    else if(spell.rank>0&&char.power-char.castingsUsed<=0){addLog(room,`${player.name}: no castings left.`,'sys');return;}
-    if(!freeCast&&spell.rank>0)char.castingsUsed++;
+    else {
+      if(!char.castingPools) refreshCastingPools(char);
+      const avail=castingsLeft(char,spell.rank);
+      if(avail<=0){
+        addLog(room,`${player.name}: no rank ${spell.rank} castings left (0/${maxCastings(char.power,spell.rank)}).`,'sys');return;
+      }
+      if(!spendCasting(char,spell.rank)){addLog(room,`${player.name}: casting failed.`,'sys');return;}
+    }
 
     // ── HEAL spells ──
     if(spell.type==='heal'||spell.heal){
@@ -1376,7 +1447,7 @@ function handlePlayerAction(room,playerId,payload,ws){
     if(t==='catchBreath'){if(char.catchBreathUsed){addLog(room,`${player.name}: already used.`,'sys');return;}char.catchBreathUsed=true;const h=healingRate(char);char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} uses Catch Your Breath — +<strong>${h}</strong> HP.`,'heal');}
     else if(t==='nimbleRecovery'){if(char.nimbleUsed){addLog(room,`${player.name}: already used.`,'sys');return;}char.nimbleUsed=true;const h=healingRate(char);char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} uses Nimble Recovery — +<strong>${h}</strong> HP.`,'heal');}
     else if(t==='sharedRecovery'){if(char.sharedUsed){addLog(room,`${player.name}: already used.`,'sys');return;}char.sharedUsed=true;const h=healingRate(char);char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} uses Shared Recovery — +<strong>${h}</strong> HP.`,'heal');}
-    else if(t==='spellRecovery'){if(char.spellRecoveryUsed){addLog(room,`${player.name}: already used.`,'sys');return;}char.spellRecoveryUsed=true;const h=healingRate(char);char.health=Math.min(char.maxHealth,char.health+h);char.castingsUsed=Math.max(0,char.castingsUsed-1);addLog(room,`${player.name} uses Spell Recovery — +<strong>${h}</strong> HP + 1 casting.`,'spell');}
+    else if(t==='spellRecovery'){if(char.spellRecoveryUsed){addLog(room,`${player.name}: already used.`,'sys');return;}char.spellRecoveryUsed=true;const h=healingRate(char);char.health=Math.min(char.maxHealth,char.health+h);const rr=regainCasting(char,1);addLog(room,`${player.name} uses Spell Recovery — +<strong>${h}</strong> HP + 1 rank ${Math.max(0,rr)} casting.`,'spell');}
     else if(t==='divineSmite'){if(char.divineSmiteUsed){addLog(room,`${player.name}: Divine Smite already used.`,'sys');return;}char.divineSmiteUsed=true;const dmg=rd(3,6);gs.enemy.hp-=dmg;addLog(room,`${player.name} calls Divine Smite — <strong>${dmg}</strong> holy dmg!`,'spell');if(gs.enemy.hp<=0){resolveEnemyDeath(room);return;}}
     else if(t==='rallyingCry'){if(char.rallyingUsed){addLog(room,`${player.name}: Rallying Cry already used.`,'sys');return;}char.rallyingUsed=true;room.players.forEach(p=>{if(p.char&&p.char.alive){const h=healingRate(p.char);p.char.health=Math.min(p.char.maxHealth,p.char.health+h);addLog(room,`${p.name} rallies — +${h} HP.`,'heal');}});}
     acted=true;
