@@ -523,7 +523,14 @@ function onMsg(msg){
     el('room-panel').style.display='block';
     el('career-panel').style.display='block';
   }
-  if(msg.type==='STATE_UPDATE'){ lastState=msg.payload; renderState(msg.payload); }
+  if(msg.type==='STATE_UPDATE'){
+    lastState=msg.payload;
+    // Server is authoritative — always clear pathPickPending so renderState
+    // can show the path-pick screen if server still has pendingLevelUp=true,
+    // or show the game if the pick was processed.
+    pathPickPending=false;
+    renderState(msg.payload);
+  }
   if(msg.type==='ERROR'){ el('lobby-err').textContent=msg.payload.msg; }
 }
 
@@ -608,7 +615,11 @@ function showPathPick(me){
     const btn=document.createElement('button'); btn.className='pp-btn';
     const hint=info.forCareers?`<span style="font-size:10px;color:var(--text-dim);font-family:'Cinzel',serif">Suits: ${info.forCareers.join(', ')}</span><br>`:'';
     btn.innerHTML=`<span class="ppn">${info.name}</span><span class="ppd">${info.desc||''}</span><span class="ppb">${hint}${info.gains}</span>`;
-    btn.onclick=()=>{ pathPickPending=false; send('PLAYER_ACTION',{action:'APPLY_PATH',data:{pathId:id}}); show('screen-game'); if(lastState)renderState(lastState); };
+    btn.onclick=()=>{
+      pathPickPending=true;
+      send('PLAYER_ACTION',{action:'APPLY_PATH',data:{pathId:id}});
+      // Wait for server broadcast — don't renderState with stale data
+    };
     grid.appendChild(btn);
   });
 }
@@ -625,10 +636,9 @@ function _buildTraditionButtons(grid, knownTraditions){
       <span class="ppd">${info.desc}</span>
       <span class="ppb">${already?'Already known — pick a different one.':'Unlock rank 0 spell immediately. Higher ranks unlock as Power grows.'}</span>`;
     if(!already) btn.onclick=()=>{
-      pathPickPending=false;
+      pathPickPending=true;
       send('PLAYER_ACTION',{action:'APPLY_PATH',data:{pathId:'tradition:'+id}});
-      show('screen-game');
-      if(lastState)renderState(lastState);
+      // Wait for server broadcast
     };
     grid.appendChild(btn);
   });
@@ -699,10 +709,8 @@ function _buildSpellPicker(grid, me, knownTraditions, maxRank){
       btn.style.cssText=`text-align:left;width:100%;margin-bottom:4px;${already?'opacity:0.35;':''}`;
       btn.innerHTML=`<span class="ppn" style="font-size:14px">${sp.name}${already?' \u2713':''} <span style="font-size:10px;color:var(--text-dim)">(Rank ${sp.rank}${sp.rank===0?' \u2014 Free':''})</span></span><span class="ppd">${sp.desc}</span>`;
       if(!already) btn.onclick=()=>{
-        pathPickPending=false;
+        pathPickPending=true;
         send('PLAYER_ACTION',{action:'APPLY_PATH',data:{pathId:'spell:'+tid+':'+sp.name}});
-        show('screen-game');
-        if(lastState)renderState(lastState);
       };
       grid.appendChild(btn);
     });

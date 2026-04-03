@@ -1275,9 +1275,14 @@ function handlePlayerAction(room,playerId,payload,ws){
     }
     const tier=char.pendingPathTier||'novice';
     console.log('[APPLY_PATH]',player.name,'tier=',tier,'pathId=',data.pathId,'pendingSpellChoices=',char.pendingSpellChoices);
+
     if(tier==='tradition'){
-      const raw=data.pathId;
-      const tradId=raw.replace('tradition:','');
+      // Only accept pathIds that start with 'tradition:' — reject stale path-name messages
+      if(!data.pathId.startsWith('tradition:')){
+        console.log('[TRADITION] rejected non-tradition pathId:',data.pathId,'(stale message?)');
+        return;
+      }
+      const tradId=data.pathId.replace('tradition:','');
       const trad=TRADITIONS[tradId];
       console.log('[TRADITION] tradId=',tradId,'trad found=',!!trad,'already known=',char.traditions.includes(tradId));
       if(trad && !char.traditions.includes(tradId)){
