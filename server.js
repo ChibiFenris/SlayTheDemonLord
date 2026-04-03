@@ -255,7 +255,7 @@ function rollEnemyAttack(enemy, char) {
 }
 
 // ─── LEVEL UP ────────────────────────────────────────────────────────────────
-const XP_THRESHOLDS = [0,2,3,5,8,11,14,18,23,28];
+const XP_THRESHOLDS = [0,1,2,3,4,6,7,9,12,14]; // 50% of original [0,2,3,5,8,11,14,18,23,28]
 
 function checkLevelUp(char) {
   let newLevel=0;
@@ -380,7 +380,7 @@ function enterNode(room, nodeType) {
   }
   if (nodeType==='loot') {
     gs.phase='loot';
-    const coins=5+Math.floor(Math.random()*46);
+    const coins=Math.floor((5+Math.floor(Math.random()*46))*0.5); // 50% of 5-50 = ~3-25
     gs.lootRoom={coins};
     gs.lootPicked=[];
     // Each alive player gets their own random loot options
@@ -397,7 +397,7 @@ function enterNode(room, nodeType) {
     else if(r<=5){enterNode(room,'loot');return;}
     else if(r<=7){enterNode(room,'rest');return;}
     else{
-      const coins=5+Math.floor(Math.random()*16);
+      const coins=Math.floor((5+Math.floor(Math.random()*16))*0.5); // ~3-10
       room.players.filter(p=>p.char&&p.char.alive).forEach(p=>{p.char.gold+=coins;});
       addLog(room,`❓ The unknown yields ${coins} silver each.`,'loot');
     }
@@ -499,7 +499,7 @@ function resolveEnemyDeath(room) {
   });
 
   const xpEach=e.xp;
-  const goldTotal=e.gold?rd(e.gold[0]||1,e.gold[1]||6):0;
+  const goldTotal=e.gold?Math.floor(rd(e.gold[0]||1,e.gold[1]||6)*0.5):0;
   const survivors=room.players.filter(p=>p.char&&p.char.alive);
   const goldEach=Math.floor(goldTotal/Math.max(1,survivors.length));
   addLog(room,`Each survivor: +<strong>${xpEach} XP</strong>, +<strong>${goldEach} silver</strong>.`,'loot');
@@ -559,7 +559,8 @@ function genWpn(){
 }
 function genArmor(){
   const b=ARMOR_BASES[Math.floor(Math.random()*ARMOR_BASES.length)];
-  const bonus=d(6);
+  // Bonus +1 to +4 is common; +5 or +6 is rare (1-in-5 chance)
+  const bonus = d(5)===1 ? d(2)+4 : d(4);   // rare: 5-6, common: 1-4
   return{id:'a'+uuidv4(),name:b.name,defBonus:b.def+bonus,cost:20+bonus*10,bought:false,type:'armor',desc:`+${b.def+bonus} Defense`};
 }
 function genShopScroll(){const sp=SCROLL_SPELLS_SHOP[Math.floor(Math.random()*SCROLL_SPELLS_SHOP.length)];return{id:'sc'+uuidv4(),name:`Scroll: ${sp.name}`,spell:sp,cost:35,bought:false,type:'scroll',desc:sp.desc};}
@@ -745,7 +746,7 @@ function handlePlayerAction(room,playerId,payload,ws){
     const opts=char.lootOptions||{};
     char.lootOptions=null;
     if(data.pick==='coins'){
-      char.gold+=gs.lootRoom.coins;
+      char.gold+=gs.lootRoom.coins; // coins already halved at generation
       addLog(room,`${player.name} takes the coins — +${gs.lootRoom.coins} silver.`,'loot');
     } else if(data.pick==='consumable'){
       if(opts.consumable==='Spell Scroll'&&opts.scrollSpell){
