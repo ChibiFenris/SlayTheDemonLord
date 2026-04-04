@@ -31,7 +31,7 @@ const modVal = s => s - 10;
 function initGameState() {
   return {
     depth:0, inCombat:false, enemy:null, phase:'lobby',
-    playersActedThisRound:[], enemyHasActed:false, roundNumber:0,
+    playersActedThisRound:[], enemyHasActed:false, roundNumber:0, turnOrder:[], activeTurnIdx:0,
     log:[], pathChoices:null, pathVotes:{}, bossNode:false,
     bossCount:0, lootRoom:null, lootPicked:[],
     lastPowerRestoreDepth:0,
@@ -560,7 +560,7 @@ function scaleEnemy(tmpl, playerCount, isElite, bossCount) {
   const e = JSON.parse(JSON.stringify(tmpl));
   const bossHpMult = (bossCount > 0 && e.threat !== 'Boss') ? 1.15 : 1.0;
   const bossHpFlat = (bossCount > 0 && e.threat !== 'Boss') ? 10 : 0;
-  e.hp = e.maxHp = Math.round(e.hp * (1 + (playerCount-1)*0.5) * bossHpMult) + bossHpFlat;
+  e.hp = e.maxHp = Math.round(e.hp * (1 + (playerCount-1)*0.65) * bossHpMult) + bossHpFlat;
   e.conditions = []; e.activeDebuffs = []; e.isElite = isElite;
   const dd = enemyDmgDice(e.threat, isElite, bossCount);
   e.dmgNum=dd.n; e.dmgSides=dd.s; e.dmgBonus=dd.b;
@@ -719,8 +719,9 @@ function rollAttack(char, enemy, extraBoons=0) {
       if(wpnType==='slashing'&&enemy.ac<=14){ dmg=Math.floor(dmg*1.5); dmgParts.push('×1.5 Slash'); }
       else if(wpnType==='blunt'&&enemy.ac>=16){ dmg=Math.floor(dmg*1.5); dmgParts.push('×1.5 Blunt'); }
     }
-    // Paced Strikes: next hit deals double damage (1×/combat)
-    if(char.pacedStrikes&&!char.pacedStrikesUsed){ dmg=dmg*2; char.pacedStrikesUsed=true; dmgParts.push('×2 PACED'); }
+    // Paced Strikes: activated via USE_TALENT — adds +2d6 buff (no auto-trigger)
+    const pacedBuff=(char.activeBuffs||[]).find(b=>b.pacedDmg);
+    if(pacedBuff){ const pr=rd(2,6);dmg+=pr;dmgParts.push(`+${pr} Paced Strikes`); char.activeBuffs=char.activeBuffs.filter(b=>!b.pacedDmg); char.pacedStrikesUsed=true; }
     // Rage bonus damage on hit
     if(char.rage&&char.rageBoon){ const rb=rd(1,6);dmg+=rb;dmgParts.push(`+${rb} rage`);char.rageBoon=false; } // consume rage proc
     // Assassination: target below 50% HP, +1d6+3 bonus damage
@@ -1001,7 +1002,9 @@ function enterNode(room, nodeType) {
       addLog(room,`⚔ ${tag}<strong>${e.name}</strong> appears! DMG: ${e.dmgDisplay}`,'dmg');
     }
     gs.inCombat=true; gs.phase='combat'; gs.playersActedThisRound=[]; gs.enemyHasActed=false; gs.roundNumber=1;
-    addLog(room,'All warriors act first — then the enemies strike!','sys');
+    buildTurnOrder(room);
+    const _ft=gs.turnOrder[0];
+    addLog(room,`--- Round 1 begins --- ${_ft?_ft.name+"'s turn":'Warriors act'} ---`,'sys');
     return;
   }
   if(nodeType==='rest') {
@@ -1065,10 +1068,223 @@ function buildLootOptions() {
   const useScroll=d(6)>=4;
   const consumable=useScroll?'Spell Scroll':LOOT_CONS_LIST[Math.floor(Math.random()*LOOT_CONS_LIST.length)];
   const scrollSpell=useScroll?SCROLL_SPELLS_LIST[Math.floor(Math.random()*SCROLL_SPELLS_LIST.length)]:null;
-  return {consumable,scrollSpell,weapon:genWpn(),armor:genArmor()};
+  return {consumable,scrollSpell,weapon:genWpn(room.gs.bossCount),armor:genArmor(room.gs.bossCount)};
 }
 
 // ─── COMBAT FLOW ─────────────────────────────────────────────────────────────
+// ─── TURN ORDER SYSTEM ───────────────────────────────────────────────────────
+
+function buildTurnOrder(room) {
+  const gs = room.gs;
+  const order = [];
+  // Players in room order (top to bottom)
+  room.players.filter(p => p.char && p.char.alive).forEach(p => {
+    order.push({ type: 'player', id: p.id, name: p.name });
+  });
+  // Enemies in array order (top to bottom)
+  (gs.enemies || []).filter(e => e && e.hp > 0).forEach(e => {
+    order.push({ type: 'enemy', id: e.id || e.name, name: e.name });
+  });
+  gs.turnOrder = order;
+  gs.activeTurnIdx = 0;
+}
+
+function getCurrentTurn(gs) {
+  if (!gs.turnOrder || !gs.turnOrder.length) return null;
+  return gs.turnOrder[gs.activeTurnIdx] || null;
+}
+
+function advanceTurn(room) {
+  const gs = room.gs;
+  if (!gs.turnOrder) return;
+  gs.activeTurnIdx++;
+  // Skip dead/disconnected actors
+  while (gs.activeTurnIdx < gs.turnOrder.length) {
+    const slot = gs.turnOrder[gs.activeTurnIdx];
+    if (slot.type === 'player') {
+      const p = room.players.find(pl => pl.id === slot.id);
+      if (p && p.char && p.char.alive) break;
+    } else {
+      const e = (gs.enemies || []).find(e => e && (e.id === slot.id || e.name === slot.name) && e.hp > 0);
+      if (e) break;
+    }
+    gs.activeTurnIdx++;
+  }
+
+  if (gs.activeTurnIdx >= gs.turnOrder.length) {
+    endRound(room);
+    return;
+  }
+
+  const cur = gs.turnOrder[gs.activeTurnIdx];
+  if (cur.type === 'enemy') {
+    const ae = (gs.enemies || []).find(e => e && (e.id === cur.id || e.name === cur.name) && e.hp > 0);
+    if (ae) {
+      addLog(room, `--- ${ae.name}'s turn ---`, 'sys');
+      setTimeout(() => {
+        if (!gs.inCombat) return;
+        const stillAlive = (gs.enemies || []).find(e => e && (e.id === cur.id || e.name === cur.name) && e.hp > 0);
+        if (stillAlive) fireEnemyTurn(room, stillAlive);
+        else advanceTurn(room);
+        broadcastState(room.code);
+      }, 1400);
+    } else {
+      advanceTurn(room);
+    }
+  } else {
+    addLog(room, `--- ${cur.name}'s turn ---`, 'sys');
+  }
+  broadcastState(room.code);
+}
+
+function endRound(room) {
+  const gs = room.gs;
+  // Tick player buffs
+  room.players.forEach(p => { if (p.char && p.char.alive) tickBuffs(p.char); });
+  // Tick enemy debuffs and poison
+  (gs.enemies || []).forEach(en => {
+    if (!en) return;
+    tickDebuffs(en);
+    if (en._poisonStacks && en._poisonStacks > 0) {
+      en._poisonStacks--;
+      if (en._poisonStacks > 0)
+        addLog(room, `Poison on ${en.name} fades — ${en._poisonStacks} stack${en._poisonStacks !== 1 ? 's' : ''} remaining.`, 'sys');
+      else
+        addLog(room, `Poison on ${en.name} cleared.`, 'sys');
+    }
+  });
+  // Call the Pack cooldown
+  if (gs.packCooldown > 0) {
+    gs.packCooldown--;
+    if (gs.packCooldown === 0) addLog(room, 'Call the Pack cooldown lifted.', 'sys');
+  }
+  gs.playersActedThisRound = [];
+  gs.enemyHasActed = false;
+  gs.roundNumber = (gs.roundNumber || 1) + 1;
+  addLog(room, `--- Round ${gs.roundNumber} begins ---`, 'sys');
+  // Rebuild turn order for new round
+  buildTurnOrder(room);
+  if (!gs.turnOrder.length) {
+    gs.phase = 'gameover';
+    addLog(room, 'The warband has fallen.', 'death');
+    return;
+  }
+  const first = gs.turnOrder[0];
+  if (first.type === 'enemy') {
+    addLog(room, `--- ${first.name}'s turn ---`, 'sys');
+    setTimeout(() => {
+      if (!gs.inCombat) return;
+      const ae = (gs.enemies || []).find(e => e && (e.id === first.id || e.name === first.name) && e.hp > 0);
+      if (ae) fireEnemyTurn(room, ae);
+      else advanceTurn(room);
+      broadcastState(room.code);
+    }, 1400);
+  } else {
+    addLog(room, `--- ${first.name}'s turn ---`, 'sys');
+  }
+}
+
+function fireEnemyTurn(room, ae) {
+  const gs = room.gs;
+  if (!gs.inCombat || !ae || ae.hp <= 0) { advanceTurn(room); return; }
+
+  // Undeath passive
+  if (ae.tags && ae.tags.includes('undead') && ae.hp < ae.maxHp * 0.3 && !ae._undeathUsed) {
+    ae._undeathUsed = true;
+    const h = rd(2, 6);
+    ae.hp = Math.min(ae.maxHp, ae.hp + h);
+    addLog(room, `Undeath! ${ae.name} surges — heals ${h} HP!`, 'chaos');
+  }
+  // Regen
+  if (ae.regen && ae.hp < ae.maxHp) {
+    const r = rd(1, 6); ae.hp = Math.min(ae.maxHp, ae.hp + r);
+    addLog(room, `${ae.name} regenerates ${r} HP.`, 'chaos');
+  }
+  // Poison DoT
+  if (ae._poisonStacks && ae._poisonStacks > 0) {
+    const pdmg = rd(ae._poisonStacks, 3);
+    ae.hp = Math.max(0, ae.hp - pdmg);
+    addLog(room, `Poison (${ae._poisonStacks} stacks) burns ${ae.name} — -${pdmg} dmg -> ${ae.hp}/${ae.maxHp} HP`, 'spell');
+    if (ae.hp <= 0) { resolveEnemyDeath(room, ae); return; }
+  }
+  // Other DoTs
+  const dots = (ae.activeDebuffs || []).filter(d => d.dotDmg);
+  for (const dbt of dots) {
+    ae.hp = Math.max(0, ae.hp - dbt.dotDmg);
+    addLog(room, `${dbt.name} burns ${ae.name} — -${dbt.dotDmg} dmg -> ${ae.hp}/${ae.maxHp} HP`, 'spell');
+    if (SELF_TICK_DOTS.has(dbt.name)) dbt.duration--;
+    if (ae.hp <= 0) { resolveEnemyDeath(room, ae); return; }
+  }
+  ae.activeDebuffs = (ae.activeDebuffs || []).filter(d => !(SELF_TICK_DOTS.has(d.name) && d.duration <= 0));
+  if (!gs.inCombat) return;
+
+  // Stunned debuff: skip attack
+  const stunned = (ae.activeDebuffs || []).find(d => d.skipTurn);
+  if (stunned) {
+    addLog(room, `${ae.name} is stunned and loses its next action!`, 'sys');
+    advanceTurn(room);
+    return;
+  }
+
+  const alive = room.players.filter(p => p.char && p.char.alive);
+  if (!alive.length) { gs.phase = 'gameover'; addLog(room, 'The warband has fallen.', 'death'); return; }
+
+  // Attack every living player
+  alive.forEach(p => {
+    const auraBonus = room.players.some(q => q.char && q.char.alive && q.char.holyAura) ? 2 : 0;
+    const shieldBonus = p.char.shieldwall ? 2 : 0;
+    const defTotal = p.char.defense + auraBonus + shieldBonus;
+    const r = rollEnemyAttack(ae, { ...p.char, defense: defTotal });
+    if (r.hit) {
+      let dmg = r.dmg;
+      const isImmune = (p.char.activeBuffs || []).some(b => b.immune);
+      const drBuff = (p.char.activeBuffs || []).find(b => b.damageReduction);
+      if (isImmune) { dmg = 0; addLog(room, `${p.name} is IMMUNE — blocked!`, 'spell'); }
+      else if (drBuff) { dmg = Math.floor(dmg * (1 - drBuff.damageReduction)); }
+      if (ae.tags && ae.tags.includes('beast') && ae.hp < ae.maxHp * 0.5) { dmg += 3; }
+      p.char.health = Math.max(0, p.char.health - dmg);
+      const crit = r.crit ? ' CRIT!' : '';
+      const dmgBreak = `${ae.dmgNum}d${ae.dmgSides}(${r.dmgRoll})${ae.dmgBonus ? '+' + ae.dmgBonus : ''}${r.critRoll ? '+' + r.critRoll + ' crit' : ''}`;
+      addLog(room, `${ae.name} hits ${p.name} — -${dmg} dmg${crit} [d20:${r.base}+${ae.atk}=${r.total} vs Def${defTotal}] [${dmgBreak}] -> ${p.name} ${p.char.health}/${p.char.maxHealth} HP`, 'dmg-taken');
+      if (ae.lifeLeech) {
+        if (ae.name === 'Varghulf') { ae._leechAccum = (ae._leechAccum || 0) + dmg; }
+        else { const l = Math.floor(dmg / 4); ae.hp = Math.min(ae.maxHp, ae.hp + l); addLog(room, `${ae.name} leeches ${l} HP.`, 'chaos'); }
+      }
+      if (ae.insanityAtk && d(6) >= 4) { p.char.insanity++; addLog(room, `${p.name} gains 1 Insanity!`, 'chaos'); }
+      if (p.char.rage && dmg > 0 && !p.char.rageBoon) { p.char.rageBoon = true; addLog(room, `${p.name} RAGES — next attack +1 boon +1d6!`, 'crit'); }
+      checkDeath(room, p);
+    } else {
+      if (!r.skipped) addLog(room, `${ae.name} misses ${p.name} — d20:${r.base}+${ae.atk}=${r.total} vs Def${defTotal}.`, 'sys');
+    }
+  });
+  // Multi-attack
+  if (ae.multi) {
+    const t = alive[Math.floor(Math.random() * alive.length)];
+    if (t) { const r2 = rollEnemyAttack(ae, t.char); if (r2.hit) { t.char.health = Math.max(0, t.char.health - r2.dmg); addLog(room, `${ae.name} bonus attack on ${t.name} for ${r2.dmg}!`, 'dmg'); checkDeath(room, t); } }
+  }
+  // Varghulf leech
+  if (ae.name === 'Varghulf' && ae._leechAccum > 0) {
+    const l = Math.floor(ae._leechAccum / 4);
+    ae.hp = Math.min(ae.maxHp, ae.hp + l);
+    addLog(room, `Varghulf leeches ${l} HP.`, 'chaos');
+    ae._leechAccum = 0;
+  }
+  // Call the Pack
+  if (ae.tags && ae.tags.includes('skaven') && ae.hp < ae.maxHp * 0.6 && !(gs.packCooldown > 0) && gs.enemies && gs.enemies.length < 4) {
+    gs.packCooldown = 2;
+    const clanrat = scaleEnemy({ name: 'Skaven Clanrat', type: 'Skaven', threat: 'Low', hp: 8, ac: 12, atk: 0, xp: 0, gold: [0, 0], tags: ['skaven'] },
+      room.players.filter(p => p.connected && p.char && p.char.alive).length, false, gs.bossCount);
+    clanrat.id = 'pack_' + Date.now();
+    gs.enemies.push(clanrat);
+    addLog(room, `Call the Pack! ${ae.name} summons a Skaven Clanrat! (2-round cooldown)`, 'chaos');
+    buildTurnOrder(room); // rebuild so the new clanrat appears in order next round
+  }
+  const nowAlive = room.players.filter(p => p.char && p.char.alive);
+  if (!nowAlive.length) { gs.phase = 'gameover'; addLog(room, 'The warband has fallen.', 'death'); return; }
+  room.players.forEach(p => { if (p.char && !p.char.alive) p.char.pendingRevive = true; });
+  advanceTurn(room);
+}
+
 function allPlayersActed(room) {
   const alive=room.players.filter(p=>p.char&&p.char.alive);
   return alive.length>0&&alive.every(p=>room.gs.playersActedThisRound.includes(p.id));
@@ -1326,15 +1542,19 @@ const SCROLL_SPELLS_SHOP=[
   {name:'Cure Wounds',desc:'Heal 3d6+4 HP',type:'heal',dmgDice:'3d6'},
 ];
 
-function genWpn(){
+function genWpn(bossCount=0){
   const light=WEAPON_BASES.filter(b=>b.dice==='1d6'), heavy=WEAPON_BASES.filter(b=>b.dice==='2d6');
-  const pool=d(5)===1?heavy:light;
+  // Pre-boss-1: only 1d6 weapons
+  const pool=bossCount>0&&d(5)===1?heavy:light;
   const b=pool[Math.floor(Math.random()*pool.length)], bonus=d(6);
   return{id:'w'+uuidv4(),name:b.name,dice:b.dice,stat:b.stat,bonus,dmgType:b.dmgType,cost:Math.max(5,(b.dice==='2d6'?20:15)+bonus*8),sellCost:1,bought:false,type:'weapon',desc:`${b.dice}+${bonus} · ${b.stat.toUpperCase()} · ${b.dmgType}`};
 }
-function genArmor(){
+function genArmor(bossCount=0){
   const b=ARMOR_BASES[Math.floor(Math.random()*ARMOR_BASES.length)];
-  const bonus=d(5)===1?d(2)+4:d(4);
+  // Pre-boss-1: armor bonus capped so total defBonus <= 6
+  let bonus;
+  if(bossCount===0){ bonus=d(4); if(b.def+bonus>6) bonus=Math.max(1,6-b.def); }
+  else { bonus=d(5)===1?d(2)+4:d(4); }
   return{id:'a'+uuidv4(),name:b.name,defBonus:b.def+bonus,cost:Math.max(5,20+bonus*10),sellCost:1,bought:false,type:'armor',desc:`+${b.def+bonus} Defense`};
 }
 function genShopScroll(){
@@ -1349,7 +1569,7 @@ function buildPlayerShop(){
   return{
     weaponEnhance:{id:'we'+uuidv4(),name:'Weapon Enhancement',desc:'+1 dmg to equipped weapon',cost:25,bought:false,type:'enhance'},
     statBoost:    {id:'sb'+uuidv4(),name:'+1 Primary Stat',desc:'Increase highest attribute by 1',cost:35,bought:false,type:'statboost'},
-    weapon1:genWpn(),weapon2:genWpn(),armor:genArmor(),
+    weapon1:genWpn(room&&room.gs?room.gs.bossCount:0),weapon2:genWpn(room&&room.gs?room.gs.bossCount:0),armor:genArmor(room&&room.gs?room.gs.bossCount:0),
     consumables:[hd1,hd2,other],scroll:genShopScroll(),
   };
 }
@@ -1607,7 +1827,17 @@ function handlePlayerAction(room,playerId,payload,ws){
   // ── Combat actions ──
   if(gs.phase!=='combat'||!gs.inCombat)return;
   if(!char.alive)return;
-  if(gs.playersActedThisRound.includes(playerId)){sendTo(ws,{type:'ERROR',payload:{msg:'Already acted this round.'}});return;}
+  // Turn-order guard
+  if(gs.turnOrder && gs.turnOrder.length) {
+    const _cur = getCurrentTurn(gs);
+    if (!_cur || _cur.type !== 'player' || _cur.id !== playerId) {
+      sendTo(ws, {type:'ERROR', payload:{msg:"It's not your turn yet!"}});
+      return;
+    }
+  } else if(gs.playersActedThisRound.includes(playerId)) {
+    sendTo(ws, {type:'ERROR', payload:{msg:'Already acted this round.'}});
+    return;
+  }
   let acted=false;
 
   if(action==='ATTACK'){
@@ -2061,7 +2291,18 @@ function handlePlayerAction(room,playerId,payload,ws){
     else if(t==='nimbleRecovery'){if(char.nimbleUsed){addLog(room,`${player.name}: already used.`,'sys');return;}char.nimbleUsed=true;const h=talentHeal(char);char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} uses Nimble Recovery — +<strong>${h}</strong> HP (1d6+attr×2).`,'heal');}
     else if(t==='sharedRecovery'){if(char.sharedUsed){addLog(room,`${player.name}: already used.`,'sys');return;}char.sharedUsed=true;const h=talentHeal(char);char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} uses Shared Recovery — +<strong>${h}</strong> HP (1d6+attr×2).`,'heal');}
     else if(t==='spellRecovery'){if(char.spellRecoveryUsed){addLog(room,`${player.name}: already used.`,'sys');return;}char.spellRecoveryUsed=true;const h=talentHeal(char);char.health=Math.min(char.maxHealth,char.health+h);const rr=regainCasting(char,1);addLog(room,`${player.name} uses Spell Recovery — +<strong>${h}</strong> HP (1d6+attr×2) + 1 rank ${Math.max(0,rr)} casting.`,'spell');}
-    else if(t==='divineSmite'){if(char.divineSmiteUsed){addLog(room,`${player.name}: Divine Smite already used.`,'sys');return;}char.divineSmiteUsed=true;const _te=getTargetEnemy(gs);if(!_te)return;const dmg=rd(3,6);_te.hp-=dmg;addLog(room,`${player.name} calls Divine Smite — <strong>${dmg}</strong> holy dmg!`,'spell');if(_te.hp<=0){resolveEnemyDeath(room,_te);return;}}
+    else if(t==='divineSmite'){if(char.divineSmiteUsed){addLog(room,`${player.name}: Divine Smite already used.`,'sys');return;}char.divineSmiteUsed=true;const _te=getTargetEnemy(gs);if(!_te)return;
+      // Weapon attack first
+      const smiteRoll=rollAttack(char,_te,0);
+      if(smiteRoll.hit){
+        const holyDmg=rd(3,6);
+        const totalSmite=smiteRoll.dmg+holyDmg;
+        _te.hp=Math.max(0,_te.hp-totalSmite);
+        addLog(room,`⚡ <strong>${player.name}</strong> calls Divine Smite — ${smiteRoll.dmgParts.join(' ')}=<strong>${smiteRoll.dmg}</strong> weapon + <strong>${holyDmg}</strong> holy = <strong class="num-dmg">−${totalSmite}</strong> total → ${_te.name} ${_te.hp}/${_te.maxHp} HP`,'crit');
+      } else {
+        addLog(room,`${player.name} calls Divine Smite but misses (d20:${smiteRoll.base}+${smiteRoll.atkMod} vs Def${_te.ac}).`,'sys');
+      }
+      if(_te.hp<=0){resolveEnemyDeath(room,_te);return;}}
     else if(t==='overcast'){
       if(!char.overcast){addLog(room,`${player.name}: no Overcast.`,'sys');return;}
       if(char.overcastUsed){addLog(room,`${player.name}: Overcast already armed.`,'sys');return;}
@@ -2099,8 +2340,10 @@ function handlePlayerAction(room,playerId,payload,ws){
     else if(t==='pacedStrikes'){
       if(!char.pacedStrikes){addLog(room,`${player.name}: no Paced Strikes.`,'sys');return;}
       if(char.pacedStrikesUsed){addLog(room,`${player.name}: Paced Strikes already used this combat.`,'sys');return;}
-      addLog(room,`⚡ ${player.name} Paced Strikes — automatically doubles damage on next hit!`,'crit');
-      // Auto-triggers in rollAttack — just inform the player
+      // Arm +2d6 buff for next weapon attack
+      addBuff(char,'Paced Strikes',{pacedDmg:true},1);
+      addLog(room,`⚡ <strong>${player.name}</strong> readies Paced Strikes — next weapon hit deals +2d6 bonus damage!`,'crit');
+      acted=true;
     }
     else if(t==='rallyingCry'){if(char.rallyingUsed){addLog(room,`${player.name}: Rallying Cry already used.`,'sys');return;}char.rallyingUsed=true;room.players.forEach(p=>{if(p.char&&p.char.alive){const h=talentHeal(p.char);p.char.health=Math.min(p.char.maxHealth,p.char.health+h);addLog(room,`${p.name} rallies — +<strong>${h}</strong> HP (1d6+attr×2).`,'heal');}});}
     else if(t==='massHeal'){if(char.massHealUsed){addLog(room,`${player.name}: Mass Heal already used.`,'sys');return;}char.massHealUsed=true;room.players.forEach(p=>{if(p.char&&p.char.alive){const h=rd(1,6);p.char.health=Math.min(p.char.maxHealth,p.char.health+h);addLog(room,`${p.name} healed <strong>${h}</strong> HP.`,'heal');}});addLog(room,`${player.name} uses <strong>Mass Heal</strong>!`,'heal');}
@@ -2132,20 +2375,18 @@ function handlePlayerAction(room,playerId,payload,ws){
   }
 
   if(acted){
-    if(!gs.playersActedThisRound.includes(playerId))gs.playersActedThisRound.push(playerId);
-    try {
-      maybeEnemyAttack(room);
-    } catch(err) {
-      console.error('[maybeEnemyAttack ERROR]', err);
-      // Reset round so players can act again — prevents permanent hang
-      gs.playersActedThisRound=[];
-      gs.enemyHasActed=false;
-      addLog(room,'⚠ Combat error — round reset. Please act again.','sys');
+    if(!gs.playersActedThisRound.includes(playerId)) gs.playersActedThisRound.push(playerId);
+    if(gs.turnOrder && gs.turnOrder.length) {
+      advanceTurn(room);
+    } else {
+      // Legacy fallback
+      try { maybeEnemyAttack(room); } catch(e) { console.error(e); gs.playersActedThisRound=[]; gs.enemyHasActed=false; }
     }
+    broadcastState(room.code);
   }
 }
 
-function addLog(room,msg,type=''){room.gs.log.push({msg,type,ts:Date.now()});if(room.gs.log.length>100)room.gs.log=room.gs.log.slice(-100);}
+function addLog(room,msg,type=''){room.gs.log.push({msg,type,ts:Date.now()});if(room.gs.log.length>200)room.gs.log=room.gs.log.slice(-200);}
 function broadcastState(roomCode){const room=rooms.get(roomCode);if(!room)return;const data=JSON.stringify({type:'STATE_UPDATE',payload:publicState(room)});room.players.forEach(p=>{if(p.ws.readyState===1)p.ws.send(data);});}
 
 wss.on('connection',ws=>{

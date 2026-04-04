@@ -105,9 +105,9 @@ input::placeholder{color:var(--text-dim);font-style:italic;}
 .narrative{min-height:187px;max-height:306px;overflow-y:auto;padding:11px;scroll-behavior:smooth;}
 .narrative::-webkit-scrollbar{width:3px;}
 .narrative::-webkit-scrollbar-thumb{background:var(--border-bright);border-radius:2px;}
-.log-line{font-size:15px;line-height:1.6;margin-bottom:5px;padding-bottom:5px;border-bottom:1px solid rgba(60,40,10,.25);}
+.log-line{font-size:16px;line-height:1.65;margin-bottom:5px;padding-bottom:5px;border-bottom:1px solid rgba(60,40,10,.25);}
 .log-line:last-child{border-bottom:none;margin-bottom:0;}
-.log-line.sys{color:var(--text-dim);font-style:italic;font-size:14px;}
+.log-line.sys{color:var(--text-dim);font-style:italic;font-size:15px;}
 .log-line.dmg{color:#cc5050;}.log-line.heal{color:#60b060;}.log-line.spell{color:#a080d0;}
 .log-line.loot{color:var(--gold);}.log-line.crit{color:var(--gold-bright);font-weight:600;}
 .log-line.death{color:var(--blood-bright);font-weight:600;}.log-line.chaos{color:var(--chaos);}
@@ -115,7 +115,7 @@ input::placeholder{color:var(--text-dim);font-style:italic;}
 .battle-panel{padding:12px;}
 .battle-arena{display:grid;grid-template-columns:1fr 50px 1fr;align-items:center;gap:8px;min-height:200px;}
 .e-status-box{margin-top:5px;display:flex;flex-wrap:wrap;gap:3px;justify-content:flex-end;}
-.e-status-chip{font-size:10px;font-family:'IM Fell English',serif;padding:2px 6px;border-radius:3px;display:inline-flex;align-items:center;gap:2px;border:1px solid;}
+.e-status-chip{font-size:11px;font-family:'IM Fell English',serif;padding:3px 7px;border-radius:3px;display:inline-flex;align-items:center;gap:2px;border:1px solid;}
 .e-chip-dot{background:rgba(180,30,30,.25);color:#ff7070;border-color:rgba(200,50,50,.4);}
 .e-chip-debuff{background:rgba(100,40,160,.25);color:#c080ff;border-color:rgba(130,60,200,.4);}
 .e-chip-weak{background:rgba(160,100,0,.2);color:#ffaa44;border-color:rgba(180,120,0,.3);}
@@ -133,11 +133,11 @@ input::placeholder{color:var(--text-dim);font-style:italic;}
 .tok.enemy{border-color:var(--blood);box-shadow:0 0 8px rgba(139,26,26,.4);}
 .tok-ph{width:108px;height:108px;border-radius:50%;background:rgba(30,20,8,.8);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;}
 .tok-info{flex:1;min-width:0;}
-.tok-name{font-family:'Cinzel',serif;font-size:14px;color:var(--gold);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.tok-sub{font-size:12px;color:var(--text-dim);margin-bottom:3px;}
+.tok-name{font-family:'Cinzel',serif;font-size:15px;color:var(--gold);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.tok-sub{font-size:13px;color:var(--text-dim);margin-bottom:3px;}
 .tok-hp-track{height:7px;border-radius:2px;overflow:hidden;background:rgba(60,10,10,.5);margin-top:2px;}
 .tok-hp-fill{height:100%;border-radius:2px;transition:width .4s;}
-.tok-hp-txt{font-size:12px;color:var(--text-dim);margin-top:1px;font-family:'Cinzel',serif;}
+.tok-hp-txt{font-size:13px;color:var(--text-dim);margin-top:2px;font-family:'Cinzel',serif;}
 .tok-badge{font-size:11px;font-family:'Cinzel',serif;padding:1px 4px;border-radius:4px;margin-top:2px;display:inline-block;}
 .tb-a{background:rgba(40,80,40,.3);color:#80c080;border:1px solid rgba(50,120,50,.4);}
 .tb-f{background:rgba(100,10,10,.3);color:#cc4040;border:1px solid rgba(160,20,20,.4);}
@@ -775,7 +775,9 @@ function renderState(st){
 let lastLogLen=0;
 function renderLog(log){
   const box=el('g-narrative');
-  if(log.length===lastLogLen)return; lastLogLen=log.length;
+  // Use last entry timestamp as change signal — catches trims where length stays same
+  const lastTs=log.length?log[log.length-1].ts:0;
+  if(lastTs===lastLogLen)return; lastLogLen=lastTs;
   box.innerHTML='';
   log.forEach(e=>{ const d=document.createElement('div'); d.className='log-line'+(e.type?' '+e.type:''); d.innerHTML=e.msg; box.appendChild(d); });
   box.scrollTop=box.scrollHeight;
@@ -936,7 +938,7 @@ function buildCard(p,gs,isMe){
       if(c.weaponTraining)  tags.push('⚔ Wpn Training');
       if(c.combatProwess)   tags.push('⚔ Prowess +1d6');
       if(c.combatExpertise) tags.push('⚔ Expertise +1d6');
-      if(c.pacedStrikes)    tags.push(c.pacedStrikesUsed?'⚡ Paced (used)':'⚡ Paced ×2');
+      if(c.pacedStrikes)    tags.push((c.activeBuffs&&c.activeBuffs.some(b=>b.pacedDmg))?'⚡ PACED ARMED':c.pacedStrikesUsed?'⚡ Paced (used)':'⚡ Paced Strike');
       if(c.quickstrike)     tags.push('⚡ Quick Strike (R1)');
       if(c.trickery)        tags.push('🗡 Trickery');
       if(c.quickstrike)     tags.push('⚡ Quick Strike');
@@ -1176,7 +1178,17 @@ function renderActions(gs,players,me){
     const char=me.char;
     if(!char||!char.alive){ body.innerHTML='<div class="wait-msg">You have fallen...</div>'; return; }
     const hasActed=gs.playersActedThisRound&&gs.playersActedThisRound.includes(myId);
-    if(hasActed){ body.innerHTML='<div class="acted-msg">Acted this round — waiting for others...</div>'; return; }
+    // Turn-order check
+    const _curTurn=gs.turnOrder&&gs.turnOrder.length ? gs.turnOrder[gs.activeTurnIdx||0] : null;
+    const _isMyTurn=!gs.turnOrder||!gs.turnOrder.length || (_curTurn&&_curTurn.type==='player'&&_curTurn.id===myId);
+    if(hasActed||!_isMyTurn){
+      const waitMsg=_curTurn&&_curTurn.type==='enemy'
+        ? `<strong style="color:var(--blood-bright)">${_curTurn.name}</strong> is attacking...`
+        : _curTurn&&_curTurn.type==='player'&&!_isMyTurn
+        ? `Waiting for <strong style="color:var(--gold)">${_curTurn.name}</strong>...`
+        : 'Waiting for others...';
+      body.innerHTML=`<div class="acted-msg">${waitMsg}</div>`; return;
+    }
     const g=document.createElement('div'); g.className='action-grid';
     const wpnStr=wpnLbl(char);
     const _wpn=char.equippedWeapon;
@@ -1222,14 +1234,24 @@ function renderActions(gs,players,me){
     if(char.overcast&&!char.overcastUsed)         addBtn(g,'💥 Overcast','Next spell +2d6','as-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'overcast'}}),false,TALENT_DESCS.overcast);
     if(char.metamagic&&!char.metamagicUsed)       addBtn(g,'🔮 Metamagic','Free cast (1/rest)','as-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'metamagic'}}),false,TALENT_DESCS.metamagic);
     if(char.catastrophe&&!char.catastropheUsed)   addBtn(g,'💥 Catastrophe','10d6 all enemies','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'catastrophe'}}),false,TALENT_DESCS.catastrophe);
-    if(char.pacedStrikes&&!char.pacedStrikesUsed) addBtn(g,'⚡ Paced Strikes','Next hit ×2 dmg','am-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'pacedStrikes'}}),false,'Auto-doubles damage on your next hit. Once per combat.');
+    if(char.pacedStrikes&&!char.pacedStrikesUsed) addBtn(g,'⚡ Paced Strikes','Next hit +2d6','am-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'pacedStrikes'}}),false,'Arm Paced Strikes: your next weapon hit deals +2d6 bonus damage. Once per combat.');
     const isBoss=gs.enemy&&gs.enemy.threat==='Boss';
     addBtn(g,'⏭ End Turn','Pass your turn','am-',()=>send('PLAYER_ACTION',{action:'PASS_TURN'}),false,'Skip your action this round.');
     addBtn(g,'Flee',isBoss?'No escape':'AGI vs DC10','amv-',()=>send('PLAYER_ACTION',{action:'FLEE'}),isBoss,'Attempt to flee combat. Roll d20+AGI vs DC10. Success costs opportunity damage unless you have Shadowstep.');
     body.appendChild(g);
     const alive=lastState?lastState.players.filter(p=>p.char&&p.char.alive):[];
     const acted=gs.playersActedThisRound?gs.playersActedThisRound.length:0;
-    if(alive.length>1) body.insertAdjacentHTML('beforeend',`<div style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:5px;font-family:'Cinzel',serif">${acted}/${alive.length} warriors acted</div>`);
+    // Turn order indicator
+    if(gs.turnOrder && gs.turnOrder.length) {
+      const curSlot = gs.turnOrder[gs.activeTurnIdx||0];
+      const isMyTurn = curSlot && curSlot.type==='player' && curSlot.id===myId;
+      const turnLabel = curSlot ? (curSlot.type==='enemy' ? `Enemy turn: ${curSlot.name}` : (isMyTurn ? 'YOUR TURN' : `${curSlot.name}'s turn`)) : '';
+      const turnColor = isMyTurn ? 'var(--gold-bright)' : curSlot&&curSlot.type==='enemy' ? 'var(--blood-bright)' : 'var(--text-dim)';
+      const pos = (gs.activeTurnIdx||0)+1;
+      body.insertAdjacentHTML('beforeend',`<div style="font-size:12px;color:${turnColor};text-align:center;margin-top:6px;font-family:'Cinzel',serif;font-weight:600">${turnLabel} (${pos}/${gs.turnOrder.length})</div>`);
+    } else if(alive.length>1) {
+      body.insertAdjacentHTML('beforeend',`<div style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:5px;font-family:'Cinzel',serif">${acted}/${alive.length} warriors acted</div>`);
+    }
   }
 }
 
