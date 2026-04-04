@@ -609,7 +609,7 @@ function buildChar(career) {
       ...(startArmor?[{itemObj:startArmor,name:startArmor.name,qty:1,type:'armor'}]:[]),
     ],
     gold:15,
-    level:0, xp:0,
+    level:1, xp:0,
     novicePath:null, expertPath:null, masterPath:null,
     pendingLevelUp:false, pendingPathTier:null,  // 'novice'|'expert'|'master'
     // Talents (novice)
@@ -795,7 +795,8 @@ function getDebuffVal(enemy, key){ return (enemy.activeDebuffs||[]).filter(d=>d[
 
 // ─── LEVEL UP & PATHS ────────────────────────────────────────────────────────
 // XP thresholds (50% of SotDL base)
-const XP_THRESHOLDS = [0,5,12,20,30,42,55,68,80,90,100]; // index 0..10 = levels 0..10
+const XP_THRESHOLDS = [0,0,10,20,30,34,40,48,58,70,100]; // index 0..10 = levels 0..10
+// Lv1=0(start), Lv2=10, Lv3=30(boss1@depth9), Lv10=100(depth27)
 
 function checkLevelUp(char) {
   if (char.level >= 10) return {leveled:false}; // hard cap at level 10
@@ -807,7 +808,7 @@ function checkLevelUp(char) {
     // Apply per-level path gains
     applyLevelGains(char, newLevel);
     // Check if we need a path choice
-    if (newLevel===1&&!char.novicePath) { char.pendingLevelUp=true; char.pendingPathTier='novice'; }
+    if (newLevel===1&&!char.novicePath) { char.pendingLevelUp=true; char.pendingPathTier='novice'; } // should not trigger — novice applied at career select
     else if (newLevel===3&&!char.expertPath) { char.pendingLevelUp=true; char.pendingPathTier='expert'; }
     else if (newLevel===7&&!char.masterPath) { char.pendingLevelUp=true; char.pendingPathTier='master'; }
     else { char.pendingLevelUp=false; }
@@ -1121,6 +1122,7 @@ function advanceTurn(room) {
     const ae = (gs.enemies || []).find(e => e && (e.id === cur.id || e.name === cur.name) && e.hp > 0);
     if (ae) {
       addLog(room, `--- ${ae.name}'s turn ---`, 'sys');
+      broadcastState(room.code); // show "enemy attacking" before delay
       setTimeout(() => {
         if (!gs.inCombat) return;
         const stillAlive = (gs.enemies || []).find(e => e && (e.id === cur.id || e.name === cur.name) && e.hp > 0);
@@ -1129,12 +1131,14 @@ function advanceTurn(room) {
         broadcastState(room.code);
       }, 1400);
     } else {
-      advanceTurn(room);
+      advanceTurn(room); // skip dead enemy
     }
   } else {
+    // It's a player's turn — clear them from acted list so they can act again
+    gs.playersActedThisRound = gs.playersActedThisRound.filter(id => id !== cur.id);
     addLog(room, `--- ${cur.name}'s turn ---`, 'sys');
+    broadcastState(room.code);
   }
-  broadcastState(room.code);
 }
 
 function endRound(room) {
@@ -1172,6 +1176,7 @@ function endRound(room) {
   const first = gs.turnOrder[0];
   if (first.type === 'enemy') {
     addLog(room, `--- ${first.name}'s turn ---`, 'sys');
+    broadcastState(room.code); // show "enemy attacking" before delay
     setTimeout(() => {
       if (!gs.inCombat) return;
       const ae = (gs.enemies || []).find(e => e && (e.id === first.id || e.name === first.name) && e.hp > 0);
@@ -1180,7 +1185,10 @@ function endRound(room) {
       broadcastState(room.code);
     }, 1400);
   } else {
+    // First actor is a player — clear them from acted list and announce
+    gs.playersActedThisRound = gs.playersActedThisRound.filter(id => id !== first.id);
     addLog(room, `--- ${first.name}'s turn ---`, 'sys');
+    broadcastState(room.code);
   }
 }
 
@@ -1700,6 +1708,11 @@ function handleMessage(ws,msg){
     if(!ctx)return; const room=rooms.get(ctx.roomCode); if(!room)return;
     const player=room.players.find(p=>p.id===ctx.playerId); if(!player)return;
     player.career=payload.career; player.char=buildChar(payload.career); player.ready=false;
+    // Start at level 1 with novice path already applied from career
+    const _careerToNovice={warrior:'warrior',rogue:'rogue',wizard:'magician',priest:'priest'};
+    const _noviceId=_careerToNovice[payload.career]||'warrior';
+    applyNovicePath(player.char, _noviceId);
+    player.char.pendingLevelUp=false; // novice already applied
     broadcastState(ctx.roomCode); return;
   }
   if(type==='PLAYER_READY'){
@@ -2378,11 +2391,12 @@ function handlePlayerAction(room,playerId,payload,ws){
     if(!gs.playersActedThisRound.includes(playerId)) gs.playersActedThisRound.push(playerId);
     if(gs.turnOrder && gs.turnOrder.length) {
       advanceTurn(room);
+      // advanceTurn handles broadcastState internally
     } else {
       // Legacy fallback
       try { maybeEnemyAttack(room); } catch(e) { console.error(e); gs.playersActedThisRound=[]; gs.enemyHasActed=false; }
+      broadcastState(room.code);
     }
-    broadcastState(room.code);
   }
 }
 

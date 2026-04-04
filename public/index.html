@@ -291,6 +291,7 @@ input::placeholder{color:var(--text-dim);font-style:italic;}
       </div>
       <div class="panel" id="career-panel" style="display:none;margin-top:10px">
         <div class="ph">Choose Your Career</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:6px;font-family:'IM Fell English',serif">You begin at <strong style="color:var(--gold)">Level 1</strong> with your career's novice path already applied. Reach Level 3 to choose an Expert path.</div>
         <div class="career-grid" id="career-grid"></div>
         <button class="btn btn-w gold" style="margin-top:10px" onclick="setReady()">Ready →</button>
       </div>
@@ -378,21 +379,21 @@ const TOKEN_DATA={"warrior": "data:image/webp;base64,UklGRgS9AABXRUJQVlA4WAoAAAA
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const CAREER_LABELS={warrior:'State Soldier',rogue:'Roadwarden',wizard:'Bright Wizard',priest:'Sigmarite Priest'};
-const XP_T=[0,5,12,20,30,42,55,68,80,90,100];
+const XP_T=[0,0,10,20,30,34,40,48,58,70,100]; // Lv1=start, Lv3@depth9boss, Lv10@depth27
 const LOCS=['The Reikland Road','Altdorf Sewers','The Grey Mountains','The Forest of Shadows','Bogenhafen Catacombs','Ruins of Mordheim','The Dark Moors','The Chaos Wastes','A Forsaken Temple','The River Reik','Skaven Under-warren','Corrupted Village','The Blighted Marshes','Chaos Shrine','The Final Abyss'];
 
 const CAREER_DETAILS={
-  warrior:{name:'State Soldier',stats:'STR 11 · AGI 10 · INT 9 · WIL 10',armor:'Breastplate (+3 Def)',role:'Melee fighter. High health, wears armour.',level1:'Warrior novice path — weapon training, catch your breath.'},
-  rogue:  {name:'Roadwarden',  stats:'STR 10 · AGI 11 · INT 10 · WIL 9',armor:'Leather Jack (+1 Def)',role:'Skirmisher. First-round boon on attacks.',level1:'Rogue novice path — trickery dice, nimble recovery.'},
-  wizard: {name:'Bright Wizard',stats:'STR 9 · AGI 10 · INT 11 · WIL 10',armor:'None',role:'Fire spellcaster. INT boosts spell damage.',level1:'Magician novice path — +1 Power, spell recovery.'},
-  priest: {name:'Sigmarite Priest',stats:'STR 10 · AGI 9 · INT 10 · WIL 11',armor:'Breastplate (+3 Def)',role:'Support caster. WIL boosts healing.',level1:'Priest novice path — +1 Power, shared recovery, heal allies.'},
+  warrior:{name:'State Soldier',stats:'STR 11 · AGI 10 · INT 9 · WIL 10',armor:'Breastplate (+3 Def)',role:'Melee fighter. High health, wears armour.',level1:'Starts with Warrior path — Weapon Training, Catch Your Breath.'},
+  rogue:  {name:'Roadwarden',  stats:'STR 10 · AGI 11 · INT 10 · WIL 9',armor:'Leather Jack (+1 Def)',role:'Skirmisher. First-round boon on attacks.',level1:'Starts with Rogue path — Trickery, Nimble Recovery.'},
+  wizard: {name:'Bright Wizard',stats:'STR 9 · AGI 10 · INT 11 · WIL 10',armor:'None',role:'Fire spellcaster. INT boosts spell damage.',level1:'Starts with Magician path — +1 Power, Spell Recovery.'},
+  priest: {name:'Sigmarite Priest',stats:'STR 10 · AGI 9 · INT 10 · WIL 11',armor:'Breastplate (+3 Def)',role:'Support caster. WIL boosts healing.',level1:'Starts with Priest path — +1 Power, Shared Recovery.'},
 };
 
 const NOVICE_INFO={
-  warrior:{name:'Warrior',    gains:'+5 Max HP, Weapon Training (1 boon on attacks), Catch Your Breath (heal once per rest).'},
-  rogue:  {name:'Rogue',      gains:'+3 Max HP, Trickery (bonus d6 on first attack each round), Nimble Recovery (heal once per rest).'},
-  magician:{name:'Magician',  gains:'+2 Max HP, +1 Power (spell casting), Spell Recovery (heal + regain a casting once per rest).'},
-  priest: {name:'Priest',     gains:'+4 Max HP, +1 Power (spell casting), Shared Recovery (heal yourself once per rest).'},
+  warrior:{name:'Warrior',    gains:'Starts Lv1. +5 Max HP, Weapon Training (1 boon on attacks), Catch Your Breath (heal once per rest).'},
+  rogue:  {name:'Rogue',      gains:'Starts Lv1. +3 Max HP, Trickery (+1d6 first attack each round + 1 poison stack), Nimble Recovery.'},
+  magician:{name:'Magician',  gains:'Starts Lv1. +2 Max HP, +1 Power (spell casting), Spell Recovery (heal + regain a casting once per rest).'},
+  priest: {name:'Priest',     gains:'Starts Lv1. +4 Max HP, +1 Power (spell casting), Shared Recovery (heal yourself once per rest).'},
 };
 
 const EXPERT_INFO={
@@ -1082,8 +1083,8 @@ function renderAbilities(char, inCombat, targetId='my-ab'){
         <th style="text-align:center;padding:2px 4px">XP needed</th>
         <th style="text-align:left;padding:2px 4px;font-size:10px">Path unlock</th>
       </tr>`;
-  const XP_TABLE=[0,5,12,20,30,42,55,68,80,90,100];
-  const PATH_UNLOCKS={1:'Novice path',3:'Expert path',7:'Master path'};
+  const XP_TABLE=[0,0,10,20,30,34,40,48,58,70,100];
+  const PATH_UNLOCKS={1:'(Novice — career select)',3:'Expert path',7:'Master path'};
   const XP_GAINS=[
     {label:'Low threat enemy',xp:1},{label:'Moderate enemy',xp:2},{label:'High enemy',xp:3},{label:'Boss',xp:4}
   ];
@@ -1106,7 +1107,7 @@ function renderAbilities(char, inCombat, targetId='my-ab'){
   }
   // XP gains reference
   html+=`<tr><td colspan="4" style="padding:5px 4px 2px;font-size:11px;color:var(--text-dim);font-style:italic;border-top:1px solid var(--border)">
-    XP rewards: Low 3 · Moderate 5 · High 8 · Boss 15
+    XP rewards (per kill): Low 3 · Moderate 5 · High 8 · Boss 15 · Target: Lv3 at Boss 1, Lv10 at depth 27
   </td></tr>`;
   html+=`</table></div>`;
 
@@ -1216,10 +1217,10 @@ function renderActions(gs,players,me){
     const char=me.char;
     if(!char||!char.alive){ body.innerHTML='<div class="wait-msg">You have fallen...</div>'; return; }
     const hasActed=gs.playersActedThisRound&&gs.playersActedThisRound.includes(myId);
-    // Turn-order check
+    // Turn-order check — activeTurnIdx is the source of truth
     const _curTurn=gs.turnOrder&&gs.turnOrder.length ? gs.turnOrder[gs.activeTurnIdx||0] : null;
-    const _isMyTurn=!gs.turnOrder||!gs.turnOrder.length || (_curTurn&&_curTurn.type==='player'&&_curTurn.id===myId);
-    if(hasActed||!_isMyTurn){
+    const _isMyTurn= _curTurn ? (_curTurn.type==='player'&&_curTurn.id===myId) : !hasActed;
+    if(!_isMyTurn){
       const waitMsg=_curTurn&&_curTurn.type==='enemy'
         ? `<strong style="color:var(--blood-bright)">${_curTurn.name}</strong> is attacking...`
         : _curTurn&&_curTurn.type==='player'&&!_isMyTurn
