@@ -469,6 +469,15 @@ const TALENT_DESCS={
   spellsurge:'Once per combat: cast any spell without spending a casting.',
   catastrophe:'Adds Catastrophe (10d6 vs all enemies) to your known spells.',
   holyAura:'All allies gain +2 Defense while you are alive.',
+  pacedStrikes:'Active (1×/combat) — Next attack that hits deals DOUBLE damage.',
+  rage:'Passive — When you take damage, your next attack has +1 boon and +1d6 bonus damage.',
+  quickStep:'Passive — When an enemy misses you, gain +2 Defense for 1 round.',
+  bloodOffering:'Active — Lose 1d6 HP to regain 1 casting of every rank 0-2 spell you know.',
+  darkEvoker:'Passive — Dark element spells deal ×2.5 vs weakness instead of ×2.',
+  lightningIngrained:'Passive — Lightning element spells deal ×2.5 vs weakness instead of ×2.',
+  utilityFocus:'Passive — All utility spells last 1 extra round.',
+  assassination:'Passive — When target is below 50% HP, deal +1d6+3 bonus damage per hit.',
+  swiftFeet:'Passive — All your attacks have 2 boons.',
   miracleHeal:'Once per rest: restore a target to their full maximum HP.',
 };
 
@@ -647,20 +656,20 @@ function _buildTraditionButtons(grid, knownTraditions){
 
 // ── Spell picker helper ────────────────────────────────────────────────────────
 const TRADITION_SPELLS_CLIENT = {
-  fire:           [{name:'Flame Missile',rank:0,desc:'[R0] 1d6 fire dmg at one target. Free cast.'},{name:'Meteor',rank:1,desc:'[R1] 2d6+2 fire explosion in 1-yard sphere.'},{name:'Fiery Volley',rank:1,desc:'[R1] 1d6+1 to up to 3 targets.'},{name:'Fireball',rank:2,desc:'[R2] 5d6 fire explosion in 5-yard sphere.'},{name:'Immolate',rank:3,desc:'[R3] 4d6 + target catches fire.'}],
-  life:           [{name:'Minor Healing',rank:0,desc:'[R0] Heal half Healing Rate. Free cast.'},{name:'Cure',rank:1,desc:'[R1] Remove one affliction or heal half rate.'},{name:'Light Healing',rank:1,desc:'[R1] Heal full Healing Rate.'},{name:'Moderate Healing',rank:2,desc:'[R2] Heal 2× Healing Rate.'},{name:'Vitality Burst',rank:2,desc:'[R2] Up to 3 allies each heal full Healing Rate.'},{name:'Major Healing',rank:3,desc:'[R3] Heal 3× Healing Rate.'}],
-  death:          [{name:'Spectral Grasp',rank:0,desc:'[R0] 1d3 dmg, target has 1 bane on attacks 1 round.'},{name:'Grave Grasp',rank:1,desc:'[R1] Area grasps — 1d6 dmg and immobilized each round for 1 min.'},{name:'Bone Splinters',rank:2,desc:'[R2] 3d6+5 dmg, kills instantly on incapacitation.'},{name:'Cannibalize Magic',rank:3,desc:'[R3] 3d6 dmg + regain a spell casting.'}],
-  shadow:         [{name:'Nightfall Blade',rank:0,desc:'[R0] Create shadow blade 1d6, +1d6 in darkness. Free cast.'},{name:'Shadow Dart',rank:1,desc:'[R1] 2d6 darkness missile at one target.'},{name:'Shadow Strike',rank:2,desc:'[R2] 2d6 each to up to 3 targets, pushed back.'},{name:'Enervation',rank:3,desc:'[R3] −20 Health penalty for 1 hour + impaired.'}],
-  battle:         [{name:'Augmented Attack',rank:0,desc:'[R0] Attack with 1 boon + INT, next attack +1d6. Free cast.'},{name:'Close Wounds',rank:1,desc:'[R1] Heal your full Healing Rate.'},{name:'Mighty Attack',rank:1,desc:'[R1] Attack with 1 boon, +2d6 extra on hit.'},{name:'Battle Prowess',rank:3,desc:'[R3] For 1 min: roll attacks twice, take better, +1d6 dmg.'}],
-  celestial:      [{name:'Burning Beam',rank:0,desc:'[R0] 1d6 holy dmg, may blind. Free cast.'},{name:'Flash',rank:1,desc:'[R1] Blind one creature for 1 round (1 min on 20+).'},{name:'Sunrays',rank:2,desc:'[R2] 1d6 dmg to up to 3 targets + impaired.'},{name:'Radiation',rank:3,desc:'[R3] 1d6/round area damage for 1 minute.'}],
-  chaos:          [{name:'Erratic Bolt',rank:0,desc:'[R0] 1d6 chaos dmg, may chain. Free cast.'},{name:'Capricious Devastation',rank:1,desc:'[R1] 2d6 dmg with chaos die modifier.'},{name:'Color of Magic',rank:2,desc:'[R2] 1d6+1 area explosion, may deal +3d6.'},{name:'Chaotic Lance',rank:3,desc:'[R3] 4d6 in a 15-yard shapeable line.'}],
-  earth:          [{name:'Earth Spike',rank:0,desc:'[R0] 1d6 + prone. Free cast.'},{name:'Stone Blades',rank:1,desc:'[R1] 2d6 cone + bleeding wound.'},{name:'Avalanche',rank:2,desc:'[R2] 4d6 to everything in area.'},{name:'Eruption',rank:3,desc:'[R3] 5d6 eruption + pushed + impaired.'}],
-  storm:          [{name:'Forked Lightning',rank:0,desc:'[R0] 1d6+2 to 2 targets. Free cast.'},{name:'Freezing Fog',rank:1,desc:'[R1] Area slows + 1d3 dmg/round for 1 min.'},{name:'Call Lightning',rank:2,desc:'[R2] 3d6+5 to all within 3 yards of point.'},{name:'Lightning Bolt',rank:3,desc:'[R3] 5d6 bouncing lightning in 30-yard line.'}],
-  protection:     [{name:'Force Field',rank:0,desc:'[R0] Shield with 10 HP absorbs all incoming damage. Free cast.'},{name:'Sanctuary',rank:1,desc:'[R1] Target becomes hidden from all creatures.'},{name:'Vigor',rank:2,desc:'[R2] +10 Health bonus for 1 hour.'},{name:'Protective Field',rank:3,desc:'[R3] Barrier blocks enemies from reaching allies.'}],
-  illusion:       [{name:'Figment',rank:0,desc:'[R0] Visual illusion, enemy has 1 bane. Free cast.'},{name:'Vertigo',rank:1,desc:'[R1] Target afflicted with vertigo for 1 min.'},{name:'Glamer',rank:2,desc:'[R2] Visual+audio illusion, enemy attacks with 1 bane.'},{name:'Phantasm',rank:3,desc:'[R3] Massive illusion deals 4d6 psychic dmg.'}],
-  nature:         [{name:'Oak Hide',rank:0,desc:'[R0] +2 Defense for 1 hour. Free cast.'},{name:'Healing Berries',rank:1,desc:'[R1] 3 berries, each heals half rate when eaten.'},{name:'Shillelagh',rank:1,desc:'[R1] +2 Speed, weapon deals +1d6 for 1 hour.'},{name:'Wrath of Nature',rank:3,desc:'[R3] 3d6 to 5 targets + immobilized.'}],
-  transformation: [{name:'Beast Within',rank:0,desc:'[R0] 1 boon STR, +1d6 next attack. Free cast.'},{name:'Dire Beast',rank:1,desc:'[R1] Size+1, attacks +1d6 for 1 min.'},{name:'Mist Form',rank:2,desc:'[R2] Cannot be hit by weapons for 1 min.'},{name:'Speed Healing',rank:3,desc:'[R3] Heal 3× Healing Rate.'}],
-  time:           [{name:'Swiftness',rank:0,desc:'[R0] +10 Speed for 1 min. Free cast.'},{name:'Rewrite Moment',rank:1,desc:'[R1] Reroll any die once per round for 1 min.'},{name:'Minor Paradox',rank:2,desc:'[R2] Target ceases to exist for 1 round.'},{name:'Precognition',rank:3,desc:'[R3] 2 banes on attacks vs you, 2 boons for you for 1 min.'}],
+  fire:           [{name:'Flame Missile',rank:0,desc:'[R0 FREE] 1d6+INTx2. Single target.'},{name:'Meteor',rank:1,desc:'[R1] 2d6+2+INTx2 sphere explosion.'},{name:'Fiery Volley',rank:1,desc:'[R1] 3 hits vs SAME target. Each: 1d6+1+INTx2.'},{name:'Fireball',rank:2,desc:'[R2] 5d6+INTx2. Applies BURN (1d6/round 2 rounds).'},{name:'Immolate',rank:3,desc:'[R3] 4d6+INTx2. Applies BURN. +2d6 on crit.'}],
+  life:           [{name:'Minor Healing',rank:0,desc:'[R0 FREE] 1d6+WILx2 heal.'},{name:'Cure',rank:1,desc:'[R1] Clears ALL debuffs then heals 1d6+WIL.'},{name:'Light Healing',rank:1,desc:'[R1] 2d6+WILx2 heal.'},{name:'Moderate Healing',rank:2,desc:'[R2] 3d6+WILx2 heal.'},{name:'Vitality Burst',rank:2,desc:'[R2] ALL allies heal 2d6+WILx2.'},{name:'Major Healing',rank:3,desc:'[R3] Restore target to FULL HP.'}],
+  death:          [{name:'Spectral Grasp',rank:0,desc:'[R0 FREE] 1d3+INTx2. Target 1 bane on attacks 1 round.'},{name:'Grave Grasp',rank:1,desc:'[R1] 1d6+INTx2. Applies CHILLED (1d3/round, 1 bane, 2 rounds).'},{name:'Bone Splinters',rank:2,desc:'[R2] 3d6+INTx2. At <=25% HP: d20>=10 = instant kill.'},{name:'Cannibalize Magic',rank:3,desc:'[R3] 3d6+INTx2. Regain rank 1 casting on hit.'}],
+  shadow:         [{name:'Nightfall Blade',rank:0,desc:'[R0 FREE] +1d6 to ALL weapon attacks for 4 rounds.'},{name:'Shadow Dart',rank:1,desc:'[R1] 2d6+INTx2 darkness missile.'},{name:'Shadow Strike',rank:2,desc:'[R2] 3 hits vs SAME target. Each: 2d6+INTx2.'},{name:'Enervation',rank:3,desc:'[R3] Reduces target max HP by 20 for combat + impaired.'}],
+  battle:         [{name:'Augmented Attack',rank:0,desc:'[R0 FREE] +1d6 and 1 boon on next weapon attack.'},{name:'Close Wounds',rank:1,desc:'[R1] 1d6+STRx2 heal.'},{name:'Mighty Attack',rank:1,desc:'[R1] +2d6 damage AND 2 boons on next weapon attack.'},{name:'Battle Prowess',rank:3,desc:'[R3] 6 rounds: roll attacks twice, take better, +1d6 per hit.'}],
+  celestial:      [{name:'Burning Beam',rank:0,desc:'[R0 FREE] 1d6+INTx2. Blinds on crit.'},{name:'Flash',rank:1,desc:'[R1] BLINDS target (3 banes on attacks, 1 round).'},{name:'Sunrays',rank:2,desc:'[R2] 3 hits vs SAME target. Each: 1d6+INTx2.'},{name:'Radiation',rank:3,desc:'[R3] 3d6+WILx2. Applies BLINDED (3 banes, 1 round).'}],
+  chaos:          [{name:'Erratic Bolt',rank:0,desc:'[R0 FREE] 1d6+INTx2. On hit: d20>=12 = +2d6 chaos.'},{name:'Capricious Devastation',rank:1,desc:'[R1] 2d6+INTx2. On hit: d20>=12 = +2d6 chaos.'},{name:'Color of Magic',rank:2,desc:'[R2] 1d6+2+INTx2. On hit: d20>=12 = +2d6 chaos.'},{name:'Chaotic Lance',rank:3,desc:'[R3] 4d6+INTx2 line. On hit: d20>=12 = +2d6 chaos.'}],
+  earth:          [{name:'Earth Spike',rank:0,desc:'[R0 FREE] 1d6+INTx2. BLEED (1d6/round 2r).'},{name:'Stone Blades',rank:1,desc:'[R1] 2d6+INTx2. BLEED (1d6/round 2r).'},{name:'Avalanche',rank:2,desc:'[R2] 4d6+INTx2. MAJOR BLEED (2d6/round 2r).'},{name:'Eruption',rank:3,desc:'[R3] 5d6+INTx2. MAJOR BLEED (2d6/round 2r).'}],
+  storm:          [{name:'Forked Lightning',rank:0,desc:'[R0 FREE] Hits SAME target TWICE. Each: 1d6+2+INTx2.'},{name:'Freezing Fog',rank:1,desc:'[R1] 1d3+INTx2. CHILLED (1d3/round, 1 bane, 2r).'},{name:'Call Lightning',rank:2,desc:'[R2] 3d6+5+INTx2. d20>=15: STUNNED 1 round.'},{name:'Lightning Bolt',rank:3,desc:'[R3] 5d6+INTx2. d20>=15: hits SECOND time.'}],
+  protection:     [{name:'Force Field',rank:0,desc:'[R0 FREE] 50% damage reduction for self, 1 round.'},{name:'Sanctuary',rank:1,desc:'[R1] ALL allies take 50% damage for 1 round.'},{name:'Vigor',rank:2,desc:'[R2] Your max HP +10 for rest of combat.'},{name:'Protective Field',rank:3,desc:'[R3] ALL allies IMMUNE to damage for 1 round.'}],
+  illusion:       [{name:'Figment',rank:0,desc:'[R0 FREE] Enemy attacks with 1 bane for 2 rounds.'},{name:'Vertigo',rank:1,desc:'[R1] You gain 2 boons on attacks for 2 rounds.'},{name:'Glamer',rank:2,desc:'[R2] Target enemy next attack automatically misses.'},{name:'Phantasm',rank:3,desc:'[R3] 4d6+INTx2 psychic damage.'}],
+  nature:         [{name:'Oak Hide',rank:0,desc:'[R0 FREE] +2 Defense for 2 rounds.'},{name:'Healing Berries',rank:1,desc:'[R1] 1d3+WIL heal, triggers THREE times.'},{name:'Shillelagh',rank:1,desc:'[R1] +1d6 to next weapon attack + 2 Speed.'},{name:'Wrath of Nature',rank:3,desc:'[R3] 3d6+INTx2. Target next 2 attacks have 2 banes.'}],
+  transformation: [{name:'Beast Within',rank:0,desc:'[R0 FREE] 1 boon STR, +1d6 next attack.'},{name:'Dire Beast',rank:1,desc:'[R1] Size+1, attacks +1d6 for 1 min.'},{name:'Mist Form',rank:2,desc:'[R2] 50% damage reduction for 2 rounds.'},{name:'Speed Healing',rank:3,desc:'[R3] 3d6+WILx2 heal.'}],
+  time:           [{name:'Swiftness',rank:0,desc:'[R0 FREE] +1 boon on attacks for 2 rounds.'},{name:'Rewrite Moment',rank:1,desc:'[R1] Auto-reroll missed attacks for 2 rounds.'},{name:'Minor Paradox',rank:2,desc:'[R2] Regain 1 casting of every rank 0-2 spell.'},{name:'Precognition',rank:3,desc:'[R3] 2 boons on your attacks, 2 banes on attacks vs you, 2 rounds.'}],
 };
 
 function _buildSpellPicker(grid, me, knownTraditions, maxRank){
@@ -940,6 +949,8 @@ function renderAbilities(char, inCombat, targetId='my-ab'){
     {k:'spellsurge',      label:'Spell Surge',        used:char.spellsurgeUsed},
     {k:'miracleHeal',     label:'Miracle Heal',       used:char.miracleUsed},
     {k:'metamagic',       label:'Metamagic',          used:char.metamagicUsed},
+    {k:'bloodOffering',   label:'Blood Offering',     used:false},
+    {k:'pacedStrikes',    label:'Paced Strikes',      used:char.pacedStrikesUsed},
   ].filter(t=>char[t.k]);
   if(activeTalents.length){
     html+=`<div class="ab-section"><div class="ab-title">Active Talents</div>`;
@@ -956,6 +967,7 @@ function renderAbilities(char, inCombat, targetId='my-ab'){
     'shieldwall','toughness','quickstrike','evasion','deathblow','shadowstep',
     'overcast','burningSoul','firewall','holyFervor','warlordAura','sweepingBlow',
     'phantomStrike','bladestorm','catastrophe','holyAura',
+    'rage','quickStep','darkEvoker','lightningIngrained','utilityFocus','assassination','swiftFeet',
   ].filter(k=>char[k]);
   if(passives.length){
     html+=`<div class="ab-section"><div class="ab-title">Passive Talents</div>`;
@@ -1133,6 +1145,7 @@ function renderActions(gs,players,me){
     if(char.divineSmite&&!char.divineSmiteUsed)  addBtn(g,'Divine Smite','+3d6 holy','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'divineSmite'}}),false,TALENT_DESCS.divineSmite);
     if(char.rallyingCry&&!char.rallyingUsed)     addBtn(g,'Rallying Cry','Heal all allies','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'rallyingCry'}}),false,TALENT_DESCS.rallyingCry);
     const isBoss=gs.enemy&&gs.enemy.threat==='Boss';
+    addBtn(g,'⏭ End Turn','Pass your turn','am-',()=>send('PLAYER_ACTION',{action:'PASS_TURN'}),false,'Skip your action this round.');
     addBtn(g,'Flee',isBoss?'No escape':'AGI vs DC10','amv-',()=>send('PLAYER_ACTION',{action:'FLEE'}),isBoss,'Attempt to flee combat. Roll d20+AGI vs DC10. Success costs opportunity damage unless you have Shadowstep.');
     body.appendChild(g);
     const alive=lastState?lastState.players.filter(p=>p.char&&p.char.alive):[];
