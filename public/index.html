@@ -388,54 +388,54 @@ const NOVICE_INFO={
 };
 
 const EXPERT_INFO={
-  berserker:   {name:'Berserker',   gains:'+6 HP. Lv3: Combat Prowess (+1d6 on every hit). Lv5: Combat Expertise (another +1d6). Rage grants immunity to fear/charm.',desc:'Battle-rage specialist. Go berserk for +2d6 damage but with 1 bane on attacks.'},
-  fighter:     {name:'Fighter',     gains:'+5 HP. Lv3: Combat Prowess (+1d6 dmg every hit). Lv4,6: +1 STR. Lv5: Combat Expertise (another +1d6).',desc:'Master of arms. Attack any weapon with 1 boon. Combat Prowess on every hit.'},
-  scout:       {name:'Scout',       gains:'+3 HP. Lv3: Quick Strike (extra attack round 1). Lv4,6: +1 AGI. Lv5: Evasion (+2 Def vs ranged).',desc:'Swift skirmisher. Extra attack on round 1 and improved evasion.'},
+  berserker:   {name:'Berserker',   gains:'+6 HP. Lv3: Combat Prowess (+1d6 every hit). Lv4,6: +1 STR. Lv5: Rage (on taking damage: +1 boon +1d6 next attack).',desc:'Battle-rage specialist. Combat Prowess on every hit. Rage procs after taking damage.'},
+  fighter:     {name:'Fighter',     gains:'+5 HP. Lv3: Paced Strikes (next hit deals ×2 damage, 1/combat). Lv4,6: +1 STR. Lv5: Combat Expertise (+1d6 every hit).',desc:'Master of arms. Paced Strikes doubles one attack per combat. Combat Expertise on every hit.'},
+  scout:       {name:'Scout',       gains:'+3 HP. Lv3: Quick Step (enemy miss = +2 Def 1 round). Lv4,6: +1 AGI. Lv5: Evasion (enemy attacks have 1 bane).',desc:'Swift skirmisher. Quick Step rewards dodging. Evasion forces banes on all attackers.'},
   thief:       {name:'Thief',       gains:'+3 HP. Lv3: Trickery (bonus d6 damage). Lv4,6: +1 AGI. Lv5: Deathblow (crits = triple weapon dice).',desc:'Cunning blade. Trickery adds bonus d6 damage per round, Deathblow devastates on crits.'},
-  ranger:      {name:'Ranger',      gains:'+4 HP. Lv3: Quick Strike. Lv4: +1 AGI. Lv5: Evasion. Lv6: +1 STR.',desc:'Wilderness hunter. Quick Strike and Evasion for mobile combat.'},
-  defender:    {name:'Defender',    gains:'+5 HP. Lv3: Shieldwall (+2 Def). Lv4: +1 AGI. Lv5: Toughness (−1 all damage). Lv6: +1 STR.',desc:'Stalwart protector. Shieldwall and Toughness for extreme resilience.'},
+  ranger:      {name:'Ranger',      gains:'+4 HP. Lv3: Quick Strike (free bonus attack round 1). Lv4: +1 AGI. Lv5: Evasion (1 bane on attackers). Lv6: +1 STR.',desc:'Wilderness hunter. Quick Strike for a free round 1 attack and Evasion to force banes.'},
+  defender:    {name:'Defender',    gains:'+5 HP. Lv3: Shieldwall (+2 Def vs all attacks). Lv4: +1 AGI. Lv5: Toughness (−1 all damage). Lv6: +1 STR.',desc:'Stalwart protector. Shieldwall and Toughness for extreme resilience.'},
   paladin:     {name:'Paladin',     gains:'+4 HP, +1 Power. Lv3: Holy Fervor (1 boon vs undead/chaos). Lv4: +1 STR. Lv5: Divine Smite (+3d6 once/combat). Lv6: +1 WIL.',desc:'Holy warrior. Boons vs evil and a devastating divine smite.'},
-  evoker:      {name:'Evoker',      gains:'+2 HP, +1 Power. Lv3: Overcast (2 castings = +2d6). Lv4,6: +1 INT. Lv5: Metamagic (free recast per rest).',desc:'Destructive caster. Overcast for +2d6. Metamagic recasts for free.'},
-  elementalist:{name:'Elementalist',gains:'+2 HP, +1 Power. Lv3: Burning Soul (fire spells +1d6). Lv4: +1 INT. Lv5: Firewall (4d6 area spell). Lv6: +1 WIL.',desc:'Fire specialist. Burning Soul +1d6 to fire. Gains Firewall area spell.'},
-  sorcerer:    {name:'Sorcerer',    gains:'+2 HP, +1 Power. Lv3: Overcast. Lv4: +1 INT. Lv5: Spell Recovery. Lv6: +1 INT.',desc:'Innate magic. Overcast for raw power, recovers castings at rest.'},
-  wizard:      {name:'Wizard',      gains:'+2 HP, +1 Power. Lv3: Overcast. Lv4: +1 INT. Lv5: Metamagic. Lv6: +1 INT.',desc:'Scholarly mage. Overcast and Metamagic for the most versatile spellcasting.'},
-  warlock:     {name:'Warlock',     gains:'+2 HP, +1 Power. Lv3: Overcast. Lv4: +1 INT. Lv5: Metamagic. Lv6: +1 WIL.',desc:'Pact-bound caster. Dark patron grants Overcast and Metamagic.'},
-  spellbinder: {name:'Spellbinder', gains:'+3 HP, +1 Power. Lv3: Burning Soul. Lv4: +1 INT. Lv5: Overcast. Lv6: +1 WIL.',desc:'Imbues weapons with magic. Burning Soul and Overcast for amplified spells.'},
+  evoker:      {name:'Evoker',      gains:'+2 HP, +1 Power. Lv3: Dark Evoker (dark spells ×2.5 vs weakness). Lv4,6: +1 INT. Lv5: Metamagic (free cast per rest).',desc:'Dark destruction specialist. Dark Evoker boosts dark spells. Metamagic for free casts.'},
+  elementalist:{name:'Elementalist',gains:'+2 HP, +1 Power. Lv3: Burning Soul (fire spells +1d6). Lv4: +1 INT. Lv5: Firewall (4d6 area spell). Lv6: +1 WIL.',desc:'Fire specialist. Burning Soul +1d6 to fire spells. Gains Firewall area spell.'},
+  sorcerer:    {name:'Sorcerer',    gains:'+2 HP, +1 Power. Lv3: Lightning Ingrained (storm spells ×2.5 vs weakness). Lv4: +1 INT. Lv5: Spell Recovery. Lv6: +1 INT.',desc:'Storm-touched. Lightning Ingrained boosts storm spells to ×2.5 vs Skaven. Recovers castings on rest.'},
+  wizard:      {name:'Wizard',      gains:'+2 HP, +1 Power. Lv3: Utility Focus (utility spells +1 round). Lv4: +1 INT. Lv5: Metamagic. Lv6: +1 INT.',desc:'Scholarly mage. Utility Focus extends all buffs. Metamagic for free casts.'},
+  warlock:     {name:'Warlock',     gains:'+2 HP, +1 Power. Lv3: Blood Offering (lose 1d6 HP to regain all rank 0-2 castings). Lv4: +1 INT. Lv5: Metamagic. Lv6: +1 WIL.',desc:'Pact-bound caster. Blood Offering trades HP for spell power. Metamagic for free casts.'},
+  spellbinder: {name:'Spellbinder', gains:'+3 HP, +1 Power. Lv3: Burning Soul (fire +1d6). Lv4: +1 INT. Lv5: Combat Prowess (+1d6 every hit). Lv6: +1 WIL.',desc:'Weapon-mage hybrid. Burning Soul for spells, Combat Prowess for melee.'},
   cleric:      {name:'Cleric',      gains:'+4 HP, +1 Power. Lv3: Holy Fervor. Lv4: +1 WIL. Lv5: Mass Heal (all allies 1d6). Lv6: +1 STR.',desc:'Champion of the faith. Holy Fervor vs evil, Mass Heal for the warband.'},
   druid:       {name:'Druid',       gains:'+4 HP, +1 Power. Lv3: Shared Recovery. Lv4: +1 WIL. Lv5: Mass Heal. Lv6: +1 WIL.',desc:'Ancient nature magic. Shared Recovery and Mass Heal for sustained support.'},
   oracle:      {name:'Oracle',      gains:'+3 HP, +1 Power. Lv3: Holy Fervor. Lv4: +1 WIL. Lv5: Divine Smite. Lv6: +1 INT.',desc:'Divine seer. Holy Fervor and Divine Smite channel prophetic wrath.'},
   witch:       {name:'Witch',       gains:'+2 HP, +1 Power. Lv3: Metamagic. Lv4: +1 WIL. Lv5: Mass Heal. Lv6: +1 INT.',desc:'Folk magic. Metamagic and Mass Heal for flexible curse-and-heal play.'},
-  assassin:    {name:'Assassin',    gains:'+3 HP. Lv3: Deathblow (crits = triple dice). Lv4: +1 AGI. Lv5: Shadowstep (flee free). Lv6: +1 INT.',desc:'Lethal precision. Triple crit dice and free escapes from combat.'},
+  assassin:    {name:'Assassin',    gains:'+3 HP. Lv3: Deathblow (crits = triple dice). Lv4: +1 AGI. Lv5: Assassination (+1d6+3 vs targets below 50% HP). Lv6: +1 INT.',desc:'Lethal precision. Triple crit dice and bonus damage when the enemy is weakened.'},
   zealot:      {name:'Zealot',      gains:'+4 HP, +1 Power. Lv3: Holy Fervor. Lv4: +1 WIL. Lv5: Divine Smite (+3d6). Lv6: +1 STR.',desc:'Righteous fury. Boon vs evil, Divine Smite once per combat.'},
   healer:      {name:'Healer',      gains:'+4 HP, +1 Power. Lv3: Mass Heal (all 1d6). Lv4: +1 WIL. Lv5: Resurrection (revive ally). Lv6: +1 WIL.',desc:'Devoted medic. Mass Heal all allies, Resurrection fully revives the fallen.'},
 };
 
 const MASTER_INFO={
   champion:    {name:'Champion',    gains:'+5 HP. Lv7: Warlord Aura (allies +1 boon). Lv8: +1 STR. Lv9: Unstoppable (survive killing blow). Lv10: +1 STR.',desc:'Living legend. Presence empowers allies. Survive one killing blow per combat.'},
-  warlord:     {name:'Warlord',     gains:'+6 HP. Lv7: Rallying Cry (heal all allies). Lv8: +1 STR. Lv9: Sweeping Blow (hit all enemies). Lv10: +1 AGI.',desc:'Battlefield commander. Rally the warband, then strike every foe at once.'},
-  avenger:     {name:'Avenger',     gains:'+5 HP. Lv7: Combat Prowess. Lv8: +1 STR. Lv9: Combat Expertise. Lv10: +1 STR.',desc:'Vengeance incarnate. Both Combat Prowess and Expertise stack for +2d6 per hit.'},
+  warlord:     {name:'Warlord',     gains:'+6 HP. Lv7: Rallying Cry (heal all allies). Lv8: +1 STR. Lv9: Sweeping Blow (hit all enemies at 75%). Lv10: +1 AGI.',desc:'Battlefield commander. Rally the warband, then strike every foe at once.'},
+  avenger:     {name:'Avenger',     gains:'+5 HP. Lv7: Combat Prowess (+1d6 every hit). Lv8: +1 STR. Lv9: Combat Expertise (another +1d6). Lv10: +1 STR.',desc:'Vengeance incarnate. Both Combat Prowess and Expertise stack for +2d6 per hit.'},
   brute:       {name:'Brute',       gains:'+8 HP. Lv7: Unstoppable. Lv8: +1 STR. Lv9: Rallying Cry. Lv10: +1 STR.',desc:'Unstoppable force. Massive HP, cannot be killed easily, heals allies.'},
-  cavalier:    {name:'Cavalier',    gains:'+5 HP. Lv7: Quick Strike. Lv8: +1 STR. Lv9: Sweeping Blow. Lv10: +1 AGI.',desc:'Mounted warrior. Quick Strike and Sweeping Blow for devastating charges.'},
-  myrmidon:    {name:'Myrmidon',    gains:'+5 HP. Lv7: Shieldwall. Lv8: +1 STR. Lv9: Toughness. Lv10: +1 AGI.',desc:'Shield master. Shieldwall and Toughness combine for exceptional resilience.'},
-  sentinel:    {name:'Sentinel',    gains:'+5 HP. Lv7: Evasion. Lv8: +1 AGI. Lv9: Toughness. Lv10: +1 STR.',desc:'Guardian. Evasion and Toughness — the hardest member of the group to cut down.'},
-  shadowblade: {name:'Shadowblade', gains:'+4 HP. Lv7: Phantom Strike (ignore armor). Lv8: +1 AGI. Lv9: Bladestorm (3 attacks). Lv10: +1 AGI.',desc:'Ghost with a blade. Bypass armor, make three attacks per action.'},
-  acrobat:     {name:'Acrobat',     gains:'+3 HP. Lv7: Evasion. Lv8: +1 AGI. Lv9: Shadowstep. Lv10: +1 AGI.',desc:'Nimble and untouchable. Superior mobility and avoidance.'},
-  executioner: {name:'Executioner', gains:'+3 HP. Lv7: Deathblow. Lv8: +1 AGI. Lv9: Phantom Strike. Lv10: +1 INT.',desc:'Lethal killer. Deathblow (triple crit dice) and Phantom Strike (ignore armor).'},
-  inquisitor:  {name:'Inquisitor',  gains:'+3 HP. Lv7: Holy Fervor. Lv8: +1 WIL. Lv9: Deathblow. Lv10: +1 STR.',desc:'Hunter of heretics. Holy Fervor vs evil, Deathblow for devastating crits.'},
-  blade:       {name:'Blade',       gains:'+4 HP. Lv7: Deathblow. Lv8: +1 AGI. Lv9: Bladestorm. Lv10: +1 AGI.',desc:'Knife-fighter elite. Deathblow crits and Bladestorm for rapid strikes.'},
-  archmage:    {name:'Archmage',    gains:'+3 HP, +2 Power. Lv7: Spell Surge (free cast once/combat). Lv8: +1 INT. Lv9: Catastrophe (10d6). Lv10: +1 INT.',desc:'Pinnacle of arcane power. Free Spell Surge and devastating Catastrophe.'},
-  arcanist:    {name:'Arcanist',    gains:'+2 HP, +1 Power. Lv7: Overcast. Lv8: +1 INT. Lv9: Metamagic. Lv10: +1 INT.',desc:'Scholar of the arcane. Overcast for +2d6 and Metamagic for free recasting.'},
-  abjurer:     {name:'Abjurer',     gains:'+2 HP, +1 Power. Lv7: Shieldwall. Lv8: +1 INT. Lv9: Toughness. Lv10: +1 WIL.',desc:'Master of Protection magic. Magical Shieldwall and Toughness defensively.'},
-  conjurer:    {name:'Conjurer',    gains:'+2 HP, +1 Power. Lv7: Overcast. Lv8: +1 INT. Lv9: Spell Surge. Lv10: +1 INT.',desc:'Summoner. Overcast for power, Spell Surge to cast without spending a casting.'},
-  transmuter:  {name:'Transmuter',  gains:'+2 HP, +1 Power. Lv7: Burning Soul. Lv8: +1 INT. Lv9: Overcast. Lv10: +1 WIL.',desc:'Alters reality. Burning Soul and Overcast for amplified arcane destruction.'},
-  stormbringer:{name:'Stormbringer',gains:'+2 HP, +1 Power. Lv7: Overcast. Lv8: +1 INT. Lv9: Catastrophe. Lv10: +1 INT.',desc:'Commands the Storm. Overcast and Catastrophe for overwhelming elemental force.'},
-  thaumaturge: {name:'Thaumaturge', gains:'+2 HP, +1 Power. Lv7: Metamagic. Lv8: +1 WIL. Lv9: Spell Surge. Lv10: +1 INT.',desc:'Master of Chaos magic. Metamagic and Spell Surge for unpredictable power.'},
+  cavalier:    {name:'Cavalier',    gains:'+5 HP. Lv7: Quick Strike (bonus attack round 1). Lv8: +1 STR. Lv9: Sweeping Blow (75% dmg to all enemies). Lv10: +1 AGI.',desc:'Mounted warrior. Quick Strike and Sweeping Blow for devastating charges.'},
+  myrmidon:    {name:'Myrmidon',    gains:'+5 HP. Lv7: Shieldwall (+2 Def). Lv8: +1 STR. Lv9: Toughness (−1 dmg). Lv10: +1 AGI.',desc:'Shield master. Shieldwall and Toughness combine for exceptional resilience.'},
+  sentinel:    {name:'Sentinel',    gains:'+5 HP. Lv7: Evasion (1 bane on attackers). Lv8: +1 AGI. Lv9: Toughness. Lv10: +1 STR.',desc:'Guardian. Evasion and Toughness — the hardest member of the group to cut down.'},
+  shadowblade: {name:'Shadowblade', gains:'+4 HP. Lv7: Phantom Strike (always hits). Lv8: +1 AGI. Lv9: Bladestorm (3 attacks). Lv10: +1 AGI.',desc:'Ghost with a blade. Bypass armor completely, make three attacks per action.'},
+  acrobat:     {name:'Acrobat',     gains:'+3 HP. Lv7: Evasion (1 bane on attackers). Lv8: +1 AGI. Lv9: Swift Feet (2 boons on all attacks). Lv10: +1 AGI.',desc:'Nimble and untouchable. Evasion forces banes on attackers. Swift Feet grants 2 boons.'},
+  executioner: {name:'Executioner', gains:'+3 HP. Lv7: Deathblow (triple crit dice). Lv8: +1 AGI. Lv9: Phantom Strike (always hits). Lv10: +1 INT.',desc:'Lethal killer. Deathblow (triple crit dice) and Phantom Strike (ignore armor).'},
+  inquisitor:  {name:'Inquisitor',  gains:'+3 HP. Lv7: Holy Fervor (1 boon vs undead/chaos). Lv8: +1 WIL. Lv9: Deathblow. Lv10: +1 STR.',desc:'Hunter of heretics. Holy Fervor vs evil, Deathblow for devastating crits.'},
+  blade:       {name:'Blade',       gains:'+4 HP. Lv7: Deathblow (triple crit dice). Lv8: +1 AGI. Lv9: Bladestorm (3 attacks). Lv10: +1 AGI.',desc:'Knife-fighter elite. Deathblow crits and Bladestorm for rapid triple strikes.'},
+  archmage:    {name:'Archmage',    gains:'+3 HP, +2 Power. Lv7: Spell Surge (free cast once/combat). Lv8: +1 INT. Lv9: Catastrophe (10d6 all enemies). Lv10: +1 INT.',desc:'Pinnacle of arcane power. Free Spell Surge and devastating Catastrophe to all enemies.'},
+  arcanist:    {name:'Arcanist',    gains:'+2 HP, +1 Power. Lv7: Utility Focus (utility spells +1 round). Lv8: +1 INT. Lv9: Metamagic (free cast per rest). Lv10: +1 INT.',desc:'Scholar of the arcane. Utility Focus extends all buffs. Metamagic for free casts.'},
+  abjurer:     {name:'Abjurer',     gains:'+2 HP, +1 Power. Lv7: Shieldwall (+2 Def). Lv8: +1 INT. Lv9: Toughness (−1 dmg). Lv10: +1 WIL.',desc:'Master of Protection magic. Magical Shieldwall and Toughness defensively.'},
+  conjurer:    {name:'Conjurer',    gains:'+2 HP, +1 Power. Lv7: Overcast (next spell +2d6, 1/rest). Lv8: +1 INT. Lv9: Spell Surge (free cast). Lv10: +1 INT.',desc:'Summoner. Overcast for +2d6 bonus, Spell Surge to cast for free.'},
+  transmuter:  {name:'Transmuter',  gains:'+2 HP, +1 Power. Lv7: Burning Soul (fire +1d6). Lv8: +1 INT. Lv9: Overcast (+2d6 next spell). Lv10: +1 WIL.',desc:'Alters reality. Burning Soul and Overcast for amplified arcane destruction.'},
+  stormbringer:{name:'Stormbringer',gains:'+2 HP, +1 Power. Lv7: Lightning Ingrained (storm spells ×2.5 vs Skaven). Lv8: +1 INT. Lv9: Catastrophe (10d6 all). Lv10: +1 INT.',desc:'Storm master. Lightning Ingrained for ×2.5 weakness damage. Catastrophe for 10d6 to all.'},
+  thaumaturge: {name:'Thaumaturge', gains:'+2 HP, +1 Power. Lv7: Metamagic (free cast per rest). Lv8: +1 WIL. Lv9: Spell Surge. Lv10: +1 INT.',desc:'Master of Chaos magic. Metamagic and Spell Surge for unpredictable power.'},
   highpriest:  {name:'High Priest', gains:'+5 HP, +2 Power. Lv7: Holy Aura (+2 Def all allies). Lv8: +1 WIL. Lv9: Miracle Heal (full HP). Lv10: +1 WIL.',desc:"Sigmar's chosen. Holy Aura protects all, Miracle Heal restores anyone to full."},
-  chaplain:    {name:'Chaplain',    gains:'+4 HP, +1 Power. Lv7: Rallying Cry. Lv8: +1 WIL. Lv9: Mass Heal. Lv10: +1 WIL.',desc:'Battlefield spiritual guide. Rallying Cry and Mass Heal keep the warband fighting.'},
-  templar:     {name:'Templar',     gains:'+4 HP, +1 Power. Lv7: Holy Fervor. Lv8: +1 STR. Lv9: Divine Smite. Lv10: +1 WIL.',desc:'Holy warrior-priest. Holy Fervor vs evil and Divine Smite for righteous combat.'},
-  exorcist:    {name:'Exorcist',    gains:'+4 HP, +1 Power. Lv7: Holy Fervor. Lv8: +1 WIL. Lv9: Resurrection. Lv10: +1 WIL.',desc:'Banisher of daemons. Holy Fervor vs chaos, Resurrection to revive fallen.'},
-  healer_m:    {name:'Healer (Master)',gains:'+4 HP, +1 Power. Lv7: Mass Heal. Lv8: +1 WIL. Lv9: Miracle Heal. Lv10: +1 WIL.',desc:'Supreme healer. Mass Heal for everyone, Miracle Heal to restore full HP.'},
-  necromancer: {name:'Necromancer', gains:'+2 HP, +1 Power. Lv7: Overcast. Lv8: +1 INT. Lv9: Spell Surge. Lv10: +1 WIL.',desc:'Master of death magic. Overcast and Spell Surge for powerful necromantic spellcasting.'},
+  chaplain:    {name:'Chaplain',    gains:'+4 HP, +1 Power. Lv7: Rallying Cry (heal all). Lv8: +1 WIL. Lv9: Mass Heal. Lv10: +1 WIL.',desc:'Battlefield spiritual guide. Rallying Cry and Mass Heal keep the warband fighting.'},
+  templar:     {name:'Templar',     gains:'+4 HP, +1 Power. Lv7: Holy Fervor (1 boon vs undead/chaos). Lv8: +1 STR. Lv9: Divine Smite (+3d6). Lv10: +1 WIL.',desc:'Holy warrior-priest. Holy Fervor vs evil and Divine Smite for righteous combat.'},
+  exorcist:    {name:'Exorcist',    gains:'+4 HP, +1 Power. Lv7: Holy Fervor. Lv8: +1 WIL. Lv9: Resurrection (fully revive ally). Lv10: +1 WIL.',desc:'Banisher of daemons. Holy Fervor vs chaos, Resurrection to revive fallen.'},
+  healer_m:    {name:'Healer (Master)',gains:'+4 HP, +1 Power. Lv7: Mass Heal (all 1d6). Lv8: +1 WIL. Lv9: Miracle Heal (full HP). Lv10: +1 WIL.',desc:'Supreme healer. Mass Heal for everyone, Miracle Heal to restore full HP.'},
+  necromancer: {name:'Necromancer', gains:'+2 HP, +1 Power. Lv7: Dark Evoker (dark spells ×2.5 vs Beast). Lv8: +1 INT. Lv9: Spell Surge (free cast). Lv10: +1 WIL.',desc:'Death master. Dark Evoker boosts dark spells to ×2.5 vs weakness. Spell Surge for free casts.'},
 };
 const TALENT_DESCS={
   weaponTraining:'Attack with 1 boon (add a d6 to your d20 roll, take higher).',
@@ -904,6 +904,7 @@ function buildCard(p,gs,isMe){
       if(c.combatProwess)   tags.push('⚔ Prowess +1d6');
       if(c.combatExpertise) tags.push('⚔ Expertise +1d6');
       if(c.pacedStrikes)    tags.push(c.pacedStrikesUsed?'⚡ Paced (used)':'⚡ Paced ×2');
+      if(c.quickstrike)     tags.push('⚡ Quick Strike (R1)');
       if(c.trickery)        tags.push('🗡 Trickery');
       if(c.quickstrike)     tags.push('⚡ Quick Strike');
       if(c.quickStep)       tags.push('👟 Quick Step');
@@ -921,8 +922,9 @@ function buildCard(p,gs,isMe){
       if(c.lightningIngrained) tags.push('⚡ Lightning ×2.5');
       if(c.utilityFocus)    tags.push('🔮 Utility Focus +1r');
       if(c.burningSoul)     tags.push('🔥 Burning Soul');
-      if(c.overcast)        tags.push('💥 Overcast');
-      if(c.metamagic)       tags.push('🔮 Metamagic');
+      if(c.overcast)        tags.push((c.activeBuffs&&c.activeBuffs.some(b=>b.overcastDmg))?'💥 OVERCAST ARMED':'💥 Overcast');
+      if(c.metamagic)       tags.push(c.metamagicUsed?'🔮 Metamagic (used)':'🔮 Metamagic');
+      if(c.catastrophe)     tags.push(c.catastropheUsed?'💥 Catastrophe (used)':'💥 Catastrophe');
       if(c.shadowstep)      tags.push('👤 Shadowstep');
       if(c.phantomStrike)   tags.push('👻 Phantom Strike');
       if(c.bladestorm)      tags.push('🌪 Bladestorm');
@@ -985,6 +987,9 @@ function renderAbilities(char, inCombat, targetId='my-ab'){
     {k:'metamagic',       label:'Metamagic',          used:char.metamagicUsed},
     {k:'bloodOffering',   label:'Blood Offering',     used:false},
     {k:'pacedStrikes',    label:'Paced Strikes',      used:char.pacedStrikesUsed},
+    {k:'overcast',        label:'Overcast',            used:!!(char.activeBuffs&&char.activeBuffs.some(b=>b.overcastDmg))},
+    {k:'metamagic',       label:'Metamagic',           used:!!char.metamagicUsed},
+    {k:'catastrophe',     label:'Catastrophe',         used:!!char.catastropheUsed},
   ].filter(t=>char[t.k]);
   if(activeTalents.length){
     html+=`<div class="ab-section"><div class="ab-title">Active Talents</div>`;

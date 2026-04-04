@@ -93,22 +93,22 @@ const EXPERT_PATHS = {
   // Arcane
   evoker:      { label:'Evoker',      hpGain:2, power:1,
     levelGains:{ 3:['darkEvoker'], 4:['+1int'], 5:['metamagic'], 6:['+1int'] },
-    desc:'Destructive caster. Overcast spends 2 castings for +2d6. Metamagic recasts a spell for free per rest.' },
+    desc:'Destructive caster. Dark Evoker boosts dark spells to ×2.5 vs weakness. Metamagic for free casts.' },
   elementalist:{ label:'Elementalist',hpGain:2, power:1,
     levelGains:{ 3:['burningSoul'], 4:['+1int'], 5:['firewall'], 6:['+1wil'] },
     desc:'Fire specialist. Burning Soul adds +1d6 to fire spells. Gains the Firewall area spell.' },
   sorcerer:    { label:'Sorcerer',    hpGain:2, power:1,
     levelGains:{ 3:['lightningIngrained'], 4:['+1int'], 5:['spellRecovery'], 6:['+1int'] },
-    desc:'Innate magic. Channels raw power — Overcast for +2d6 damage, and recovers castings on rest.' },
+    desc:'Innate magic. Lightning Ingrained boosts storm spells to ×2.5 vs weakness. Recovers castings on rest.' },
   wizard:      { label:'Wizard',      hpGain:2, power:1,
     levelGains:{ 3:['utilityFocus'], 4:['+1int'], 5:['metamagic'], 6:['+1int'] },
-    desc:'Scholarly mage. Mastery of a tradition. Overcast and Metamagic for versatile combat magic.' },
+    desc:'Scholarly mage. Utility Focus extends all utility spell durations by 1 round. Metamagic for free casts.' },
   warlock:     { label:'Warlock',     hpGain:2, power:1,
     levelGains:{ 3:['bloodOffering'], 4:['+1int'], 5:['metamagic'], 6:['+1wil'] },
-    desc:'Pact-bound caster. Dark patron grants power beyond normal limits. Overcast and Metamagic.' },
+    desc:'Pact-bound caster. Blood Offering sacrifices HP to regain spell castings. Metamagic for free casts.' },
   spellbinder: { label:'Spellbinder', hpGain:3, power:1,
     levelGains:{ 3:['burningSoul'], 4:['+1int'], 5:['combatProwess'], 6:['+1wil'] },
-    desc:'Imbues weapons with magic. Burning Soul and Overcast amplify offensive spells.' },
+    desc:'Imbues weapons with magic. Burning Soul adds fire damage. Combat Prowess deals +1d6 per hit.' },
   // Divine
   cleric:      { label:'Cleric',      hpGain:4, power:1,
     levelGains:{ 3:['holyFervor'], 4:['+1wil'], 5:['massHeal'], 6:['+1str'] },
@@ -125,7 +125,7 @@ const EXPERT_PATHS = {
   // Specialist
   assassin:    { label:'Assassin',    hpGain:3, power:0,
     levelGains:{ 3:['deathblow'], 4:['+1agi'], 5:['assassination'], 6:['+1int'] },
-    desc:'Lethal precision. Deathblow makes crits deal triple weapon dice. Shadowstep — flee for free.' },
+    desc:'Lethal precision. Deathblow triples crit dice. Assassination deals +1d6+3 when target is below 50% HP.' },
   zealot:      { label:'Zealot',      hpGain:4, power:1,
     levelGains:{ 3:['holyFervor'], 4:['+1wil'], 5:['divineSmite'], 6:['+1str'] },
     desc:'Righteous fury. Holy Fervor grants boon vs undead/chaos. Divine Smite: +3d6 once per combat.' },
@@ -164,7 +164,7 @@ const MASTER_PATHS = {
     desc:'Ghost with a blade. Phantom Strike bypasses armor. Bladestorm makes three attacks per action.' },
   acrobat:     { label:'Acrobat',     hpGain:3, power:0,
     levelGains:{ 7:['evasion'], 8:['+1agi'], 9:['swiftFeet'], 10:['+1agi'] },
-    desc:'Nimble and untouchable. Evasion and Shadowstep for superior mobility and avoidance.' },
+    desc:'Nimble and untouchable. Evasion forces 1 bane on attackers. Swift Feet grants 2 boons on all attacks.' },
   executioner: { label:'Executioner', hpGain:3, power:0,
     levelGains:{ 7:['deathblow'], 8:['+1agi'], 9:['phantomStrike'], 10:['+1int'] },
     desc:'Lethal killer. Deathblow (triple crit dice) and Phantom Strike (ignore armor) for maximum lethality.' },
@@ -180,7 +180,7 @@ const MASTER_PATHS = {
     desc:'Pinnacle of arcane power. Spell Surge for free casting. Catastrophe deals 10d6 to all enemies.' },
   arcanist:    { label:'Arcanist',    hpGain:2, power:1,
     levelGains:{ 7:['utilityFocus'], 8:['+1int'], 9:['metamagic'], 10:['+1int'] },
-    desc:'Scholar of the arcane arts. Overcast for +2d6 and Metamagic for free recasting per rest.' },
+    desc:'Scholar of the arcane arts. Utility Focus extends all utility spells by 1 round. Metamagic for free casts.' },
   abjurer:     { label:'Abjurer',     hpGain:2, power:1,
     levelGains:{ 7:['shieldwall'], 8:['+1int'], 9:['toughness'], 10:['+1wil'] },
     desc:'Master of Protection magic. Magical shields grant Shieldwall and Toughness defensively.' },
@@ -192,7 +192,7 @@ const MASTER_PATHS = {
     desc:'Alters the fabric of reality. Burning Soul and Overcast for amplified arcane destruction.' },
   stormbringer:{ label:'Stormbringer',hpGain:2, power:1,
     levelGains:{ 7:['lightningIngrained'], 8:['+1int'], 9:['catastrophe'], 10:['+1int'] },
-    desc:'Commands the Storm tradition. Overcast and Catastrophe for overwhelming elemental force.' },
+    desc:'Commands the Storm tradition. Lightning Ingrained boosts storm spells to ×2.5 vs weakness. Catastrophe for 10d6 to all.' },
   thaumaturge: { label:'Thaumaturge', hpGain:2, power:1,
     levelGains:{ 7:['metamagic'], 8:['+1wil'], 9:['spellsurge'], 10:['+1int'] },
     desc:'Master of Chaos magic. Metamagic and Spell Surge for unpredictable but powerful spellcasting.' },
@@ -214,7 +214,7 @@ const MASTER_PATHS = {
     desc:'Supreme healer. Mass Heal for the whole group and Miracle Heal to restore anyone to full HP.' },
   necromancer: { label:'Necromancer', hpGain:2, power:1,
     levelGains:{ 7:['darkEvoker'], 8:['+1int'], 9:['spellsurge'], 10:['+1wil'] },
-    desc:'Master of death magic. Overcast and Spell Surge for powerful necromantic spellcasting.' },
+    desc:'Master of death magic. Dark Evoker boosts dark spells to ×2.5 vs weakness. Spell Surge for free casts.' },
 };
 
 
@@ -640,7 +640,7 @@ function buildChar(career) {
     warlordAura:false, unstoppable:false, unstoppableUsed:false,
     rallyingCry:false, rallyingUsed:false, sweepingBlow:false,
     phantomStrike:false, bladestorm:false,
-    spellsurge:false, spellsurgeUsed:false, catastrophe:false,
+    spellsurge:false, spellsurgeUsed:false, catastrophe:false, metamagicUsed:false,
     holyAura:false, miracleHeal:false, miracleUsed:false,
     // Equipment
     equippedWeapon:startWpn, equippedArmor:startArmor,
@@ -685,7 +685,7 @@ function rollAttack(char, enemy, extraBoons=0) {
   if (char.rage&&char.rageBoon) { boons++; } // rage boon — dmg applied on hit, flag cleared there
   if (char.stimulantBoon>0) { boons++; char.stimulantBoon--; }
   if (extraBoons) boons+=extraBoons;
-  if (char.holyFervor && enemy && (enemy.undead||enemy.chaos)) boons++; // boon vs undead/chaos
+  if (char.holyFervor && enemy && ((enemy.undead||enemy.chaos)||(enemy.tags&&(enemy.tags.includes('undead')||enemy.tags.includes('chaos'))))) boons++; // boon vs undead/chaos
   if (char.warlordAura) boons++; // aura from warlord
   if (char.conditions.includes('Frightened')) banes++;
   if (char.conditions.includes('Stunned'))    banes++;
@@ -694,7 +694,7 @@ function rollAttack(char, enemy, extraBoons=0) {
   const atkBuff=getBuffVal(char,'atkBoon'||0); boons+=atkBuff;
   const {base,final}=rollD20boons(boons,banes);
   const fumble=base===1&&!forceCrit, crit=forceCrit||base===20;
-  const total=final+atkMod, hit=!fumble&&(crit||total>=enemy.ac);
+  const total=final+atkMod, hit=!fumble&&(crit||total>=enemy.ac||char.phantomStrike);
   let dmg=0, dmgParts=[];
   if (hit) {
     const weapRoll=rd(num,sides);
@@ -1002,7 +1002,7 @@ function enterNode(room, nodeType) {
       const amt=Math.ceil(p.char.maxHealth*0.6);
       p.char.health=Math.min(p.char.maxHealth,p.char.health+amt);
       p.char.catchBreathUsed=false; p.char.nimbleUsed=false; p.char.sharedUsed=false;
-      p.char.pacedStrikesUsed=false; p.char.rageBoon=false;
+      p.char.pacedStrikesUsed=false; p.char.rageBoon=false; p.char.metamagicUsed=false; p.char.overcastUsed=false;
       p.char.trickeryUsed=0; p.char.sharpeningStone=false; p.char.metamagicUsed=false;
       p.char.divineSmiteUsed=false; p.char.massHealUsed=false; p.char.resurrectionUsed=false;
       p.char.unstoppableUsed=false; p.char.rallyingUsed=false; p.char.spellsurgeUsed=false; p.char.miracleUsed=false;
@@ -1120,7 +1120,8 @@ function maybeEnemyAttack(room) {
     if(stillAliveEnemies.length>1) addLog(room,`▸ <strong>${ae.name}</strong> attacks!`,'sys');
     alive.forEach(p=>{
       const auraBonus=room.players.some(q=>q.char&&q.char.alive&&q.char.holyAura)?2:0;
-      const r=rollEnemyAttack(ae,{...p.char,defense:p.char.defense+auraBonus});
+      const shieldBonus=p.char.shieldwall?2:0;
+      const r=rollEnemyAttack(ae,{...p.char,defense:p.char.defense+auraBonus+shieldBonus});
       if(r.hit){
         // Apply damage reduction / immunity buffs
         let actualDmg=r.dmg;
@@ -1229,7 +1230,7 @@ function resolveEnemyDeath(room, deadEnemy) {
   survivors.forEach(p=>{
     p.char.xp+=xpEach; p.char.gold+=goldEach; p.char.sharpeningStone=false;
     // Reset per-combat used flags
-    p.char.divineSmiteUsed=false; p.char.spellsurgeUsed=false; p.char.pacedStrikesUsed=false; p.char.rageBoon=false;
+    p.char.divineSmiteUsed=false; p.char.spellsurgeUsed=false; p.char.pacedStrikesUsed=false; p.char.rageBoon=false; p.char.catastropheUsed=false; p.char.overcastUsed=false;
     const lv=checkLevelUp(p.char);
     if(lv.leveled) addLog(room,`🌟 ${p.name} reaches <strong>Level ${lv.newLevel}</strong>! (+${lv.hpGain} max HP)${p.char.pendingLevelUp?' — Choose a path!':''}`, 'spell');
   });
@@ -1601,6 +1602,44 @@ function handlePlayerAction(room,playerId,payload,ws){
         addLog(room,`${player.name} <em>misses</em> — d20:<strong>${r.base}</strong>${r.boonInfo}+<strong>${r.atkMod>=0?'+':''}${r.atkMod}</strong>=<strong>${r.total}</strong> vs Def<strong>${targetEnemy.ac}</strong>.`,'sys');
       }
     }
+    // Bladestorm: 3 attacks total
+    if(char.bladestorm && targetEnemy && targetEnemy.hp>0){
+      for(let bsi=0;bsi<2;bsi++){
+        if(targetEnemy.hp<=0) break;
+        addLog(room,`🌪 ${player.name} Bladestorm strike ${bsi+2}!`,'crit');
+        const rbs=rollAttack(char,targetEnemy,0);
+        if(rbs.hit){
+          targetEnemy.hp=Math.min(targetEnemy.maxHp,targetEnemy.hp-rbs.dmg);
+          addLog(room,`Bladestorm ${rbs.crit?'<strong>CRITS</strong>':'hits'} — <strong class="num-dmg">−${rbs.dmg} dmg</strong> → ${targetEnemy.name} ${Math.max(0,targetEnemy.hp)}/${targetEnemy.maxHp} HP`,rbs.crit?'crit':'dmg');
+          if(targetEnemy.hp<=0){resolveEnemyDeath(room,targetEnemy);return;}
+        } else {
+          addLog(room,`Bladestorm strike misses.`,'sys');
+        }
+      }
+    }
+    // Sweeping Blow: after first hit, all other enemies take same damage
+    if(char.sweepingBlow && r.hit && gs.enemies && gs.enemies.length>1){
+      gs.enemies.filter(e=>e&&e.hp>0&&e!==targetEnemy).forEach(se=>{
+        const sweepDmg=Math.max(1,Math.floor(r.dmg*0.75));
+        se.hp=Math.min(se.maxHp,se.hp-sweepDmg);
+        addLog(room,`💥 Sweeping Blow hits <strong>${se.name}</strong> — <strong class="num-dmg">−${sweepDmg}</strong> dmg → ${Math.max(0,se.hp)}/${se.maxHp} HP`,'crit');
+        if(se.hp<=0){resolveEnemyDeath(room,se);}
+      });
+    }
+    // Quick Strike: free second attack on round 1
+    if(char.quickstrike && gs.roundNumber===1 && targetEnemy && targetEnemy.hp>0){
+      addLog(room,`⚡ ${player.name} Quick Strike — bonus attack!`,'crit');
+      const rqs=rollAttack(char,targetEnemy,0);
+      if(rqs.fumble){
+        addLog(room,`Quick Strike fumbles!`,'sys');
+      } else if(rqs.hit){
+        targetEnemy.hp=Math.min(targetEnemy.maxHp,targetEnemy.hp-rqs.dmg);
+        addLog(room,`Quick Strike ${rqs.crit?'<strong>CRITS</strong>':'hits'} — <strong class="num-dmg">−${rqs.dmg} dmg</strong> → ${targetEnemy.name} ${Math.max(0,targetEnemy.hp)}/${targetEnemy.maxHp} HP`,rqs.crit?'crit':'dmg');
+        if(targetEnemy.hp<=0){resolveEnemyDeath(room,targetEnemy);return;}
+      } else {
+        addLog(room,`Quick Strike misses.`,'sys');
+      }
+    }
     acted=true;
   }
   else if(action==='PASS_TURN'){
@@ -1609,8 +1648,8 @@ function handlePlayerAction(room,playerId,payload,ws){
   }
   else if(action==='CAST_SPELL'){
     const spell=char.knownSpells.find(s=>s.name===data.spellName); if(!spell)return;
-    const freeCast=char.spellsurge&&!char.spellsurgeUsed&&data.useSurge;
-    if(freeCast){char.spellsurgeUsed=true;addLog(room,`${player.name} uses Spell Surge!`,'spell');}
+    const freeCast=(char.spellsurge&&!char.spellsurgeUsed&&data.useSurge)||(char.metamagic&&!char.metamagicUsed&&data.useMetamagic);
+    if(freeCast){if(data.useMetamagic&&char.metamagic&&!char.metamagicUsed){char.metamagicUsed=true;addLog(room,`${player.name} uses Metamagic — free cast!`,'spell');}else{char.spellsurgeUsed=true;addLog(room,`${player.name} uses Spell Surge!`,'spell');}}
     else {
       if(!char.castingPools) refreshCastingPools(char);
       const avail=castingsLeft(char,spell.name,spell.rank);
@@ -1821,6 +1860,16 @@ function handlePlayerAction(room,playerId,payload,ws){
         let burnBonus=0;
         const fireNames=['Flame Missile','Meteor','Fiery Volley','Fireball','Immolate','Fire Blast','Burning Hands','Firewall'];
         if(char.burningSoul&&fireNames.includes(spell.name)){burnBonus=rd(1,6);}
+        // Overcast: +2d6 damage, spends extra casting
+        const overcastBuff=(char.activeBuffs||[]).find(b=>b.overcastDmg);
+        if(overcastBuff){
+          const oc=rd(2,6); total+=oc;
+          char.activeBuffs=char.activeBuffs.filter(b=>!b.overcastDmg);
+          char.overcastUsed=false; // reset for next combat
+          // Spend an extra casting
+          if(char.castingPools&&char.castingPools[spell.name]>0) char.castingPools[spell.name]--;
+          addLog(room,`💥 Overcast! +${oc} extra damage!`,'crit');
+        }
         total=roll+b+intMod+burnBonus;
         if(spell.lifeLeech){const heal=Math.floor(total/4);char.health=Math.min(char.maxHealth,char.health+heal);addLog(room,`${player.name} leeches ${heal} HP (¼)!`,'heal');}
         // Elemental weakness check — find tradition for this spell
@@ -1955,6 +2004,14 @@ function handlePlayerAction(room,playerId,payload,ws){
     else if(t==='sharedRecovery'){if(char.sharedUsed){addLog(room,`${player.name}: already used.`,'sys');return;}char.sharedUsed=true;const h=talentHeal(char);char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} uses Shared Recovery — +<strong>${h}</strong> HP (1d6+attr×2).`,'heal');}
     else if(t==='spellRecovery'){if(char.spellRecoveryUsed){addLog(room,`${player.name}: already used.`,'sys');return;}char.spellRecoveryUsed=true;const h=talentHeal(char);char.health=Math.min(char.maxHealth,char.health+h);const rr=regainCasting(char,1);addLog(room,`${player.name} uses Spell Recovery — +<strong>${h}</strong> HP (1d6+attr×2) + 1 rank ${Math.max(0,rr)} casting.`,'spell');}
     else if(t==='divineSmite'){if(char.divineSmiteUsed){addLog(room,`${player.name}: Divine Smite already used.`,'sys');return;}char.divineSmiteUsed=true;const _te=getTargetEnemy(gs);if(!_te)return;const dmg=rd(3,6);_te.hp-=dmg;addLog(room,`${player.name} calls Divine Smite — <strong>${dmg}</strong> holy dmg!`,'spell');if(_te.hp<=0){resolveEnemyDeath(room,_te);return;}}
+    else if(t==='overcast'){
+      if(!char.overcast){addLog(room,`${player.name}: no Overcast.`,'sys');return;}
+      if(char.overcastUsed){addLog(room,`${player.name}: Overcast already armed.`,'sys');return;}
+      char.overcastUsed=true;
+      // Armed: next spell spends 2 castings and deals +2d6 damage (applied in CAST_SPELL handler)
+      addBuff(char,'Overcast (+2d6)',{overcastDmg:true},1);
+      addLog(room,`${player.name} arms <strong>Overcast</strong> — next spell spends 2 castings, deals +2d6!`,'spell');
+    }
     else if(t==='bloodOffering'){
       if(!char.bloodOffering){addLog(room,`${player.name}: no Blood Offering.`,'sys');return;}
       const boCost=rd(1,6); char.health=Math.max(1,char.health-boCost);
@@ -1965,6 +2022,20 @@ function handlePlayerAction(room,playerId,payload,ws){
         }
       });
       addLog(room,`${player.name} uses Blood Offering — loses <strong>${boCost}</strong> HP, regains 1 casting of all rank 0-2 spells!`,'chaos');
+      acted=true;
+    }
+    else if(t==='catastrophe'){
+      if(!char.catastrophe){addLog(room,`${player.name}: no Catastrophe.`,'sys');return;}
+      if(char.catastropheUsed){addLog(room,`${player.name}: Catastrophe already used.`,'sys');return;}
+      char.catastropheUsed=true;
+      const enemies=gs.enemies&&gs.enemies.length>0?gs.enemies.filter(e=>e&&e.hp>0):[gs.enemy].filter(Boolean);
+      if(!enemies.length){addLog(room,'No enemies.','sys');return;}
+      const dmg=rd(10,6);
+      enemies.forEach(e=>{
+        e.hp=Math.min(e.maxHp,e.hp-dmg);
+        addLog(room,`💥 Catastrophe hits <strong>${e.name}</strong> — <strong class="num-dmg">−${dmg} dmg</strong> → ${Math.max(0,e.hp)}/${e.maxHp} HP`,'crit');
+        if(e.hp<=0){resolveEnemyDeath(room,e);}
+      });
       acted=true;
     }
     else if(t==='pacedStrikes'){
