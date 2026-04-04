@@ -511,36 +511,36 @@ function getSpellsForPower(traditionId, power) {
 const ENEMY_POOLS = {
   low: [
     // tags: skaven=call the pack, chaos=holy weakness, undead=fire weakness+undeath passive, beast=dark weakness+rage passive
-    {name:'Skaven Clanrat',     type:'Skaven',  threat:'Low',      hp:8,  ac:12,atk:0,xp:3,gold:[2,8],   tags:['skaven']},
-    {name:'Beastman Gor',       type:'Beastmen',threat:'Low',      hp:12, ac:13,atk:0,xp:3,gold:[3,10],  tags:['beast'],  chaos:true},
+    {name:'Skaven Clanrat',     type:'Skaven',  threat:'Low',      hp:15, ac:12,atk:0,xp:3,gold:[2,8],   tags:['skaven']},
+    {name:'Beastman Gor',       type:'Beastmen',threat:'Low',      hp:10, ac:13,atk:0,xp:3,gold:[3,10],  tags:['beast'],  chaos:true},
     {name:'Undead Skeleton',    type:'Undead',  threat:'Low',      hp:15, ac:10,atk:0,xp:3,gold:[0,5],   tags:['undead'], undead:true},
-    {name:'Mutant Thug',        type:'Cultist', threat:'Low',      hp:10, ac:11,atk:0,xp:3,gold:[5,15],  tags:['chaos'],  chaos:true},
+    {name:'Mutant Thug',        type:'Cultist', threat:'Low',      hp:15, ac:11,atk:0,xp:3,gold:[5,15],  tags:['chaos'],  chaos:true},
   ],
   mid: [
     {name:'Chaos Marauder',     type:'Chaos',   threat:'Moderate', hp:30, ac:14,atk:2,xp:5,gold:[10,25], tags:['chaos'],  chaos:true},
-    {name:'Skaven Stormvermin', type:'Skaven',  threat:'Moderate', hp:28, ac:15,atk:2,xp:5,gold:[8,20],  tags:['skaven']},
-    {name:'Wight',              type:'Undead',  threat:'Moderate', hp:38, ac:12,atk:2,xp:5,gold:[5,15],  tags:['undead'], undead:true,lifeLeech:true},
-    {name:'Plague Monk',        type:'Chaos',   threat:'Moderate', hp:29, ac:13,atk:2,xp:5,gold:[5,15],  tags:['chaos'],  chaos:true},
+    {name:'Skaven Stormvermin', type:'Skaven',  threat:'Moderate', hp:30, ac:15,atk:2,xp:5,gold:[8,20],  tags:['skaven']},
+    {name:'Wight',              type:'Undead',  threat:'Moderate', hp:35, ac:12,atk:2,xp:5,gold:[5,15],  tags:['undead'], undead:true,lifeLeech:true},
+    {name:'Plague Monk',        type:'Chaos',   threat:'Moderate', hp:35, ac:13,atk:2,xp:5,gold:[5,15],  tags:['chaos'],  chaos:true},
   ],
   high: [
     {name:'Chaos Warrior',      type:'Chaos',   threat:'High',     hp:45, ac:16,atk:3,xp:8,gold:[15,40], tags:['chaos'],  chaos:true},
-    {name:'Vampire Count',      type:'Undead',  threat:'High',     hp:50, ac:15,atk:3,xp:8,gold:[20,60], tags:['undead'], undead:true,lifeLeech:true},
-    {name:'Bloodletter',        type:'Chaos',   threat:'High',     hp:55, ac:15,atk:3,xp:8,gold:[25,50], tags:['chaos'],  insanityAtk:true,chaos:true},
-    {name:'Skaven Warlord',     type:'Skaven',  threat:'High',     hp:42, ac:14,atk:3,xp:8,gold:[10,30], tags:['skaven']},
+    {name:'Vampire Count',      type:'Undead',  threat:'High',     hp:45, ac:15,atk:3,xp:8,gold:[20,60], tags:['undead'], undead:true,lifeLeech:true},
+    {name:'Bloodletter',        type:'Chaos',   threat:'High',     hp:45, ac:15,atk:3,xp:8,gold:[25,50], tags:['chaos'],  insanityAtk:true,chaos:true},
+    {name:'Skaven Warlord',     type:'Skaven',  threat:'High',     hp:50, ac:14,atk:3,xp:8,gold:[10,30], tags:['skaven']},
   ],
   // Boss 1 (depth 10) — random
   boss1: [
-    {name:'Skaven Warlord Gnashteeth', type:'Skaven Boss', threat:'Boss',hp:80, ac:15,atk:0,xp:15,gold:[30,80],  tags:['skaven']},
-    {name:'Beastlord Kragthor',        type:'Beastmen Boss',threat:'Boss',hp:95, ac:16,atk:0,xp:15,gold:[25,70], tags:['beast'], chaos:true},
+    {name:'Skaven Warlord Gnashteeth', type:'Skaven Boss', threat:'Boss',hp:45, ac:15,atk:0,xp:15,gold:[30,80],  tags:['skaven']},
+    {name:'Beastlord Kragthor',        type:'Beastmen Boss',threat:'Boss',hp:40, ac:16,atk:0,xp:15,gold:[25,70], tags:['beast'], chaos:true},
   ],
   // Boss 2 (depth 20) — random, regen removed from Varghulf, life leech stays
   boss2: [
-    {name:'Varghulf',            type:'Undead Boss', threat:'Boss',hp:138,ac:15,atk:3,xp:15,gold:[200,200],tags:['undead'],undead:true,lifeLeech:true},
-    {name:'Bonebreaker Ratogre', type:'Skaven Boss', threat:'Boss',hp:138,ac:16,atk:3,xp:15,gold:[200,200],tags:['skaven'],insanityAtk:true},
+    {name:'Varghulf',            type:'Undead Boss', threat:'Boss',hp:120,ac:15,atk:3,xp:15,gold:[200,200],tags:['undead'],undead:true,lifeLeech:true},
+    {name:'Bonebreaker Ratogre', type:'Skaven Boss', threat:'Boss',hp:105,ac:16,atk:3,xp:15,gold:[200,200],tags:['skaven'],insanityAtk:true},
   ],
   // Boss 3 (depth 30) — Saurian Ancient with regeneration
   boss3: [
-    {name:'Saurian Ancient', type:'Ancient Boss',threat:'Boss',hp:250,ac:15,atk:4,xp:15,gold:[60,150],tags:[],regen:true},
+    {name:'Saurian Ancient', type:'Ancient Boss',threat:'Boss',hp:140,ac:15,atk:4,xp:15,gold:[60,150],tags:[],regen:true},
   ],
 };
 
@@ -1078,11 +1078,11 @@ function buildLootOptions(bossCount=0) {
 function buildTurnOrder(room) {
   const gs = room.gs;
   const order = [];
-  // Players in room order (top to bottom)
+  // ALL players first (top to bottom)
   room.players.filter(p => p.char && p.char.alive).forEach(p => {
     order.push({ type: 'player', id: p.id, name: p.name });
   });
-  // Enemies in array order (top to bottom)
+  // THEN all enemies (top to bottom)
   (gs.enemies || []).filter(e => e && e.hp > 0).forEach(e => {
     order.push({ type: 'enemy', id: e.id || e.name, name: e.name });
   });
@@ -1129,7 +1129,7 @@ function advanceTurn(room) {
         if (stillAlive) fireEnemyTurn(room, stillAlive);
         else advanceTurn(room);
         broadcastState(room.code);
-      }, 1400);
+      }, 800);
     } else {
       advanceTurn(room); // skip dead enemy
     }
@@ -1183,7 +1183,7 @@ function endRound(room) {
       if (ae) fireEnemyTurn(room, ae);
       else advanceTurn(room);
       broadcastState(room.code);
-    }, 1400);
+    }, 800);
   } else {
     // First actor is a player — clear them from acted list and announce
     gs.playersActedThisRound = gs.playersActedThisRound.filter(id => id !== first.id);
@@ -1253,7 +1253,7 @@ function fireEnemyTurn(room, ae) {
       p.char.health = Math.max(0, p.char.health - dmg);
       const crit = r.crit ? ' CRIT!' : '';
       const dmgBreak = `${ae.dmgNum}d${ae.dmgSides}(${r.dmgRoll})${ae.dmgBonus ? '+' + ae.dmgBonus : ''}${r.critRoll ? '+' + r.critRoll + ' crit' : ''}`;
-      addLog(room, `${ae.name} hits ${p.name} — -${dmg} dmg${crit} [d20:${r.base}+${ae.atk}=${r.total} vs Def${defTotal}] [${dmgBreak}] -> ${p.name} ${p.char.health}/${p.char.maxHealth} HP`, 'dmg-taken');
+      addLog(room, `${ae.name} hits <strong>${p.name}</strong> — <strong class="num-dmg">-${dmg} dmg</strong>${crit} [d20:<strong>${r.base}</strong>+atk<strong>${ae.atk>=0?'+':''}${ae.atk}</strong>=<strong>${r.total}</strong> vs Def<strong>${defTotal}</strong>] [dmg: ${dmgBreak}] → ${p.name} <strong>${p.char.health}</strong>/${p.char.maxHealth} HP`, 'dmg-taken');
       if (ae.lifeLeech) {
         if (ae.name === 'Varghulf') { ae._leechAccum = (ae._leechAccum || 0) + dmg; }
         else { const l = Math.floor(dmg / 4); ae.hp = Math.min(ae.maxHp, ae.hp + l); addLog(room, `${ae.name} leeches ${l} HP.`, 'chaos'); }
@@ -1262,7 +1262,7 @@ function fireEnemyTurn(room, ae) {
       if (p.char.rage && dmg > 0 && !p.char.rageBoon) { p.char.rageBoon = true; addLog(room, `${p.name} RAGES — next attack +1 boon +1d6!`, 'crit'); }
       checkDeath(room, p);
     } else {
-      if (!r.skipped) addLog(room, `${ae.name} misses ${p.name} — d20:${r.base}+${ae.atk}=${r.total} vs Def${defTotal}.`, 'sys');
+      if (!r.skipped) addLog(room, `${ae.name} <em>misses</em> <strong>${p.name}</strong> — d20:<strong>${r.base}</strong>+atk<strong>${ae.atk>=0?'+':''}${ae.atk}</strong>=<strong>${r.total}</strong> vs Def<strong>${defTotal}</strong>.`, 'sys');
     }
   });
   // Multi-attack
@@ -1280,7 +1280,7 @@ function fireEnemyTurn(room, ae) {
   // Call the Pack
   if (ae.tags && ae.tags.includes('skaven') && ae.hp < ae.maxHp * 0.6 && !(gs.packCooldown > 0) && gs.enemies && gs.enemies.length < 4) {
     gs.packCooldown = 2;
-    const clanrat = scaleEnemy({ name: 'Skaven Clanrat', type: 'Skaven', threat: 'Low', hp: 8, ac: 12, atk: 0, xp: 0, gold: [0, 0], tags: ['skaven'] },
+    const clanrat = scaleEnemy({ name: 'Skaven Clanrat', type: 'Skaven', threat: 'Low', hp: 15, ac: 12, atk: 0, xp: 0, gold: [0, 0], tags: ['skaven'] },
       room.players.filter(p => p.connected && p.char && p.char.alive).length, false, gs.bossCount);
     clanrat.id = 'pack_' + Date.now();
     gs.enemies.push(clanrat);
@@ -1410,7 +1410,7 @@ function maybeEnemyAttack(room) {
     // CALL THE PACK (skaven tag): below 60% HP, shared 2-round cooldown across all skaven
     if(ae.tags&&ae.tags.includes('skaven')&&ae.hp<ae.maxHp*0.6&&!(gs.packCooldown>0)&&gs.enemies&&gs.enemies.length<4){
       gs.packCooldown=2; // blocks all skaven from calling for 2 rounds
-      const clanrat=scaleEnemy({name:'Skaven Clanrat',type:'Skaven',threat:'Low',hp:8,ac:12,atk:0,xp:0,gold:[0,0],tags:['skaven']},
+      const clanrat=scaleEnemy({name:'Skaven Clanrat',type:'Skaven',threat:'Low',hp:15,ac:12,atk:0,xp:0,gold:[0,0],tags:['skaven']},
         room.players.filter(p=>p.connected&&p.char&&p.char.alive).length,false,gs.bossCount);
       clanrat.id='pack_'+Date.now();
       gs.enemies.push(clanrat);
