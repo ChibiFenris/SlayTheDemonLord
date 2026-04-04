@@ -113,17 +113,25 @@ input::placeholder{color:var(--text-dim);font-style:italic;}
 .log-line.death{color:var(--blood-bright);font-weight:600;}.log-line.chaos{color:var(--chaos);}
 /* BATTLE ARENA */
 .battle-panel{padding:12px;}
-.battle-arena{display:grid;grid-template-columns:1fr 50px 1fr;align-items:center;gap:8px;min-height:170px;}
+.battle-arena{display:grid;grid-template-columns:1fr 50px 1fr;align-items:center;gap:8px;min-height:200px;}
+.e-status-box{margin-top:5px;display:flex;flex-wrap:wrap;gap:3px;justify-content:flex-end;}
+.e-status-chip{font-size:10px;font-family:'IM Fell English',serif;padding:2px 6px;border-radius:3px;display:inline-flex;align-items:center;gap:2px;border:1px solid;}
+.e-chip-dot{background:rgba(180,30,30,.25);color:#ff7070;border-color:rgba(200,50,50,.4);}
+.e-chip-debuff{background:rgba(100,40,160,.25);color:#c080ff;border-color:rgba(130,60,200,.4);}
+.e-chip-weak{background:rgba(160,100,0,.2);color:#ffaa44;border-color:rgba(180,120,0,.3);}
+.e-chip-tag{background:rgba(30,30,80,.2);color:var(--gold);border-color:rgba(50,50,120,.3);}
+.float-num.dot{color:#ff9944;font-size:18px;text-shadow:0 0 8px rgba(255,150,50,.7),1px 1px 2px rgba(0,0,0,.9);}
+.float-num.debuff{color:#c080ff;font-size:16px;font-style:italic;text-shadow:0 0 8px rgba(180,80,255,.5),1px 1px 2px rgba(0,0,0,.9);}
 .battle-side{display:flex;flex-direction:column;gap:6px;}
 .battle-vs{font-family:'UnifrakturMaguntia',cursive;font-size:31px;color:var(--blood);opacity:.5;text-align:center;}
 .token-row{display:flex;align-items:center;gap:8px;}
 .token-row.er{flex-direction:row-reverse;}
-.tok{width:94px;height:94px;border-radius:50%;object-fit:cover;border:2px solid var(--border-bright);flex-shrink:0;}
+.tok{width:108px;height:108px;border-radius:50%;object-fit:cover;border:2px solid var(--border-bright);flex-shrink:0;}
 .tok.fallen{filter:grayscale(1) brightness(.4);transform:rotate(90deg);}
 .tok.acted{border-color:#4a9a4a;}
 .tok.mine{border-color:var(--gold);box-shadow:0 0 8px rgba(201,162,53,.4);}
 .tok.enemy{border-color:var(--blood);box-shadow:0 0 8px rgba(139,26,26,.4);}
-.tok-ph{width:94px;height:94px;border-radius:50%;background:rgba(30,20,8,.8);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+.tok-ph{width:108px;height:108px;border-radius:50%;background:rgba(30,20,8,.8);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;}
 .tok-info{flex:1;min-width:0;}
 .tok-name{font-family:'Cinzel',serif;font-size:14px;color:var(--gold);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .tok-sub{font-size:12px;color:var(--text-dim);margin-bottom:3px;}
@@ -133,14 +141,14 @@ input::placeholder{color:var(--text-dim);font-style:italic;}
 .tok-badge{font-size:11px;font-family:'Cinzel',serif;padding:1px 4px;border-radius:4px;margin-top:2px;display:inline-block;}
 .tb-a{background:rgba(40,80,40,.3);color:#80c080;border:1px solid rgba(50,120,50,.4);}
 .tb-f{background:rgba(100,10,10,.3);color:#cc4040;border:1px solid rgba(160,20,20,.4);}
-.e-name{font-family:'UnifrakturMaguntia',cursive;font-size:22px;color:var(--blood-bright);text-align:right;line-height:1.1;}
+.e-name{font-family:'UnifrakturMaguntia',cursive;font-size:26px;color:var(--blood-bright);text-align:right;line-height:1.1;}
 .e-sub{font-size:12px;color:var(--text-dim);text-align:right;}
 .threat-b{font-size:12px;font-family:'Cinzel',serif;padding:1px 5px;border-radius:4px;display:inline-block;}
 .tl{color:#80b080;border:1px solid rgba(80,140,80,.4);background:rgba(30,60,30,.3);}
 .tm{color:#c09040;border:1px solid rgba(180,130,50,.4);background:rgba(60,40,10,.3);}
 .th{color:#cc5050;border:1px solid rgba(180,40,40,.4);background:rgba(80,20,20,.3);}
 .tb{color:var(--gold-bright);border:1px solid rgba(200,160,50,.5);background:rgba(80,50,0,.4);}
-.e-stats{display:flex;gap:8px;font-size:12px;color:var(--text-dim);justify-content:flex-end;flex-wrap:wrap;margin-top:3px;}
+.e-stats{display:flex;gap:8px;font-size:13px;color:var(--text-dim);justify-content:flex-end;flex-wrap:wrap;margin-top:3px;}
 .e-stats span{color:var(--parch);}
 /* ACTIONS */
 .actions-panel{padding:11px;}
@@ -390,8 +398,8 @@ const NOVICE_INFO={
 const EXPERT_INFO={
   berserker:   {name:'Berserker',   gains:'+6 HP. Lv3: Combat Prowess (+1d6 every hit). Lv4,6: +1 STR. Lv5: Rage (on taking damage: +1 boon +1d6 next attack).',desc:'Battle-rage specialist. Combat Prowess on every hit. Rage procs after taking damage.'},
   fighter:     {name:'Fighter',     gains:'+5 HP. Lv3: Paced Strikes (next hit deals ×2 damage, 1/combat). Lv4,6: +1 STR. Lv5: Combat Expertise (+1d6 every hit).',desc:'Master of arms. Paced Strikes doubles one attack per combat. Combat Expertise on every hit.'},
-  scout:       {name:'Scout',       gains:'+3 HP. Lv3: Quick Step (enemy miss = +2 Def 1 round). Lv4,6: +1 AGI. Lv5: Evasion (enemy attacks have 1 bane).',desc:'Swift skirmisher. Quick Step rewards dodging. Evasion forces banes on all attackers.'},
-  thief:       {name:'Thief',       gains:'+3 HP. Lv3: Trickery (bonus d6 damage). Lv4,6: +1 AGI. Lv5: Deathblow (crits = triple weapon dice).',desc:'Cunning blade. Trickery adds bonus d6 damage per round, Deathblow devastates on crits.'},
+  scout:       {name:'Scout',       gains:'+3 HP. Lv3: Quick Step (your miss = +2 Def 1 round). Lv4,6: +1 AGI. Lv5: Evasion (enemy attacks have 1 bane).',desc:'Swift skirmisher. Quick Step rewards dodging. Evasion forces banes on all attackers.'},
+  thief:       {name:'Thief',       gains:'+3 HP. Lv3: Trickery (+1d6 dmg + 1 poison stack per hit). Lv4,6: +1 AGI. Lv5: Poisoned Blades (+2/+4 stacks on hit/crit).',desc:'Cunning blade. Trickery adds +1d6 damage + 1 poison stack per hit. Poisoned Blades adds 2-4 poison stacks on hits.'},
   ranger:      {name:'Ranger',      gains:'+4 HP. Lv3: Quick Strike (free bonus attack round 1). Lv4: +1 AGI. Lv5: Evasion (1 bane on attackers). Lv6: +1 STR.',desc:'Wilderness hunter. Quick Strike for a free round 1 attack and Evasion to force banes.'},
   defender:    {name:'Defender',    gains:'+5 HP. Lv3: Shieldwall (+2 Def vs all attacks). Lv4: +1 AGI. Lv5: Toughness (−1 all damage). Lv6: +1 STR.',desc:'Stalwart protector. Shieldwall and Toughness for extreme resilience.'},
   paladin:     {name:'Paladin',     gains:'+4 HP, +1 Power. Lv3: Holy Fervor (1 boon vs undead/chaos). Lv4: +1 STR. Lv5: Divine Smite (+3d6 once/combat). Lv6: +1 WIL.',desc:'Holy warrior. Boons vs evil and a devastating divine smite.'},
@@ -405,7 +413,7 @@ const EXPERT_INFO={
   druid:       {name:'Druid',       gains:'+4 HP, +1 Power. Lv3: Shared Recovery. Lv4: +1 WIL. Lv5: Mass Heal. Lv6: +1 WIL.',desc:'Ancient nature magic. Shared Recovery and Mass Heal for sustained support.'},
   oracle:      {name:'Oracle',      gains:'+3 HP, +1 Power. Lv3: Holy Fervor. Lv4: +1 WIL. Lv5: Divine Smite. Lv6: +1 INT.',desc:'Divine seer. Holy Fervor and Divine Smite channel prophetic wrath.'},
   witch:       {name:'Witch',       gains:'+2 HP, +1 Power. Lv3: Metamagic. Lv4: +1 WIL. Lv5: Mass Heal. Lv6: +1 INT.',desc:'Folk magic. Metamagic and Mass Heal for flexible curse-and-heal play.'},
-  assassin:    {name:'Assassin',    gains:'+3 HP. Lv3: Deathblow (crits = triple dice). Lv4: +1 AGI. Lv5: Assassination (+1d6+3 vs targets below 50% HP). Lv6: +1 INT.',desc:'Lethal precision. Triple crit dice and bonus damage when the enemy is weakened.'},
+  assassin:    {name:'Assassin',    gains:'+3 HP. Lv3: Poisoned Blades (hit: +2 stacks, crit: +4). Lv4: +1 AGI. Lv5: Assassination (+1d6+3 vs targets below 50% HP). Lv6: +1 INT.',desc:'Lethal precision. Poisoned Blades stacks poison on hits. Assassination deals +1d6+3 or adds 3 poison stacks.'},
   zealot:      {name:'Zealot',      gains:'+4 HP, +1 Power. Lv3: Holy Fervor. Lv4: +1 WIL. Lv5: Divine Smite (+3d6). Lv6: +1 STR.',desc:'Righteous fury. Boon vs evil, Divine Smite once per combat.'},
   healer:      {name:'Healer',      gains:'+4 HP, +1 Power. Lv3: Mass Heal (all 1d6). Lv4: +1 WIL. Lv5: Resurrection (revive ally). Lv6: +1 WIL.',desc:'Devoted medic. Mass Heal all allies, Resurrection fully revives the fallen.'},
 };
@@ -420,9 +428,9 @@ const MASTER_INFO={
   sentinel:    {name:'Sentinel',    gains:'+5 HP. Lv7: Evasion (1 bane on attackers). Lv8: +1 AGI. Lv9: Toughness. Lv10: +1 STR.',desc:'Guardian. Evasion and Toughness — the hardest member of the group to cut down.'},
   shadowblade: {name:'Shadowblade', gains:'+4 HP. Lv7: Phantom Strike (always hits). Lv8: +1 AGI. Lv9: Bladestorm (3 attacks). Lv10: +1 AGI.',desc:'Ghost with a blade. Bypass armor completely, make three attacks per action.'},
   acrobat:     {name:'Acrobat',     gains:'+3 HP. Lv7: Evasion (1 bane on attackers). Lv8: +1 AGI. Lv9: Swift Feet (2 boons on all attacks). Lv10: +1 AGI.',desc:'Nimble and untouchable. Evasion forces banes on attackers. Swift Feet grants 2 boons.'},
-  executioner: {name:'Executioner', gains:'+3 HP. Lv7: Deathblow (triple crit dice). Lv8: +1 AGI. Lv9: Phantom Strike (always hits). Lv10: +1 INT.',desc:'Lethal killer. Deathblow (triple crit dice) and Phantom Strike (ignore armor).'},
+  executioner: {name:'Executioner', gains:'+3 HP. Lv7: Deathblow (triple crit dice). Lv8: +1 AGI. Lv9: Phantom Strike (always hits). Lv10: +1 INT.',desc:'Lethal killer. Phantom Strike always hits. Poisoned Blades stacks poison on every hit and crit.'},
   inquisitor:  {name:'Inquisitor',  gains:'+3 HP. Lv7: Holy Fervor (1 boon vs undead/chaos). Lv8: +1 WIL. Lv9: Deathblow. Lv10: +1 STR.',desc:'Hunter of heretics. Holy Fervor vs evil, Deathblow for devastating crits.'},
-  blade:       {name:'Blade',       gains:'+4 HP. Lv7: Deathblow (triple crit dice). Lv8: +1 AGI. Lv9: Bladestorm (3 attacks). Lv10: +1 AGI.',desc:'Knife-fighter elite. Deathblow crits and Bladestorm for rapid triple strikes.'},
+  blade:       {name:'Blade',       gains:'+4 HP. Lv7: Poisoned Blades (+2 stacks on hit, +4 on crit). Lv8: +1 AGI. Lv9: Bladestorm (3 attacks). Lv10: +1 AGI.',desc:'Knife-fighter elite. Poisoned Blades stacks poison on every hit. Bladestorm applies it three times.'},
   archmage:    {name:'Archmage',    gains:'+3 HP, +2 Power. Lv7: Spell Surge (free cast once/combat). Lv8: +1 INT. Lv9: Catastrophe (10d6 all enemies). Lv10: +1 INT.',desc:'Pinnacle of arcane power. Free Spell Surge and devastating Catastrophe to all enemies.'},
   arcanist:    {name:'Arcanist',    gains:'+2 HP, +1 Power. Lv7: Utility Focus (utility spells +1 round). Lv8: +1 INT. Lv9: Metamagic (free cast per rest). Lv10: +1 INT.',desc:'Scholar of the arcane. Utility Focus extends all buffs. Metamagic for free casts.'},
   abjurer:     {name:'Abjurer',     gains:'+2 HP, +1 Power. Lv7: Shieldwall (+2 Def). Lv8: +1 INT. Lv9: Toughness (−1 dmg). Lv10: +1 WIL.',desc:'Master of Protection magic. Magical Shieldwall and Toughness defensively.'},
@@ -440,7 +448,7 @@ const MASTER_INFO={
 const TALENT_DESCS={
   weaponTraining:'Attack with 1 boon (add a d6 to your d20 roll, take higher).',
   catchBreath:'Once per rest: heal your Healing Rate (MaxHP÷4) as a free action.',
-  trickery:'First attack each round deals +1d6 bonus damage (once per round).',
+  trickery:'+1d6 bonus damage on first attack each round. Also applies 1 poison stack on hit.',
   nimbleRecovery:'Once per rest: heal your Healing Rate.',
   spellRecovery:'Once per rest: heal your Healing Rate and regain 1 spell casting.',
   sharedRecovery:'Once per rest: heal your Healing Rate.',
@@ -471,12 +479,12 @@ const TALENT_DESCS={
   holyAura:'All allies gain +2 Defense while you are alive.',
   pacedStrikes:'Active (1×/combat) — Next attack that hits deals DOUBLE damage.',
   rage:'Passive — When you take damage, your next attack has +1 boon and +1d6 bonus damage.',
-  quickStep:'Passive — When an enemy misses you, gain +2 Defense for 1 round.',
+  quickStep:'Passive — When YOUR attack misses, gain +2 Defense for 1 round.',
   bloodOffering:'Active — Lose 1d6 HP to regain 1 casting of every rank 0-2 spell you know.',
   darkEvoker:'Passive — Dark element spells deal ×2.5 vs weakness instead of ×2.',
   lightningIngrained:'Passive — Lightning element spells deal ×2.5 vs weakness instead of ×2.',
   utilityFocus:'Passive — All utility spells last 1 extra round.',
-  assassination:'Passive — When target is below 50% HP, deal +1d6+3 bonus damage per hit.',
+  assassination:'Passive — Below 50% HP: deal +1d6+3 bonus damage. Above 50% HP: apply 3 poison stacks instead.',
   swiftFeet:'Passive — All your attacks have 2 boons.',
   miracleHeal:'Once per rest: restore a target to their full maximum HP.',
 };
@@ -793,20 +801,45 @@ function renderBattle(gs,players,me){
     const WEAKNESSES_C={skaven:'⚡ Weak: Lightning & Holy',chaos:'✨ Weak: Holy',undead:'🔥 Weak: Fire',beast:'🌑 Weak: Dark & Shadow'};
     const debuffs=e.activeDebuffs||[];
     const weakLine=(e.tags||[]).map(t=>WEAKNESSES_C[t]||'').filter(Boolean).join(' · ');
-    const debuffHtml=(debuffs.length||weakLine)?`<div style="font-size:9px;margin-top:2px">${weakLine?`<span style="color:#ffaa44">${weakLine}</span> `:''}${debuffs.length?`<span style="color:var(--blood-bright)">${debuffs.map(d=>`${d.name}(${d.duration}r)`).join(' · ')}</span>`:''}</div>`:'';
+    const poisonStr=e._poisonStacks&&e._poisonStacks>0?`<span style="color:#80ff40">☠ Poison ×${e._poisonStacks} (${e._poisonStacks}d3/turn)</span> `:'';
+    const debuffHtml=(debuffs.length||weakLine||poisonStr)?`<div style="font-size:9px;margin-top:2px">${poisonStr}${weakLine?`<span style="color:#ffaa44">${weakLine}</span> `:''}${debuffs.length?`<span style="color:var(--blood-bright)">${debuffs.map(d=>`${d.name}(${d.duration}r)`).join(' · ')}</span>`:''}</div>`:'';
     // Target button for multi-enemy
     const targetBtn=enemies.length>1&&!isTarget
       ?`<button class="btn" style="font-size:9px;padding:2px 6px;margin-top:3px" onclick="send('PLAYER_ACTION',{action:'TARGET_ENEMY',data:{idx:${idx}}})">Target</button>`
       :enemies.length>1?'<div style="font-size:9px;color:var(--gold);margin-top:2px">▶ Targeted</div>':'';
+    // Build status chip box
+    const dotChips=[];
+    if(e._poisonStacks&&e._poisonStacks>0) dotChips.push(`<span class="e-status-chip e-chip-dot">☠ Poison ×${e._poisonStacks}</span>`);
+    (e.activeDebuffs||[]).forEach(d=>{
+      if(d.dotDmg) dotChips.push(`<span class="e-status-chip e-chip-dot">${d.name} ${d.dotDmg}dmg ×${d.duration}r</span>`);
+    });
+    const debuffChips=(e.activeDebuffs||[]).filter(d=>!d.dotDmg).map(d=>{
+      const icons={'Blinded':'👁','Stunned':'💫','Slowed':'❄','Figment':'👻','Glamer (miss)':'✨','Vine Snare':'🌿','Enervated':'💔'};
+      const icon=icons[d.name]||'⚠';
+      return `<span class="e-status-chip e-chip-debuff">${icon} ${d.name} ×${d.duration}r</span>`;
+    });
+    const tagChips=(e.tags||[]).map(t=>{
+      const tc={skaven:'🐀 Skaven',chaos:'☠ Chaos',undead:'💀 Undead',beast:'🐗 Beast'};
+      return `<span class="e-status-chip e-chip-tag">${tc[t]||t}</span>`;
+    });
+    const traitChips=[];
+    if(e.lifeLeech) traitChips.push('<span class="e-status-chip e-chip-tag">🩸 Leech</span>');
+    if(e.regen)     traitChips.push('<span class="e-status-chip e-chip-tag">💚 Regen</span>');
+    if(e.insanityAtk) traitChips.push('<span class="e-status-chip e-chip-tag">🌀 Insanity</span>');
+    const weakChips=[];
+    const WMAP={skaven:'⚡🔥 Weak: Lightning+Holy',chaos:'✨ Weak: Holy',undead:'🔥 Weak: Fire',beast:'🌑 Weak: Dark'};
+    (e.tags||[]).forEach(t=>{if(WMAP[t])weakChips.push(`<span class="e-status-chip e-chip-weak">${WMAP[t]}</span>`);});
+    const allChips=[...dotChips,...debuffChips,...tagChips,...traitChips,...weakChips];
+    const statusBox=allChips.length?`<div class="e-status-box">${allChips.join('')}</div>`:'';
+
     eRow.innerHTML=`
       <div class="tok-info" style="text-align:right">
         <div class="e-name">${e.name}</div>
         <div class="e-sub"><span class="threat-b ${tCls}">${e.threat}</span></div>
-        <div class="tok-hp-track" style="margin-top:4px"><div class="tok-hp-fill" style="width:${hpPct}%;background:var(--blood)"></div></div>
-        <div class="tok-hp-txt" style="text-align:right">${Math.max(0,e.hp)}/${e.maxHp} HP</div>
+        <div class="tok-hp-track" style="margin-top:5px;height:9px"><div class="tok-hp-fill" style="width:${hpPct}%;background:var(--blood)"></div></div>
+        <div class="tok-hp-txt" style="text-align:right;font-size:13px">${Math.max(0,e.hp)}/${e.maxHp} HP</div>
         <div class="e-stats">Def<span>${e.ac}</span>ATK<span>${(e.atk>=0?'+':'')+e.atk}</span>DMG<span>${e.dmgDisplay||'1d6'}</span></div>
-        ${(e.tags&&e.tags.length)?`<div style="font-size:9px;margin-top:2px">${e.tags.map(t=>{const tc={skaven:'🐀 Skaven',chaos:'☠ Chaos',undead:'💀 Undead',beast:'🐗 Beast'};return`<span style="color:var(--gold);margin-right:3px">${tc[t]||t}</span>`;}).join('')}${e.lifeLeech?'<span style="color:#cc44cc;margin-right:3px">Leech</span>':''}${e.regen?'<span style="color:#44cc44;margin-right:3px">Regen</span>':''}${e.insanityAtk?'<span style="color:#cc44cc;margin-right:3px">Insanity</span>':''}</div>`:''}
-        ${debuffHtml}${targetBtn}
+        ${statusBox}${targetBtn}
       </div>
       ${eTok?`<img class="tok enemy" src="${eTok}" alt="${e.name}">`:`<div class="tok-ph">💀</div>`}`;
     eEl.appendChild(eRow);
@@ -909,7 +942,7 @@ function buildCard(p,gs,isMe){
       if(c.quickstrike)     tags.push('⚡ Quick Strike');
       if(c.quickStep)       tags.push('👟 Quick Step');
       if(c.evasion)         tags.push('🛡 Evasion (1 bane)');
-      if(c.deathblow)       tags.push('💀 Deathblow');
+      if(c.deathblow)       tags.push('☠ Poisoned Blades');
       if(c.shieldwall)      tags.push('🛡 Shieldwall');
       if(c.toughness)       tags.push('💪 Toughness -1dmg');
       if(c.holyFervor)      tags.push('✨ Holy Fervor');
@@ -1177,12 +1210,19 @@ function renderActions(gs,players,me){
         addBtn(g,`${elemIcon} ${sp.name}`,`Attack·R${sp.rank}`,'as-',()=>send('PLAYER_ACTION',{action:'CAST_SPELL',data:{spellName:sp.name}}),!avail,desc);
       }
     });
-    if(char.catchBreath&&!char.catchBreathUsed) addBtn(g,'Catch Breath',`~${Math.floor(char.maxHealth/4)} HP`,'at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'catchBreath'}}),false,TALENT_DESCS.catchBreath);
-    if(char.nimbleRecovery&&!char.nimbleUsed)   addBtn(g,'Nimble Recovery',`~${Math.floor(char.maxHealth/4)} HP`,'at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'nimbleRecovery'}}),false,TALENT_DESCS.nimbleRecovery);
-    if(char.sharedRecovery&&!char.sharedUsed)   addBtn(g,'Shared Recovery',`~${Math.floor(char.maxHealth/4)} HP`,'at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'sharedRecovery'}}),false,TALENT_DESCS.sharedRecovery);
+    if(char.catchBreath&&!char.catchBreathUsed) addBtn(g,'Catch Breath','1d6+attr×2 HP','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'catchBreath'}}),false,TALENT_DESCS.catchBreath);
+    if(char.nimbleRecovery&&!char.nimbleUsed)   addBtn(g,'Nimble Recovery','1d6+attr×2 HP','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'nimbleRecovery'}}),false,TALENT_DESCS.nimbleRecovery);
+    if(char.sharedRecovery&&!char.sharedUsed)   addBtn(g,'Shared Recovery','1d6+attr×2 HP','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'sharedRecovery'}}),false,TALENT_DESCS.sharedRecovery);
     if(char.spellRecovery&&!char.spellRecoveryUsed) addBtn(g,'Spell Recovery','Heal+casting','as-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'spellRecovery'}}),false,TALENT_DESCS.spellRecovery);
-    if(char.divineSmite&&!char.divineSmiteUsed)  addBtn(g,'Divine Smite','+3d6 holy','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'divineSmite'}}),false,TALENT_DESCS.divineSmite);
-    if(char.rallyingCry&&!char.rallyingUsed)     addBtn(g,'Rallying Cry','Heal all allies','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'rallyingCry'}}),false,TALENT_DESCS.rallyingCry);
+    if(char.divineSmite&&!char.divineSmiteUsed)  addBtn(g,'⚡ Divine Smite','+3d6 holy dmg','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'divineSmite'}}),false,TALENT_DESCS.divineSmite);
+    if(char.massHeal&&!char.massHealUsed)        addBtn(g,'✨ Mass Heal','All allies 1d6','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'massHeal'}}),false,'Heal all living allies for 1d6 HP. Once per combat.');
+    if(char.resurrection&&!char.resurrectionUsed)addBtn(g,'💀 Resurrection','Revive ally','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'resurrection'}}),false,'Fully revive and restore a fallen ally to full HP. Once per combat.');
+    if(char.rallyingCry&&!char.rallyingUsed)     addBtn(g,'📯 Rallying Cry','Heal all 1d6+attr','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'rallyingCry'}}),false,TALENT_DESCS.rallyingCry);
+    if(char.bloodOffering)                        addBtn(g,'🩸 Blood Offering','−1d6 HP → castings','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'bloodOffering'}}),false,TALENT_DESCS.bloodOffering);
+    if(char.overcast&&!char.overcastUsed)         addBtn(g,'💥 Overcast','Next spell +2d6','as-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'overcast'}}),false,TALENT_DESCS.overcast);
+    if(char.metamagic&&!char.metamagicUsed)       addBtn(g,'🔮 Metamagic','Free cast (1/rest)','as-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'metamagic'}}),false,TALENT_DESCS.metamagic);
+    if(char.catastrophe&&!char.catastropheUsed)   addBtn(g,'💥 Catastrophe','10d6 all enemies','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'catastrophe'}}),false,TALENT_DESCS.catastrophe);
+    if(char.pacedStrikes&&!char.pacedStrikesUsed) addBtn(g,'⚡ Paced Strikes','Next hit ×2 dmg','am-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'pacedStrikes'}}),false,'Auto-doubles damage on your next hit. Once per combat.');
     const isBoss=gs.enemy&&gs.enemy.threat==='Boss';
     addBtn(g,'⏭ End Turn','Pass your turn','am-',()=>send('PLAYER_ACTION',{action:'PASS_TURN'}),false,'Skip your action this round.');
     addBtn(g,'Flee',isBoss?'No escape':'AGI vs DC10','amv-',()=>send('PLAYER_ACTION',{action:'FLEE'}),isBoss,'Attempt to flee combat. Roll d20+AGI vs DC10. Success costs opportunity damage unless you have Shadowstep.');
@@ -1642,6 +1682,51 @@ function checkFloats(gs,players){
     // Enemy action skipped (skipTurn debuff)
     if(plain.includes('loses its next action')){
       spawnFloat(getActiveEnemyTok(),'Skipped!','miss');
+    }
+
+    // ── DoT float numbers above enemy token ──────────────────────────────────
+    // Poison damage: "☠ Poison! <name> takes X (Nd3)"
+    const poisonMatch=plain.match(/Poison!.*takes\s+(\d+)/);
+    if(poisonMatch){
+      const dmg=parseInt(poisonMatch[1]);
+      spawnFloat(getActiveEnemyTok(),`☠ -${dmg}`,'dot');
+      return;
+    }
+    // Other DoT (Bleed, Burn, Chilled, Grave Grasp etc): "<name> takes X from <dotName>"
+    const dotMatch=plain.match(/takes\s+(\d+)\s+from\s+(\w[\w\s]*?)!/);
+    if(dotMatch){
+      const dmg=parseInt(dotMatch[1]);
+      const dotName=dotMatch[2].trim();
+      const dotIcons={'Bleed':'🩸','Major Bleed':'🩸🩸','Burn':'🔥','Chilled':'❄','Grave Grasp':'💀'};
+      const icon=dotIcons[dotName]||'⚡';
+      spawnFloat(getActiveEnemyTok(),`${icon} -${dmg}`,'dot');
+      return;
+    }
+
+    // ── Debuff application floats ─────────────────────────────────────────────
+    const debuffLabels={
+      'BLINDED':    {text:'👁 Blinded!',  type:'debuff'},
+      'STUNNED':    {text:'💫 Stunned!',  type:'debuff'},
+      'CHILLED':    {text:'❄ Chilled!',  type:'debuff'},
+      'BLEEDING':   {text:'🩸 Bleed!',   type:'debuff'},
+      'MAJOR BLEEDING':{text:'🩸🩸 Major Bleed!', type:'debuff'},
+      'BURNING':    {text:'🔥 Burn!',    type:'debuff'},
+      'FROZEN':     {text:'❄ Frozen!',  type:'debuff'},
+      'POISONED':   {text:'☠ Poisoned!',type:'debuff'},
+    };
+    for(const [keyword, info] of Object.entries(debuffLabels)){
+      if(plain.toUpperCase().includes(keyword)&&(plain.includes('is BLINDED')||plain.includes('is CHILLED')||plain.includes('is STUNNED')||plain.includes('BLEEDING')||plain.includes('BURNING')||plain.includes('poisoned'))){
+        spawnFloat(getActiveEnemyTok(),info.text,info.type);
+        break;
+      }
+    }
+    // Rage proc on enemy (Undeath, Rage, Call the Pack)
+    if(plain.includes('RAGES')){
+      const rageTok=getPlayerTok(plain.split(' ')[0]);
+      spawnFloat(rageTok,'🔥 RAGE!','crit');
+    }
+    if(plain.includes('INSTANT KILL')){
+      spawnFloat(getActiveEnemyTok(),'💀 DEAD!','crit');
     }
   });
 }

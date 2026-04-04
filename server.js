@@ -76,7 +76,7 @@ const EXPERT_PATHS = {
     desc:'Master of arms. Attack with any weapon with 1 boon. Combat Prowess adds damage on every hit.' },
   scout:       { label:'Scout',       hpGain:3, power:0,
     levelGains:{ 3:['quickStep'], 4:['+1agi'], 5:['evasion'], 6:['+1agi'] },
-    desc:'Swift skirmisher. Quick Strike adds an extra attack on round 1. Evasion improves defence.' },
+    desc:'Swift skirmisher. Quick Step grants +2 Defense when you miss an attack. Evasion forces 1 bane on all attackers.' },
   thief:       { label:'Thief',       hpGain:3, power:0,
     levelGains:{ 3:['trickery'], 4:['+1agi'], 5:['deathblow'], 6:['+1agi'] },
     desc:'Cunning blade. Trickery adds bonus d6 damage. Deathblow makes crits deal triple weapon dice.' },
@@ -704,11 +704,11 @@ function rollAttack(char, enemy, extraBoons=0) {
     if(statBonus)  dmgParts.push(`+${statBonus} stat`);
     if(wpnDmgBonus)dmgParts.push(`+${wpnDmgBonus} wpn`);
     if (crit)           { const r=rd(num,sides); dmg+=r; dmgParts.push(`+${r} crit`); }
-    if (char.deathblow&&crit) { const r=rd(num,sides); dmg+=r; dmgParts.push(`+${r} deathblow`); }
+    // Poisoned Blades (formerly Deathblow): +2 poison stacks on hit, +4 on crit — applied after hit resolved
     if (char.combatProwess)   { const r=rd(1,6); dmg+=r; dmgParts.push(`+${r} prowess`); }
     if (char.combatExpertise) { const r=rd(1,6); dmg+=r; dmgParts.push(`+${r} expertise`); }
     if (char.sharpeningStone) { const r=rd(1,6); dmg+=r; dmgParts.push(`+${r} sharpened`); }
-    if (char.trickery&&char.trickeryUsed<char.trickeryMax) { const r=rd(1,6); dmg+=r; char.trickeryUsed++; dmgParts.push(`+${r} trickery`); }
+    if (char.trickery&&char.trickeryUsed<char.trickeryMax) { const r=rd(1,6); dmg+=r; char.trickeryUsed++; dmgParts.push(`+${r} trickery`); char._trickeryPoisonProc=true; } // poison stack applied after hit
     const dmgBuff=getBuffVal(char,'dmgBonus'); if(dmgBuff){dmg+=dmgBuff;dmgParts.push(`+${dmgBuff} buff`);}
     const battleProwessBuff=(char.activeBuffs||[]).some(b=>b.battleProwess);
     if(battleProwessBuff){const r=rd(1,6);dmg+=r;dmgParts.push(`+${r} prowess`);}
@@ -724,7 +724,7 @@ function rollAttack(char, enemy, extraBoons=0) {
     // Rage bonus damage on hit
     if(char.rage&&char.rageBoon){ const rb=rd(1,6);dmg+=rb;dmgParts.push(`+${rb} rage`);char.rageBoon=false; } // consume rage proc
     // Assassination: target below 50% HP, +1d6+3 bonus damage
-    if(char.assassination&&enemy&&enemy.hp<enemy.maxHp*0.5){ const ab=rd(1,6)+3;dmg+=ab;dmgParts.push(`+${ab} assassination`); }
+    // Assassination: +1d6+3 dmg if below 50% HP; if above 50%, will add 3 poison stacks (applied after hit)
     dmg=Math.max(1,dmg);
   }
   const boonInfo=boons>0?` (${boons} boon)`:banes>0?` (${banes} bane)`:'';
@@ -775,11 +775,21 @@ function tickBuffs(char){
   if(!char.activeBuffs) return;
   char.activeBuffs=char.activeBuffs.filter(b=>{ b.duration--; return b.duration>0; });
 }
+const SELF_TICK_DOTS=new Set(['Bleed','Major Bleed','Burn','Chilled','Grave Grasp']); // Poison uses stack-based system, handled separately
 function tickDebuffs(enemy){
   if(!enemy.activeDebuffs) return;
-  enemy.activeDebuffs=enemy.activeDebuffs.filter(d=>{ d.duration--; return d.duration>0; });
+  // Self-ticking DoTs manage their own duration at fire time — skip them here
+  enemy.activeDebuffs=enemy.activeDebuffs.filter(d=>{
+    if(SELF_TICK_DOTS.has(d.name)) return true; // already ticked at DoT fire
+    d.duration--;
+    return d.duration>0;
+  });
 }
 function getBuffVal(char, key){ return (char.activeBuffs||[]).filter(b=>b[key]).reduce((s,b)=>s+b[key],0); }
+function applyPoison(enemy, stacks, room) {
+  enemy._poisonStacks = (enemy._poisonStacks||0) + stacks;
+  addLog(room, `☠ ${enemy.name} poisoned — <strong>${enemy._poisonStacks}</strong> stack${enemy._poisonStacks!==1?'s':''} (+${stacks} new)!`, 'spell');
+}
 function getDebuffVal(enemy, key){ return (enemy.activeDebuffs||[]).filter(d=>d[key]).reduce((s,d)=>s+d[key],0); }
 
 // ─── LEVEL UP & PATHS ────────────────────────────────────────────────────────
@@ -1095,13 +1105,30 @@ function maybeEnemyAttack(room) {
     if(ae.regen&&ae.hp<ae.maxHp){const r=rd(1,6);ae.hp=Math.min(ae.maxHp,ae.hp+r);addLog(room,`${ae.name} regenerates ${r} HP.`,'chaos');}
   });
 
-  // Apply DoT debuffs on all active enemies before they attack
+  // Apply Poison stacks at start of enemy turn (1d3 per stack)
+  if(gs.enemies) gs.enemies.filter(ae=>ae&&ae.hp>0).forEach(ae=>{
+    if(ae._poisonStacks&&ae._poisonStacks>0){
+      const poisonDmg=rd(ae._poisonStacks,3);
+      ae.hp=Math.min(ae.maxHp,ae.hp-poisonDmg);
+      addLog(room,`☠ <strong>Poison!</strong> ${ae.name} takes <strong>${poisonDmg}</strong> (${ae._poisonStacks}d3) → ${Math.max(0,ae.hp)}/${ae.maxHp} HP`,'spell');
+      if(ae.hp<=0){resolveEnemyDeath(room,ae);}
+    }
+  });
+  if(!gs.inCombat) return;
+
+  // Apply DoT debuffs on all active enemies at start of enemy turn
   if(gs.enemies) gs.enemies.filter(ae=>ae&&ae.hp>0).forEach(ae=>{
     (ae.activeDebuffs||[]).filter(d=>d.dotDmg).forEach(d=>{
       ae.hp=Math.min(ae.maxHp,ae.hp-d.dotDmg);
       addLog(room,`${ae.name} takes <strong>${d.dotDmg}</strong> from <em>${d.name}</em>! (${Math.max(0,ae.hp)}/${ae.maxHp} HP)`,'spell');
+      // Bleed/MajorBleed tick their own duration here (start of enemy turn), not at round end
+      if(d.name==='Bleed'||d.name==='Major Bleed'||d.name==='Burn'||d.name==='Chilled'||d.name==='Grave Grasp') d.duration--;
       if(ae.hp<=0){resolveEnemyDeath(room,ae);}
     });
+    // Remove expired self-ticking debuffs
+    ae.activeDebuffs=(ae.activeDebuffs||[]).filter(d=>!(
+      (d.name==='Bleed'||d.name==='Major Bleed'||d.name==='Burn'||d.name==='Chilled'||d.name==='Grave Grasp')&&d.duration<=0
+    ));
   });
   // If DoT killed all enemies, combat is over — bail
   if(!gs.inCombat) return;
@@ -1152,8 +1179,7 @@ function maybeEnemyAttack(room) {
         // diseased mechanic removed
         checkDeath(room,p);
       } else {
-        // QuickStep: on being missed, +2 defense for 1 round
-        if(p.char.quickStep){ addBuff(p.char,'Quick Step',{defBonus:2},1); p.char.defense+=2; }
+        if(p.char.quickStep){ /* Quick Step triggers on player miss, not enemy miss */ }
         if(!r.skipped) addLog(room,`${ae.name} <em>misses</em> ${p.name} — d20:<strong>${r.base}</strong>+<strong>${ae.atk>=0?'+':''}${ae.atk}</strong>=<strong>${r.total}</strong> vs Def<strong>${p.char.defense+auraBonus}</strong>.`,'sys');
       }
     });
@@ -1185,7 +1211,17 @@ function maybeEnemyAttack(room) {
   room.players.forEach(p=>{if(p.char&&!p.char.alive){p.char.pendingRevive=true;}});
   // Tick buffs/debuffs each round
   room.players.forEach(p=>{if(p.char&&p.char.alive)tickBuffs(p.char);});
-  if(gs.enemies) gs.enemies.forEach(en=>{if(en)tickDebuffs(en);});
+  if(gs.enemies) gs.enemies.forEach(en=>{
+    if(en){
+      tickDebuffs(en);
+      // Poison: reduce by 1 stack at end of round
+      if(en._poisonStacks&&en._poisonStacks>0){
+        en._poisonStacks--;
+        if(en._poisonStacks>0) addLog(room,`☠ ${en.name} poison fades — <strong>${en._poisonStacks}</strong> stack${en._poisonStacks!==1?'s':''} remaining.`,'sys');
+        else addLog(room,`☠ ${en.name} poison cleared.`,'sys');
+      }
+    }
+  });
   gs.playersActedThisRound=[]; gs.enemyHasActed=false;
   gs.roundNumber=(gs.roundNumber||1)+1;
   addLog(room,'--- New round — warriors act! ---','sys');
@@ -1583,6 +1619,16 @@ function handlePlayerAction(room,playerId,payload,ws){
       const rollBreak=`d20:<strong>${r.base}</strong>${r.boonInfo}+atk<strong>${r.atkMod>=0?'+':''}${r.atkMod}</strong>=<strong>${r.total}</strong> vs Def<strong>${gs.enemy.ac}</strong>`;
       const dmgBreak=r.dmgParts.length?` [dmg: ${r.dmgParts.join(' ')} = <strong>${r.dmg}</strong>]`:'';
       addLog(room,`${player.name} ${r.crit?'<strong>CRITS</strong>':'hits'} ${targetEnemy.name} — <strong class="num-dmg">−${r.dmg} dmg</strong>${cl} [${rollBreak}]${dmgBreak} → ${targetEnemy.name} ${Math.max(0,targetEnemy.hp)}/${targetEnemy.maxHp} HP`,r.crit?'crit':'dmg');
+      // ── Post-hit poison applications ──
+      // Poisoned Blades (deathblow): +2 stacks on hit, +4 on crit
+      if(char.deathblow){ const stacks=r.crit?4:2; applyPoison(targetEnemy,stacks,room); }
+      // Trickery: +1 poison stack on hit
+      if(char._trickeryPoisonProc){ char._trickeryPoisonProc=false; applyPoison(targetEnemy,1,room); }
+      // Assassination: +1d6+3 dmg if below 50%, else +3 poison stacks
+      if(char.assassination&&targetEnemy.hp>0){
+        if(targetEnemy.hp<targetEnemy.maxHp*0.5){ const ab=rd(1,6)+3;targetEnemy.hp-=ab;addLog(room,`🗡 Assassination! <strong>-${ab}</strong> bonus dmg!`,'crit'); }
+        else { applyPoison(targetEnemy,3,room); }
+      }
       if(targetEnemy.hp<=0){resolveEnemyDeath(room,targetEnemy);return;}
     } else {
       // Miss — check rerollMiss buff (Rewrite Moment)
@@ -1600,6 +1646,8 @@ function handlePlayerAction(room,playerId,payload,ws){
         }
       } else {
         addLog(room,`${player.name} <em>misses</em> — d20:<strong>${r.base}</strong>${r.boonInfo}+<strong>${r.atkMod>=0?'+':''}${r.atkMod}</strong>=<strong>${r.total}</strong> vs Def<strong>${targetEnemy.ac}</strong>.`,'sys');
+        // Quick Step: when YOU miss an attack, gain +2 Defense for 1 round
+        if(char.quickStep){ addBuff(char,'Quick Step',{defBonus:2},1); char.defense+=2; addLog(room,`👟 ${player.name} Quick Steps — +2 Defense this round!`,'sys'); }
       }
     }
     // Bladestorm: 3 attacks total
@@ -2045,6 +2093,8 @@ function handlePlayerAction(room,playerId,payload,ws){
       // Auto-triggers in rollAttack — just inform the player
     }
     else if(t==='rallyingCry'){if(char.rallyingUsed){addLog(room,`${player.name}: Rallying Cry already used.`,'sys');return;}char.rallyingUsed=true;room.players.forEach(p=>{if(p.char&&p.char.alive){const h=talentHeal(p.char);p.char.health=Math.min(p.char.maxHealth,p.char.health+h);addLog(room,`${p.name} rallies — +<strong>${h}</strong> HP (1d6+attr×2).`,'heal');}});}
+    else if(t==='massHeal'){if(char.massHealUsed){addLog(room,`${player.name}: Mass Heal already used.`,'sys');return;}char.massHealUsed=true;room.players.forEach(p=>{if(p.char&&p.char.alive){const h=rd(1,6);p.char.health=Math.min(p.char.maxHealth,p.char.health+h);addLog(room,`${p.name} healed <strong>${h}</strong> HP.`,'heal');}});addLog(room,`${player.name} uses <strong>Mass Heal</strong>!`,'heal');}
+    else if(t==='resurrection'){if(char.resurrectionUsed){addLog(room,`${player.name}: Resurrection already used.`,'sys');return;}char.resurrectionUsed=true;const fallen=room.players.find(p=>p.char&&!p.char.alive);if(!fallen){addLog(room,`${player.name}: No fallen allies to revive.`,'sys');return;}fallen.char.health=fallen.char.maxHealth;fallen.char.alive=true;fallen.char.pendingRevive=false;addLog(room,`✨ ${player.name} uses <strong>Resurrection</strong> — ${fallen.name} returns at full HP!`,'heal');}
     acted=true;
   }
   else if(action==='USE_ITEM'){const consumed=useItemLogic(room,player,data.itemName,true);acted=consumed;}
