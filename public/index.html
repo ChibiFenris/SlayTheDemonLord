@@ -378,7 +378,7 @@ const TOKEN_DATA={"warrior": "data:image/webp;base64,UklGRgS9AABXRUJQVlA4WAoAAAA
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const CAREER_LABELS={warrior:'State Soldier',rogue:'Roadwarden',wizard:'Bright Wizard',priest:'Sigmarite Priest'};
-const XP_T=[0,1,2,3,4,6,7,9,12,14];
+const XP_T=[0,5,12,20,30,42,55,68,80,90,100];
 const LOCS=['The Reikland Road','Altdorf Sewers','The Grey Mountains','The Forest of Shadows','Bogenhafen Catacombs','Ruins of Mordheim','The Dark Moors','The Chaos Wastes','A Forsaken Temple','The River Reik','Skaven Under-warren','Corrupted Village','The Blighted Marshes','Chaos Shrine','The Final Abyss'];
 
 const CAREER_DETAILS={
@@ -1072,6 +1072,44 @@ function renderAbilities(char, inCombat, targetId='my-ab'){
     });
     html+='</div>';
   }
+  // ── XP Progression Table ──────────────────────────────────────────────────
+  html += `<div class="ab-section" style="margin-top:8px">
+    <div class="ab-title">XP Progression</div>
+    <table style="width:100%;border-collapse:collapse;font-size:12px;font-family:'IM Fell English',serif">
+      <tr style="color:var(--text-dim);font-size:11px;border-bottom:1px solid var(--border)">
+        <th style="text-align:left;padding:2px 4px">Lvl</th>
+        <th style="text-align:center;padding:2px 4px">XP to reach</th>
+        <th style="text-align:center;padding:2px 4px">XP needed</th>
+        <th style="text-align:left;padding:2px 4px;font-size:10px">Path unlock</th>
+      </tr>`;
+  const XP_TABLE=[0,5,12,20,30,42,55,68,80,90,100];
+  const PATH_UNLOCKS={1:'Novice path',3:'Expert path',7:'Master path'};
+  const XP_GAINS=[
+    {label:'Low threat enemy',xp:1},{label:'Moderate enemy',xp:2},{label:'High enemy',xp:3},{label:'Boss',xp:4}
+  ];
+  for(let lvl=1;lvl<=10;lvl++){
+    const threshold=XP_TABLE[lvl]||0;
+    const prev=XP_TABLE[lvl-1]||0;
+    const needed=threshold-prev;
+    const isCur=char.level===lvl;
+    const isPast=char.level>lvl;
+    const rowColor=isCur?'var(--gold)':isPast?'rgba(100,100,60,.4)':'var(--parch-dark)';
+    const bgColor=isCur?'rgba(80,60,0,.3)':'transparent';
+    const unlock=PATH_UNLOCKS[lvl]||'';
+    const progress=isCur?` <span style="font-size:10px;color:var(--text-dim)">(${char.xp}/${threshold})</span>`:'';
+    html+=`<tr style="background:${bgColor};border-bottom:1px solid rgba(60,40,10,.15)">
+      <td style="padding:3px 4px;color:${rowColor};font-weight:${isCur?'700':'400'}">Lv ${lvl}${isCur?' ◀':''}</td>
+      <td style="text-align:center;padding:3px 4px;color:${rowColor}">${threshold} XP${progress}</td>
+      <td style="text-align:center;padding:3px 4px;color:var(--text-dim)">+${needed}</td>
+      <td style="padding:3px 4px;font-size:10px;color:${unlock?'#a080d0':'var(--text-dim)'}">${unlock}</td>
+    </tr>`;
+  }
+  // XP gains reference
+  html+=`<tr><td colspan="4" style="padding:5px 4px 2px;font-size:11px;color:var(--text-dim);font-style:italic;border-top:1px solid var(--border)">
+    XP rewards: Low 3 · Moderate 5 · High 8 · Boss 15
+  </td></tr>`;
+  html+=`</table></div>`;
+
   el2.innerHTML=html||'<div style="font-size:11px;color:var(--text-dim);font-style:italic">No abilities yet.</div>';
 }
 

@@ -511,36 +511,36 @@ function getSpellsForPower(traditionId, power) {
 const ENEMY_POOLS = {
   low: [
     // tags: skaven=call the pack, chaos=holy weakness, undead=fire weakness+undeath passive, beast=dark weakness+rage passive
-    {name:'Skaven Clanrat',     type:'Skaven',  threat:'Low',      hp:8,  ac:12,atk:0,xp:1,gold:[2,8],   tags:['skaven']},
-    {name:'Beastman Gor',       type:'Beastmen',threat:'Low',      hp:12, ac:13,atk:0,xp:1,gold:[3,10],  tags:['beast'],  chaos:true},
-    {name:'Undead Skeleton',    type:'Undead',  threat:'Low',      hp:15, ac:10,atk:0,xp:1,gold:[0,5],   tags:['undead'], undead:true},
-    {name:'Mutant Thug',        type:'Cultist', threat:'Low',      hp:10, ac:11,atk:0,xp:1,gold:[5,15],  tags:['chaos'],  chaos:true},
+    {name:'Skaven Clanrat',     type:'Skaven',  threat:'Low',      hp:8,  ac:12,atk:0,xp:3,gold:[2,8],   tags:['skaven']},
+    {name:'Beastman Gor',       type:'Beastmen',threat:'Low',      hp:12, ac:13,atk:0,xp:3,gold:[3,10],  tags:['beast'],  chaos:true},
+    {name:'Undead Skeleton',    type:'Undead',  threat:'Low',      hp:15, ac:10,atk:0,xp:3,gold:[0,5],   tags:['undead'], undead:true},
+    {name:'Mutant Thug',        type:'Cultist', threat:'Low',      hp:10, ac:11,atk:0,xp:3,gold:[5,15],  tags:['chaos'],  chaos:true},
   ],
   mid: [
-    {name:'Chaos Marauder',     type:'Chaos',   threat:'Moderate', hp:30, ac:14,atk:2,xp:2,gold:[10,25], tags:['chaos'],  chaos:true},
-    {name:'Skaven Stormvermin', type:'Skaven',  threat:'Moderate', hp:28, ac:15,atk:2,xp:2,gold:[8,20],  tags:['skaven']},
-    {name:'Wight',              type:'Undead',  threat:'Moderate', hp:38, ac:12,atk:2,xp:2,gold:[5,15],  tags:['undead'], undead:true,lifeLeech:true},
-    {name:'Plague Monk',        type:'Chaos',   threat:'Moderate', hp:29, ac:13,atk:2,xp:2,gold:[5,15],  tags:['chaos'],  chaos:true},
+    {name:'Chaos Marauder',     type:'Chaos',   threat:'Moderate', hp:30, ac:14,atk:2,xp:5,gold:[10,25], tags:['chaos'],  chaos:true},
+    {name:'Skaven Stormvermin', type:'Skaven',  threat:'Moderate', hp:28, ac:15,atk:2,xp:5,gold:[8,20],  tags:['skaven']},
+    {name:'Wight',              type:'Undead',  threat:'Moderate', hp:38, ac:12,atk:2,xp:5,gold:[5,15],  tags:['undead'], undead:true,lifeLeech:true},
+    {name:'Plague Monk',        type:'Chaos',   threat:'Moderate', hp:29, ac:13,atk:2,xp:5,gold:[5,15],  tags:['chaos'],  chaos:true},
   ],
   high: [
-    {name:'Chaos Warrior',      type:'Chaos',   threat:'High',     hp:45, ac:16,atk:3,xp:3,gold:[15,40], tags:['chaos'],  chaos:true},
-    {name:'Vampire Count',      type:'Undead',  threat:'High',     hp:50, ac:15,atk:3,xp:3,gold:[20,60], tags:['undead'], undead:true,lifeLeech:true},
-    {name:'Bloodletter',        type:'Chaos',   threat:'High',     hp:55, ac:15,atk:3,xp:3,gold:[25,50], tags:['chaos'],  insanityAtk:true,chaos:true},
-    {name:'Skaven Warlord',     type:'Skaven',  threat:'High',     hp:42, ac:14,atk:3,xp:3,gold:[10,30], tags:['skaven']},
+    {name:'Chaos Warrior',      type:'Chaos',   threat:'High',     hp:45, ac:16,atk:3,xp:8,gold:[15,40], tags:['chaos'],  chaos:true},
+    {name:'Vampire Count',      type:'Undead',  threat:'High',     hp:50, ac:15,atk:3,xp:8,gold:[20,60], tags:['undead'], undead:true,lifeLeech:true},
+    {name:'Bloodletter',        type:'Chaos',   threat:'High',     hp:55, ac:15,atk:3,xp:8,gold:[25,50], tags:['chaos'],  insanityAtk:true,chaos:true},
+    {name:'Skaven Warlord',     type:'Skaven',  threat:'High',     hp:42, ac:14,atk:3,xp:8,gold:[10,30], tags:['skaven']},
   ],
   // Boss 1 (depth 10) — random
   boss1: [
-    {name:'Skaven Warlord Gnashteeth', type:'Skaven Boss', threat:'Boss',hp:80, ac:15,atk:0,xp:5,gold:[30,80],  tags:['skaven']},
-    {name:'Beastlord Kragthor',        type:'Beastmen Boss',threat:'Boss',hp:95, ac:16,atk:0,xp:5,gold:[25,70], tags:['beast'], chaos:true},
+    {name:'Skaven Warlord Gnashteeth', type:'Skaven Boss', threat:'Boss',hp:80, ac:15,atk:0,xp:15,gold:[30,80],  tags:['skaven']},
+    {name:'Beastlord Kragthor',        type:'Beastmen Boss',threat:'Boss',hp:95, ac:16,atk:0,xp:15,gold:[25,70], tags:['beast'], chaos:true},
   ],
   // Boss 2 (depth 20) — random, regen removed from Varghulf, life leech stays
   boss2: [
-    {name:'Varghulf',            type:'Undead Boss', threat:'Boss',hp:138,ac:15,atk:3,xp:5,gold:[200,200],tags:['undead'],undead:true,lifeLeech:true},
-    {name:'Bonebreaker Ratogre', type:'Skaven Boss', threat:'Boss',hp:138,ac:16,atk:3,xp:5,gold:[200,200],tags:['skaven'],insanityAtk:true},
+    {name:'Varghulf',            type:'Undead Boss', threat:'Boss',hp:138,ac:15,atk:3,xp:15,gold:[200,200],tags:['undead'],undead:true,lifeLeech:true},
+    {name:'Bonebreaker Ratogre', type:'Skaven Boss', threat:'Boss',hp:138,ac:16,atk:3,xp:15,gold:[200,200],tags:['skaven'],insanityAtk:true},
   ],
   // Boss 3 (depth 30) — Saurian Ancient with regeneration
   boss3: [
-    {name:'Saurian Ancient', type:'Ancient Boss',threat:'Boss',hp:250,ac:15,atk:4,xp:5,gold:[60,150],tags:[],regen:true},
+    {name:'Saurian Ancient', type:'Ancient Boss',threat:'Boss',hp:250,ac:15,atk:4,xp:15,gold:[60,150],tags:[],regen:true},
   ],
 };
 
@@ -795,7 +795,7 @@ function getDebuffVal(enemy, key){ return (enemy.activeDebuffs||[]).filter(d=>d[
 
 // ─── LEVEL UP & PATHS ────────────────────────────────────────────────────────
 // XP thresholds (50% of SotDL base)
-const XP_THRESHOLDS = [0,1,2,3,4,6,7,9,12,14,17]; // index 0..10 = levels 0..10
+const XP_THRESHOLDS = [0,5,12,20,30,42,55,68,80,90,100]; // index 0..10 = levels 0..10
 
 function checkLevelUp(char) {
   if (char.level >= 10) return {leveled:false}; // hard cap at level 10
@@ -1036,7 +1036,7 @@ function enterNode(room, nodeType) {
     gs.phase='loot';
     const coins=Math.floor((5+Math.floor(Math.random()*46))*0.5);
     gs.lootRoom={coins}; gs.lootPicked=[];
-    room.players.forEach(p=>{if(p.char&&p.char.alive) p.char.lootOptions=buildLootOptions();});
+    room.players.forEach(p=>{if(p.char&&p.char.alive) p.char.lootOptions=buildLootOptions(gs.bossCount);});
     addLog(room,`📦 A cache! ${coins} coins — each warrior finds their own haul.`,'loot');
     return;
   }
@@ -1064,11 +1064,11 @@ const SCROLL_SPELLS_LIST = [
   {name:'Cure Wounds',desc:'Heal 3d6+4 HP',type:'heal',dmgDice:'3d6'},
 ];
 const LOOT_CONS_LIST=['Healing Draught','Greater Healing Draught','Flask of Oil','Fire Jar','Lucky Pendant','Sharpening Stone'];
-function buildLootOptions() {
+function buildLootOptions(bossCount=0) {
   const useScroll=d(6)>=4;
   const consumable=useScroll?'Spell Scroll':LOOT_CONS_LIST[Math.floor(Math.random()*LOOT_CONS_LIST.length)];
   const scrollSpell=useScroll?SCROLL_SPELLS_LIST[Math.floor(Math.random()*SCROLL_SPELLS_LIST.length)]:null;
-  return {consumable,scrollSpell,weapon:genWpn(room.gs.bossCount),armor:genArmor(room.gs.bossCount)};
+  return {consumable,scrollSpell,weapon:genWpn(bossCount),armor:genArmor(bossCount)};
 }
 
 // ─── COMBAT FLOW ─────────────────────────────────────────────────────────────
@@ -1471,7 +1471,7 @@ function resolveEnemyDeath(room, deadEnemy) {
     }
   });
   const survivors=room.players.filter(p=>p.char&&p.char.alive);
-  const xpEach=Math.max(1, Math.floor(e.xp * 0.75)); // 25% XP reduction
+  const xpEach=e.xp||1; // XP awarded directly, no reduction
   // Boss gold: flat per survivor. Other enemies: roll halved.
   let goldTotal;
   if (e.threat==='Boss' && gs.bossCount===0) {
