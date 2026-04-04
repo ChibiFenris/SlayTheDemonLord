@@ -1109,8 +1109,8 @@ function maybeEnemyAttack(room) {
   if(gs.enemies) gs.enemies.filter(ae=>ae&&ae.hp>0).forEach(ae=>{
     if(ae._poisonStacks&&ae._poisonStacks>0){
       const poisonDmg=rd(ae._poisonStacks,3);
-      ae.hp=Math.min(ae.maxHp,ae.hp-poisonDmg);
-      addLog(room,`☠ <strong>Poison!</strong> ${ae.name} takes <strong>${poisonDmg}</strong> (${ae._poisonStacks}d3) → ${Math.max(0,ae.hp)}/${ae.maxHp} HP`,'spell');
+      ae.hp=Math.max(0,ae.hp-poisonDmg);
+      addLog(room,`☠ <strong>Poison</strong> (${ae._poisonStacks} stack${ae._poisonStacks!==1?'s':''}) burns ${ae.name} — <strong class="num-dmg">−${poisonDmg}</strong> dmg → ${ae.name} ${ae.hp}/${ae.maxHp} HP`,'spell');
       if(ae.hp<=0){resolveEnemyDeath(room,ae);}
     }
   });
@@ -1119,8 +1119,8 @@ function maybeEnemyAttack(room) {
   // Apply DoT debuffs on all active enemies at start of enemy turn
   if(gs.enemies) gs.enemies.filter(ae=>ae&&ae.hp>0).forEach(ae=>{
     (ae.activeDebuffs||[]).filter(d=>d.dotDmg).forEach(d=>{
-      ae.hp=Math.min(ae.maxHp,ae.hp-d.dotDmg);
-      addLog(room,`${ae.name} takes <strong>${d.dotDmg}</strong> from <em>${d.name}</em>! (${Math.max(0,ae.hp)}/${ae.maxHp} HP)`,'spell');
+      ae.hp=Math.max(0,ae.hp-d.dotDmg);
+      addLog(room,`${d.name==='Burn'?'🔥':d.name==='Chilled'?'❄':d.name==='Bleed'?'🩸':d.name==='Major Bleed'?'🩸🩸':'☠'} <strong>${d.name}</strong> burns ${ae.name} — <strong class="num-dmg">−${d.dotDmg}</strong> dmg → ${ae.name} ${ae.hp}/${ae.maxHp} HP`,'spell');
       // Bleed/MajorBleed tick their own duration here (start of enemy turn), not at round end
       if(d.name==='Bleed'||d.name==='Major Bleed'||d.name==='Burn'||d.name==='Chilled'||d.name==='Grave Grasp') d.duration--;
       if(ae.hp<=0){resolveEnemyDeath(room,ae);}
@@ -1614,20 +1614,25 @@ function handlePlayerAction(room,playerId,payload,ws){
     if(r.fumble){
       addLog(room,`${player.name} <em>fumbles!</em> d20 rolled 1 — automatic miss.`,'sys');
     } else if(r.hit){
-      targetEnemy.hp=Math.min(targetEnemy.maxHp, targetEnemy.hp-r.dmg);
+      targetEnemy.hp=Math.max(0, targetEnemy.hp-r.dmg);
       const cl=r.forceCrit?' ⚡ Lucky Pendant CRIT!':r.crit?' 💥 CRITICAL HIT!':'';
-      const rollBreak=`d20:<strong>${r.base}</strong>${r.boonInfo}+atk<strong>${r.atkMod>=0?'+':''}${r.atkMod}</strong>=<strong>${r.total}</strong> vs Def<strong>${gs.enemy.ac}</strong>`;
+      const rollBreak=`d20:<strong>${r.base}</strong>${r.boonInfo}+atk<strong>${r.atkMod>=0?'+':''}${r.atkMod}</strong>=<strong>${r.total}</strong> vs Def<strong>${gs.enemy?gs.enemy.ac:targetEnemy.ac}</strong>`;
       const dmgBreak=r.dmgParts.length?` [dmg: ${r.dmgParts.join(' ')} = <strong>${r.dmg}</strong>]`:'';
-      addLog(room,`${player.name} ${r.crit?'<strong>CRITS</strong>':'hits'} ${targetEnemy.name} — <strong class="num-dmg">−${r.dmg} dmg</strong>${cl} [${rollBreak}]${dmgBreak} → ${targetEnemy.name} ${Math.max(0,targetEnemy.hp)}/${targetEnemy.maxHp} HP`,r.crit?'crit':'dmg');
-      // ── Post-hit poison applications ──
-      // Poisoned Blades (deathblow): +2 stacks on hit, +4 on crit
-      if(char.deathblow){ const stacks=r.crit?4:2; applyPoison(targetEnemy,stacks,room); }
-      // Trickery: +1 poison stack on hit
-      if(char._trickeryPoisonProc){ char._trickeryPoisonProc=false; applyPoison(targetEnemy,1,room); }
-      // Assassination: +1d6+3 dmg if below 50%, else +3 poison stacks
-      if(char.assassination&&targetEnemy.hp>0){
-        if(targetEnemy.hp<targetEnemy.maxHp*0.5){ const ab=rd(1,6)+3;targetEnemy.hp-=ab;addLog(room,`🗡 Assassination! <strong>-${ab}</strong> bonus dmg!`,'crit'); }
-        else { applyPoison(targetEnemy,3,room); }
+      addLog(room,`${player.name} ${r.crit?'<strong>CRITS</strong>':'hits'} ${targetEnemy.name} — <strong class="num-dmg">−${r.dmg} dmg</strong>${cl} [${rollBreak}]${dmgBreak} → ${targetEnemy.name} ${targetEnemy.hp}/${targetEnemy.maxHp} HP`,r.crit?'crit':'dmg');
+      // ── Post-hit poison applications (only if enemy still alive) ──
+      if(targetEnemy.hp>0){
+        // Poisoned Blades (deathblow): +2 stacks on hit, +4 on crit
+        if(char.deathblow){ const stacks=r.crit?4:2; applyPoison(targetEnemy,stacks,room); }
+        // Trickery: +1 poison stack on hit
+        if(char._trickeryPoisonProc){ char._trickeryPoisonProc=false; applyPoison(targetEnemy,1,room); }
+        // Assassination: +1d6+3 dmg if below 50% HP, else +3 poison stacks
+        if(char.assassination){
+          if(targetEnemy.hp<targetEnemy.maxHp*0.5){ const ab=rd(1,6)+3;targetEnemy.hp=Math.max(0,targetEnemy.hp-ab);addLog(room,`🗡 Assassination! <strong class="num-dmg">-${ab}</strong> bonus dmg → ${targetEnemy.hp}/${targetEnemy.maxHp} HP!`,'crit'); }
+          else { applyPoison(targetEnemy,3,room); }
+        }
+      } else {
+        // Enemy died — clear trickery proc without applying poison
+        char._trickeryPoisonProc=false;
       }
       if(targetEnemy.hp<=0){resolveEnemyDeath(room,targetEnemy);return;}
     } else {
@@ -1637,7 +1642,7 @@ function handlePlayerAction(room,playerId,payload,ws){
         addLog(room,`${player.name} misses — <strong>Rewrite Moment</strong> triggers, rerolling!`,'spell');
         const r2=rollAttack(char,targetEnemy,rogueBoon);
         if(r2.hit){
-          targetEnemy.hp=Math.min(targetEnemy.maxHp, targetEnemy.hp-r2.dmg);
+          targetEnemy.hp=Math.max(0, targetEnemy.hp-r2.dmg);
           const dmgBreak2=r2.dmgParts.length?` [dmg: ${r2.dmgParts.join(' ')} = <strong>${r2.dmg}</strong>]`:'';
           addLog(room,`${player.name} reroll ${r2.crit?'<strong>CRITS</strong>':'hits'} ${targetEnemy.name} — <strong class="num-dmg">−${r2.dmg} dmg</strong>${dmgBreak2} → ${targetEnemy.name} ${Math.max(0,targetEnemy.hp)}/${targetEnemy.maxHp} HP`,r2.crit?'crit':'dmg');
           if(targetEnemy.hp<=0){resolveEnemyDeath(room,targetEnemy);return;}
@@ -1657,7 +1662,7 @@ function handlePlayerAction(room,playerId,payload,ws){
         addLog(room,`🌪 ${player.name} Bladestorm strike ${bsi+2}!`,'crit');
         const rbs=rollAttack(char,targetEnemy,0);
         if(rbs.hit){
-          targetEnemy.hp=Math.min(targetEnemy.maxHp,targetEnemy.hp-rbs.dmg);
+          targetEnemy.hp=Math.max(0,targetEnemy.hp-rbs.dmg);
           addLog(room,`Bladestorm ${rbs.crit?'<strong>CRITS</strong>':'hits'} — <strong class="num-dmg">−${rbs.dmg} dmg</strong> → ${targetEnemy.name} ${Math.max(0,targetEnemy.hp)}/${targetEnemy.maxHp} HP`,rbs.crit?'crit':'dmg');
           if(targetEnemy.hp<=0){resolveEnemyDeath(room,targetEnemy);return;}
         } else {
@@ -1681,7 +1686,7 @@ function handlePlayerAction(room,playerId,payload,ws){
       if(rqs.fumble){
         addLog(room,`Quick Strike fumbles!`,'sys');
       } else if(rqs.hit){
-        targetEnemy.hp=Math.min(targetEnemy.maxHp,targetEnemy.hp-rqs.dmg);
+        targetEnemy.hp=Math.max(0,targetEnemy.hp-rqs.dmg);
         addLog(room,`Quick Strike ${rqs.crit?'<strong>CRITS</strong>':'hits'} — <strong class="num-dmg">−${rqs.dmg} dmg</strong> → ${targetEnemy.name} ${Math.max(0,targetEnemy.hp)}/${targetEnemy.maxHp} HP`,rqs.crit?'crit':'dmg');
         if(targetEnemy.hp<=0){resolveEnemyDeath(room,targetEnemy);return;}
       } else {
@@ -2080,7 +2085,7 @@ function handlePlayerAction(room,playerId,payload,ws){
       if(!enemies.length){addLog(room,'No enemies.','sys');return;}
       const dmg=rd(10,6);
       enemies.forEach(e=>{
-        e.hp=Math.min(e.maxHp,e.hp-dmg);
+        e.hp=Math.max(0,e.hp-dmg);
         addLog(room,`💥 Catastrophe hits <strong>${e.name}</strong> — <strong class="num-dmg">−${dmg} dmg</strong> → ${Math.max(0,e.hp)}/${e.maxHp} HP`,'crit');
         if(e.hp<=0){resolveEnemyDeath(room,e);}
       });

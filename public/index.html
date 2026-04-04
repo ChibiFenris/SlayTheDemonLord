@@ -1685,22 +1685,19 @@ function checkFloats(gs,players){
     }
 
     // ── DoT float numbers above enemy token ──────────────────────────────────
-    // Poison damage: "☠ Poison! <name> takes X (Nd3)"
-    const poisonMatch=plain.match(/Poison!.*takes\s+(\d+)/);
-    if(poisonMatch){
-      const dmg=parseInt(poisonMatch[1]);
-      spawnFloat(getActiveEnemyTok(),`☠ -${dmg}`,'dot');
-      return;
-    }
-    // Other DoT (Bleed, Burn, Chilled, Grave Grasp etc): "<name> takes X from <dotName>"
-    const dotMatch=plain.match(/takes\s+(\d+)\s+from\s+(\w[\w\s]*?)!/);
-    if(dotMatch){
-      const dmg=parseInt(dotMatch[1]);
-      const dotName=dotMatch[2].trim();
-      const dotIcons={'Bleed':'🩸','Major Bleed':'🩸🩸','Burn':'🔥','Chilled':'❄','Grave Grasp':'💀'};
-      const icon=dotIcons[dotName]||'⚡';
-      spawnFloat(getActiveEnemyTok(),`${icon} -${dmg}`,'dot');
-      return;
+    // ── DoT float numbers above enemy token ──────────────────────────
+    // Server log format: "☠ Poison (N stacks) burns X — −Y dmg"
+    if(plain.includes('burns')){
+      const m=plain.match(/−(\d+)\s*dmg/)||plain.match(/-(\d+)\s*dmg/);
+      if(m){
+        const dmg=m[1];
+        if(plain.includes('Poison'))      {spawnFloat(getActiveEnemyTok(),'☠ -'+dmg,'dot');return;}
+        if(plain.includes('Major Bleed')) {spawnFloat(getActiveEnemyTok(),'🩸🩸 -'+dmg,'dot');return;}
+        if(plain.includes('Bleed'))       {spawnFloat(getActiveEnemyTok(),'🩸 -'+dmg,'dot');return;}
+        if(plain.includes('Burn'))        {spawnFloat(getActiveEnemyTok(),'🔥 -'+dmg,'dot');return;}
+        if(plain.includes('Chilled'))     {spawnFloat(getActiveEnemyTok(),'❄ -'+dmg,'dot');return;}
+        if(plain.includes('Grave'))       {spawnFloat(getActiveEnemyTok(),'💀 -'+dmg,'dot');return;}
+      }
     }
 
     // ── Debuff application floats ─────────────────────────────────────────────
