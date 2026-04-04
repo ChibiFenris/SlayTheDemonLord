@@ -295,6 +295,7 @@ function regainCasting(char, maxRank) {
 // Attack spells deal damage (INT mod x2 bonus). Utility spells have special effects.
 const TRADITIONS = {
   fire: {
+    elemType:'fire',
     label:'Fire',
     spells:[
       {name:'Flame Missile', rank:0, type:'attack', dmg:'1d6',
@@ -310,6 +311,7 @@ const TRADITIONS = {
     ]
   },
   life: {
+    elemType:'holy',
     label:'Life',
     spells:[
       {name:'Minor Healing',    rank:0, type:'heal', dmg:'half_rate',
@@ -328,6 +330,7 @@ const TRADITIONS = {
     ]
   },
   death: {
+    elemType:'dark',
     label:'Death (Necromancy)',
     spells:[
       {name:'Spectral Grasp',   rank:0, type:'attack', dmg:'1d3',
@@ -341,6 +344,7 @@ const TRADITIONS = {
     ]
   },
   shadow: {
+    elemType:'dark',
     label:'Shadow',
     spells:[
       {name:'Nightfall Blade',  rank:0, type:'utility', dmg:'0',
@@ -354,6 +358,7 @@ const TRADITIONS = {
     ]
   },
   battle: {
+    elemType:'arcane',
     label:'Battle',
     spells:[
       {name:'Augmented Attack', rank:0, type:'utility', dmg:'0', dmgBuff:true,
@@ -367,6 +372,7 @@ const TRADITIONS = {
     ]
   },
   celestial: {
+    elemType:'holy',
     label:'Celestial',
     spells:[
       {name:'Burning Beam',  rank:0, type:'attack', dmg:'1d6',
@@ -380,6 +386,7 @@ const TRADITIONS = {
     ]
   },
   chaos: {
+    elemType:'arcane',
     label:'Chaos',
     spells:[
       {name:'Erratic Bolt',          rank:0, type:'attack', dmg:'1d6',
@@ -393,6 +400,7 @@ const TRADITIONS = {
     ]
   },
   earth: {
+    elemType:'arcane',
     label:'Earth',
     spells:[
       {name:'Earth Spike',   rank:0, type:'attack', dmg:'1d6', prone:true,
@@ -406,6 +414,7 @@ const TRADITIONS = {
     ]
   },
   storm: {
+    elemType:'lightning',
     label:'Storm',
     spells:[
       {name:'Forked Lightning', rank:0, type:'attack', dmg:'1d6+2',
@@ -419,6 +428,7 @@ const TRADITIONS = {
     ]
   },
   protection: {
+    elemType:'arcane',
     label:'Protection',
     spells:[
       {name:'Force Field',      rank:0, type:'utility', dmg:'0', forceField:true,
@@ -432,6 +442,7 @@ const TRADITIONS = {
     ]
   },
   illusion: {
+    elemType:'arcane',
     label:'Illusion',
     spells:[
       {name:'Figment',   rank:0, type:'utility', dmg:'0', enemyBane:true,
@@ -445,6 +456,7 @@ const TRADITIONS = {
     ]
   },
   nature: {
+    elemType:'arcane',
     label:'Nature',
     spells:[
       {name:'Oak Hide',        rank:0, type:'utility', dmg:'0', defBonus:2,
@@ -458,6 +470,7 @@ const TRADITIONS = {
     ]
   },
   transformation: {
+    elemType:'arcane',
     label:'Transformation',
     spells:[
       {name:'Beast Within', rank:0, type:'utility', dmg:'0', dmgBuff:true,
@@ -471,6 +484,7 @@ const TRADITIONS = {
     ]
   },
   time: {
+    elemType:'arcane',
     label:'Time',
     spells:[
       {name:'Swiftness',       rank:0, type:'utility', dmg:'0', speedBuff:true,
@@ -497,36 +511,37 @@ function getSpellsForPower(traditionId, power) {
 // All ATK values are 0 — hit is purely d20 vs Defense
 const ENEMY_POOLS = {
   low: [
-    {name:'Skaven Clanrat',     type:'Skaven',  threat:'Low',      hp:8,  ac:12,atk:0,xp:1,gold:[2,8]},
-    {name:'Beastman Gor',       type:'Chaos',   threat:'Low',      hp:12, ac:13,atk:0,xp:1,gold:[3,10],chaos:true},
-    {name:'Undead Skeleton',    type:'Undead',  threat:'Low',      hp:15, ac:10,atk:0,xp:1,gold:[0,5],  undead:true},
-    {name:'Mutant Thug',        type:'Cultist', threat:'Low',      hp:10, ac:11,atk:0,xp:1,gold:[5,15],chaos:true},
+    // tags: skaven=call the pack, chaos=holy weakness, undead=fire weakness+undeath passive, beast=dark weakness+rage passive
+    {name:'Skaven Clanrat',     type:'Skaven',  threat:'Low',      hp:8,  ac:12,atk:0,xp:1,gold:[2,8],   tags:['skaven']},
+    {name:'Beastman Gor',       type:'Beastmen',threat:'Low',      hp:12, ac:13,atk:0,xp:1,gold:[3,10],  tags:['beast'],  chaos:true},
+    {name:'Undead Skeleton',    type:'Undead',  threat:'Low',      hp:15, ac:10,atk:0,xp:1,gold:[0,5],   tags:['undead'], undead:true},
+    {name:'Mutant Thug',        type:'Cultist', threat:'Low',      hp:10, ac:11,atk:0,xp:1,gold:[5,15],  tags:['chaos'],  chaos:true},
   ],
   mid: [
-    {name:'Chaos Marauder',     type:'Chaos',   threat:'Moderate', hp:20, ac:14,atk:2,xp:2,gold:[10,25],chaos:true},
-    {name:'Skaven Stormvermin', type:'Skaven',  threat:'Moderate', hp:18, ac:15,atk:2,xp:2,gold:[8,20]},
-    {name:'Wight',              type:'Undead',  threat:'Moderate', hp:28, ac:12,atk:2,xp:2,gold:[5,15],  undead:true,lifeLeech:true},
-    {name:'Plague Monk',        type:'Chaos',   threat:'Moderate', hp:19, ac:13,atk:2,xp:2,gold:[0,0],   diseased:true,chaos:true},
+    {name:'Chaos Marauder',     type:'Chaos',   threat:'Moderate', hp:30, ac:14,atk:2,xp:2,gold:[10,25], tags:['chaos'],  chaos:true},
+    {name:'Skaven Stormvermin', type:'Skaven',  threat:'Moderate', hp:28, ac:15,atk:2,xp:2,gold:[8,20],  tags:['skaven']},
+    {name:'Wight',              type:'Undead',  threat:'Moderate', hp:38, ac:12,atk:2,xp:2,gold:[5,15],  tags:['undead'], undead:true,lifeLeech:true},
+    {name:'Plague Monk',        type:'Chaos',   threat:'Moderate', hp:29, ac:13,atk:2,xp:2,gold:[5,15],  tags:['chaos'],  chaos:true},
   ],
   high: [
-    {name:'Chaos Warrior',      type:'Chaos',   threat:'High',     hp:35, ac:16,atk:3,xp:3,gold:[15,40],chaos:true},
-    {name:'Vampire Count',      type:'Undead',  threat:'High',     hp:40, ac:15,atk:3,xp:3,gold:[20,60], undead:true,lifeLeech:true},
-    {name:'Bloodletter',        type:'Daemon',  threat:'High',     hp:45, ac:15,atk:3,xp:3,gold:[25,50], insanityAtk:true,chaos:true},
-    {name:'Skaven Warlord',     type:'Skaven',  threat:'High',     hp:32, ac:14,atk:3,xp:3,gold:[10,30], diseased:true},
+    {name:'Chaos Warrior',      type:'Chaos',   threat:'High',     hp:45, ac:16,atk:3,xp:3,gold:[15,40], tags:['chaos'],  chaos:true},
+    {name:'Vampire Count',      type:'Undead',  threat:'High',     hp:50, ac:15,atk:3,xp:3,gold:[20,60], tags:['undead'], undead:true,lifeLeech:true},
+    {name:'Bloodletter',        type:'Chaos',   threat:'High',     hp:55, ac:15,atk:3,xp:3,gold:[25,50], tags:['chaos'],  insanityAtk:true,chaos:true},
+    {name:'Skaven Warlord',     type:'Skaven',  threat:'High',     hp:42, ac:14,atk:3,xp:3,gold:[10,30], tags:['skaven']},
   ],
-  // Boss 1 (depth 10) — random, ATK +0
+  // Boss 1 (depth 10) — random
   boss1: [
-    {name:'Skaven Warlord Gnashteeth', type:'Skaven Boss', threat:'Boss',hp:80, ac:15,atk:0,xp:5,gold:[30,80]},
-    {name:'Beastlord Kragthor',        type:'Chaos Boss',  threat:'Boss',hp:95, ac:16,atk:0,xp:5,gold:[25,70],chaos:true},
+    {name:'Skaven Warlord Gnashteeth', type:'Skaven Boss', threat:'Boss',hp:80, ac:15,atk:0,xp:5,gold:[30,80],  tags:['skaven']},
+    {name:'Beastlord Kragthor',        type:'Beastmen Boss',threat:'Boss',hp:95, ac:16,atk:0,xp:5,gold:[25,70], tags:['beast'], chaos:true},
   ],
-  // Boss 2 (depth 20) — random, ATK +3
+  // Boss 2 (depth 20) — random, regen removed from Varghulf, life leech stays
   boss2: [
-    {name:'Varghulf',            type:'Undead Boss', threat:'Boss',hp:138,ac:15,atk:3,xp:5,gold:[200,200],undead:true,lifeLeech:true,regen:true},
-    {name:'Bonebreaker Ratogre', type:'Daemon Boss', threat:'Boss',hp:138,ac:16,atk:3,xp:5,gold:[200,200],insanityAtk:true},
+    {name:'Varghulf',            type:'Undead Boss', threat:'Boss',hp:138,ac:15,atk:3,xp:5,gold:[200,200],tags:['undead'],undead:true,lifeLeech:true},
+    {name:'Bonebreaker Ratogre', type:'Skaven Boss', threat:'Boss',hp:138,ac:16,atk:3,xp:5,gold:[200,200],tags:['skaven'],insanityAtk:true},
   ],
-  // Boss 3 (depth 30) — always Saurian Ancient, ATK +4
+  // Boss 3 (depth 30) — Saurian Ancient with regeneration
   boss3: [
-    {name:'Saurian Ancient',     type:'Ancient Boss',threat:'Boss',hp:250,ac:15,atk:4,xp:5,gold:[60,150]},
+    {name:'Saurian Ancient', type:'Ancient Boss',threat:'Boss',hp:250,ac:15,atk:4,xp:5,gold:[60,150],tags:[],regen:true},
   ],
 };
 
@@ -545,7 +560,8 @@ function enemyDmgDice(threat, isElite, bossCount) {
 function scaleEnemy(tmpl, playerCount, isElite, bossCount) {
   const e = JSON.parse(JSON.stringify(tmpl));
   const bossHpMult = (bossCount > 0 && e.threat !== 'Boss') ? 1.15 : 1.0;
-  e.hp = e.maxHp = Math.round(e.hp * (1 + (playerCount-1)*0.5) * bossHpMult);
+  const bossHpFlat = (bossCount > 0 && e.threat !== 'Boss') ? 10 : 0;
+  e.hp = e.maxHp = Math.round(e.hp * (1 + (playerCount-1)*0.5) * bossHpMult) + bossHpFlat;
   e.conditions = []; e.activeDebuffs = []; e.isElite = isElite;
   const dd = enemyDmgDice(e.threat, isElite, bossCount);
   e.dmgNum=dd.n; e.dmgSides=dd.s; e.dmgBonus=dd.b;
@@ -579,7 +595,7 @@ function buildChar(career) {
   const c = CAREERS[career];
   const attrs = {...c.startAttrs};
   const baseDefense = attrs.agi + c.armorDef;
-  const startWpn = {id:'w_start_'+uuidv4(),name:'Starting Weapon',dice:'1d6',stat:c.weaponStr?'str':'agi',bonus:0,type:'weapon',desc:'1d6 — starting gear'};
+  const startWpn = {id:'w_start_'+uuidv4(),name:'Starting Weapon',dice:'1d6',stat:c.weaponStr?'str':'agi',bonus:0,dmgType:c.weaponStr?'blunt':'slashing',type:'weapon',desc:'1d6 — starting gear'};
   const startArmor = c.armorDef>0 ? {id:'a_start_'+uuidv4(),name:'Starting Armour',defBonus:c.armorDef,type:'armor',desc:`+${c.armorDef} Defense`} : null;
   return {
     career, attrs,
@@ -680,10 +696,17 @@ function rollAttack(char, enemy, extraBoons=0) {
     const dmgBuff=getBuffVal(char,'dmgBonus'); if(dmgBuff){dmg+=dmgBuff;dmgParts.push(`+${dmgBuff} buff`);}
     const battleProwessBuff=(char.activeBuffs||[]).some(b=>b.battleProwess);
     if(battleProwessBuff){const r=rd(1,6);dmg+=r;dmgParts.push(`+${r} prowess`);}
+    // Slashing: ×1.5 vs AC ≤ 14 (light/no armour)
+    // Blunt:    ×1.5 vs AC ≥ 16 (heavy armour)
+    const wpnType=(wpn&&wpn.dmgType)||'slashing';
+    if(enemy){
+      if(wpnType==='slashing'&&enemy.ac<=14){ dmg=Math.floor(dmg*1.5); dmgParts.push('×1.5 Slash'); }
+      else if(wpnType==='blunt'&&enemy.ac>=16){ dmg=Math.floor(dmg*1.5); dmgParts.push('×1.5 Blunt'); }
+    }
     dmg=Math.max(1,dmg);
   }
   const boonInfo=boons>0?` (${boons} boon)`:banes>0?` (${banes} bane)`:'';
-  const wpnLabel=wpn?`${wpn.name} (${wpnDice}+${wpnDmgBonus})`:'Unarmed (1d6)';
+  const wpnLabel=wpn?`${wpn.name} (${wpnDice}+${wpnDmgBonus}) [${(wpn&&wpn.dmgType)||'slashing'}]`:'Unarmed (1d6)';
   return {hit,crit,fumble,base,final,total,dmg,dmgParts,atkMod,boonInfo,forceCrit,wpnLabel};
 }
 
@@ -704,9 +727,6 @@ function rollEnemyAttack(enemy, char) {
     dmg=dmgRoll+enemy.dmgBonus;
     if (crit) { critRoll=rd(enemy.dmgNum,enemy.dmgSides); dmg+=critRoll; }
     if (char.toughness) dmg=Math.max(0,dmg-1);
-    const dmgBuff=getBuffVal(char,'dmgBonus'); if(dmgBuff){dmg+=dmgBuff;dmgParts.push(`+${dmgBuff} buff`);}
-    const battleProwessBuff=(char.activeBuffs||[]).some(b=>b.battleProwess);
-    if(battleProwessBuff){const r=rd(1,6);dmg+=r;dmgParts.push(`+${r} prowess`);}
     dmg=Math.max(1,dmg);
   }
   return {hit,crit,dmg,dmgRoll,critRoll,total,base};
@@ -736,7 +756,7 @@ function getDebuffVal(enemy, key){ return (enemy.activeDebuffs||[]).filter(d=>d[
 
 // ─── LEVEL UP & PATHS ────────────────────────────────────────────────────────
 // XP thresholds (50% of SotDL base)
-const XP_THRESHOLDS = [0,1,2,3,4,6,7,9,12,14];
+const XP_THRESHOLDS = [0,1,2,3,4,6,7,9,12,14,17]; // index 0..10 = levels 0..10
 
 function checkLevelUp(char) {
   if (char.level >= 10) return {leveled:false}; // hard cap at level 10
@@ -1032,7 +1052,16 @@ function maybeEnemyAttack(room) {
 
   addLog(room,`--- ${attackingEnemies.map(ae=>ae.name).join(' & ')} retaliates! ---`,'sys');
 
-  // Regen on all living enemies
+  // Regen on all living enemies + passive checks
+  attackingEnemies.forEach(ae=>{
+    // UNDEATH passive (undead tag): below 30% HP, heal 2d6 once per combat
+    if(ae.tags&&ae.tags.includes('undead')&&ae.hp>0&&ae.hp<ae.maxHp*0.3&&!ae._undeathUsed){
+      ae._undeathUsed=true;
+      const heal=rd(2,6);
+      ae.hp=Math.min(ae.maxHp,ae.hp+heal);
+      addLog(room,`☠ <strong>Undeath!</strong> ${ae.name} surges with dark energy — heals <strong>${heal}</strong> HP!`,'chaos');
+    }
+  });
   attackingEnemies.forEach(ae=>{
     if(ae.regen&&ae.hp<ae.maxHp){const r=rd(1,6);ae.hp=Math.min(ae.maxHp,ae.hp+r);addLog(room,`${ae.name} regenerates ${r} HP.`,'chaos');}
   });
@@ -1068,22 +1097,35 @@ function maybeEnemyAttack(room) {
         const critLabel=r.crit?' 💥 CRIT!':'';
         const dmgBreak=`${ae.dmgNum}d${ae.dmgSides}(${r.dmgRoll})${ae.dmgBonus?'+'+ae.dmgBonus:''}${r.critRoll?'+'+r.critRoll+' crit':''}`;
         addLog(room,`${ae.name} hits <strong>${p.name}</strong> — <strong class="num-dmg">−${r.dmg} dmg</strong>${critLabel} [d20:<strong>${r.base}</strong>+atk<strong>${ae.atk>=0?'+':''}${ae.atk}</strong>=<strong>${r.total}</strong> vs Def<strong>${p.char.defense+auraBonus}</strong>] [dmg: ${dmgBreak}] → ${p.name} <strong>${Math.max(0,p.char.health)}</strong>/${p.char.maxHealth} HP`,'dmg-taken');
+        // RAGE passive (beast tag): below 50% HP → +3 damage
+        if(ae.tags&&ae.tags.includes('beast')&&ae.hp<ae.maxHp*0.5){
+          r.dmg+=3; addLog(room,`${ae.name} RAGES! (+3 dmg, ${Math.max(0,ae.hp)}/${ae.maxHp} HP)`,'chaos');
+        }
         if(ae.lifeLeech){
           const isVarghulf=ae.name==='Varghulf';
           if(isVarghulf){
             ae._leechAccum=(ae._leechAccum||0)+r.dmg;
           } else {
-            const l=Math.floor(r.dmg/2); ae.hp=Math.min(ae.maxHp,ae.hp+l);
-            addLog(room,`${ae.name} leeches ${l} HP!`,'chaos');
+            const l=Math.floor(r.dmg/4); ae.hp=Math.min(ae.maxHp,ae.hp+l);
+            addLog(room,`${ae.name} leeches ${l} HP (¼)!`,'chaos');
           }
         }
         if(ae.insanityAtk&&d(6)>=4){p.char.insanity++;addLog(room,`${p.name} gains 1 Insanity!`,'chaos');}
-        if(ae.diseased&&d(6)>=5&&!p.char.conditions.includes('Diseased')){p.char.conditions.push('Diseased');addLog(room,`${p.name} contracts disease!`,'chaos');}
+        // diseased mechanic removed
         checkDeath(room,p);
       } else {
         if(!r.skipped) addLog(room,`${ae.name} <em>misses</em> ${p.name} — d20:<strong>${r.base}</strong>+<strong>${ae.atk>=0?'+':''}${ae.atk}</strong>=<strong>${r.total}</strong> vs Def<strong>${p.char.defense+auraBonus}</strong>.`,'sys');
       }
     });
+    // CALL THE PACK (skaven tag): below 60% HP, once per combat, summon a Skaven Clanrat
+    if(ae.tags&&ae.tags.includes('skaven')&&ae.hp<ae.maxHp*0.6&&!ae._packCalled&&gs.enemies&&gs.enemies.length<4){
+      ae._packCalled=true;
+      const clanrat=scaleEnemy({name:'Skaven Clanrat',type:'Skaven',threat:'Low',hp:8,ac:12,atk:0,xp:0,gold:[0,0],tags:['skaven']},
+        room.players.filter(p=>p.connected&&p.char&&p.char.alive).length,false,gs.bossCount);
+      clanrat.id='pack_'+Date.now();
+      gs.enemies.push(clanrat);
+      addLog(room,`🐀 <strong>Call the Pack!</strong> ${ae.name} summons a <strong>Skaven Clanrat</strong>!`,'chaos');
+    }
     // Bonus multi-attack hits random player
     if(ae.multi){
       const t=alive[Math.floor(Math.random()*alive.length)];
@@ -1175,10 +1217,16 @@ function resolveEnemyDeath(room, deadEnemy) {
 
 // ─── MERCHANT ────────────────────────────────────────────────────────────────
 const WEAPON_BASES=[
-  {name:'Reiklander Sword',dice:'1d6',stat:'str'},{name:'Duelling Sabre',dice:'1d6',stat:'agi'},
-  {name:'War Axe',dice:'2d6',stat:'str'},{name:'Halberd',dice:'2d6',stat:'str'},
-  {name:'Crossbow',dice:'1d6',stat:'agi'},{name:'Silvered Rapier',dice:'1d6',stat:'agi'},
-  {name:'Warhammer',dice:'2d6',stat:'str'},{name:'Pistol',dice:'1d6',stat:'agi'},
+  // Slashing: x1.5 vs AC ≤ 14
+  {name:'Reiklander Sword', dice:'1d6', stat:'str', dmgType:'slashing'},
+  {name:'Duelling Sabre',   dice:'1d6', stat:'agi', dmgType:'slashing'},
+  {name:'War Axe',          dice:'2d6', stat:'str', dmgType:'slashing'},
+  {name:'Halberd',          dice:'2d6', stat:'str', dmgType:'slashing'},
+  {name:'Silvered Rapier',  dice:'1d6', stat:'agi', dmgType:'slashing'},
+  // Blunt: x1.5 vs AC ≥ 16
+  {name:'Warhammer',        dice:'2d6', stat:'str', dmgType:'blunt'},
+  {name:'Pistol',           dice:'1d6', stat:'agi', dmgType:'blunt'},
+  {name:'Crossbow',         dice:'1d6', stat:'agi', dmgType:'blunt'},
 ];
 const ARMOR_BASES=[{name:'Leather Jack',def:1},{name:'Chain Shirt',def:2},{name:'Breastplate',def:3},{name:'Full Plate',def:4}];
 const SHOP_CONSUMABLES=[
@@ -1201,7 +1249,7 @@ function genWpn(){
   const light=WEAPON_BASES.filter(b=>b.dice==='1d6'), heavy=WEAPON_BASES.filter(b=>b.dice==='2d6');
   const pool=d(5)===1?heavy:light;
   const b=pool[Math.floor(Math.random()*pool.length)], bonus=d(6);
-  return{id:'w'+uuidv4(),name:b.name,dice:b.dice,stat:b.stat,bonus,cost:Math.max(5,(b.dice==='2d6'?20:15)+bonus*8),sellCost:1,bought:false,type:'weapon',desc:`${b.dice}+${bonus} · ${b.stat.toUpperCase()}`};
+  return{id:'w'+uuidv4(),name:b.name,dice:b.dice,stat:b.stat,bonus,dmgType:b.dmgType,cost:Math.max(5,(b.dice==='2d6'?20:15)+bonus*8),sellCost:1,bought:false,type:'weapon',desc:`${b.dice}+${bonus} · ${b.stat.toUpperCase()} · ${b.dmgType}`};
 }
 function genArmor(){
   const b=ARMOR_BASES[Math.floor(Math.random()*ARMOR_BASES.length)];
@@ -1652,8 +1700,15 @@ function handlePlayerAction(room,playerId,payload,ws){
         const fireNames=['Flame Missile','Meteor','Fiery Volley','Fireball','Immolate','Fire Blast','Burning Hands','Firewall'];
         if(char.burningSoul&&fireNames.includes(spell.name)){burnBonus=rd(1,6);}
         total=roll+b+intMod+burnBonus;
-        if(spell.lifeLeech){const heal=Math.floor(total/2);char.health=Math.min(char.maxHealth,char.health+heal);addLog(room,`${player.name} leeches ${heal} HP!`,'heal');}
-        addLog(room,`${player.name} casts <strong>${spell.name}</strong> — ${n}d${s}(${roll})${b?'+'+b:''}+${intMod} INT${burnBonus?'+'+burnBonus+' burn':''} = <strong>${total}</strong> dmg!`,'spell');
+        if(spell.lifeLeech){const heal=Math.floor(total/4);char.health=Math.min(char.maxHealth,char.health+heal);addLog(room,`${player.name} leeches ${heal} HP (¼)!`,'heal');}
+        // Elemental weakness check
+        const spellElem=(TRADITIONS[Object.keys(TRADITIONS).find(k=>TRADITIONS[k].spells&&TRADITIONS[k].spells.some(s=>s.name===spell.name))]||{}).elemType||'arcane';
+        const eTags=(spellTarget&&spellTarget.tags)||[];
+        const WEAKNESSES={fire:['undead'],holy:['chaos'],lightning:['skaven'],dark:['beast']};
+        const weakTags=WEAKNESSES[spellElem]||[];
+        const isWeak=eTags.some(t=>weakTags.includes(t));
+        if(isWeak){ total=Math.floor(total*2); addLog(room,`⚡ <strong>Elemental Weakness!</strong> ${spellElem} vs ${eTags.join('/')} — damage doubled!`,'crit'); }
+        addLog(room,`${player.name} casts <strong>${spell.name}</strong> [${spellElem}] — ${n}d${s}(${roll})${b?'+'+b:''}+${intMod} INT${burnBonus?'+'+burnBonus+' burn':''} = <strong>${total}</strong> dmg${isWeak?' ×2 WEAKNESS':''}!`,'spell');
       } else {
         // Fallback for unusual dmg strings — treat as flat value
         total=parseInt(dStr)||0;

@@ -781,8 +781,10 @@ function renderBattle(gs,players,me){
     const eRow=document.createElement('div'); eRow.className='token-row er';
     eRow.style.cssText=enemies.length>1&&isTarget?'border:2px solid var(--gold);border-radius:6px;padding:2px;':'';
     // Debuffs display
+    const WEAKNESSES_C={skaven:'⚡ Weak: Lightning',chaos:'✨ Weak: Holy',undead:'🔥 Weak: Fire',beast:'🌑 Weak: Dark'};
     const debuffs=e.activeDebuffs||[];
-    const debuffHtml=debuffs.length?`<div style="font-size:9px;color:var(--blood-bright);margin-top:2px">${debuffs.map(d=>`${d.name}(${d.duration}r)`).join(' · ')}</div>`:'';
+    const weakLine=(e.tags||[]).map(t=>WEAKNESSES_C[t]||'').filter(Boolean).join(' · ');
+    const debuffHtml=(debuffs.length||weakLine)?`<div style="font-size:9px;margin-top:2px">${weakLine?`<span style="color:#ffaa44">${weakLine}</span> `:''}${debuffs.length?`<span style="color:var(--blood-bright)">${debuffs.map(d=>`${d.name}(${d.duration}r)`).join(' · ')}</span>`:''}</div>`:'';
     // Target button for multi-enemy
     const targetBtn=enemies.length>1&&!isTarget
       ?`<button class="btn" style="font-size:9px;padding:2px 6px;margin-top:3px" onclick="send('PLAYER_ACTION',{action:'TARGET_ENEMY',data:{idx:${idx}}})">Target</button>`
@@ -794,6 +796,7 @@ function renderBattle(gs,players,me){
         <div class="tok-hp-track" style="margin-top:4px"><div class="tok-hp-fill" style="width:${hpPct}%;background:var(--blood)"></div></div>
         <div class="tok-hp-txt" style="text-align:right">${Math.max(0,e.hp)}/${e.maxHp} HP</div>
         <div class="e-stats">Def<span>${e.ac}</span>ATK<span>${(e.atk>=0?'+':'')+e.atk}</span>DMG<span>${e.dmgDisplay||'1d6'}</span></div>
+        ${(e.tags&&e.tags.length)?`<div style="font-size:9px;margin-top:2px">${e.tags.map(t=>{const tc={skaven:'🐀 Skaven',chaos:'☠ Chaos',undead:'💀 Undead',beast:'🐗 Beast'};return`<span style="color:var(--gold);margin-right:3px">${tc[t]||t}</span>`;}).join('')}${e.lifeLeech?'<span style="color:#cc44cc;margin-right:3px">Leech</span>':''}${e.regen?'<span style="color:#44cc44;margin-right:3px">Regen</span>':''}${e.insanityAtk?'<span style="color:#cc44cc;margin-right:3px">Insanity</span>':''}</div>`:''}
         ${debuffHtml}${targetBtn}
       </div>
       ${eTok?`<img class="tok enemy" src="${eTok}" alt="${e.name}">`:`<div class="tok-ph">💀</div>`}`;
@@ -882,7 +885,7 @@ function buildCard(p,gs,isMe){
     <div class="mini-s">Defense <span>${c.defense}</span></div>
     <div class="mini-s">Power <span>${c.power}</span></div>
     ${c.power>0&&c.knownSpells&&c.knownSpells.length?`<div class="mini-s" style="font-size:10px"><span style="color:var(--text-dim)">Castings: ${c.knownSpells.map(sp=>sp.name.split(' ')[0]+': '+castingsLeftC(c,sp.name,sp.rank)+'/'+maxCastingsC(c.power,sp.rank)).join(' · ')}</span></div>`:''}
-    <div class="mini-s">Equipped <span>${c.equippedWeapon?c.equippedWeapon.name+' '+c.equippedWeapon.dice+'+'+(c.equippedWeapon.bonus||0):'—'}</span></div>
+    <div class="mini-s">Equipped <span>${c.equippedWeapon?c.equippedWeapon.name+' '+c.equippedWeapon.dice+'+'+(c.equippedWeapon.bonus||0)+' '+(c.equippedWeapon.dmgType==='blunt'?'🔨':'⚔'):'—'}</span></div>
     <div class="mini-s">Armour <span>${c.equippedArmor?c.equippedArmor.name+' +'+c.equippedArmor.defBonus:'—'}</span></div>
     ${paths?`<div class="mini-s">Paths <span style="color:var(--gold);font-size:9px">${paths}</span></div>`:''}
     <div class="gold-s">Silver <span>${c.gold} ss</span></div>
@@ -905,6 +908,10 @@ function renderAbilities(char, inCombat, targetId='my-ab'){
       const maxC=maxCastingsC(char.power,sp.rank);
       const leftC=castingsLeftC(char,sp.name,sp.rank);
       const avail=leftC>0;
+      const TRAD_ELEMS2={fire:'fire',life:'holy',death:'dark',shadow:'dark',battle:'arcane',celestial:'holy',chaos:'arcane',earth:'arcane',storm:'lightning',protection:'arcane',illusion:'arcane',nature:'arcane',transformation:'arcane',time:'arcane'};
+      const elemIcons2={fire:'🔥',holy:'✨',lightning:'⚡',dark:'🌑',arcane:'🔮'};
+      const spTrad2=Object.keys(TRAD_ELEMS2).find(k=>(TRADITION_SPELLS_CLIENT[k]||[]).some(s=>s.name===sp.name));
+      const spElemIcon=spTrad2?elemIcons2[TRAD_ELEMS2[spTrad2]]||'🔮':'🔮';
       const typeLabel=sp.type==='heal'?'Heal':sp.type==='utility'?'Util':'Atk';
       const castLabel=`${leftC}/${maxC}`;
       const badge=sp.rank===0
@@ -912,7 +919,7 @@ function renderAbilities(char, inCombat, targetId='my-ab'){
         :avail?`<span class="ab-badge ab-ready">${castLabel}</span>`
         :`<span class="ab-badge ab-used">${castLabel}</span>`;
       const desc=sp.desc||`Rank ${sp.rank} ${typeLabel} spell.`;
-      html+=`<div class="ab-item tip"><span class="ab-name">${sp.name}</span>&nbsp;<span style="font-size:9px;color:var(--text-dim)">[R${sp.rank} ${typeLabel}]</span>&nbsp;${badge}<span class="tiptext">${desc}</span></div>`;
+      html+=`<div class="ab-item tip"><span class="ab-name">${spElemIcon} ${sp.name}</span>&nbsp;<span style="font-size:9px;color:var(--text-dim)">[R${sp.rank} ${typeLabel}]</span>&nbsp;${badge}<span class="tiptext">${desc}</span></div>`;
     });
     if(traditions.length){
       html+=`<div style="font-size:10px;color:var(--text-dim);margin-top:4px;font-style:italic">Traditions: ${traditions.map(t=>TRADITION_INFO[t]?.label||t).join(', ')}</div>`;
@@ -992,6 +999,12 @@ function renderInv(char, inCombat, atMerchant){
     const isWpn=item.type==='weapon', isArmor=item.type==='armor';
     const usable=USABLE.includes(item.name)||item.name.startsWith('Scroll:');
     const isEqWpn=isWpn&&char.equippedWeapon&&item.itemObj&&item.itemObj.id===char.equippedWeapon.id;
+      // Annotate weapon desc with dmgType
+      if(isWpn&&item.itemObj&&item.itemObj.dmgType){
+        const dtIcon=item.itemObj.dmgType==='blunt'?'🔨 Blunt':'⚔ Slashing';
+        const dtTip=item.itemObj.dmgType==='blunt'?'×1.5 dmg vs AC ≥ 16 (heavy armour)':'×1.5 dmg vs AC ≤ 14 (light/no armour)';
+        item._dmgTypeLabel=`${dtIcon} — ${dtTip}`;
+      }
     const isEqArm=isArmor&&char.equippedArmor&&item.itemObj&&item.itemObj.id===char.equippedArmor.id;
     const star=isEqWpn?'<span style="color:var(--gold);font-size:9px"> ★W</span>':isEqArm?'<span style="color:var(--gold);font-size:9px"> ★A</span>':'';
     const stat=isWpn&&item.itemObj?` ${item.itemObj.dice}+${item.itemObj.bonus}`:isArmor&&item.itemObj?` +${item.itemObj.defBonus}Def`:'';
@@ -1002,7 +1015,12 @@ function renderInv(char, inCombat, atMerchant){
     if(usable) btns+=`<button class="use-btn" onclick="useItem('${esc(item.name)}',${inCombat})">Use</button>`;
     if(ALLY.includes(item.name)&&inCombat) btns+=`<button class="use-btn" style="color:#80c080;border-color:#4a7a4a" onclick="useAlly('${esc(item.name)}')">Ally</button>`;
     if(atMerchant&&!isEqWpn&&!isEqArm) btns+=`<button class="sell-btn" onclick="sellItem(${idx})">Sell 1ss</button>`;
-    h+=`<li><span class="iname tip">${item.name}${item.qty>1?' ('+item.qty+')':''}${stat}${star}<span class="tiptext">${desc}</span></span><span style="display:flex;gap:2px;flex-wrap:wrap">${btns}</span></li>`;
+    const dmgTypeBadge=isWpn&&item.itemObj&&item.itemObj.dmgType
+      ?(item.itemObj.dmgType==='blunt'
+        ?'<span style="font-size:9px;color:#aad4ff"> 🔨</span>'
+        :'<span style="font-size:9px;color:#ffcc88"> ⚔</span>')
+      :'';
+    h+=`<li><span class="iname tip">${item.name}${item.qty>1?' ('+item.qty+')':''}${stat}${dmgTypeBadge}${star}<span class="tiptext">${desc}${item._dmgTypeLabel?' — '+item._dmgTypeLabel:''}</span></span><span style="display:flex;gap:2px;flex-wrap:wrap">${btns}</span></li>`;
   });
   el2.innerHTML=h||'<li style="color:var(--text-dim)">Empty</li>';
 }
@@ -1077,7 +1095,18 @@ function renderActions(gs,players,me){
     if(hasActed){ body.innerHTML='<div class="acted-msg">Acted this round — waiting for others...</div>'; return; }
     const g=document.createElement('div'); g.className='action-grid';
     const wpnStr=wpnLbl(char);
-    addBtn(g,'Attack',wpnStr,'am-',()=>send('PLAYER_ACTION',{action:'ATTACK'}),false,`Attack the enemy with your weapon. ${wpnStr}. Natural 1 = fumble. Natural 20 = critical hit (double dice).`);
+    const _wpn=char.equippedWeapon;
+    const _dtype=(_wpn&&_wpn.dmgType)||'slashing';
+    const _dtIcon=_dtype==='blunt'?'🔨':'⚔';
+    const _te=gs.enemies&&gs.enemies.length>0?gs.enemies[gs.activeEnemyIdx||0]:gs.enemy;
+    const _bonus=_dtype==='blunt'&&_te&&_te.ac>=16
+      ? ' [×1.5 vs heavy armour!]'
+      : _dtype==='slashing'&&_te&&_te.ac<=14
+      ? ' [×1.5 vs light armour!]'
+      : '';
+    const _atkLabel=`${_dtIcon} Attack${_bonus}`;
+    const _atkTip=`${_dtIcon} ${_dtype==='blunt'?'Blunt — ×1.5 dmg vs AC ≥ 16 (heavy armour)':'Slashing — ×1.5 dmg vs AC ≤ 14 (light/no armour)'}. ${wpnStr}.`;
+    addBtn(g,_atkLabel,wpnStr,'am-',()=>send('PLAYER_ACTION',{action:'ATTACK'}),false,_atkTip);
     (char.knownSpells||[]).forEach(sp=>{
       const avail=castingsLeftC(char,sp.name,sp.rank)>0;
       const desc=sp.desc||`Rank ${sp.rank} spell.`;
@@ -1090,7 +1119,11 @@ function renderActions(gs,players,me){
       } else if(isUtil){
         addBtn(g,sp.name,`Utility·R${sp.rank}`,'as-',()=>send('PLAYER_ACTION',{action:'CAST_SPELL',data:{spellName:sp.name}}),!avail,desc);
       } else {
-        addBtn(g,sp.name,`Attack·R${sp.rank}`,'as-',()=>send('PLAYER_ACTION',{action:'CAST_SPELL',data:{spellName:sp.name}}),!avail,desc);
+        const elemLabels={fire:'🔥',holy:'✨',lightning:'⚡',dark:'🌑',arcane:'🔮'};
+        const TRAD_ELEMS={fire:'fire',life:'holy',death:'dark',shadow:'dark',battle:'arcane',celestial:'holy',chaos:'arcane',earth:'arcane',storm:'lightning',protection:'arcane',illusion:'arcane',nature:'arcane',transformation:'arcane',time:'arcane'};
+        const spElem=Object.entries(TRAD_ELEMS).find(([k])=>(TRADITION_SPELLS_CLIENT[k]||[]).some(s=>s.name===sp.name));
+        const elemIcon=spElem?elemLabels[spElem[1]]||'🔮':'🔮';
+        addBtn(g,`${elemIcon} ${sp.name}`,`Attack·R${sp.rank}`,'as-',()=>send('PLAYER_ACTION',{action:'CAST_SPELL',data:{spellName:sp.name}}),!avail,desc);
       }
     });
     if(char.catchBreath&&!char.catchBreathUsed) addBtn(g,'Catch Breath',`~${Math.floor(char.maxHealth/4)} HP`,'at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'catchBreath'}}),false,TALENT_DESCS.catchBreath);
