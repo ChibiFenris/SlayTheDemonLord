@@ -449,7 +449,7 @@ const TALENT_DESCS={
   shieldwall:'+2 Defense while in combat.',
   toughness:'All damage you take is reduced by 1.',
   quickstrike:'In round 1 of combat, you may make two attacks.',
-  evasion:'+2 Defense against ranged attacks.',
+  evasion:'Passive — Enemy attacks against you have 1 bane (forced reroll to lower d20).',
   deathblow:'Critical hits deal triple weapon dice instead of double.',
   shadowstep:'Fleeing combat never provokes an opportunity attack.',
   overcast:'Spend 2 castings on any spell to deal +2d6 bonus damage.',
@@ -898,7 +898,41 @@ function buildCard(p,gs,isMe){
     <div class="mini-s">Armour <span>${c.equippedArmor?c.equippedArmor.name+' +'+c.equippedArmor.defBonus:'—'}</span></div>
     ${paths?`<div class="mini-s">Paths <span style="color:var(--gold);font-size:9px">${paths}</span></div>`:''}
     <div class="gold-s">Silver <span>${c.gold} ss</span></div>
-    <div class="cond-row">${(c.conditions||[]).map(cd=>`<span class="cond">${cd}</span>`).join('')}${c.luckyPendant?'<span class="cond" style="color:#e8c050">Lucky</span>':''}${c.sharpeningStone?'<span class="cond" style="color:#c0a0e0">Sharp</span>':''}</div>
+    ${(()=>{
+      const tags=[];
+      if(c.weaponTraining)  tags.push('⚔ Wpn Training');
+      if(c.combatProwess)   tags.push('⚔ Prowess +1d6');
+      if(c.combatExpertise) tags.push('⚔ Expertise +1d6');
+      if(c.pacedStrikes)    tags.push(c.pacedStrikesUsed?'⚡ Paced (used)':'⚡ Paced ×2');
+      if(c.trickery)        tags.push('🗡 Trickery');
+      if(c.quickstrike)     tags.push('⚡ Quick Strike');
+      if(c.quickStep)       tags.push('👟 Quick Step');
+      if(c.evasion)         tags.push('🛡 Evasion (1 bane)');
+      if(c.deathblow)       tags.push('💀 Deathblow');
+      if(c.shieldwall)      tags.push('🛡 Shieldwall');
+      if(c.toughness)       tags.push('💪 Toughness -1dmg');
+      if(c.holyFervor)      tags.push('✨ Holy Fervor');
+      if(c.holyAura)        tags.push('✨ Holy Aura');
+      if(c.warlordAura)     tags.push('🎺 Warlord Aura');
+      if(c.rage)            tags.push(c.rageBoon?'🔥 RAGE ARMED!':'🔥 Rage');
+      if(c.assassination)   tags.push('🗡 Assassination');
+      if(c.swiftFeet)       tags.push('💨 Swift Feet 2b');
+      if(c.darkEvoker)      tags.push('🌑 Dark Evoker ×2.5');
+      if(c.lightningIngrained) tags.push('⚡ Lightning ×2.5');
+      if(c.utilityFocus)    tags.push('🔮 Utility Focus +1r');
+      if(c.burningSoul)     tags.push('🔥 Burning Soul');
+      if(c.overcast)        tags.push('💥 Overcast');
+      if(c.metamagic)       tags.push('🔮 Metamagic');
+      if(c.shadowstep)      tags.push('👤 Shadowstep');
+      if(c.phantomStrike)   tags.push('👻 Phantom Strike');
+      if(c.bladestorm)      tags.push('🌪 Bladestorm');
+      if(c.sweepingBlow)    tags.push('💥 Sweeping Blow');
+      if(c.unstoppable)     tags.push(c.unstoppableUsed?'💀 Unstoppable (used)':'💀 Unstoppable');
+      if(c.bloodOffering)   tags.push('🩸 Blood Offering');
+      const activeB=c.activeBuffs&&c.activeBuffs.length?c.activeBuffs.map(b=>`<span class="cond" style="color:#80d080">${b.name}(${b.duration}r)</span>`).join(''):'';
+      return tags.length?`<div style="display:flex;flex-wrap:wrap;gap:2px;margin-top:3px">${tags.map(t=>`<span style="font-size:9px;background:var(--panel2);border-radius:3px;padding:1px 4px;color:var(--text-dim)">${t}</span>`).join('')}</div>`:'';
+    })()}
+    <div class="cond-row">${(c.conditions||[]).map(cd=>`<span class="cond">${cd}</span>`).join('')}${(c.activeBuffs||[]).map(b=>`<span class="cond" style="color:#80d080;font-size:9px">${b.name}(${b.duration}r)</span>`).join('')}${c.luckyPendant?'<span class="cond" style="color:#e8c050">Lucky</span>':''}${c.sharpeningStone?'<span class="cond" style="color:#c0a0e0">Sharp</span>':''}</div>
     ${!c.alive?'<div class="dead-label">FALLEN</div>':''}`;
   return div;
 }

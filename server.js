@@ -682,7 +682,7 @@ function rollAttack(char, enemy, extraBoons=0) {
   let boons=0, banes=0;
   if (char.weaponTraining) boons++;
   if (char.swiftFeet) boons+=2;
-  if (char.rage&&char.rageBoon) { boons++; char.rageBoon=false; } // rage proc clears after use
+  if (char.rage&&char.rageBoon) { boons++; } // rage boon — dmg applied on hit, flag cleared there
   if (char.stimulantBoon>0) { boons++; char.stimulantBoon--; }
   if (extraBoons) boons+=extraBoons;
   if (char.holyFervor && enemy && (enemy.undead||enemy.chaos)) boons++; // boon vs undead/chaos
@@ -722,7 +722,7 @@ function rollAttack(char, enemy, extraBoons=0) {
     // Paced Strikes: next hit deals double damage (1×/combat)
     if(char.pacedStrikes&&!char.pacedStrikesUsed){ dmg=dmg*2; char.pacedStrikesUsed=true; dmgParts.push('×2 PACED'); }
     // Rage bonus damage on hit
-    if(char.rage&&char.rageBoon===false&&(char.activeBuffs||[]).some(b=>b.rageDmg)){ const rb=rd(1,6);dmg+=rb;dmgParts.push(`+${rb} rage`);char.activeBuffs=char.activeBuffs.filter(b=>!b.rageDmg); }
+    if(char.rage&&char.rageBoon){ const rb=rd(1,6);dmg+=rb;dmgParts.push(`+${rb} rage`);char.rageBoon=false; } // consume rage proc
     // Assassination: target below 50% HP, +1d6+3 bonus damage
     if(char.assassination&&enemy&&enemy.hp<enemy.maxHp*0.5){ const ab=rd(1,6)+3;dmg+=ab;dmgParts.push(`+${ab} assassination`); }
     dmg=Math.max(1,dmg);
@@ -1002,6 +1002,7 @@ function enterNode(room, nodeType) {
       const amt=Math.ceil(p.char.maxHealth*0.6);
       p.char.health=Math.min(p.char.maxHealth,p.char.health+amt);
       p.char.catchBreathUsed=false; p.char.nimbleUsed=false; p.char.sharedUsed=false;
+      p.char.pacedStrikesUsed=false; p.char.rageBoon=false;
       p.char.trickeryUsed=0; p.char.sharpeningStone=false; p.char.metamagicUsed=false;
       p.char.divineSmiteUsed=false; p.char.massHealUsed=false; p.char.resurrectionUsed=false;
       p.char.unstoppableUsed=false; p.char.rallyingUsed=false; p.char.spellsurgeUsed=false; p.char.miracleUsed=false;
@@ -1146,9 +1147,7 @@ function maybeEnemyAttack(room) {
         }
         if(ae.insanityAtk&&d(6)>=4){p.char.insanity++;addLog(room,`${p.name} gains 1 Insanity!`,'chaos');}
         // Rage passive: on taking damage, next attack has +1 boon and +1d6 damage
-        if(p.char.rage&&actualDmg>0){ p.char.rageBoon=true; addBuff(p.char,'Rage (proc)',{rageDmg:true},1); addLog(room,`🔥 ${p.name} RAGES — next attack +1 boon +1d6!`,'crit'); }
-        // QuickStep: on being missed, +2 defense for 1 round
-        if(p.char.quickStep&&!r.hit){ addBuff(p.char,'Quick Step',{defBonus:2},1); p.char.defense+=2; addLog(room,`${p.name} Quick Steps — +2 Defense!`,'sys'); }
+        if(p.char.rage&&actualDmg>0&&!p.char.rageBoon){ p.char.rageBoon=true; addLog(room,`🔥 ${p.name} RAGES — next attack +1 boon +1d6!`,'crit'); }
         // diseased mechanic removed
         checkDeath(room,p);
       } else {
@@ -1230,7 +1229,7 @@ function resolveEnemyDeath(room, deadEnemy) {
   survivors.forEach(p=>{
     p.char.xp+=xpEach; p.char.gold+=goldEach; p.char.sharpeningStone=false;
     // Reset per-combat used flags
-    p.char.divineSmiteUsed=false; p.char.spellsurgeUsed=false;
+    p.char.divineSmiteUsed=false; p.char.spellsurgeUsed=false; p.char.pacedStrikesUsed=false; p.char.rageBoon=false;
     const lv=checkLevelUp(p.char);
     if(lv.leveled) addLog(room,`🌟 ${p.name} reaches <strong>Level ${lv.newLevel}</strong>! (+${lv.hpGain} max HP)${p.char.pendingLevelUp?' — Choose a path!':''}`, 'spell');
   });
@@ -1970,11 +1969,9 @@ function handlePlayerAction(room,playerId,payload,ws){
     }
     else if(t==='pacedStrikes'){
       if(!char.pacedStrikes){addLog(room,`${player.name}: no Paced Strikes.`,'sys');return;}
-      if(char.pacedStrikesUsed){addLog(room,`${player.name}: Paced Strikes already used.`,'sys');return;}
-      addLog(room,`${player.name} readies Paced Strikes — next hit deals DOUBLE damage!`,'crit');
-      // Flag is checked in rollAttack; just confirm here. Actually it auto-triggers on first hit.
-      // Reset so player knows it's armed
-      acted=false; // doesn't cost action — just a status reminder
+      if(char.pacedStrikesUsed){addLog(room,`${player.name}: Paced Strikes already used this combat.`,'sys');return;}
+      addLog(room,`⚡ ${player.name} Paced Strikes — automatically doubles damage on next hit!`,'crit');
+      // Auto-triggers in rollAttack — just inform the player
     }
     else if(t==='rallyingCry'){if(char.rallyingUsed){addLog(room,`${player.name}: Rallying Cry already used.`,'sys');return;}char.rallyingUsed=true;room.players.forEach(p=>{if(p.char&&p.char.alive){const h=talentHeal(p.char);p.char.health=Math.min(p.char.maxHealth,p.char.health+h);addLog(room,`${p.name} rallies — +<strong>${h}</strong> HP (1d6+attr×2).`,'heal');}});}
     acted=true;
