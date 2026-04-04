@@ -1687,9 +1687,9 @@ function handlePlayerAction(room,playerId,payload,ws){
     }
     // ── ATTACK spells ──
     else {
-      if(!getTargetEnemy(gs)){addLog(room,`${player.name}: no target.`,'sys');return;}
+      const spellTarget=getTargetEnemy(gs);
+      if(!spellTarget){addLog(room,`${player.name}: no target.`,'sys');return;}
       const dStr=spell.dmg||spell.dmgDice||'1d6';
-      // Parse "NdS" or "NdS+B" format safely
       const dMatch=dStr.match(/^(\d+)d(\d+)(?:\+(\d+))?$/);
       let total=0;
       if(dMatch){
@@ -1701,23 +1701,34 @@ function handlePlayerAction(room,playerId,payload,ws){
         if(char.burningSoul&&fireNames.includes(spell.name)){burnBonus=rd(1,6);}
         total=roll+b+intMod+burnBonus;
         if(spell.lifeLeech){const heal=Math.floor(total/4);char.health=Math.min(char.maxHealth,char.health+heal);addLog(room,`${player.name} leeches ${heal} HP (¼)!`,'heal');}
-        // Elemental weakness check
-        const spellElem=(TRADITIONS[Object.keys(TRADITIONS).find(k=>TRADITIONS[k].spells&&TRADITIONS[k].spells.some(s=>s.name===spell.name))]||{}).elemType||'arcane';
-        const eTags=(spellTarget&&spellTarget.tags)||[];
-        const WEAKNESSES={fire:['undead'],holy:['chaos'],lightning:['skaven'],dark:['beast']};
-        const weakTags=WEAKNESSES[spellElem]||[];
-        const isWeak=eTags.some(t=>weakTags.includes(t));
-        if(isWeak){ total=Math.floor(total*2); addLog(room,`⚡ <strong>Elemental Weakness!</strong> ${spellElem} vs ${eTags.join('/')} — damage doubled!`,'crit'); }
-        addLog(room,`${player.name} casts <strong>${spell.name}</strong> [${spellElem}] — ${n}d${s}(${roll})${b?'+'+b:''}+${intMod} INT${burnBonus?'+'+burnBonus+' burn':''} = <strong>${total}</strong> dmg${isWeak?' ×2 WEAKNESS':''}!`,'spell');
+        // Elemental weakness check — find tradition for this spell
+        const spellTradKey=Object.keys(TRADITIONS).find(k=>TRADITIONS[k].spells&&TRADITIONS[k].spells.some(s=>s.name===spell.name));
+        const spellElem=(TRADITIONS[spellTradKey]||{}).elemType||'arcane';
+        const eTags=(spellTarget.tags)||[];
+        // Weaknesses: fire→undead ×2, holy→chaos ×2, holy→skaven ×2,
+        //             lightning→skaven ×2, dark→beast ×2, death/shadow→beast ×2,
+        //             arcane→all ×1.25
+        const WEAKNESSES={
+          fire:      {tags:['undead'], mult:2},
+          holy:      {tags:['chaos','skaven'], mult:2},
+          lightning: {tags:['skaven'], mult:2},
+          dark:      {tags:['beast'], mult:2},
+          arcane:    {tags:['skaven','chaos','undead','beast'], mult:1.25},
+        };
+        const weakRule=WEAKNESSES[spellElem];
+        const isWeak=weakRule&&eTags.some(t=>weakRule.tags.includes(t));
+        if(isWeak){
+          const mult=weakRule.mult;
+          const label=mult===2?'×2 WEAKNESS':'×1.25 Arcane';
+          total=Math.floor(total*mult);
+          addLog(room,`⚡ <strong>Elemental ${label}!</strong> [${spellElem}] vs [${eTags.join('/')}]`,'crit');
+        }
+        addLog(room,`${player.name} casts <strong>${spell.name}</strong> [${spellElem}] — ${n}d${s}(${roll})${b?'+'+b:''}+${intMod} INT${burnBonus?'+'+burnBonus+' burn':''} = <strong>${total}</strong> dmg!`,'spell');
       } else {
-        // Fallback for unusual dmg strings — treat as flat value
         total=parseInt(dStr)||0;
         addLog(room,`${player.name} casts <strong>${spell.name}</strong> — <strong>${total}</strong> dmg!`,'spell');
       }
-      const spellTarget=getTargetEnemy(gs);
-      if(!spellTarget){addLog(room,`${player.name}: no target.`,'sys');return;}
       spellTarget.hp=Math.min(spellTarget.maxHp, spellTarget.hp-total);
-      // Apply on-hit spell debuffs
       if(spell.prone)        { addDebuff(spellTarget,'Prone',     {bane:1},1);       addLog(room,`${spellTarget.name} falls prone — 1 bane next attack.`,'spell'); }
       if(spell.blind)        { addDebuff(spellTarget,'Blinded',   {bane:2},1);       addLog(room,`${spellTarget.name} is blinded — 2 banes for 1 round.`,'spell'); }
       if(spell.slowDebuff)   { addDebuff(spellTarget,'Slowed',    {bane:1},2);       addLog(room,`${spellTarget.name} is slowed — 1 bane for 2 rounds.`,'spell'); }

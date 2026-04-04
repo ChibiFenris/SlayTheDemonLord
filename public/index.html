@@ -781,7 +781,7 @@ function renderBattle(gs,players,me){
     const eRow=document.createElement('div'); eRow.className='token-row er';
     eRow.style.cssText=enemies.length>1&&isTarget?'border:2px solid var(--gold);border-radius:6px;padding:2px;':'';
     // Debuffs display
-    const WEAKNESSES_C={skaven:'⚡ Weak: Lightning',chaos:'✨ Weak: Holy',undead:'🔥 Weak: Fire',beast:'🌑 Weak: Dark'};
+    const WEAKNESSES_C={skaven:'⚡ Weak: Lightning & Holy',chaos:'✨ Weak: Holy',undead:'🔥 Weak: Fire',beast:'🌑 Weak: Dark & Shadow'};
     const debuffs=e.activeDebuffs||[];
     const weakLine=(e.tags||[]).map(t=>WEAKNESSES_C[t]||'').filter(Boolean).join(' · ');
     const debuffHtml=(debuffs.length||weakLine)?`<div style="font-size:9px;margin-top:2px">${weakLine?`<span style="color:#ffaa44">${weakLine}</span> `:''}${debuffs.length?`<span style="color:var(--blood-bright)">${debuffs.map(d=>`${d.name}(${d.duration}r)`).join(' · ')}</span>`:''}</div>`:'';
