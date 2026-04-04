@@ -1183,14 +1183,14 @@ function maybeEnemyAttack(room) {
         if(!r.skipped) addLog(room,`${ae.name} <em>misses</em> ${p.name} — d20:<strong>${r.base}</strong>+<strong>${ae.atk>=0?'+':''}${ae.atk}</strong>=<strong>${r.total}</strong> vs Def<strong>${p.char.defense+auraBonus}</strong>.`,'sys');
       }
     });
-    // CALL THE PACK (skaven tag): below 60% HP, once per combat, summon a Skaven Clanrat
-    if(ae.tags&&ae.tags.includes('skaven')&&ae.hp<ae.maxHp*0.6&&!ae._packCalled&&gs.enemies&&gs.enemies.length<4){
-      ae._packCalled=true;
+    // CALL THE PACK (skaven tag): below 60% HP, shared 2-round cooldown across all skaven
+    if(ae.tags&&ae.tags.includes('skaven')&&ae.hp<ae.maxHp*0.6&&!(gs.packCooldown>0)&&gs.enemies&&gs.enemies.length<4){
+      gs.packCooldown=2; // blocks all skaven from calling for 2 rounds
       const clanrat=scaleEnemy({name:'Skaven Clanrat',type:'Skaven',threat:'Low',hp:8,ac:12,atk:0,xp:0,gold:[0,0],tags:['skaven']},
         room.players.filter(p=>p.connected&&p.char&&p.char.alive).length,false,gs.bossCount);
       clanrat.id='pack_'+Date.now();
       gs.enemies.push(clanrat);
-      addLog(room,`🐀 <strong>Call the Pack!</strong> ${ae.name} summons a <strong>Skaven Clanrat</strong>!`,'chaos');
+      addLog(room,`🐀 <strong>Call the Pack!</strong> ${ae.name} summons a <strong>Skaven Clanrat</strong>! (2-round cooldown))`,'chaos');
     }
     // Bonus multi-attack hits random player
     if(ae.multi){
@@ -1222,6 +1222,11 @@ function maybeEnemyAttack(room) {
       }
     }
   });
+  // Tick Call the Pack cooldown
+  if(gs.packCooldown>0){
+    gs.packCooldown--;
+    if(gs.packCooldown===0) addLog(room,`🐀 Call the Pack cooldown lifted.`,'sys');
+  }
   gs.playersActedThisRound=[]; gs.enemyHasActed=false;
   gs.roundNumber=(gs.roundNumber||1)+1;
   addLog(room,'--- New round — warriors act! ---','sys');
@@ -1285,7 +1290,7 @@ function resolveEnemyDeath(room, deadEnemy) {
     return;
   }
   gs.inCombat=false; gs.enemy=null; gs.enemies=[]; gs.phase='event';
-  gs.playersActedThisRound=[]; gs.enemyHasActed=false;
+  gs.playersActedThisRound=[]; gs.enemyHasActed=false; gs.packCooldown=0;
   // Victory after defeating the Saurian Ancient at depth 30
   if(gs.depth>=30){gs.phase='victory';addLog(room,'🏆 The Saurian Ancient falls! The warband conquers the depths! FOR SIGMAR!','crit');}
   else if(gs.bossCount>=3){gs.phase='victory';addLog(room,'🏆 The warband conquers the depths! FOR SIGMAR!','crit');}
