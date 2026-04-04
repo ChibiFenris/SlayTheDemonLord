@@ -26,15 +26,15 @@ function makeCode() {
 function sendTo(ws, msg) { if (ws.readyState === 1) ws.send(JSON.stringify(msg)); }
 const d = n => Math.floor(Math.random() * n) + 1;
 function rd(num, sides) { let t = 0; for (let i = 0; i < num; i++) t += d(sides); return t; }
-const modVal = s => s - 10;
+const modVal = s => s - 10; // simplified: full attr-10, not SotDL's floor((s-10)/2)
 
 function initGameState() {
   return {
-    depth:0, inCombat:false, enemy:null, phase:'lobby',
+    depth:0, inCombat:false, enemy:null, enemies:[], activeEnemyIdx:0, phase:'lobby',
     playersActedThisRound:[], enemyHasActed:false, roundNumber:0, turnOrder:[], activeTurnIdx:0,
     log:[], pathChoices:null, pathVotes:{}, bossNode:false,
     bossCount:0, lootRoom:null, lootPicked:[],
-    lastPowerRestoreDepth:0,
+    lastPowerRestoreDepth:0, packCooldown:0,
   };
 }
 function publicState(room) {
@@ -691,7 +691,7 @@ function rollAttack(char, enemy, extraBoons=0) {
   if (char.conditions.includes('Stunned'))    banes++;
   const forceCrit=char.luckyPendant; if(forceCrit) char.luckyPendant=false;
   // Active buff bonuses
-  const atkBuff=getBuffVal(char,'atkBoon'||0); boons+=atkBuff;
+  const atkBuff=getBuffVal(char,'atkBoon'); boons+=atkBuff;
   const {base,final}=rollD20boons(boons,banes);
   const fumble=base===1&&!forceCrit, crit=forceCrit||base===20;
   const total=final+atkMod, hit=!fumble&&(crit||total>=enemy.ac||char.phantomStrike);
@@ -808,8 +808,8 @@ function checkLevelUp(char) {
     // Apply per-level path gains
     applyLevelGains(char, newLevel);
     // Check if we need a path choice
-    if (newLevel===1&&!char.novicePath) { char.pendingLevelUp=true; char.pendingPathTier='novice'; } // should not trigger — novice applied at career select
-    else if (newLevel===3&&!char.expertPath) { char.pendingLevelUp=true; char.pendingPathTier='expert'; }
+    // Level 1 novice path applied at career select — no pending needed here
+    if (newLevel===3&&!char.expertPath) { char.pendingLevelUp=true; char.pendingPathTier='expert'; }
     else if (newLevel===7&&!char.masterPath) { char.pendingLevelUp=true; char.pendingPathTier='master'; }
     else { char.pendingLevelUp=false; }
     // Refresh known spells from all traditions whenever power changes
@@ -925,9 +925,10 @@ function applyMasterPath(char, pathId) {
 
 // Get the currently targeted enemy (supports multi-enemy)
 function getTargetEnemy(gs) {
-  if(gs.enemies&&gs.enemies.length>0){
-    const idx=Math.min(gs.activeEnemyIdx||0,gs.enemies.length-1);
-    return gs.enemies[idx]||gs.enemies[0]||null;
+  const enemies = gs.enemies || [];
+  if(enemies.length>0){
+    const idx=Math.min(gs.activeEnemyIdx||0,enemies.length-1);
+    return enemies[idx]||enemies[0]||null;
   }
   return gs.enemy||null;
 }
@@ -1285,7 +1286,7 @@ function fireEnemyTurn(room, ae) {
     clanrat.id = 'pack_' + Date.now();
     gs.enemies.push(clanrat);
     addLog(room, `Call the Pack! ${ae.name} summons a Skaven Clanrat! (2-round cooldown)`, 'chaos');
-    buildTurnOrder(room); // rebuild so the new clanrat appears in order next round
+    // Note: clanrat joins next round's turn order via endRound -> buildTurnOrder
   }
   const nowAlive = room.players.filter(p => p.char && p.char.alive);
   if (!nowAlive.length) { gs.phase = 'gameover'; addLog(room, 'The warband has fallen.', 'death'); return; }
@@ -1330,7 +1331,7 @@ function maybeEnemyAttack(room) {
   });
 
   // Apply Poison stacks at start of enemy turn (1d3 per stack)
-  if(gs.enemies) gs.enemies.filter(ae=>ae&&ae.hp>0).forEach(ae=>{
+  (gs.enemies||[]).filter(ae=>ae&&ae.hp>0).forEach(ae=>{
     if(ae._poisonStacks&&ae._poisonStacks>0){
       const poisonDmg=rd(ae._poisonStacks,3);
       ae.hp=Math.max(0,ae.hp-poisonDmg);
@@ -1341,7 +1342,7 @@ function maybeEnemyAttack(room) {
   if(!gs.inCombat) return;
 
   // Apply DoT debuffs on all active enemies at start of enemy turn
-  if(gs.enemies) gs.enemies.filter(ae=>ae&&ae.hp>0).forEach(ae=>{
+  (gs.enemies||[]).filter(ae=>ae&&ae.hp>0).forEach(ae=>{
     (ae.activeDebuffs||[]).filter(d=>d.dotDmg).forEach(d=>{
       ae.hp=Math.max(0,ae.hp-d.dotDmg);
       addLog(room,`${d.name==='Burn'?'🔥':d.name==='Chilled'?'❄':d.name==='Bleed'?'🩸':d.name==='Major Bleed'?'🩸🩸':'☠'} <strong>${d.name}</strong> burns ${ae.name} — <strong class="num-dmg">−${d.dotDmg}</strong> dmg → ${ae.name} ${ae.hp}/${ae.maxHp} HP`,'spell');
@@ -1383,11 +1384,8 @@ function maybeEnemyAttack(room) {
         p.char.health=Math.max(0,p.char.health-actualDmg);
         const critLabel=r.crit?' 💥 CRIT!':'';
         const dmgBreak=`${ae.dmgNum}d${ae.dmgSides}(${r.dmgRoll})${ae.dmgBonus?'+'+ae.dmgBonus:''}${r.critRoll?'+'+r.critRoll+' crit':''}`;
-        addLog(room,`${ae.name} hits <strong>${p.name}</strong> — <strong class="num-dmg">−${r.dmg} dmg</strong>${critLabel} [d20:<strong>${r.base}</strong>+atk<strong>${ae.atk>=0?'+':''}${ae.atk}</strong>=<strong>${r.total}</strong> vs Def<strong>${p.char.defense+auraBonus}</strong>] [dmg: ${dmgBreak}] → ${p.name} <strong>${Math.max(0,p.char.health)}</strong>/${p.char.maxHealth} HP`,'dmg-taken');
-        // RAGE passive (beast tag): below 50% HP → +3 damage
-        if(ae.tags&&ae.tags.includes('beast')&&ae.hp<ae.maxHp*0.5){
-          r.dmg+=3; addLog(room,`${ae.name} RAGES! (+3 dmg, ${Math.max(0,ae.hp)}/${ae.maxHp} HP)`,'chaos');
-        }
+        addLog(room,`${ae.name} hits <strong>${p.name}</strong> — <strong class="num-dmg">−${actualDmg} dmg</strong>${critLabel} [d20:<strong>${r.base}</strong>+atk<strong>${ae.atk>=0?'+':''}${ae.atk}</strong>=<strong>${r.total}</strong> vs Def<strong>${p.char.defense+auraBonus+shieldBonus}</strong>] [dmg: ${dmgBreak}] → ${p.name} <strong>${p.char.health}</strong>/${p.char.maxHealth} HP`,'dmg-taken');
+        // Beast rage handled per-hit in fireEnemyTurn
         if(ae.lifeLeech){
           const isVarghulf=ae.name==='Varghulf';
           if(isVarghulf){
@@ -1400,11 +1398,9 @@ function maybeEnemyAttack(room) {
         if(ae.insanityAtk&&d(6)>=4){p.char.insanity++;addLog(room,`${p.name} gains 1 Insanity!`,'chaos');}
         // Rage passive: on taking damage, next attack has +1 boon and +1d6 damage
         if(p.char.rage&&actualDmg>0&&!p.char.rageBoon){ p.char.rageBoon=true; addLog(room,`🔥 ${p.name} RAGES — next attack +1 boon +1d6!`,'crit'); }
-        // diseased mechanic removed
         checkDeath(room,p);
       } else {
-        if(p.char.quickStep){ /* Quick Step triggers on player miss, not enemy miss */ }
-        if(!r.skipped) addLog(room,`${ae.name} <em>misses</em> ${p.name} — d20:<strong>${r.base}</strong>+<strong>${ae.atk>=0?'+':''}${ae.atk}</strong>=<strong>${r.total}</strong> vs Def<strong>${p.char.defense+auraBonus}</strong>.`,'sys');
+        if(!r.skipped) addLog(room,`${ae.name} <em>misses</em> <strong>${p.name}</strong> — d20:<strong>${r.base}</strong>+atk<strong>${ae.atk>=0?'+':''}${ae.atk}</strong>=<strong>${r.total}</strong> vs Def<strong>${p.char.defense+auraBonus+shieldBonus}</strong>.`,'sys');
       }
     });
     // CALL THE PACK (skaven tag): below 60% HP, shared 2-round cooldown across all skaven
@@ -1414,7 +1410,7 @@ function maybeEnemyAttack(room) {
         room.players.filter(p=>p.connected&&p.char&&p.char.alive).length,false,gs.bossCount);
       clanrat.id='pack_'+Date.now();
       gs.enemies.push(clanrat);
-      addLog(room,`🐀 <strong>Call the Pack!</strong> ${ae.name} summons a <strong>Skaven Clanrat</strong>! (2-round cooldown))`,'chaos');
+      addLog(room,`🐀 <strong>Call the Pack!</strong> ${ae.name} summons a <strong>Skaven Clanrat</strong>! (2-round cooldown)`,'chaos');
     }
     // Bonus multi-attack hits random player
     if(ae.multi){
@@ -1452,8 +1448,8 @@ function maybeEnemyAttack(room) {
     if(gs.packCooldown===0) addLog(room,`🐀 Call the Pack cooldown lifted.`,'sys');
   }
   gs.playersActedThisRound=[]; gs.enemyHasActed=false;
-  gs.roundNumber=(gs.roundNumber||1)+1;
-  addLog(room,'--- New round — warriors act! ---','sys');
+  // roundNumber increment handled by endRound() in turn-order system
+  if(!gs.turnOrder||!gs.turnOrder.length) gs.roundNumber=(gs.roundNumber||1)+1;
 }
 
 function checkDeath(room, player) {
@@ -1500,7 +1496,7 @@ function resolveEnemyDeath(room, deadEnemy) {
     if(lv.leveled) addLog(room,`🌟 ${p.name} reaches <strong>Level ${lv.newLevel}</strong>! (+${lv.hpGain} max HP)${p.char.pendingLevelUp?' — Choose a path!':''}`, 'spell');
   });
   // Remove dead enemy from pool
-  if(gs.enemies) gs.enemies=gs.enemies.filter(en=>en!==e&&en.hp>0);
+  gs.enemies=(gs.enemies||[]).filter(en=>en!==e&&en.hp>0);
   // If more enemies remain, continue combat targeting next alive enemy
   if(gs.enemies&&gs.enemies.length>0){
     gs.enemy=gs.enemies[0]; gs.activeEnemyIdx=0;
@@ -1668,15 +1664,15 @@ function useItemLogic(room,player,itemName,inCombat=false){
   let consumed=true;
   if(itemName==='Healing Draught'){const h=rd(1,6);char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} drinks Healing Draught — +<strong>${h}</strong> HP.`,'heal');}
   else if(itemName==='Greater Healing Draught'){const h=rd(2,6);char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} drinks Greater Healing — +<strong>${h}</strong> HP.`,'heal');}
-  else if(itemName==='Flask of Oil'){const _te=getTargetEnemy(room.gs);if(inCombat&&_te){const dmg=rd(2,6);_te.hp-=dmg;addLog(room,`${player.name} throws Flask of Oil — <strong>${dmg}</strong> fire dmg!`,'spell');if(_te.hp<=0){resolveEnemyDeath(room,_te);return true;}}else{consumed=false;}}
-  else if(itemName==='Fire Jar'){const _te=getTargetEnemy(room.gs);if(inCombat&&_te){const dmg=rd(3,6);_te.hp-=dmg;addLog(room,`${player.name} smashes Fire Jar — <strong>${dmg}</strong> fire dmg!`,'spell');if(_te.hp<=0){resolveEnemyDeath(room,_te);return true;}}else{consumed=false;}}
+  else if(itemName==='Flask of Oil'){const _te=getTargetEnemy(room.gs);if(inCombat&&_te){const dmg=rd(2,6);_te.hp=Math.max(0,_te.hp-dmg);addLog(room,`${player.name} throws Flask of Oil — <strong>${dmg}</strong> fire dmg!`,'spell');if(_te.hp<=0){resolveEnemyDeath(room,_te);return true;}}else{consumed=false;}}
+  else if(itemName==='Fire Jar'){const _te=getTargetEnemy(room.gs);if(inCombat&&_te){const dmg=rd(3,6);_te.hp=Math.max(0,_te.hp-dmg);addLog(room,`${player.name} smashes Fire Jar — <strong>${dmg}</strong> fire dmg!`,'spell');if(_te.hp<=0){resolveEnemyDeath(room,_te);return true;}}else{consumed=false;}}
   else if(itemName==='Lucky Pendant'){char.luckyPendant=true;addLog(room,`${player.name} activates Lucky Pendant — next attack is a CRIT!`,'loot');}
   else if(itemName==='Sharpening Stone'){char.sharpeningStone=true;addLog(room,`${player.name} uses Sharpening Stone — +1d6 dmg this combat!`,'loot');}
   else if(itemName.startsWith('Scroll:')){
     const spell=char.scrollSpells[itemName];
     if(!spell){addLog(room,`${player.name}: scroll crumbles.`,'sys');return false;}
     if(spell.type==='heal'){const[n,s]=spell.dmgDice.split('d').map(Number);const roll=rd(n,s);const amt=roll+4;char.health=Math.min(char.maxHealth,char.health+amt);addLog(room,`${player.name} reads ${itemName} — ${n}d${s}(${roll})+4 = +<strong>${amt}</strong> HP.`,'heal');}
-    else if(inCombat){const _te=getTargetEnemy(room.gs);if(_te){const[n,s]=spell.dmgDice.split('d').map(Number);const dmg=rd(n,s);_te.hp-=dmg;addLog(room,`${player.name} reads ${itemName} — ${n}d${s} = <strong>${dmg}</strong> dmg!`,'spell');if(_te.hp<=0){resolveEnemyDeath(room,_te);return true;}}}
+    else if(inCombat){const _te=getTargetEnemy(room.gs);if(_te){const[n,s]=spell.dmgDice.split('d').map(Number);const dmg=rd(n,s);_te.hp=Math.max(0,_te.hp-dmg);addLog(room,`${player.name} reads ${itemName} — ${n}d${s} = <strong>${dmg}</strong> dmg!`,'spell');if(_te.hp<=0){resolveEnemyDeath(room,_te);return true;}}}
     else{consumed=false;}
   } else {consumed=false;}
   if(consumed){char.inventory[idx].qty--;if(char.inventory[idx].qty<=0)char.inventory.splice(idx,1);}
@@ -1709,7 +1705,8 @@ function handleMessage(ws,msg){
     const player=room.players.find(p=>p.id===ctx.playerId); if(!player)return;
     player.career=payload.career; player.char=buildChar(payload.career); player.ready=false;
     // Start at level 1 with novice path already applied from career
-    const _careerToNovice={warrior:'warrior',rogue:'rogue',wizard:'magician',priest:'priest'};
+    // Map career to novice path id — must match NOVICE_PATHS keys
+    const _careerToNovice={warrior:'warrior',rogue:'rogue',wizard:'magician',priest:'priest'}; // extend if new careers added
     const _noviceId=_careerToNovice[payload.career]||'warrior';
     applyNovicePath(player.char, _noviceId);
     player.char.pendingLevelUp=false; // novice already applied
@@ -1864,7 +1861,7 @@ function handlePlayerAction(room,playerId,payload,ws){
     } else if(r.hit){
       targetEnemy.hp=Math.max(0, targetEnemy.hp-r.dmg);
       const cl=r.forceCrit?' ⚡ Lucky Pendant CRIT!':r.crit?' 💥 CRITICAL HIT!':'';
-      const rollBreak=`d20:<strong>${r.base}</strong>${r.boonInfo}+atk<strong>${r.atkMod>=0?'+':''}${r.atkMod}</strong>=<strong>${r.total}</strong> vs Def<strong>${gs.enemy?gs.enemy.ac:targetEnemy.ac}</strong>`;
+      const rollBreak=`d20:<strong>${r.base}</strong>${r.boonInfo}+atk<strong>${r.atkMod>=0?'+':''}${r.atkMod}</strong>=<strong>${r.total}</strong> vs Def<strong>${targetEnemy.ac}</strong>`;
       const dmgBreak=r.dmgParts.length?` [dmg: ${r.dmgParts.join(' ')} = <strong>${r.dmg}</strong>]`:'';
       addLog(room,`${player.name} ${r.crit?'<strong>CRITS</strong>':'hits'} ${targetEnemy.name} — <strong class="num-dmg">−${r.dmg} dmg</strong>${cl} [${rollBreak}]${dmgBreak} → ${targetEnemy.name} ${targetEnemy.hp}/${targetEnemy.maxHp} HP`,r.crit?'crit':'dmg');
       // ── Post-hit poison applications (only if enemy still alive) ──
@@ -2265,12 +2262,12 @@ function handlePlayerAction(room,playerId,payload,ws){
       if(spell.lightningDoubleCheck){
         const dblRoll=d(20);
         addLog(room,`⚡ Double-strike check: d20=${dblRoll} (need 15+)...`,'spell');
-        if(dblRoll>=15){spellTarget.hp-=total;addLog(room,`⚡ <strong>DOUBLE STRIKE!</strong> Hits again for ${total} more damage!`,'crit');}
+        if(dblRoll>=15){spellTarget.hp=Math.max(0,spellTarget.hp-total);addLog(room,`⚡ <strong>DOUBLE STRIKE!</strong> Hits again for ${total} more damage!`,'crit');}
       }
       // DOUBLE HIT (Forked Lightning — same target twice)
       if(spell.doubleHit){
         const hit2=rd(parseInt(dMatch[1]),parseInt(dMatch[2]))+parseInt(dMatch[3]||0)+intMod;
-        spellTarget.hp-=hit2;
+        spellTarget.hp=Math.max(0,spellTarget.hp-hit2);
         addLog(room,`⚡ Second strike: <strong>${hit2}</strong> dmg!`,'spell');
         total+=hit2; // for display
       }
@@ -2283,7 +2280,7 @@ function handlePlayerAction(room,playerId,payload,ws){
       if(spell.chaosBolt&&total>0){
         const chRoll=d(20);
         addLog(room,`🎲 Chaos roll: d20 = <strong>${chRoll}</strong> (need 12+)...`,'spell');
-        if(chRoll>=12){ const ex=rd(2,6); spellTarget.hp-=ex; addLog(room,`🌀 <strong>Chaos surge!</strong> +${ex} extra chaos damage!`,'crit'); }
+        if(chRoll>=12){ const ex=rd(2,6); spellTarget.hp=Math.max(0,spellTarget.hp-ex); addLog(room,`🌀 <strong>Chaos surge!</strong> +${ex} extra chaos damage!`,'crit'); }
       }
       // ENERVATION: reduce max HP for combat
       if(spell.healthPenalty&&spellTarget){
