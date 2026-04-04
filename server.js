@@ -884,7 +884,8 @@ function restorePower(room, reason) {
   let restored=false;
   room.players.forEach(p=>{
     if(!p.char||!p.char.alive) return;
-    if(Object.values(p.char.castingPools||{}).some((v,i)=>v<maxCastings(p.char.power,i))||p.char.spellRecoveryUsed){ restoreCastingPools(p.char); p.char.spellRecoveryUsed=false; restored=true; }
+    const poolsSpent=p.char.knownSpells&&p.char.knownSpells.some(sp=>(p.char.castingPools||{})[sp.name]<maxCastings(p.char.power,sp.rank));
+    if(poolsSpent||p.char.spellRecoveryUsed){ restoreCastingPools(p.char); p.char.spellRecoveryUsed=false; restored=true; }
   });
   if(restored) addLog(room,`✨ ${reason} — all spellcasters regain power.`,'spell');
 }
@@ -1017,70 +1018,92 @@ function allPlayersActed(room) {
 function maybeEnemyAttack(room) {
   if(!allPlayersActed(room)) return;
   const gs=room.gs;
-  if(gs.enemyHasActed||!gs.enemy||!gs.inCombat) return;
+  if(gs.enemyHasActed||!gs.inCombat) return;
+  // Ensure gs.enemy is up to date (may have changed if first enemy died to DoT)
+  if(!gs.enemy&&gs.enemies&&gs.enemies.length>0){
+    gs.enemy=gs.enemies.find(e=>e&&e.hp>0)||null;
+  }
+  if(!gs.enemy) return;
   gs.enemyHasActed=true;
   const e=gs.enemy;
-  addLog(room,`--- ${gs.enemies&&gs.enemies.length>1?gs.enemies.map(en=>en.name).join(' & '):e.name} retaliates! ---`,'sys');
-  if(e.regen&&e.hp<e.maxHp){const r=rd(1,6);e.hp=Math.min(e.maxHp,e.hp+r);addLog(room,`${e.name} regenerates ${r} HP.`,'chaos');}
-  // Apply DoT debuffs on all active enemies
-  if(gs.enemies) gs.enemies.forEach(ae=>{
-    if(!ae||ae.hp<=0) return;
+  const attackingEnemies=(gs.enemies&&gs.enemies.length>0)
+    ? gs.enemies.filter(ae=>ae&&ae.hp>0)
+    : [e];
+
+  addLog(room,`--- ${attackingEnemies.map(ae=>ae.name).join(' & ')} retaliates! ---`,'sys');
+
+  // Regen on all living enemies
+  attackingEnemies.forEach(ae=>{
+    if(ae.regen&&ae.hp<ae.maxHp){const r=rd(1,6);ae.hp=Math.min(ae.maxHp,ae.hp+r);addLog(room,`${ae.name} regenerates ${r} HP.`,'chaos');}
+  });
+
+  // Apply DoT debuffs on all active enemies before they attack
+  if(gs.enemies) gs.enemies.filter(ae=>ae&&ae.hp>0).forEach(ae=>{
     (ae.activeDebuffs||[]).filter(d=>d.dotDmg).forEach(d=>{
       ae.hp=Math.min(ae.maxHp,ae.hp-d.dotDmg);
       addLog(room,`${ae.name} takes <strong>${d.dotDmg}</strong> from <em>${d.name}</em>! (${Math.max(0,ae.hp)}/${ae.maxHp} HP)`,'spell');
       if(ae.hp<=0){resolveEnemyDeath(room,ae);}
     });
   });
+  // If DoT killed all enemies, combat is over — bail
+  if(!gs.inCombat) return;
+
+  // Rebuild after DoTs — some enemies may have died
+  const stillAliveEnemies=(gs.enemies&&gs.enemies.length>0)
+    ? gs.enemies.filter(ae=>ae&&ae.hp>0)
+    : (gs.enemy&&gs.enemy.hp>0?[gs.enemy]:[]);
+  if(stillAliveEnemies.length===0) return;
+
   const alive=room.players.filter(p=>p.char&&p.char.alive);
-  const attackingEnemies=gs.enemies&&gs.enemies.length>0?gs.enemies.filter(ae=>ae.hp>0):[e];
-  // Holy Aura: +2 defense to all (applied inline)
-  attackingEnemies.forEach(ae=>{
-  if(attackingEnemies.length>1) addLog(room,`▸ <strong>${ae.name}</strong> attacks!`,'sys');
-  alive.forEach(p=>{
-    const auraBonus=room.players.some(q=>q.char&&q.char.alive&&q.char.holyAura)?2:0;
-    const r=rollEnemyAttack(ae,{...p.char,defense:p.char.defense+auraBonus});
-    if(r.hit){
-      p.char.health=Math.max(0,p.char.health-r.dmg);
-      const critLabel=r.crit?' 💥 CRIT!':'';
-      const dmgBreak=`${ae.dmgNum}d${ae.dmgSides}(${r.dmgRoll})${ae.dmgBonus?'+'+ae.dmgBonus:''}${r.critRoll?'+'+r.critRoll+' crit':''}`;
-      addLog(room,`${ae.name} hits <strong>${p.name}</strong> — <strong class="num-dmg">−${r.dmg} dmg</strong>${critLabel} [d20:<strong>${r.base}</strong>+atk<strong>${e.atk>=0?'+':''}${e.atk}</strong>=<strong>${r.total}</strong> vs Def<strong>${p.char.defense+auraBonus}</strong>] [dmg: ${dmgBreak}] → ${p.name} <strong>${Math.max(0,p.char.health)}</strong>/${p.char.maxHealth} HP`,'dmg-taken');
-      if(ae.lifeLeech){
-        // Varghulf: heals 1/4 of ALL damage dealt this round to all players
-        // Standard life leech: heals 1/2 of single hit
-        const isVarghulf = ae.name==='Varghulf';
-        if(isVarghulf){
-          // Accumulate - will heal after all players attacked
-          ae._leechAccum = (ae._leechAccum||0) + r.dmg;
-        } else {
-          const l=Math.floor(r.dmg/2); e.hp=Math.min(e.maxHp,e.hp+l);
-          addLog(room,`${e.name} leeches ${l} HP!`,'chaos');
+  if(alive.length===0){gs.phase='gameover';addLog(room,'💀 The entire warband has fallen.','death');return;}
+
+  // Each living enemy attacks each player
+  stillAliveEnemies.forEach(ae=>{
+    if(stillAliveEnemies.length>1) addLog(room,`▸ <strong>${ae.name}</strong> attacks!`,'sys');
+    alive.forEach(p=>{
+      const auraBonus=room.players.some(q=>q.char&&q.char.alive&&q.char.holyAura)?2:0;
+      const r=rollEnemyAttack(ae,{...p.char,defense:p.char.defense+auraBonus});
+      if(r.hit){
+        p.char.health=Math.max(0,p.char.health-r.dmg);
+        const critLabel=r.crit?' 💥 CRIT!':'';
+        const dmgBreak=`${ae.dmgNum}d${ae.dmgSides}(${r.dmgRoll})${ae.dmgBonus?'+'+ae.dmgBonus:''}${r.critRoll?'+'+r.critRoll+' crit':''}`;
+        addLog(room,`${ae.name} hits <strong>${p.name}</strong> — <strong class="num-dmg">−${r.dmg} dmg</strong>${critLabel} [d20:<strong>${r.base}</strong>+atk<strong>${ae.atk>=0?'+':''}${ae.atk}</strong>=<strong>${r.total}</strong> vs Def<strong>${p.char.defense+auraBonus}</strong>] [dmg: ${dmgBreak}] → ${p.name} <strong>${Math.max(0,p.char.health)}</strong>/${p.char.maxHealth} HP`,'dmg-taken');
+        if(ae.lifeLeech){
+          const isVarghulf=ae.name==='Varghulf';
+          if(isVarghulf){
+            ae._leechAccum=(ae._leechAccum||0)+r.dmg;
+          } else {
+            const l=Math.floor(r.dmg/2); ae.hp=Math.min(ae.maxHp,ae.hp+l);
+            addLog(room,`${ae.name} leeches ${l} HP!`,'chaos');
+          }
         }
+        if(ae.insanityAtk&&d(6)>=4){p.char.insanity++;addLog(room,`${p.name} gains 1 Insanity!`,'chaos');}
+        if(ae.diseased&&d(6)>=5&&!p.char.conditions.includes('Diseased')){p.char.conditions.push('Diseased');addLog(room,`${p.name} contracts disease!`,'chaos');}
+        checkDeath(room,p);
+      } else {
+        if(!r.skipped) addLog(room,`${ae.name} <em>misses</em> ${p.name} — d20:<strong>${r.base}</strong>+<strong>${ae.atk>=0?'+':''}${ae.atk}</strong>=<strong>${r.total}</strong> vs Def<strong>${p.char.defense+auraBonus}</strong>.`,'sys');
       }
-      if(ae.insanityAtk&&d(6)>=4){p.char.insanity++;addLog(room,`${p.name} gains 1 Insanity!`,'chaos');}
-      if(ae.diseased&&d(6)>=5&&!p.char.conditions.includes('Diseased')){p.char.conditions.push('Diseased');addLog(room,`${p.name} contracts disease!`,'chaos');}
-      checkDeath(room,p);
-    } else {
-      if(!r.skipped) addLog(room,`${ae.name} <em>misses</em> ${p.name} — d20:<strong>${r.base}</strong>+<strong>${ae.atk>=0?'+':''}${ae.atk}</strong>=<strong>${r.total}</strong> vs Def<strong>${p.char.defense+auraBonus}</strong>.`,'sys');
+    });
+    // Bonus multi-attack hits random player
+    if(ae.multi){
+      const t=alive[Math.floor(Math.random()*alive.length)];
+      if(t){const r2=rollEnemyAttack(ae,t.char);if(r2.hit){t.char.health=Math.max(0,t.char.health-r2.dmg);addLog(room,`${ae.name} bonus attack on ${t.name} for <strong>${r2.dmg}</strong>!`,'dmg');checkDeath(room,t);}}
+    }
+    // Resolve Varghulf life leech for this enemy
+    if(ae.name==='Varghulf'&&ae._leechAccum>0){
+      const leech=Math.floor(ae._leechAccum/4);
+      ae.hp=Math.min(ae.maxHp,ae.hp+leech);
+      addLog(room,`Varghulf leeches <strong>${leech}</strong> HP (¼ of ${ae._leechAccum} total damage dealt)!`,'chaos');
+      ae._leechAccum=0;
     }
   });
-  }); // end attackingEnemies
-  if(ae&&ae.multi){
-    const t=alive[Math.floor(Math.random()*alive.length)];
-    if(t){const r2=rollEnemyAttack(e,t.char);if(r2.hit){t.char.health=Math.max(0,t.char.health-r2.dmg);addLog(room,`${e.name} bonus attack on ${t.name} for <strong>${r2.dmg}</strong>!`,'dmg');checkDeath(room,t);}}
-  }
+
   const nowAlive=room.players.filter(p=>p.char&&p.char.alive);
-  // Resolve Varghulf's accumulated 1/4 life leech
-  if(e && e.name==='Varghulf' && e._leechAccum>0){
-    const leech=Math.floor(e._leechAccum/4);
-    e.hp=Math.min(e.maxHp,e.hp+leech);
-    addLog(room,`Varghulf leeches <strong>${leech}</strong> HP (¼ of ${e._leechAccum} total damage dealt)!`,'chaos');
-    e._leechAccum=0;
-  }
   if(nowAlive.length===0){gs.phase='gameover';addLog(room,'💀 The entire warband has fallen.','death');return;}
   room.players.forEach(p=>{if(p.char&&!p.char.alive){p.char.pendingRevive=true;}});
   // Tick buffs/debuffs each round
   room.players.forEach(p=>{if(p.char&&p.char.alive)tickBuffs(p.char);});
-  if(gs.enemies) gs.enemies.forEach(e=>tickDebuffs(e));
+  if(gs.enemies) gs.enemies.forEach(en=>{if(en)tickDebuffs(en);});
   gs.playersActedThisRound=[]; gs.enemyHasActed=false;
   gs.roundNumber=(gs.roundNumber||1)+1;
   addLog(room,'--- New round — warriors act! ---','sys');
@@ -1135,9 +1158,10 @@ function resolveEnemyDeath(room, deadEnemy) {
   if(gs.enemies&&gs.enemies.length>0){
     gs.enemy=gs.enemies[0]; gs.activeEnemyIdx=0;
     addLog(room,`<strong>${gs.enemies[0].name}</strong> is next! (${gs.enemies[0].hp}/${gs.enemies[0].maxHp} HP)`,'sys');
-    // Reset round — players act again
+    // Full round reset — everyone acts again including enemy
     gs.playersActedThisRound=[]; gs.enemyHasActed=false;
     gs.roundNumber=(gs.roundNumber||1)+1;
+    addLog(room,'--- New round — warriors act! ---','sys');
     // Revive fallen players between enemies
     room.players.forEach(p=>{if(p.char&&(!p.char.alive||p.char.pendingRevive)){p.char.health=1;p.char.alive=true;p.char.pendingRevive=false;addLog(room,`${p.name} recovers — 1 HP!`,'heal');}});
     return;
@@ -1687,7 +1711,15 @@ function handlePlayerAction(room,playerId,payload,ws){
 
   if(acted){
     if(!gs.playersActedThisRound.includes(playerId))gs.playersActedThisRound.push(playerId);
-    maybeEnemyAttack(room);
+    try {
+      maybeEnemyAttack(room);
+    } catch(err) {
+      console.error('[maybeEnemyAttack ERROR]', err);
+      // Reset round so players can act again — prevents permanent hang
+      gs.playersActedThisRound=[];
+      gs.enemyHasActed=false;
+      addLog(room,'⚠ Combat error — round reset. Please act again.','sys');
+    }
   }
 }
 
