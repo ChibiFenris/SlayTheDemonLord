@@ -657,7 +657,7 @@ function buildChar(career) {
     utilityFocus:false,
     assassination:false,
     swiftFeet:false,
-    trickery:false, trickeryUsed:0, trickeryMax:1,
+    trickery:false, trickeryUsed:false, // reset each round
     nimbleRecovery:false, nimbleUsed:false,
     spellRecovery:false, spellRecoveryUsed:false,
     sharedRecovery:false, sharedUsed:false,
@@ -746,7 +746,8 @@ function rollAttack(char, enemy, extraBoons=0) {
     if (char.combatProwess)   { const r=rd(1,6); dmg+=r; dmgParts.push(`+${r} prowess`); }
     if (char.combatExpertise) { const r=rd(1,6); dmg+=r; dmgParts.push(`+${r} expertise`); }
     if (char.sharpeningStone) { const r=rd(1,6); dmg+=r; dmgParts.push(`+${r} sharpened`); }
-    if (char.trickery&&char.trickeryUsed<char.trickeryMax) { const r=rd(1,6); dmg+=r; char.trickeryUsed++; dmgParts.push(`+${r} trickery`); char._trickeryPoisonProc=true; } // poison stack applied after hit
+    // Trickery: +1d6 on FIRST attack each round + poison proc. trickeryUsed resets each round.
+    if (char.trickery && !char.trickeryUsed) { const r=rd(1,6); dmg+=r; char.trickeryUsed=true; dmgParts.push(`+${r} Trickery`); char._trickeryPoisonProc=true; } // poison applied after hit
     const dmgBuff=getBuffVal(char,'dmgBonus'); if(dmgBuff){dmg+=dmgBuff;dmgParts.push(`+${dmgBuff} buff`);}
     const battleProwessBuff=(char.activeBuffs||[]).some(b=>b.battleProwess);
     if(battleProwessBuff){const r=rd(1,6);dmg+=r;dmgParts.push(`+${r} prowess`);}
@@ -756,6 +757,8 @@ function rollAttack(char, enemy, extraBoons=0) {
     if(enemy){
       if(wpnType==='slashing'&&enemy.ac<=14){ dmg=Math.floor(dmg*1.5); dmgParts.push('×1.5 Slash'); }
       else if(wpnType==='blunt'&&enemy.ac>=16){ dmg=Math.floor(dmg*1.5); dmgParts.push('×1.5 Blunt'); }
+      // Brittle Bones (Skeleton): blunt weapons deal x1.5 regardless of AC
+      if(wpnType==='blunt'&&enemy.weakToBlunt){ dmg=Math.floor(dmg*1.5); dmgParts.push('×1.5 Blunt (Brittle Bones)'); }
     }
     // Paced Strikes: activated via USE_TALENT — adds +2d6 buff (no auto-trigger)
     const pacedBuff=(char.activeBuffs||[]).find(b=>b.pacedDmg);
@@ -767,8 +770,6 @@ function rollAttack(char, enemy, extraBoons=0) {
     // Corroded debuff on player: -1 to damage
     const corrodedBuff=(char.activeBuffs||[]).find(b=>b.dmgPenalty);
     if(corrodedBuff&&dmg>0){ dmg=Math.max(0,dmg-corrodedBuff.dmgPenalty); }
-    // Clear _corroded flag so it can be reapplied
-    char._corroded=false;
     dmg=Math.max(1,dmg);
   }
   const boonInfo=boons>0?` (${boons} boon)`:banes>0?` (${banes} bane)`:'';
@@ -776,23 +777,21 @@ function rollAttack(char, enemy, extraBoons=0) {
   return {hit,crit,fumble,base,final,total,dmg,dmgParts,atkMod,boonInfo,forceCrit,wpnLabel};
 }
 
-function rollEnemyAttack(enemy, char) {
+function rollEnemyAttack(enemy, char, hasBoon=false) {
   // Apply active debuffs (bane from Figment/Glamer/Vertigo)
   const baneDebuff=getDebuffVal(enemy,'bane');
   const skipDebuff=(enemy.activeDebuffs||[]).some(d=>d.skipTurn);
   if(skipDebuff){ enemy.activeDebuffs=enemy.activeDebuffs.filter(d=>!d.skipTurn); return {hit:false,crit:false,dmg:0,dmgRoll:0,critRoll:0,total:0,base:0,skipped:true}; }
-  const base=d(20);
-  const boonInfo=baneDebuff>0?` (${baneDebuff} bane from debuffs)`:'';
-  const baneRoll=baneDebuff>0?Math.max(...Array.from({length:Math.min(baneDebuff,4)},()=>d(6))):0;
-  const adjBase=baneDebuff>0?Math.max(1,base-baneRoll):base;
-  const total=adjBase+enemy.atk, crit=adjBase===20;
-  // Evasion: attacks against this character have 1 bane
+  // Boon: roll 2d20 take higher. Bane from debuffs reduces roll.
   const evasionBane=char.evasion?1:0;
   const totalBanes=baneDebuff+evasionBane;
-  const totalBaneRoll=totalBanes>0?Math.max(...Array.from({length:Math.min(totalBanes,4)},()=>d(6))):0;
-  const adjBase2=totalBanes>0?Math.max(1,base-totalBaneRoll):adjBase;
-  const total2=adjBase2+enemy.atk, crit2=adjBase2===20;
-  const hit=adjBase2!==1&&(crit2||total2>=char.defense);
+  const roll1=d(20);
+  const rawBase=hasBoon?Math.max(roll1,d(20)):roll1;
+  const boonInfo=hasBoon?' (boon)':baneDebuff>0?` (${baneDebuff} bane)`:totalBanes>0?' (evasion bane)':'';
+  const baneRoll=totalBanes>0?Math.max(...Array.from({length:Math.min(totalBanes,4)},()=>d(6))):0;
+  const adjBase=totalBanes>0?Math.max(1,rawBase-baneRoll):rawBase;
+  const total2=adjBase+enemy.atk, crit2=adjBase===20;
+  const hit=adjBase!==1&&(crit2||total2>=char.defense);
   let dmg=0, dmgRoll=0, critRoll=0;
   if (hit) {
     dmgRoll=rd(enemy.dmgNum,enemy.dmgSides);
@@ -801,7 +800,7 @@ function rollEnemyAttack(enemy, char) {
     if (char.toughness) dmg=Math.max(0,dmg-1);
     dmg=Math.max(1,dmg);
   }
-  return {hit,crit:crit2||false,dmg,dmgRoll,critRoll,total:total2,base};
+  return {hit,crit:crit2||false,dmg,dmgRoll,critRoll,total:total2,base:adjBase,boonInfo};
 }
 
 
@@ -1061,7 +1060,7 @@ function enterNode(room, nodeType) {
       p.char.health=Math.min(p.char.maxHealth,p.char.health+amt);
       p.char.catchBreathUsed=false; p.char.nimbleUsed=false; p.char.sharedUsed=false;
       p.char.pacedStrikesUsed=false; p.char.rageBoon=false; p.char.metamagicUsed=false; p.char.overcastUsed=false;
-      p.char.trickeryUsed=0; p.char.sharpeningStone=false; p.char.metamagicUsed=false;
+      p.char.trickeryUsed=false; p.char.sharpeningStone=false; p.char.metamagicUsed=false;
       p.char.divineSmiteUsed=false; p.char.massHealUsed=false; p.char.resurrectionUsed=false;
       p.char.unstoppableUsed=false; p.char.rallyingUsed=false; p.char.spellsurgeUsed=false; p.char.miracleUsed=false;
       p.char.conditions=p.char.conditions.filter(c=>c==='Diseased'); p.char.activeBuffs=[];
@@ -1208,6 +1207,7 @@ function endRound(room) {
   }
   gs.playersActedThisRound = [];
   gs.enemyHasActed = false;
+  room.players.forEach(p=>{ if(p.char) { p.char._killedThisTurn=false; p.char.trickeryUsed=false; } });
   gs.roundNumber = (gs.roundNumber || 1) + 1;
   addLog(room, `--- Round ${gs.roundNumber} begins ---`, 'sys');
   // Rebuild turn order for new round
@@ -1379,6 +1379,17 @@ function fireEnemyTurn(room, ae) {
       const recklessBoon = ae.recklessCharge && !ae._recklessUsed && gs.roundNumber === 1;
       if (recklessBoon && atk_i === 0) ae._recklessUsed = true;
 
+      // SCURRY AWAY (Skaven Warlord): once per combat, 40% chance to auto-dodge one attack
+      // Roll once for the whole turn (not per-player) then consume
+      if (ae.scurryAway && !ae._scurryUsed) {
+        if (!ae._scurryRolled) { ae._scurryRolled = true; ae._scurryDodging = Math.random() < 0.4; }
+        if (ae._scurryDodging) {
+          ae._scurryUsed = true; ae._scurryDodging = false;
+          addLog(room, `💨 <strong>Scurry Away!</strong> ${ae.name} vanishes — attack missed!`, 'chaos');
+          continue;
+        }
+      }
+
       const r = rollEnemyAttack(aeProxy, {...p.char, defense: defTotal}, hasExtraBoon || recklessBoon);
 
       if (r.hit) {
@@ -1433,7 +1444,8 @@ function fireEnemyTurn(room, ae) {
         // Crit Major Bleed (Varghulf)
         if (ae.critMajorBleed && r.crit) { addDebuff(ae,'Major Bleed',{dotDmg:rd(2,6)},2); addLog(room, `🩸🩸 <strong>Frenzied Rending!</strong> Major Bleed on ${p.name}!`, 'chaos'); }
         // Poison Blade (Skaven Warlord)
-        if (ae.poisonBlade) { applyPoison(ae, ae.poisonBlade, room); }
+        // Poison Blade: no player poison system — apply 1 bane on player's next 2 attacks
+        if (ae.poisonBlade) { addBuff(p.char,'Poisoned',{bane:1},2); addLog(room,`☠ <strong>Poison Blade!</strong> ${p.name} is poisoned — 1 bane on next 2 attacks!`,'chaos'); }
         // Bloodlust (Kragthor): on kill, bonus attack on another player
         if (ae.bloodlust && p.char.health <= 0) {
           const next = alive.filter(o=>o!==p&&o.char&&o.char.alive);
@@ -1458,14 +1470,15 @@ function fireEnemyTurn(room, ae) {
     ae._leechAccum = 0;
   }
   // Bloodgreed (Gor): heals 1d6 if a player died this turn
-  if (ae.bloodgreed && room.players.some(p=>p.char&&!p.char.alive&&p.char.health===0)) {
+  if (ae.bloodgreed && room.players.some(p=>p.char&&p.char._killedThisTurn)) {
     const h=rd(1,6); ae.hp=Math.min(ae.maxHp,ae.hp+h);
     addLog(room, `🩸 <strong>Bloodgreed!</strong> ${ae.name} heals <strong>${h}</strong> HP!`, 'chaos');
   }
   // Pack Boss (Gnashteeth): summon clanrats at 60% and 30%
   if (ae.packBoss) {
     const ratio = ae.hp / ae.maxHp;
-    const threshold = ratio < 0.3 && !ae._pack30 ? '_pack30' : ratio < 0.6 && !ae._pack60 ? '_pack60' : null;
+    // Check 60% first (higher threshold) then 30% so both can trigger in sequence
+    const threshold = ratio < 0.6 && !ae._pack60 ? '_pack60' : ratio < 0.3 && !ae._pack30 ? '_pack30' : null;
     if (threshold && gs.enemies && gs.enemies.length < 5) {
       ae[threshold] = true;
       const clanrat = scaleEnemy({name:'Skaven Clanrat',type:'Skaven',threat:'Low',hp:13,ac:11,atk:0,xp:0,gold:[0,0],tags:['skaven'],packInstinct:true},
@@ -1476,11 +1489,11 @@ function fireEnemyTurn(room, ae) {
   }
   // Regular Call the Pack (non-boss skaven)
   if (!ae.packBoss && ae.tags&&ae.tags.includes('skaven')&&ae.hp<ae.maxHp*0.6&&!(gs.packCooldown>0)&&gs.enemies&&gs.enemies.length<4) {
-    gs.packCooldown=2;
+    gs.packCooldown=3;
     const clanrat=scaleEnemy({name:'Skaven Clanrat',type:'Skaven',threat:'Low',hp:13,ac:11,atk:0,xp:0,gold:[0,0],tags:['skaven'],packInstinct:true},
       room.players.filter(p=>p.connected&&p.char&&p.char.alive).length,false,gs.bossCount);
     clanrat.id='pack_'+Date.now(); gs.enemies.push(clanrat);
-    addLog(room, `🐀 <strong>Call the Pack!</strong> ${ae.name} summons a Skaven Clanrat! (2-round cooldown)`, 'chaos');
+    addLog(room, `🐀 <strong>Call the Pack!</strong> ${ae.name} summons a Skaven Clanrat! (3-round cooldown)`, 'chaos');
   }
   // Pack Leader (Ratogre): +2 ATK to all skaven while alive — applied passively each turn
   // Pack Leader (Ratogre): skaven allies get +2 ATK while Ratogre alive — applied once on first turn
@@ -1592,7 +1605,7 @@ function maybeEnemyAttack(room) {
         if(ae.lifeLeech){
           const isVarghulf=ae.name==='Varghulf';
           if(isVarghulf){
-            ae._leechAccum=(ae._leechAccum||0)+r.dmg;
+            ae._leechAccum=(ae._leechAccum||0)+actualDmg;
           } else {
             const l=Math.floor(r.dmg/4); ae.hp=Math.min(ae.maxHp,ae.hp+l);
             addLog(room,`${ae.name} leeches ${l} HP (¼)!`,'chaos');
@@ -1608,12 +1621,12 @@ function maybeEnemyAttack(room) {
     });
     // CALL THE PACK (skaven tag): below 60% HP, shared 2-round cooldown across all skaven
     if(ae.tags&&ae.tags.includes('skaven')&&ae.hp<ae.maxHp*0.6&&!(gs.packCooldown>0)&&gs.enemies&&gs.enemies.length<4){
-      gs.packCooldown=2; // blocks all skaven from calling for 2 rounds
+      gs.packCooldown=3; // blocks all skaven from calling for 2 rounds
       const clanrat=scaleEnemy({name:'Skaven Clanrat',type:'Skaven',threat:'Low',hp:15,ac:12,atk:0,xp:0,gold:[0,0],tags:['skaven']},
         room.players.filter(p=>p.connected&&p.char&&p.char.alive).length,false,gs.bossCount);
       clanrat.id='pack_'+Date.now();
       gs.enemies.push(clanrat);
-      addLog(room,`🐀 <strong>Call the Pack!</strong> ${ae.name} summons a <strong>Skaven Clanrat</strong>! (2-round cooldown)`,'chaos');
+      addLog(room,`🐀 <strong>Call the Pack!</strong> ${ae.name} summons a <strong>Skaven Clanrat</strong>! (3-round cooldown)`,'chaos');
     }
     // Bonus multi-attack hits random player
     if(ae.multi){
@@ -1657,7 +1670,7 @@ function maybeEnemyAttack(room) {
 
 function checkDeath(room, player) {
   if(player.char.health<=0&&player.char.alive){
-    player.char.alive=false; player.char.health=0;
+    player.char.alive=false; player.char.health=0; player.char._killedThisTurn=true;
     addLog(room,`💀 <strong>${player.name}</strong> has fallen!`,'death');
     // Unstoppable: survive at 1 HP once per combat
     if(player.char.unstoppable&&!player.char.unstoppableUsed){
@@ -1708,7 +1721,7 @@ function resolveEnemyDeath(room, deadEnemy) {
   survivors.forEach(p=>{
     p.char.xp+=xpEach; p.char.gold+=goldEach; p.char.sharpeningStone=false;
     // Reset per-combat used flags
-    p.char.divineSmiteUsed=false; p.char.spellsurgeUsed=false; p.char.pacedStrikesUsed=false; p.char.rageBoon=false; p.char.catastropheUsed=false; p.char.overcastUsed=false;
+    p.char.divineSmiteUsed=false; p.char.spellsurgeUsed=false; p.char.pacedStrikesUsed=false; p.char.rageBoon=false; p.char.catastropheUsed=false; p.char.overcastUsed=false; p.char._quickstrikeUsed=false; p.char.trickeryUsed=false;
     const lv=checkLevelUp(p.char);
     if(lv.leveled) addLog(room,`🌟 ${p.name} reaches <strong>Level ${lv.newLevel}</strong>! (+${lv.hpGain} max HP)${p.char.pendingLevelUp?' — Choose a path!':''}`, 'spell');
   });
@@ -1881,8 +1894,8 @@ function useItemLogic(room,player,itemName,inCombat=false){
   let consumed=true;
   if(itemName==='Healing Draught'){const h=rd(1,6);char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} drinks Healing Draught — +<strong>${h}</strong> HP.`,'heal');}
   else if(itemName==='Greater Healing Draught'){const h=rd(2,6);char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} drinks Greater Healing — +<strong>${h}</strong> HP.`,'heal');}
-  else if(itemName==='Flask of Oil'){const _te=getTargetEnemy(room.gs);if(inCombat&&_te){const dmg=rd(2,6);_te.hp=Math.max(0,_te.hp-dmg);addLog(room,`${player.name} throws Flask of Oil — <strong>${dmg}</strong> fire dmg!`,'spell');if(_te.hp<=0){resolveEnemyDeath(room,_te);return true;}}else{consumed=false;}}
-  else if(itemName==='Fire Jar'){const _te=getTargetEnemy(room.gs);if(inCombat&&_te){const dmg=rd(3,6);_te.hp=Math.max(0,_te.hp-dmg);addLog(room,`${player.name} smashes Fire Jar — <strong>${dmg}</strong> fire dmg!`,'spell');if(_te.hp<=0){resolveEnemyDeath(room,_te);return true;}}else{consumed=false;}}
+  else if(itemName==='Flask of Oil'){const _te=getTargetEnemy(room.gs);if(inCombat&&_te){if(_te.immuneFire){addLog(room,`🔥 ${_te.name} is immune to fire!`,'spell');}else{const dmg=rd(2,6);_te.hp=Math.max(0,_te.hp-dmg);addLog(room,`${player.name} throws Flask of Oil — <strong>${dmg}</strong> fire dmg!`,'spell');if(_te.hp<=0){resolveEnemyDeath(room,_te);return true;}}}else{consumed=false;}}
+  else if(itemName==='Fire Jar'){const _te=getTargetEnemy(room.gs);if(inCombat&&_te){if(_te.immuneFire){addLog(room,`🔥 ${_te.name} is immune to fire!`,'spell');}else{const dmg=rd(3,6);_te.hp=Math.max(0,_te.hp-dmg);addLog(room,`${player.name} smashes Fire Jar — <strong>${dmg}</strong> fire dmg!`,'spell');if(_te.hp<=0){resolveEnemyDeath(room,_te);return true;}}}else{consumed=false;}}
   else if(itemName==='Lucky Pendant'){char.luckyPendant=true;addLog(room,`${player.name} activates Lucky Pendant — next attack is a CRIT!`,'loot');}
   else if(itemName==='Sharpening Stone'){char.sharpeningStone=true;addLog(room,`${player.name} uses Sharpening Stone — +1d6 dmg this combat!`,'loot');}
   else if(itemName.startsWith('Scroll:')){
@@ -2127,18 +2140,24 @@ function handlePlayerAction(room,playerId,payload,ws){
         if(char.quickStep){ addBuff(char,'Quick Step',{defBonus:2},1); char.defense+=2; addLog(room,`👟 ${player.name} Quick Steps — +2 Defense this round!`,'sys'); }
       }
     }
-    // Bladestorm: 3 attacks total
-    if(char.bladestorm && targetEnemy && targetEnemy.hp>0){
+    // Bladestorm: 3 attacks total — only fires if first attack hit, inherits weapon training boon
+    if(char.bladestorm && r.hit && targetEnemy && targetEnemy.hp>0){
+      const bsBoon=char.weaponTraining?1:0;
       for(let bsi=0;bsi<2;bsi++){
         if(targetEnemy.hp<=0) break;
-        addLog(room,`🌪 ${player.name} Bladestorm strike ${bsi+2}!`,'crit');
-        const rbs=rollAttack(char,targetEnemy,0);
-        if(rbs.hit){
+        addLog(room,`🌪 ${player.name} <strong>Bladestorm</strong> strike ${bsi+2}/3!`,'crit');
+        const rbs=rollAttack(char,targetEnemy,bsBoon);
+        if(rbs.fumble){
+          addLog(room,`Bladestorm fumbles!`,'sys');
+        } else if(rbs.hit){
           targetEnemy.hp=Math.max(0,targetEnemy.hp-rbs.dmg);
-          addLog(room,`Bladestorm ${rbs.crit?'<strong>CRITS</strong>':'hits'} — <strong class="num-dmg">−${rbs.dmg} dmg</strong> → ${targetEnemy.name} ${Math.max(0,targetEnemy.hp)}/${targetEnemy.maxHp} HP`,rbs.crit?'crit':'dmg');
+          const bsBreak=rbs.dmgParts.length?` [${rbs.dmgParts.join(' ')} = <strong>${rbs.dmg}</strong>]`:'';
+          addLog(room,`Bladestorm ${rbs.crit?'<strong>CRITS</strong>':'hits'} — <strong class="num-dmg">−${rbs.dmg} dmg</strong>${bsBreak} → ${targetEnemy.name} ${Math.max(0,targetEnemy.hp)}/${targetEnemy.maxHp} HP`,rbs.crit?'crit':'dmg');
+          // Trickery poison on bonus strikes too
+          if(targetEnemy.hp>0 && rbs.dmgParts.some(p=>p.includes('Trickery'))){ applyPoison(targetEnemy,1,room); }
           if(targetEnemy.hp<=0){resolveEnemyDeath(room,targetEnemy);return;}
         } else {
-          addLog(room,`Bladestorm strike misses.`,'sys');
+          addLog(room,`Bladestorm strike misses — d20:${rbs.base}+${rbs.atkMod>=0?'+':''}${rbs.atkMod}=${rbs.total} vs Def${targetEnemy.ac}.`,'sys');
         }
       }
     }
@@ -2151,18 +2170,23 @@ function handlePlayerAction(room,playerId,payload,ws){
         if(se.hp<=0){resolveEnemyDeath(room,se);}
       });
     }
-    // Quick Strike: free second attack on round 1
-    if(char.quickstrike && gs.roundNumber===1 && targetEnemy && targetEnemy.hp>0){
-      addLog(room,`⚡ ${player.name} Quick Strike — bonus attack!`,'crit');
-      const rqs=rollAttack(char,targetEnemy,0);
+    // Quick Strike: free second attack on round 1 only (once per combat)
+    if(char.quickstrike && gs.roundNumber===1 && !char._quickstrikeUsed && targetEnemy && targetEnemy.hp>0){
+      char._quickstrikeUsed=true;
+      addLog(room,`⚡ ${player.name} <strong>Quick Strike</strong> — bonus attack!`,'crit');
+      const qsBoon=char.weaponTraining?1:0;
+      const rqs=rollAttack(char,targetEnemy,qsBoon);
       if(rqs.fumble){
         addLog(room,`Quick Strike fumbles!`,'sys');
       } else if(rqs.hit){
         targetEnemy.hp=Math.max(0,targetEnemy.hp-rqs.dmg);
-        addLog(room,`Quick Strike ${rqs.crit?'<strong>CRITS</strong>':'hits'} — <strong class="num-dmg">−${rqs.dmg} dmg</strong> → ${targetEnemy.name} ${Math.max(0,targetEnemy.hp)}/${targetEnemy.maxHp} HP`,rqs.crit?'crit':'dmg');
+        const qsBreak=rqs.dmgParts.length?` [${rqs.dmgParts.join(' ')} = <strong>${rqs.dmg}</strong>]`:'';
+        addLog(room,`Quick Strike ${rqs.crit?'<strong>CRITS</strong>':'hits'} — <strong class="num-dmg">−${rqs.dmg} dmg</strong>${qsBreak} → ${targetEnemy.name} ${Math.max(0,targetEnemy.hp)}/${targetEnemy.maxHp} HP`,rqs.crit?'crit':'dmg');
+        // Trickery poison applies on bonus attacks too
+        if(rqs.hit && targetEnemy.hp>0 && rqs.dmgParts.some(p=>p.includes('Trickery'))){ applyPoison(targetEnemy,1,room); }
         if(targetEnemy.hp<=0){resolveEnemyDeath(room,targetEnemy);return;}
       } else {
-        addLog(room,`Quick Strike misses.`,'sys');
+        addLog(room,`Quick Strike misses — d20:${rqs.base}+${rqs.atkMod>=0?'+':''}${rqs.atkMod}=${rqs.total} vs Def${targetEnemy.ac}.`,'sys');
       }
     }
     acted=true;
@@ -2518,6 +2542,8 @@ function handlePlayerAction(room,playerId,payload,ws){
       }
 
       addLog(room,`${spellTarget.name}: <strong>${Math.max(0,spellTarget.hp)}</strong>/${spellTarget.maxHp} HP remaining.`,'sys');
+      // Fire immunity (Chaos Warrior)
+      if(spell.tradition==='fire'&&spellTarget.immuneFire){ addLog(room,`🔥 ${spellTarget.name} is <strong>immune to fire</strong>!`,'spell'); return; }
       if(spellTarget.hp<=0){resolveEnemyDeath(room,spellTarget);return;}
     } // end attack spell else
     acted=true;
