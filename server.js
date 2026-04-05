@@ -217,13 +217,13 @@ const MASTER_PATHS = {
     desc:'Righteous Killer (Sigmar). Holy Fervor boon vs evil. Mark Heretic: crits auto-bleed, cannot flee. Deathblow ×3 crit. Purge: marked kill heals allies 1d6.' },
   shadowblade: { label:'Shadowblade', hpGain:4, power:0,
     levelGains:{ 7:['phantomStrike','shadowStep'], 8:['+1agi'], 9:['bladestorm','vanish'], 10:['+1agi'] },
-    desc:'Unseen Blade. Phantom Strike ignores armour. Shadow Step: stealth first attack +1 boon. Bladestorm 3 attacks. Vanish: kill = enemies bane vs you.' },
+    desc:'Unseen Blade. Phantom Strike: first attack each combat auto-hits (ignores AC). Shadow Step: stealth opener +1 boon. Bladestorm 2 attacks. Vanish: kill = enemies bane vs you.' },
   acrobat:     { label:'Acrobat',     hpGain:3, power:0,
     levelGains:{ 7:['evasion','acrobaticRiposte'], 8:['+1agi'], 9:['swiftFeet','flicker'], 10:['+1agi'] },
     desc:'Impossible to Pin. Evasion 1 bane vs you. Acrobatic Riposte: miss triggers free counter (1/round). Swift Feet +2 boons. Flicker: negate one hit/combat.' },
   executioner: { label:'Executioner', hpGain:3, power:0,
     levelGains:{ 7:['deathblow','cleanup'], 8:['+1agi'], 9:['phantomStrike','deadAim'], 10:['+1int'] },
-    desc:'No Survivors. Deathblow ×3 crit + 6 poison. Cleanup: any kill = free attack vs another. Phantom Strike ignores armour. Dead Aim: once/combat declare → hit = crit.' },
+    desc:'No Survivors. Deathblow ×3 crit + 6 poison. Cleanup: any kill = free attack vs another. Phantom Strike: first attack auto-hits (ignores AC). Dead Aim: once/combat declare → hit = crit.' },
   blade:       { label:'Blade',       hpGain:4, power:0,
     levelGains:{ 7:['deathblow','poisonBlade','unrelenting'], 8:['+1agi'], 9:['bladestorm','flurryBleed'], 10:['+1agi'] },
     desc:'Flurry of Death. Deathblow ×3. Poison Blade every hit +1 stack. Unrelenting: Bladestorm hits gain +1 boon each. Flurry Bleed: Bladestorm crits apply Bleed.' },
@@ -739,7 +739,7 @@ function buildChar(career) {
     // Master talents
     warlordAura:false, unstoppable:false, unstoppableUsed:false,
     rallyingCry:false, rallyingUsed:false, sweepingBlow:false,
-    phantomStrike:false, bladestorm:false,
+    phantomStrike:false, _phantomStrikeUsed:false, bladestorm:false,
     spellsurge:false, spellsurgeUsed:false, catastrophe:false, metamagicUsed:false,
     holyAura:false, miracleHeal:false, miracleUsed:false,
     // Equipment
@@ -768,9 +768,9 @@ function talentHeal(char) {
 function rollD20boons(boons, banes) {
   // SotDL RAW: roll d20 + highest boon die, or d20 - highest bane die. Boons/banes cancel 1:1.
   const net=boons-banes, base=d(20);
-  if (net>0) { const bd=[]; for(let i=0;i<Math.min(net,4);i++) bd.push(d(6)); return {base,final:Math.min(20,base+Math.max(...bd))}; }
-  if (net<0) { const bd=[]; for(let i=0;i<Math.min(-net,4);i++) bd.push(d(6)); return {base,final:Math.max(1,base-Math.max(...bd))}; }
-  return {base,final:base};
+  if (net>0) { const bd=[]; for(let i=0;i<Math.min(net,4);i++) bd.push(d(6)); const best=Math.max(...bd); return {base,final:Math.min(20,base+best),boonDie:best,baneDie:0}; }
+  if (net<0) { const bd=[]; for(let i=0;i<Math.min(-net,4);i++) bd.push(d(6)); const best=Math.max(...bd); return {base,final:Math.max(1,base-best),boonDie:0,baneDie:best}; }
+  return {base,final:base,boonDie:0,baneDie:0};
 }
 
 function rollAttack(char, enemy, extraBoons=0) {
@@ -811,9 +811,12 @@ function rollAttack(char, enemy, extraBoons=0) {
   const forceCrit=char.luckyPendant; if(forceCrit) char.luckyPendant=false;
   // Active buff bonuses
   const atkBuff=getBuffVal(char,'atkBoon'); boons+=atkBuff;
-  const {base,final}=rollD20boons(boons,banes);
+  const {base,final,boonDie,baneDie}=rollD20boons(boons,banes);
   const fumble=base===1&&!forceCrit, crit=forceCrit||base===20;
-  const total=final+atkMod, hit=!fumble&&(crit||total>=enemy.ac||char.phantomStrike);
+  // Phantom Strike: first attack each combat ignores AC (auto-hit, not just DR bypass)
+  const phantomThisHit=char.phantomStrike&&!char._phantomStrikeUsed;
+  if(phantomThisHit) char._phantomStrikeUsed=true;
+  const total=final+atkMod, hit=!fumble&&(crit||total>=enemy.ac||phantomThisHit);
   let dmg=0, dmgParts=[];
   if (hit) {
     const weapRoll=rd(num,sides);
@@ -871,7 +874,7 @@ function rollAttack(char, enemy, extraBoons=0) {
     if(char._wpnRuneStrikeActive && enemy && enemy.damageReduction){ dmg+=enemy.damageReduction; dmgParts.push(`+${enemy.damageReduction} rune`); char._wpnRuneStrikeActive=false; }
     dmg=Math.max(1,dmg);
   }
-  const boonInfo=boons>0?` (${boons} boon)`:banes>0?` (${banes} bane)`:'';
+  const net=boons-banes; const boonInfo=net>0?` (+${boonDie} boon)`:net<0?` (-${baneDie} bane)`:''; // shows actual die rolled
   const wpnLabel=wpn?`${wpn.name} (${wpnDice}+${wpnDmgBonus}) [${(wpn&&wpn.dmgType)||'slashing'}]`:'Unarmed (1d6)';
   // Arcane Focus: missed weapon attack → set spellBoonNext
   if(!hit && !fumble && char._wpnArcaneFocus) char._wpnArcaneFocusMissed=true;
@@ -894,8 +897,8 @@ function rollEnemyAttack(enemy, char, hasBoon=false) {
   const totalBanes=baneDebuff+evasionBane+packScornBane+shroudBane+ratkingBane+poisonBane+sacredAegisBane+vanishBane;
   const roll1=d(20);
   const rawBase=hasBoon?Math.max(roll1,d(20)):roll1;
-  const boonInfo=hasBoon?' (boon)':baneDebuff>0?` (${baneDebuff} bane)`:totalBanes>0?' (evasion bane)':'';
-  const baneRoll=totalBanes>0?Math.max(...Array.from({length:Math.min(totalBanes,4)},()=>d(6))):0; // SotDL: subtract HIGHEST bane die, not sum
+  const baneRoll=totalBanes>0?Math.max(...Array.from({length:Math.min(totalBanes,4)},()=>d(6))):0; // SotDL: highest bane die
+  const boonInfo=hasBoon?` (+boon)`:totalBanes>0?` (-${baneRoll} bane)`:''
   const adjBase=totalBanes>0?Math.max(1,rawBase-baneRoll):rawBase;
   // foresight: force reroll and take worse result
   let finalBase=adjBase;
@@ -1430,8 +1433,11 @@ function advanceTurn(room) {
       const p = room.players.find(pl => pl.id === slot.id);
       if (p && p.char && p.char.alive) break;
     } else {
-      const e = (gs.enemies || []).find(e => e && (e.id === slot.id || e.name === slot.name) && e.hp > 0);
-      if (e) break;
+      // Skip dead or removed enemies — also remove from gs.enemies if still there with 0 hp
+      const e = (gs.enemies || []).find(e => e && (e.id === slot.id || e.name === slot.name));
+      if (e && e.hp > 0) break;
+      // Enemy is dead — clean it from gs.enemies if still present
+      if (e && e.hp <= 0) gs.enemies = gs.enemies.filter(en => en !== e);
     }
     gs.activeTurnIdx++;
   }
@@ -2151,7 +2157,7 @@ function resolveEnemyDeath(room, deadEnemy) {
     // Reset per-combat used flags
     p.char.divineSmiteUsed=false; p.char.spellsurgeUsed=false; p.char.pacedStrikesUsed=false; p.char.rageBoon=false; p.char.catastropheUsed=false; p.char.overcastUsed=false; p.char._quickstrikeUsed=false; p.char.trickeryUsed=false; p.char._trickeryFirstHit=false; p.char._trickeryPoisonProc=0; p.char._spellboundCastingUsed=false; p.char._spellboundR0Used=false; p.char._bloodscentFired=false; p.char._dwarfForgedStunUsed=false; p.char._righteousBonusDmg=false; p.char._wpnOpeningShotFired=false; p.char._wpnReloading=false; p.char._wpnSpellbladeUsed=false; p.char._wpnSmiteUsed=false; p.char._wpnRuneStrikeUsed=false; p.char._wpnCleaveReady=false; p.char._wpnCleaveBonus=false; p.char._wpnRiposteUsedThisRound=false; p.char._wpnArcaneFocusMissed=false; p.char._wpnHolySmokeProc=false; p.char._venomHitUsed=false;
     // New talent resets
-    p.char._layOnHandsUsed=false; p.char._smokeScreenUsed=false; p.char._shadowOpeningUsed=false; p.char._overloadUsed=false; p.char._darkPactUsed=false; p.char._preparedSpellUsed=false; p.char._triageUsed=false; p.char._evilEyeUsed=false; p.char._foresightUsed=false; p.char._revelationUsed=false; p.char._shieldBashUsed=false; p.char._bodyguardUsed=false; p.char._perfectDefenceUsed=false; p.char._battleOrdersUsed=false; p.char._interceptUsed=false; p.char._devastatingChargeUsed=false; p.char._killingMomentumUsed=false; p.char._warCryUsed=false; p.char._shadowStepUsed=false; p.char._acrobaticRiposteUsed=false; p.char._flickerUsed=false; p.char._cleanupUsed=false; p.char._deadAimUsed=false; p.char._overchargeUsed=false; p.char._uncontrolledPowerUsed=false; p.char._counterspellUsed=false; p.char._doubleChargeCount=0; p.char._esotericKnowledgeUsed=false; p.char._spellEchoUsed=false; p.char._graceUsed=false; p.char._banishUsed=false; p.char._relentlessCount=0; p.char._fadedLastRound=false; p.char.rageTriggerActive=false; p.char._huntersMarkTarget=null; p.char._markHereticTarget=null; p.char._sacredGroundUsed=false; p.char._divineFavourUsed=false; p.char._devastatingChargeArmed=false; p.char._devastatingChargeProc=false; p.char._uncontrolledPowerArmed=false; p.char._darkPactArmed=false; p.char._pressAdvantageReady=false; p.char._foresightActive=null; p.char._relentlessLast=null; p.char._intercepActive=null;
+    p.char._layOnHandsUsed=false; p.char._smokeScreenUsed=false; p.char._shadowOpeningUsed=false; p.char._overloadUsed=false; p.char._darkPactUsed=false; p.char._preparedSpellUsed=false; p.char._triageUsed=false; p.char._evilEyeUsed=false; p.char._foresightUsed=false; p.char._revelationUsed=false; p.char._shieldBashUsed=false; p.char._bodyguardUsed=false; p.char._perfectDefenceUsed=false; p.char._battleOrdersUsed=false; p.char._interceptUsed=false; p.char._devastatingChargeUsed=false; p.char._killingMomentumUsed=false; p.char._warCryUsed=false; p.char._shadowStepUsed=false; p.char._acrobaticRiposteUsed=false; p.char._flickerUsed=false; p.char._cleanupUsed=false; p.char._deadAimUsed=false; p.char._overchargeUsed=false; p.char._uncontrolledPowerUsed=false; p.char._counterspellUsed=false; p.char._doubleChargeCount=0; p.char._esotericKnowledgeUsed=false; p.char._spellEchoUsed=false; p.char._graceUsed=false; p.char._banishUsed=false; p.char._relentlessCount=0; p.char._fadedLastRound=false; p.char.rageTriggerActive=false; p.char._huntersMarkTarget=null; p.char._markHereticTarget=null; p.char._sacredGroundUsed=false; p.char._divineFavourUsed=false; p.char._devastatingChargeArmed=false; p.char._devastatingChargeProc=false; p.char._uncontrolledPowerArmed=false; p.char._darkPactArmed=false; p.char._pressAdvantageReady=false; p.char._foresightActive=null; p.char._relentlessLast=null; p.char._intercepActive=null; p.char._phantomStrikeUsed=false;
     // Legendary: Primordial Staff — grant +3 rank-1 castings at start of each combat
     if(p.char._legPrimordialStaff && p.char.knownSpells){ if(!p.char.castingPools) refreshCastingPools(p.char); // ensure pools initialised
       p.char.knownSpells.filter(sp=>sp.rank===1).forEach(sp=>{ if(p.char.castingPools[sp.name]!==undefined) p.char.castingPools[sp.name]+=3; });
@@ -2169,12 +2175,13 @@ function resolveEnemyDeath(room, deadEnemy) {
   if(gs.enemies&&gs.enemies.length>0){
     gs.enemy=gs.enemies[0]; gs.activeEnemyIdx=0;
     addLog(room,`<strong>${gs.enemies[0].name}</strong> is next! (${gs.enemies[0].hp}/${gs.enemies[0].maxHp} HP)`,'sys');
-    // Full round reset — everyone acts again including enemy
+    // Full round reset — rebuild turn order WITHOUT the dead enemy so it never acts again
     gs.playersActedThisRound=[]; gs.enemyHasActed=false;
     gs.roundNumber=(gs.roundNumber||1)+1;
-    addLog(room,'--- New round — warriors act! ---','sys');
+    addLog(room,'--- New round --- warriors act! ---','sys');
+    buildTurnOrder(room); // dead enemy removed from gs.enemies so won't be scheduled
     // Revive fallen players between enemies
-    room.players.forEach(p=>{if(p.char&&(!p.char.alive||p.char.pendingRevive)){p.char.health=1;p.char.alive=true;p.char.pendingRevive=false;addLog(room,`${p.name} recovers — 1 HP!`,'heal');}});
+    room.players.forEach(p=>{if(p.char&&(!p.char.alive||p.char.pendingRevive)){p.char.health=1;p.char.alive=true;p.char.pendingRevive=false;addLog(room,`${p.name} recovers --- 1 HP!`,'heal');}});
     return;
   }
   gs.inCombat=false; gs.enemy=null; gs.enemies=[]; gs.phase='event';
@@ -2879,7 +2886,8 @@ function handlePlayerAction(room,playerId,payload,ws){
       // Silver Edge: ignore undead DR (the DR system checks char._wpnSilverEdge in hit processing)
       targetEnemy.hp=Math.max(0, targetEnemy.hp-finalDmg);
       const cl=r.forceCrit?' ⚡ Lucky Pendant CRIT!':r.crit?' 💥 CRITICAL HIT!':'';
-      const rollBreak=`d20:<strong>${r.base}</strong>${r.boonInfo}+atk<strong>${r.atkMod>=0?'+':''}${r.atkMod}</strong>=<strong>${r.total}</strong> vs Def<strong>${targetEnemy.ac}</strong>`;
+      const boonStr=r.boonInfo?(r.final!==r.base?`${r.boonInfo}→<strong>${r.final}</strong>`:`${r.boonInfo}`):'';
+      const rollBreak=`d20:<strong>${r.base}</strong>${boonStr}+atk<strong>${r.atkMod>=0?'+':''}${r.atkMod}</strong>=<strong>${r.total}</strong> vs Def<strong>${targetEnemy.ac}</strong>`;
       const dmgBreak=r.dmgParts.length?` [dmg: ${r.dmgParts.join(' ')} = <strong>${r.dmg}</strong>]`:'';
       addLog(room,`${player.name} ${r.crit?'<strong>CRITS</strong>':'hits'} ${targetEnemy.name} — <strong class="num-dmg">−${finalDmg} dmg</strong>${cl} [${rollBreak}]${dmgBreak} → ${targetEnemy.name} ${targetEnemy.hp}/${targetEnemy.maxHp} HP`,r.crit?'crit':'dmg');
       // ── Post-hit weapon specials and poison ──
@@ -3014,7 +3022,7 @@ function handlePlayerAction(room,playerId,payload,ws){
           addLog(room,`${player.name} reroll also misses.`,'sys');
         }
       } else {
-        addLog(room,`${player.name} <em>misses</em> — d20:<strong>${r.base}</strong>${r.boonInfo}+<strong>${r.atkMod>=0?'+':''}${r.atkMod}</strong>=<strong>${r.total}</strong> vs Def<strong>${targetEnemy.ac}</strong>.`,'sys');
+        addLog(room,`${player.name} <em>misses</em> — d20:<strong>${r.base}</strong>${r.boonInfo?`${r.boonInfo}→<strong>${r.final}</strong>`:''}+<strong>${r.atkMod>=0?'+':''}${r.atkMod}</strong>=<strong>${r.total}</strong> vs Def<strong>${targetEnemy.ac}</strong>.`,'sys');
         // Quick Step: when YOU miss an attack, gain +2 Defense for 1 round
         if(char.quickStep && !(char.activeBuffs||[]).some(b=>b.name==='Quick Step')){ addBuff(char,'Quick Step',{defBonus:2},1); char.defense+=2; addLog(room,`👟 ${player.name} Quick Steps — +2 Defense this round!`,'sys'); }
         // Arcane Focus: missed weapon attack → next spell has 1 boon (set in rollAttack return)
@@ -3023,9 +3031,9 @@ function handlePlayerAction(room,playerId,payload,ws){
     // Bladestorm: 3 attacks total — only fires if first attack hit, inherits weapon training boon
     if(char.bladestorm && r.hit && targetEnemy && targetEnemy.hp>0){
       let bsBoon=char.weaponTraining?1:0; let bsBoonStride=0;
-      for(let bsi=0;bsi<2;bsi++){
+      for(let bsi=0;bsi<1;bsi++){ // Bladestorm: 1 bonus strike after initial hit (2 total)
         if(targetEnemy.hp<=0) break;
-        addLog(room,`🌪 ${player.name} <strong>Bladestorm</strong> strike ${bsi+2}/3!`,'crit');
+        addLog(room,`🌪 ${player.name} <strong>Bladestorm</strong> — second strike!`,'crit');
         if(char.unrelenting) bsBoonStride++;
         const rbs=rollAttack(char,targetEnemy,bsBoon+bsBoonStride);
         if(rbs.fumble){
