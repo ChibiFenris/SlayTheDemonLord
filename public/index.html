@@ -313,7 +313,6 @@ body:not(.ui-mobile) #m-game-view{display:none;}
 /* Mobile path pick */
 body.ui-mobile #pp-grid{display:flex;flex-direction:column;gap:10px;}
 
-/* ── Screen-wide mobile overrides ── */
 body.ui-mobile #app{padding:8px;}
 body.ui-mobile .head h1{font-size:28px;}
 body.ui-mobile .head .sub{font-size:10px;letter-spacing:2px;}
@@ -327,47 +326,23 @@ body.ui-mobile .cx{font-size:11px;}
 body.ui-mobile input[type=text]{font-size:16px;padding:10px 12px;}/* prevent iOS zoom on focus */
 /* Path pick panel */
 body.ui-mobile #screen-pathpick .panel{margin:8px 0;padding:12px;max-width:100% !important;}
-body.ui-mobile .pp-grid{grid-template-columns:1fr;}
 /* Game main-col — full width, tight padding */
 body.ui-mobile .main-col{display:none !important;}
-body.ui-mobile .map-header{padding:7px 10px;}
-body.ui-mobile .panel{padding:10px;}
-body.ui-mobile .narrative{font-size:12px;max-height:110px;overflow-y:auto;}
 .dim{font-size:12px;color:var(--text-dim);font-style:italic;}
 /* Battle arena — compact */
-body.ui-mobile .battle-panel{display:none !important;}/* hide VS arena — enemy info is in m-game-view */
 /* Actions — path vote nodes */
-body.ui-mobile .path-nodes{grid-template-columns:1fr 1fr;gap:6px;}
-body.ui-mobile .path-node{min-height:60px;padding:8px 6px;}
-body.ui-mobile .node-name{font-size:12px;}
-body.ui-mobile .node-desc{font-size:10px;}
 /* Actions — combat buttons */
-body.ui-mobile .action-grid{grid-template-columns:1fr 1fr;gap:5px;}
-body.ui-mobile .act-btn{padding:10px 6px;font-size:11px;}
-body.ui-mobile .abl{font-size:11px;}
-body.ui-mobile .abs{font-size:9px;}
 /* Loot */
-body.ui-mobile .loot-opts{grid-template-columns:1fr 1fr;gap:6px;}
-body.ui-mobile .loot-opt{padding:9px 7px;font-size:12px;}
-body.ui-mobile .loot-icon{font-size:18px;}
-body.ui-mobile .loot-name{font-size:11px;}
-body.ui-mobile .loot-desc{font-size:10px;}
 /* Merchant */
-body.ui-mobile .shop-grid{grid-template-columns:1fr;gap:6px;}
-body.ui-mobile .shop-item{padding:8px;}
-body.ui-mobile .si-name{font-size:12px;}
-body.ui-mobile .si-desc{font-size:10px;}
-body.ui-mobile .buy-btn{padding:5px 10px;font-size:11px;}
 /* Depth track */
 body.ui-mobile .depth-track{padding:4px 0;}
 body.ui-mobile .dpip{width:14px;height:14px;}
 /* End screen */
 body.ui-mobile .end-wrap{padding:30px 16px;}
 body.ui-mobile .end-title{font-size:28px;}
+body.ui-mobile #screen-connect{padding:8px;}
 /* Bestiary — hide on mobile by default */
-body.ui-mobile .bestiary-grid{grid-template-columns:1fr;}
 /* Toggle button positioning — move up on small screens */
-@media(max-height:600px){#ui-toggle{bottom:6px;right:6px;font-size:10px;padding:5px 9px;}}
 
 .pp-card-m{background:rgba(20,14,6,.6);border:1px solid var(--border-bright);border-radius:8px;padding:12px;cursor:pointer;transition:border-color .15s;}
 .pp-card-m.sel-m{border-color:var(--gold);background:rgba(55,35,0,.2);}
@@ -2252,16 +2227,12 @@ function mRenderGame(gs,players,me){
       heading.style.cssText='font-family:"Cinzel",serif;font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:8px;';
       heading.textContent='COMBAT ACTIONS';
       actWrap.appendChild(heading);
-      // Temporarily render into desktop panel then clone the buttons
-      const tmpDiv=document.createElement('div');
+      // Render action buttons directly (cloneNode loses event listeners)
+      renderActions(gs,players,me);
+      // Move rendered buttons into mobile view
       const origBody=document.getElementById('g-actions-body');
-      const origPanel=document.getElementById('g-actions-panel');
-      if(origBody&&origPanel){
-        // Re-use the desktop renderActions result — just copy its content
-        renderActions(gs,players,me);
-        const clone=origBody.cloneNode(true);
-        // Make all buttons in clone work by keeping their onclick
-        actWrap.appendChild(clone);
+      if(origBody){
+        while(origBody.firstChild) actWrap.appendChild(origBody.firstChild);
       }
     }
     view.appendChild(actWrap);
