@@ -250,13 +250,10 @@ input::placeholder{color:var(--text-dim);font-style:italic;}
 
 /* ═══════════════════════════════════════════════════════════════════════════
    MOBILE UI — gated on body.ui-mobile
-   All rules below only activate when body has class ui-mobile.
-   Classic desktop UI is completely untouched.
 ═══════════════════════════════════════════════════════════════════════════ */
 #ui-toggle{position:fixed;bottom:14px;right:14px;z-index:9000;background:#1e1508;border:1px solid var(--gold);color:var(--gold);font-family:'Cinzel',serif;font-size:11px;letter-spacing:1px;padding:7px 12px;border-radius:20px;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.5);}
-/* Bottom sheet overlay — hidden unless mobile mode */
 #m-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:8000;}
-#m-sheet{display:none;position:fixed;bottom:0;left:0;right:0;background:#1e1508;border:1px solid var(--border-bright);border-radius:12px 12px 0 0;padding:18px 16px 28px;z-index:8001;max-height:82vh;overflow-y:auto;transform:translateY(100%);transition:transform .28s cubic-bezier(.32,0,.67,0);}
+#m-sheet{display:none;position:fixed;bottom:0;left:0;right:0;background:#1e1508;border:1px solid var(--border-bright);border-radius:12px 12px 0 0;padding:16px 14px 28px;z-index:8001;max-height:82vh;overflow-y:auto;transform:translateY(100%);transition:transform .28s cubic-bezier(.32,0,.67,0);}
 #m-sheet.open{transform:translateY(0);}
 #m-sheet::-webkit-scrollbar{width:3px;}
 #m-sheet::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
@@ -276,34 +273,52 @@ input::placeholder{color:var(--text-dim);font-style:italic;}
 .m-btn-use{flex:1;padding:11px 0;border-radius:8px;border:1px solid var(--gold);background:rgba(55,35,0,.5);color:var(--gold);font-family:'Cinzel',serif;font-size:13px;cursor:pointer;letter-spacing:1px;}
 .m-btn-sec{padding:11px 14px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-family:'Cinzel',serif;font-size:12px;cursor:pointer;}
 .m-x{position:absolute;top:14px;right:14px;font-size:14px;color:var(--text-dim);cursor:pointer;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:50%;border:1px solid var(--border);}
-/* Mobile-mode sidebar pill overrides */
-body.ui-mobile .m-pill-wrap{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px;}
-body.ui-mobile .m-pill{font-size:12px;padding:5px 10px;border-radius:18px;border:1px solid var(--border);color:var(--text-dim);background:rgba(30,20,10,.6);cursor:pointer;font-family:'Cinzel',serif;letter-spacing:.5px;display:flex;align-items:center;gap:5px;-webkit-tap-highlight-color:transparent;}
-body.ui-mobile .m-pill.armed{border-color:var(--gold);color:var(--gold);background:rgba(55,35,0,.4);}
-body.ui-mobile .m-pill.used{opacity:.4;}
-body.ui-mobile .m-pill.spell-avail{border-color:#8060c0;color:#c0a0e0;background:rgba(40,10,60,.4);}
-body.ui-mobile .m-pill.spell-out{opacity:.35;}
-body.ui-mobile .m-pill-dot{width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.8;}
-/* Mobile: hide classic ability window and tags, show pills */
-body.ui-mobile .ability-win{display:none;}
-body.ui-mobile .m-pill-section{display:block;}
-/* Classic: hide pill sections */
-body:not(.ui-mobile) .m-pill-section{display:none;}
-/* Mobile card tabs */
-body.ui-mobile .m-card-tabs{display:flex;gap:4px;margin-bottom:8px;}
-body:not(.ui-mobile) .m-card-tabs{display:none;}
-body.ui-mobile .m-tab{font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid var(--border);color:var(--text-dim);background:transparent;cursor:pointer;font-family:'Cinzel',serif;}
-body.ui-mobile .m-tab.on{border-color:var(--gold);color:var(--gold);background:rgba(55,35,0,.4);}
-/* Mobile path pick — card layout */
+/* Mobile layout: hide desktop sidebars, show stacked mobile view */
+body.ui-mobile .game-grid{display:flex;flex-direction:column;gap:8px;}
+body.ui-mobile .sidebar{display:none;}
+body.ui-mobile #m-game-view{display:flex;flex-direction:column;gap:8px;}
+body:not(.ui-mobile) #m-game-view{display:none;}
+/* Mobile player cards — compact strip */
+.m-player-strip{background:linear-gradient(160deg,#2a1e0e,#1e1508);border:1px solid var(--border-bright);border-radius:6px;padding:10px 12px;}
+.m-player-strip .pc-name{font-family:'Cinzel',serif;font-size:13px;color:var(--gold);margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;}
+.m-hp-row{display:flex;align-items:center;gap:8px;margin-bottom:3px;}
+.m-hp-label{font-size:11px;color:var(--text-dim);min-width:60px;}
+.m-hp-bar{flex:1;height:6px;background:rgba(0,0,0,.4);border-radius:3px;overflow:hidden;}
+.m-hp-fill{height:100%;border-radius:3px;transition:width .4s;}
+.m-hp-val{font-size:10px;color:var(--text-dim);min-width:38px;text-align:right;}
+.m-stats-row{display:flex;gap:10px;margin-top:5px;flex-wrap:wrap;}
+.m-stat{font-size:10px;color:var(--text-dim);}
+.m-stat b{color:var(--parch);}
+/* Mobile tab card */
+.m-tab-card{background:linear-gradient(160deg,#2a1e0e,#1e1508);border:1px solid var(--border-bright);border-radius:6px;padding:10px 12px;}
+.m-tabs{display:flex;gap:4px;margin-bottom:10px;}
+.m-tab{font-size:11px;padding:5px 11px;border-radius:6px;border:1px solid var(--border);color:var(--text-dim);background:transparent;cursor:pointer;font-family:'Cinzel',serif;-webkit-tap-highlight-color:transparent;}
+.m-tab.on{border-color:var(--gold);color:var(--gold);background:rgba(55,35,0,.4);}
+/* Pills */
+.m-pill-wrap{display:flex;flex-wrap:wrap;gap:5px;}
+.m-pill{font-size:12px;padding:5px 10px;border-radius:18px;border:1px solid var(--border);color:var(--text-dim);background:rgba(30,20,10,.6);cursor:pointer;font-family:'Cinzel',serif;letter-spacing:.5px;display:flex;align-items:center;gap:5px;-webkit-tap-highlight-color:transparent;}
+.m-pill.armed{border-color:var(--gold);color:var(--gold);background:rgba(55,35,0,.4);}
+.m-pill.used{opacity:.4;}
+.m-pill.spell-avail{border-color:#8060c0;color:#c0a0e0;background:rgba(40,10,60,.4);}
+.m-pill.spell-out{opacity:.35;}
+.m-pill-dot{width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.8;}
+/* Mobile enemy card */
+.m-enemy-card{background:linear-gradient(160deg,#2a1e0e,#1e1508);border:1px solid var(--border-bright);border-radius:6px;padding:10px 12px;cursor:pointer;}
+.m-enemy-name{font-family:'Cinzel',serif;font-size:14px;color:var(--blood-bright);margin-bottom:2px;}
+.m-enemy-sub{font-size:11px;color:var(--text-dim);margin-bottom:5px;}
+.m-enemy-stats{display:flex;gap:10px;flex-wrap:wrap;}
+.m-estat{font-size:10px;color:var(--text-dim);}
+.m-estat b{color:var(--parch);}
+/* Mobile path pick */
 body.ui-mobile #pp-grid{display:flex;flex-direction:column;gap:10px;}
-body.ui-mobile .pp-card-m{background:rgba(20,14,6,.6);border:1px solid var(--border-bright);border-radius:8px;padding:12px;cursor:pointer;transition:border-color .15s;}
-body.ui-mobile .pp-card-m.sel-m{border-color:var(--gold);background:rgba(55,35,0,.2);}
-body.ui-mobile .pp-card-m-name{font-family:'Cinzel',serif;font-size:14px;color:var(--gold);margin-bottom:3px;}
-body.ui-mobile .pp-card-m-sub{font-size:11px;color:var(--text-dim);margin-bottom:6px;}
-body.ui-mobile .pp-card-m-desc{font-size:12px;color:var(--parch);line-height:1.5;margin-bottom:6px;}
-body.ui-mobile .pp-card-m-tags{display:flex;flex-wrap:wrap;gap:4px;}
-body.ui-mobile .pp-tag{font-size:10px;padding:2px 7px;border-radius:4px;background:rgba(60,40,0,.4);color:var(--gold-bright);border:1px solid var(--border);}
-body.ui-mobile .pp-tag.new{background:rgba(40,10,60,.4);color:#c0a0e0;border-color:#8060c0;}
+.pp-card-m{background:rgba(20,14,6,.6);border:1px solid var(--border-bright);border-radius:8px;padding:12px;cursor:pointer;transition:border-color .15s;}
+.pp-card-m.sel-m{border-color:var(--gold);background:rgba(55,35,0,.2);}
+.pp-card-m-name{font-family:'Cinzel',serif;font-size:14px;color:var(--gold);margin-bottom:3px;}
+.pp-card-m-sub{font-size:11px;color:var(--text-dim);margin-bottom:6px;}
+.pp-card-m-desc{font-size:12px;color:var(--parch);line-height:1.5;margin-bottom:6px;}
+.pp-card-m-tags{display:flex;flex-wrap:wrap;gap:4px;}
+.pp-tag{font-size:10px;padding:2px 7px;border-radius:4px;background:rgba(60,40,0,.4);color:var(--gold-bright);border:1px solid var(--border);}
+.pp-tag.new{background:rgba(40,10,60,.4);color:#c0a0e0;border-color:#8060c0;}
 
 </style>
 </head>
@@ -422,6 +437,8 @@ body.ui-mobile .pp-tag.new{background:rgba(40,10,60,.4);color:#c0a0e0;border-col
     </div>
     <div class="sidebar" id="sb-right"></div>
   </div>
+  <!-- MOBILE GAME VIEW -->
+  <div id="m-game-view"></div>
 
   <!-- BESTIARY -->
   <div style="margin-top:12px">
@@ -1878,391 +1895,309 @@ function castingsLeftC(char, spellName, rank) {
 connect();
 initAudio();
 
-
 // ═══════════════════════════════════════════════════════════════════════════
 // MOBILE UI — Option B
-// Auto-detects touch devices, falls back to stored preference.
-// Toggle persists to localStorage. All logic gated on body.ui-mobile.
+// Auto-detects touch. Toggle persists to localStorage.
+// Desktop: existing 3-column layout unchanged.
+// Mobile: single-column stacked view in #m-game-view.
 // ═══════════════════════════════════════════════════════════════════════════
 
 (function(){
-  // Detect touch/small screen
   const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
   const isNarrow = window.innerWidth < 768;
   const stored = localStorage.getItem('sorUIMode');
-  // Apply: stored preference wins; fall back to auto-detect
-  const useMobile = stored ? stored === 'mobile' : (isTouch || isNarrow);
+  const useMobile = stored ? stored==='mobile' : (isTouch||isNarrow);
   if(useMobile) document.body.classList.add('ui-mobile');
-  const btn = document.getElementById('ui-toggle');
+  const btn=document.getElementById('ui-toggle');
   if(btn) btn.textContent = useMobile ? '🖥 Classic UI' : '📱 Mobile UI';
 })();
 
 function toggleUI(){
   const mobile = document.body.classList.toggle('ui-mobile');
-  localStorage.setItem('sorUIMode', mobile ? 'mobile' : 'classic');
-  const btn = document.getElementById('ui-toggle');
+  localStorage.setItem('sorUIMode', mobile?'mobile':'classic');
+  const btn=document.getElementById('ui-toggle');
   if(btn) btn.textContent = mobile ? '🖥 Classic UI' : '📱 Mobile UI';
-  // Re-render current state if in game
-  if(lastState) onMsg({type:'STATE', payload: lastState});
+  if(lastState) onMsg({type:'STATE',payload:lastState});
 }
 
-// ── Bottom sheet engine ──────────────────────────────────────────────────────
-function mOpenSheet(bodyHtml){
-  document.getElementById('m-sheet-body').innerHTML = bodyHtml;
-  document.getElementById('m-overlay').style.display = 'block';
-  const sh = document.getElementById('m-sheet');
-  sh.style.display = 'block';
+// ── Bottom sheet ─────────────────────────────────────────────────────────────
+function mOpenSheet(html){
+  document.getElementById('m-sheet-body').innerHTML=html;
+  document.getElementById('m-overlay').style.display='block';
+  const sh=document.getElementById('m-sheet');
+  sh.style.display='block';
   requestAnimationFrame(()=>sh.classList.add('open'));
 }
 function mCloseSheet(){
-  const sh = document.getElementById('m-sheet');
+  const sh=document.getElementById('m-sheet');
   sh.classList.remove('open');
-  setTimeout(()=>{
-    sh.style.display = 'none';
-    document.getElementById('m-overlay').style.display = 'none';
-  }, 300);
+  setTimeout(()=>{sh.style.display='none';document.getElementById('m-overlay').style.display='none';},300);
+}
+function mSheet(name,type,desc,rows,sCls,sLabel,btns=''){
+  const rowsH=(rows||[]).map(r=>`<div class="m-sheet-row">${r[0]}<span>${r[1]}</span></div>`).join('');
+  mOpenSheet(`<div class="m-sheet-name">${name}</div><div class="m-sheet-type">${type}</div><div class="m-sheet-desc">${desc}</div>${rowsH}<div class="m-sheet-status ${sCls}">${sLabel}</div>${btns}`);
 }
 
-// ── Generic sheet builder ────────────────────────────────────────────────────
-function mShowInfo(name, type, desc, rows, statusCls, statusLabel, actionBtns=''){
-  const rowsHtml = (rows||[]).map(r=>`<div class="m-sheet-row">${r[0]}<span>${r[1]}</span></div>`).join('');
-  mOpenSheet(
-    `<div class="m-sheet-name">${name}</div>`+
-    `<div class="m-sheet-type">${type}</div>`+
-    `<div class="m-sheet-desc">${desc}</div>`+
-    rowsHtml+
-    `<div class="m-sheet-status ${statusCls}">${statusLabel}</div>`+
-    actionBtns
-  );
+// ── Talent tap ───────────────────────────────────────────────────────────────
+function mTapTalent(key,char){
+  const desc=TALENT_DESCS[key]||key;
+  const label=key.replace(/([A-Z])/g,' $1').replace(/^./,s=>s.toUpperCase());
+  const usedMap={catchBreath:char.catchBreathUsed,nimbleRecovery:char.nimbleUsed,sharedRecovery:char.sharedUsed,spellRecovery:char.spellRecoveryUsed,divineSmite:char.divineSmiteUsed,massHeal:char.massHealUsed,resurrection:char.resurrectionUsed,rallyingCry:char.rallyingUsed,spellsurge:char.spellsurgeUsed,metamagic:char.metamagicUsed,catastrophe:char.catastropheUsed,pacedStrikes:char.pacedStrikesUsed,unstoppable:char.unstoppableUsed,overcast:char.overcastUsed};
+  const isActive=key in usedMap, isUsed=usedMap[key];
+  const sCls=isActive?(isUsed?'m-status-off':'m-status-ok'):'m-status-ok';
+  const sLabel=isActive?(isUsed?'Used this combat':'Ready'):'Always active';
+  const activateable={catchBreath:1,nimbleRecovery:1,sharedRecovery:1,spellRecovery:1,divineSmite:1,massHeal:1,resurrection:1,rallyingCry:1,spellsurge:1,metamagic:1,catastrophe:1,pacedStrikes:1,bloodOffering:1};
+  const btns=activateable[key]&&!isUsed
+    ?`<div class="m-act-btns"><button class="m-btn-use" onclick="mUseTalent('${key}')">Use ${label}</button><button class="m-btn-sec" onclick="mCloseSheet()">Cancel</button></div>`:'';
+  mSheet(label,isActive?'Active talent':'Passive talent',desc,[],sCls,sLabel,btns);
 }
+function mUseTalent(t){mCloseSheet();send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:t}});}
 
-// ── Talent / ability pill tap ────────────────────────────────────────────────
-function mTapTalent(key, char){
-  if(!document.body.classList.contains('ui-mobile')) return;
-  const desc = TALENT_DESCS[key] || key;
-  const label = key.replace(/([A-Z])/g,' $1').replace(/^./,s=>s.toUpperCase());
-  // Determine status
-  const usedMap = {
-    catchBreath: char.catchBreathUsed, nimbleRecovery: char.nimbleUsed,
-    sharedRecovery: char.sharedUsed, spellRecovery: char.spellRecoveryUsed,
-    divineSmite: char.divineSmiteUsed, massHeal: char.massHealUsed,
-    resurrection: char.resurrectionUsed, rallyingCry: char.rallyingUsed,
-    spellsurge: char.spellsurgeUsed, metamagic: char.metamagicUsed,
-    catastrophe: char.catastropheUsed, pacedStrikes: char.pacedStrikesUsed,
-    unstoppable: char.unstoppableUsed,
-  };
-  const isActive = key in usedMap;
-  const isUsed = usedMap[key];
-  const statusCls = isActive ? (isUsed ? 'm-status-off' : 'm-status-ok') : 'm-status-ok';
-  const statusLabel = isActive ? (isUsed ? 'Used this combat' : 'Ready') : 'Always active';
-
-  // Action button for active talents
-  let actionBtns = '';
-  const activeTalentActions = {
-    catchBreath:'catchBreath', nimbleRecovery:'nimbleRecovery', sharedRecovery:'sharedRecovery',
-    spellRecovery:'spellRecovery', divineSmite:'divineSmite', massHeal:'massHeal',
-    resurrection:'resurrection', rallyingCry:'rallyingCry', spellsurge:'spellsurge',
-    metamagic:'metamagic', catastrophe:'catastrophe', pacedStrikes:'pacedStrikes',
-    bloodOffering:'bloodOffering',
-  };
-  if(activeTalentActions[key] && !isUsed){
-    actionBtns = `<div class="m-act-btns">
-      <button class="m-btn-use" onclick="mUseTalent('${key}')">Use ${label}</button>
-      <button class="m-btn-sec" onclick="mCloseSheet()">Cancel</button>
-    </div>`;
-  }
-  mShowInfo(label, isActive ? 'Active talent' : 'Passive talent', desc, [], statusCls, statusLabel, actionBtns);
+// ── Spell tap ────────────────────────────────────────────────────────────────
+function mTapSpell(spellName,char){
+  const sp=(char.knownSpells||[]).find(s=>s.name===spellName); if(!sp) return;
+  const left=castingsLeftC(char,spellName,sp.rank), maxC=maxCastingsC(char.power,sp.rank);
+  const avail=left>0;
+  const typeLabel=sp.type==='heal'?'Heal spell':sp.type==='utility'?'Utility spell':'Attack spell';
+  const rankLabel=sp.rank===0?'Rank 0 — free':'Rank '+sp.rank+' — uses casting';
+  const desc=sp.desc||`${typeLabel}. ${rankLabel}.`;
+  const sCls=avail?'m-status-ok':'m-status-off';
+  const sLabel=avail?left+' casting'+(left!==1?'s':'')+' available':'No castings remaining';
+  const btns=avail
+    ?`<div class="m-act-btns"><button class="m-btn-cast" onclick="mCastSpell('${spellName}')">Cast ${spellName}</button><button class="m-btn-sec" onclick="mCloseSheet()">Cancel</button></div>`:'';
+  mSheet(spellName,rankLabel+' · '+typeLabel,desc,[['Castings left',left+'/'+maxC]],sCls,sLabel,btns);
 }
-
-function mUseTalent(talent){
-  mCloseSheet();
-  send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent}});
-}
-
-// ── Spell pill tap ───────────────────────────────────────────────────────────
-function mTapSpell(spellName, char){
-  if(!document.body.classList.contains('ui-mobile')) return;
-  const sp = (char.knownSpells||[]).find(s=>s.name===spellName);
-  if(!sp) return;
-  const left = castingsLeftC(char, spellName, sp.rank);
-  const maxC = maxCastingsC(char.power, sp.rank);
-  const avail = left > 0;
-  const typeLabel = sp.type==='heal'?'Heal spell':sp.type==='utility'?'Utility spell':'Attack spell';
-  const rankLabel = sp.rank===0 ? 'Rank 0 — free to cast' : `Rank ${sp.rank} — uses casting`;
-  const desc = sp.desc || `${typeLabel}. ${rankLabel}.`;
-  const rows = [['Castings left', `${left} / ${maxC}`], ['Type', typeLabel], ['Rank', rankLabel]];
-  const statusCls = avail ? 'm-status-ok' : 'm-status-off';
-  const statusLabel = avail ? `${left} casting${left!==1?'s':''} available` : 'No castings remaining';
-  let actionBtns = '';
-  if(avail){
-    actionBtns = `<div class="m-act-btns">
-      <button class="m-btn-cast" onclick="mCastSpell('${spellName}')">Cast ${spellName}</button>
-      <button class="m-btn-sec" onclick="mCloseSheet()">Cancel</button>
-    </div>`;
-  }
-  mShowInfo(spellName, `${rankLabel} · ${typeLabel}`, desc, rows, statusCls, statusLabel, actionBtns);
-}
-
-function mCastSpell(spellName){
-  mCloseSheet();
-  send('PLAYER_ACTION',{action:'CAST_SPELL',data:{spellName}});
-}
+function mCastSpell(n){mCloseSheet();send('PLAYER_ACTION',{action:'CAST_SPELL',data:{spellName:n}});}
 
 // ── Item tap ─────────────────────────────────────────────────────────────────
-function mTapItem(itemName, char, inCombat){
-  if(!document.body.classList.contains('ui-mobile')) return;
-  const inv = char.inventory||[];
-  const entry = inv.find(i=>i.name===itemName);
-  if(!entry) return;
-  const desc = ITEM_DESCS[itemName] || entry.name;
-  const rows = [['Quantity', `${entry.qty} remaining`]];
-  const actionBtns = `<div class="m-act-btns">
-    <button class="m-btn-use" onclick="mUseItem('${itemName}')">Use ${itemName}</button>
-    <button class="m-btn-sec" onclick="mCloseSheet()">Cancel</button>
-  </div>`;
-  mShowInfo(itemName, 'Consumable item', desc, rows, 'm-status-ok', 'Ready to use', actionBtns);
+function mTapItem(itemName,char,inCombat){
+  const entry=(char.inventory||[]).find(i=>i.name===itemName); if(!entry) return;
+  const desc=ITEM_DESCS[itemName]||entry.name;
+  const isWpn=entry.type==='weapon', isArm=entry.type==='armor';
+  if(isWpn||isArm){
+    const stat=isWpn&&entry.itemObj?`${entry.itemObj.dice}+${entry.itemObj.bonus||0} ${entry.itemObj.dmgType}`:isArm&&entry.itemObj?`+${entry.itemObj.defBonus} Defense`:'';
+    const isEq=(isWpn&&char.equippedWeapon&&entry.itemObj&&entry.itemObj.id===char.equippedWeapon.id)||(isArm&&char.equippedArmor&&entry.itemObj&&entry.itemObj.id===char.equippedArmor.id);
+    const btns=isEq?'':`<div class="m-act-btns"><button class="m-btn-use" onclick="mEquip(${char.inventory.indexOf(entry)})">Equip</button><button class="m-btn-sec" onclick="mCloseSheet()">Cancel</button></div>`;
+    mSheet(itemName,isWpn?'Weapon':'Armour',stat||desc,[['Quantity','1']],isEq?'m-status-ok':'m-status-warn',isEq?'Equipped':'In inventory',btns);
+    return;
+  }
+  const btns=`<div class="m-act-btns"><button class="m-btn-use" onclick="mUseItem('${itemName.replace(/'/g,"\\'")}',${inCombat})">Use ${itemName}</button><button class="m-btn-sec" onclick="mCloseSheet()">Cancel</button></div>`;
+  mSheet(itemName,'Consumable item',desc,[['Quantity','×'+entry.qty]],entry.qty>0?'m-status-ok':'m-status-off',entry.qty>0?'Ready':'Empty',btns);
+}
+function mUseItem(n,inCombat){mCloseSheet();send('PLAYER_ACTION',{action:inCombat?'USE_ITEM':'USE_ITEM_OOC',data:{itemName:n}});}
+function mEquip(idx){mCloseSheet();send('PLAYER_ACTION',{action:'EQUIP_ITEM',data:{inventoryIndex:idx}});}
+
+// ── Enemy tap ────────────────────────────────────────────────────────────────
+function mTapEnemy(enemy){
+  if(!enemy) return;
+  const rows=[['HP',enemy.hp+' / '+enemy.maxHp],['AC',enemy.ac],['ATK','d20+'+(enemy.atk||0)],['Damage',enemy.dmgDisplay||'1d6'],['Threat',enemy.threat]];
+  if(enemy._poisonStacks>0) rows.push(['Poison stacks',enemy._poisonStacks+' ('+enemy._poisonStacks+' dmg/turn)']);
+  const dr=enemy.damageReduction;
+  if(dr>0) rows.push(['Damage reduction','−'+dr+' all incoming']);
+  const sCls=enemy.hp<enemy.maxHp*0.3?'m-status-warn':'m-status-ok';
+  const sLabel=enemy.hp<=0?'Defeated':enemy.hp<enemy.maxHp*0.5?'Wounded':'Healthy';
+  mSheet(enemy.name,enemy.type+' — '+enemy.threat+' threat','Tap Attack in the action panel to strike this enemy.',rows,sCls,sLabel);
 }
 
-function mUseItem(itemName){
-  mCloseSheet();
-  send('PLAYER_ACTION',{action:'USE_ITEM',data:{itemName}});
-}
-
-// ── Mobile sidebar rendering — injects pill sections into existing card ───────
-function mRenderPills(char, inCombat, cardEl){
+// ── Render full mobile game view ─────────────────────────────────────────────
+function mRenderGame(gs,players,me){
   if(!document.body.classList.contains('ui-mobile')) return;
-  // Remove any existing pill section
-  cardEl.querySelectorAll('.m-pill-section').forEach(e=>e.remove());
+  const view=document.getElementById('m-game-view');
+  if(!view) return;
+  view.innerHTML='';
+  if(!me||!me.char) return;
+  const char=me.char;
+  const inCombat=gs.phase==='combat';
 
-  const section = document.createElement('div');
-  section.className = 'm-pill-section';
+  // ── Player HP cards ───────────────────────────────────────────────────────
+  players.forEach(p=>{
+    if(!p.char) return;
+    const c=p.char;
+    const isMe=p.id===myId;
+    const hpPct=Math.max(0,Math.round(c.health/c.maxHealth*100));
+    const hpCol=hpPct>60?'#4a9a2a':hpPct>25?'#c9a235':'#cc2222';
+    const paths=[c.novicePath,c.expertPath,c.masterPath].filter(Boolean).join(' › ');
+    const acted=gs.playersActedThisRound&&gs.playersActedThisRound.includes(p.id);
+    const strip=document.createElement('div');
+    strip.className='m-player-strip';
+    strip.innerHTML=`
+      <div class="pc-name"><span>${p.name}${isMe?' <span style="font-size:10px;color:var(--text-dim)">(You)</span>':''} — Lv ${c.level}</span>${acted?'<span style="font-size:10px;color:#80e060">✓ Acted</span>':''}</div>
+      <div class="m-hp-row"><div class="m-hp-label">HP</div><div class="m-hp-bar"><div class="m-hp-fill" style="width:${hpPct}%;background:${hpCol}"></div></div><div class="m-hp-val">${c.health}/${c.maxHealth}</div></div>
+      <div class="m-stats-row">
+        <div class="m-stat">Def <b>${c.defense}</b></div>
+        <div class="m-stat">STR <b>${c.attrs.str}</b></div>
+        <div class="m-stat">AGI <b>${c.attrs.agi}</b></div>
+        <div class="m-stat">INT <b>${c.attrs.int}</b></div>
+        <div class="m-stat">WIL <b>${c.attrs.wil}</b></div>
+        ${c.power>0?`<div class="m-stat">Power <b>${c.power}</b></div>`:''}
+        ${paths?`<div class="m-stat" style="color:var(--gold-bright);font-size:9px">${paths}</div>`:''}
+        <div class="m-stat">Silver <b>${c.gold}ss</b></div>
+      </div>`;
+    if(!c.alive) strip.innerHTML+='<div style="font-family:Cinzel,serif;font-size:13px;color:var(--blood-bright);margin-top:5px">FALLEN</div>';
+    view.appendChild(strip);
+  });
 
-  // ── Tabs ──
-  const tabs = document.createElement('div');
-  tabs.className = 'm-card-tabs';
-  const tabDefs = [{id:'ab',label:'Abilities'},{id:'sp',label:'Spells'},{id:'it',label:'Items'}];
-  const panels = {};
+  // ── Enemy card (combat) ───────────────────────────────────────────────────
+  const enemies=gs.enemies&&gs.enemies.length?gs.enemies.filter(e=>e&&e.hp>0):[];
+  if(inCombat&&enemies.length){
+    enemies.forEach(enemy=>{
+      const ehpPct=Math.max(0,Math.round(enemy.hp/enemy.maxHp*100));
+      const ehpCol=ehpPct>60?'#cc2222':ehpPct>25?'#c9a235':'#662222';
+      const ec=document.createElement('div');
+      ec.className='m-enemy-card';
+      ec.innerHTML=`
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><div class="m-enemy-name">${enemy.name}</div><div class="m-enemy-sub">${enemy.type} — ${enemy.threat}</div></div>
+          <div style="font-size:10px;color:var(--text-dim);border:1px solid var(--border);border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center">i</div>
+        </div>
+        <div class="m-hp-row" style="margin-top:6px"><div class="m-hp-label">HP</div><div class="m-hp-bar"><div class="m-hp-fill" style="width:${ehpPct}%;background:${ehpCol}"></div></div><div class="m-hp-val">${enemy.hp}/${enemy.maxHp}</div></div>
+        <div class="m-enemy-stats">
+          <div class="m-estat">AC <b>${enemy.ac}</b></div>
+          <div class="m-estat">ATK <b>+${enemy.atk||0}</b></div>
+          <div class="m-estat">Dmg <b>${enemy.dmgDisplay||'1d6'}</b></div>
+          ${enemy._poisonStacks>0?`<div class="m-estat">Poison <b>${enemy._poisonStacks} stacks</b></div>`:''}
+          ${enemy.damageReduction?`<div class="m-estat">DR <b>−${enemy.damageReduction}</b></div>`:''}
+        </div>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:4px;text-align:center">tap for details</div>`;
+      ec.onclick=()=>mTapEnemy(enemy);
+      view.appendChild(ec);
+    });
+  }
+
+  // ── Tab card: Abilities / Spells / Items ──────────────────────────────────
+  const tabCard=document.createElement('div');
+  tabCard.className='m-tab-card';
+
+  const tabDefs=[{id:'ab',label:'Abilities'},{id:'sp',label:'Spells'},{id:'it',label:'Items'}];
+  const panels={};
+
+  const tabBar=document.createElement('div');
+  tabBar.className='m-tabs';
   tabDefs.forEach((t,i)=>{
-    const btn = document.createElement('button');
-    btn.className = 'm-tab' + (i===0?' on':'');
-    btn.textContent = t.label;
-    btn.onclick = ()=>{
-      tabs.querySelectorAll('.m-tab').forEach(b=>b.classList.remove('on'));
+    const btn=document.createElement('button');
+    btn.className='m-tab'+(i===0?' on':'');
+    btn.textContent=t.label;
+    btn.onclick=()=>{
+      tabBar.querySelectorAll('.m-tab').forEach(b=>b.classList.remove('on'));
       btn.classList.add('on');
       Object.values(panels).forEach(p=>p.style.display='none');
       panels[t.id].style.display='flex';
     };
-    tabs.appendChild(btn);
+    tabBar.appendChild(btn);
   });
-  section.appendChild(tabs);
+  tabCard.appendChild(tabBar);
 
-  // ── Abilities panel ──
-  const abPanel = document.createElement('div');
-  abPanel.className = 'm-pill-wrap';
-  abPanel.style.display = 'flex';
-  panels['ab'] = abPanel;
-
-  const talentDefs = [
-    {k:'weaponTraining',  lbl:'Wpn Training', passive:true},
-    {k:'trickery',        lbl:'Trickery',      passive:true},
-    {k:'combatProwess',   lbl:'Prowess',        passive:true},
-    {k:'combatExpertise', lbl:'Expertise',      passive:true},
-    {k:'shieldwall',      lbl:'Shieldwall',     passive:true},
-    {k:'toughness',       lbl:'Toughness',      passive:true},
-    {k:'evasion',         lbl:'Evasion',        passive:true},
-    {k:'rage',            lbl:'Rage',            passive:true},
-    {k:'quickStep',       lbl:'Quick Step',      passive:true},
-    {k:'holyFervor',      lbl:'Holy Fervor',     passive:true},
-    {k:'holyAura',        lbl:'Holy Aura',       passive:true},
-    {k:'warlordAura',     lbl:'Warlord Aura',    passive:true},
-    {k:'deathblow',       lbl:'Deathblow',       passive:true},
-    {k:'assassination',   lbl:'Assassination',   passive:true},
-    {k:'quickstrike',     lbl:'Quick Strike',    passive:true},
-    {k:'phantomStrike',   lbl:'Phantom Strike',  passive:true},
-    {k:'bladestorm',      lbl:'Bladestorm',      passive:true},
-    {k:'sweepingBlow',    lbl:'Sweeping Blow',   passive:true},
-    {k:'shadowstep',      lbl:'Shadowstep',      passive:true},
-    {k:'swiftFeet',       lbl:'Swift Feet',      passive:true},
-    {k:'burningSoul',     lbl:'Burning Soul',    passive:true},
-    {k:'darkEvoker',      lbl:'Dark Evoker',     passive:true},
-    {k:'lightningIngrained',lbl:'Lightning ×2.5',passive:true},
-    {k:'utilityFocus',    lbl:'Utility Focus',   passive:true},
-    {k:'catchBreath',     lbl:'Catch Breath',    passive:false, usedKey:'catchBreathUsed'},
-    {k:'nimbleRecovery',  lbl:'Nimble Rec.',     passive:false, usedKey:'nimbleUsed'},
-    {k:'sharedRecovery',  lbl:'Shared Rec.',     passive:false, usedKey:'sharedUsed'},
-    {k:'spellRecovery',   lbl:'Spell Rec.',      passive:false, usedKey:'spellRecoveryUsed'},
-    {k:'divineSmite',     lbl:'Divine Smite',    passive:false, usedKey:'divineSmiteUsed'},
-    {k:'massHeal',        lbl:'Mass Heal',        passive:false, usedKey:'massHealUsed'},
-    {k:'resurrection',    lbl:'Resurrection',    passive:false, usedKey:'resurrectionUsed'},
-    {k:'rallyingCry',     lbl:'Rallying Cry',    passive:false, usedKey:'rallyingUsed'},
-    {k:'spellsurge',      lbl:'Spell Surge',     passive:false, usedKey:'spellsurgeUsed'},
-    {k:'metamagic',       lbl:'Metamagic',       passive:false, usedKey:'metamagicUsed'},
-    {k:'catastrophe',     lbl:'Catastrophe',     passive:false, usedKey:'catastropheUsed'},
-    {k:'pacedStrikes',    lbl:'Paced Strikes',   passive:false, usedKey:'pacedStrikesUsed'},
-    {k:'unstoppable',     lbl:'Unstoppable',     passive:false, usedKey:'unstoppableUsed'},
-    {k:'bloodOffering',   lbl:'Blood Offering',  passive:false, usedKey:null},
-    {k:'overcast',        lbl:'Overcast',         passive:false, usedKey:'overcastUsed'},
+  // Abilities
+  const abPanel=document.createElement('div'); abPanel.className='m-pill-wrap'; panels['ab']=abPanel;
+  const talentDefs=[
+    {k:'weaponTraining',lbl:'Wpn Training'},{k:'trickery',lbl:'Trickery'},{k:'combatProwess',lbl:'Prowess'},{k:'combatExpertise',lbl:'Expertise'},
+    {k:'shieldwall',lbl:'Shieldwall'},{k:'toughness',lbl:'Toughness'},{k:'evasion',lbl:'Evasion'},{k:'quickstrike',lbl:'Quick Strike'},
+    {k:'deathblow',lbl:'Deathblow'},{k:'assassination',lbl:'Assassination'},{k:'rage',lbl:'Rage'},{k:'quickStep',lbl:'Quick Step'},
+    {k:'holyFervor',lbl:'Holy Fervor'},{k:'holyAura',lbl:'Holy Aura'},{k:'warlordAura',lbl:'Warlord Aura'},
+    {k:'phantomStrike',lbl:'Phantom Strike'},{k:'bladestorm',lbl:'Bladestorm'},{k:'sweepingBlow',lbl:'Sweep Blow'},
+    {k:'shadowstep',lbl:'Shadowstep'},{k:'swiftFeet',lbl:'Swift Feet'},{k:'burningSoul',lbl:'Burning Soul'},
+    {k:'darkEvoker',lbl:'Dark Evoker'},{k:'lightningIngrained',lbl:'Lightning ×2.5'},{k:'utilityFocus',lbl:'Utility Focus'},
+    // Active
+    {k:'catchBreath',lbl:'Catch Breath',usedKey:'catchBreathUsed'},{k:'nimbleRecovery',lbl:'Nimble Rec.',usedKey:'nimbleUsed'},
+    {k:'sharedRecovery',lbl:'Shared Rec.',usedKey:'sharedUsed'},{k:'spellRecovery',lbl:'Spell Rec.',usedKey:'spellRecoveryUsed'},
+    {k:'divineSmite',lbl:'Divine Smite',usedKey:'divineSmiteUsed'},{k:'massHeal',lbl:'Mass Heal',usedKey:'massHealUsed'},
+    {k:'resurrection',lbl:'Resurrection',usedKey:'resurrectionUsed'},{k:'rallyingCry',lbl:'Rallying Cry',usedKey:'rallyingUsed'},
+    {k:'spellsurge',lbl:'Spell Surge',usedKey:'spellsurgeUsed'},{k:'metamagic',lbl:'Metamagic',usedKey:'metamagicUsed'},
+    {k:'catastrophe',lbl:'Catastrophe',usedKey:'catastropheUsed'},{k:'pacedStrikes',lbl:'Paced Strikes',usedKey:'pacedStrikesUsed'},
+    {k:'unstoppable',lbl:'Unstoppable',usedKey:'unstoppableUsed'},{k:'bloodOffering',lbl:'Blood Offering'},
   ].filter(t=>char[t.k]);
 
-  talentDefs.forEach(t=>{
-    const used = t.usedKey ? char[t.usedKey] : false;
-    const ragePrimed = t.k==='rage' && char.rageBoon;
-    const p = document.createElement('span');
-    p.className = 'm-pill' + (ragePrimed?' armed':used?' used':'');
-    p.innerHTML = `<span class="m-pill-dot"></span>${t.lbl}`;
-    p.onclick = ()=>mTapTalent(t.k, char);
-    abPanel.appendChild(p);
-  });
-
-  // Rage armed indicator
   if(char.rageBoon){
-    const rp = document.createElement('span');
-    rp.className = 'm-pill armed';
-    rp.innerHTML = '<span class="m-pill-dot"></span>RAGE ARMED';
-    abPanel.appendChild(rp);
+    const rp=document.createElement('span');rp.className='m-pill armed';rp.innerHTML='<span class="m-pill-dot"></span>RAGE ARMED';
+    rp.onclick=()=>mTapTalent('rage',char); abPanel.appendChild(rp);
   }
+  talentDefs.forEach(t=>{
+    const used=t.usedKey?char[t.usedKey]:false;
+    const p=document.createElement('span'); p.className='m-pill'+(used?' used':'');
+    p.innerHTML=`<span class="m-pill-dot"></span>${t.lbl}`;
+    p.onclick=()=>mTapTalent(t.k,char); abPanel.appendChild(p);
+  });
+  if(!talentDefs.length&&!char.rageBoon) abPanel.innerHTML='<span style="font-size:12px;color:var(--text-dim);font-style:italic">No abilities yet</span>';
+  tabCard.appendChild(abPanel);
 
-  section.appendChild(abPanel);
-
-  // ── Spells panel ──
-  const spPanel = document.createElement('div');
-  spPanel.className = 'm-pill-wrap';
-  spPanel.style.display = 'none';
-  panels['sp'] = spPanel;
-
-  const spells = char.knownSpells||[];
+  // Spells
+  const spPanel=document.createElement('div'); spPanel.className='m-pill-wrap'; spPanel.style.display='none'; panels['sp']=spPanel;
+  const spells=char.knownSpells||[];
   if(spells.length){
     spells.forEach(sp=>{
-      const left = castingsLeftC(char, sp.name, sp.rank);
-      const avail = left > 0;
-      const p = document.createElement('span');
-      p.className = 'm-pill ' + (avail ? 'spell-avail' : 'spell-out');
-      p.innerHTML = `<span class="m-pill-dot"></span>${sp.name} [${left}/${maxCastingsC(char.power,sp.rank)}]`;
-      p.onclick = ()=>mTapSpell(sp.name, char);
-      spPanel.appendChild(p);
+      const left=castingsLeftC(char,sp.name,sp.rank);
+      const avail=left>0;
+      const p=document.createElement('span'); p.className='m-pill '+(avail?'spell-avail':'spell-out');
+      p.innerHTML=`<span class="m-pill-dot"></span>${sp.name} [${left}/${maxCastingsC(char.power,sp.rank)}]`;
+      p.onclick=()=>mTapSpell(sp.name,char); spPanel.appendChild(p);
     });
   } else {
-    spPanel.innerHTML = '<span style="font-size:12px;color:var(--text-dim);font-style:italic">No spells known</span>';
+    spPanel.innerHTML='<span style="font-size:12px;color:var(--text-dim);font-style:italic">No spells known</span>';
   }
-  section.appendChild(spPanel);
+  tabCard.appendChild(spPanel);
 
-  // ── Items panel ──
-  const itPanel = document.createElement('div');
-  itPanel.className = 'm-pill-wrap';
-  itPanel.style.display = 'none';
-  panels['it'] = itPanel;
-
-  const inv = char.inventory||[];
+  // Items
+  const itPanel=document.createElement('div'); itPanel.className='m-pill-wrap'; itPanel.style.display='none'; panels['it']=itPanel;
+  const inv=char.inventory||[];
   if(inv.length){
     inv.forEach(item=>{
-      const p = document.createElement('span');
-      p.className = 'm-pill';
-      const isWpn = item.type==='weapon';
-      const isArm = item.type==='armor';
-      p.innerHTML = `<span class="m-pill-dot"></span>${item.name}${item.qty>1?' ×'+item.qty:''}${isWpn?' ⚔':isArm?' 🛡':''}`;
-      if(!isWpn && !isArm){
-        p.onclick = ()=>mTapItem(item.name, char, inCombat);
-      } else {
-        p.onclick = ()=>{
-          const desc = item.itemObj?(isWpn?`${item.itemObj.dice}+${item.itemObj.bonus||0} ${item.itemObj.dmgType}`:`+${item.itemObj.defBonus} Defense`):'';
-          mShowInfo(item.name, isWpn?'Weapon':'Armour', desc, [], 'm-status-ok', 'In inventory');
-        };
-      }
-      itPanel.appendChild(p);
+      const isWpn=item.type==='weapon', isArm=item.type==='armor';
+      const isEqW=isWpn&&char.equippedWeapon&&item.itemObj&&item.itemObj.id===char.equippedWeapon.id;
+      const isEqA=isArm&&char.equippedArmor&&item.itemObj&&item.itemObj.id===char.equippedArmor.id;
+      const p=document.createElement('span');
+      p.className='m-pill'+(isEqW||isEqA?' armed':'');
+      p.innerHTML=`<span class="m-pill-dot"></span>${item.name}${item.qty>1?' ×'+item.qty:''}${isEqW?' ★W':isEqA?' ★A':''}`;
+      p.onclick=()=>mTapItem(item.name,char,inCombat); itPanel.appendChild(p);
     });
   } else {
-    itPanel.innerHTML = '<span style="font-size:12px;color:var(--text-dim);font-style:italic">Inventory empty</span>';
+    itPanel.innerHTML='<span style="font-size:12px;color:var(--text-dim);font-style:italic">Inventory empty</span>';
   }
-  section.appendChild(itPanel);
+  tabCard.appendChild(itPanel);
 
-  cardEl.appendChild(section);
+  view.appendChild(tabCard);
 }
 
-// ── Hook into renderSidebars to inject pills after classic render ─────────────
-const _origRenderSidebars = renderSidebars;
-renderSidebars = function(players, gs, me){
-  _origRenderSidebars(players, gs, me);
-  if(!document.body.classList.contains('ui-mobile')) return;
-  players.forEach(p=>{
-    if(!p.char) return;
-    const isMe = p.id === myId;
-    const inCombat = gs.phase === 'combat';
-    // Find the card element in the correct sidebar
-    const sidebar = document.getElementById(isMe ? 'sb-left' : 'sb-right');
-    if(!sidebar) return;
-    const card = sidebar.querySelector('.pcard');
-    if(card) mRenderPills(p.char, inCombat, card);
-  });
+// ── Hook into update() to also render mobile view ────────────────────────────
+const _origUpdate=window.update;
+window.update=function(gs,players,me){
+  if(_origUpdate) _origUpdate.call(this,gs,players,me);
+  if(document.body.classList.contains('ui-mobile')) mRenderGame(gs,players,me);
 };
 
-// ── Mobile path pick — card-style layout ─────────────────────────────────────
-let mSelectedPath = null;
-const _origShowPathChoices = typeof showPathChoices !== 'undefined' ? showPathChoices : null;
-
-function mRenderPathPick(gs, me){
+// ── Mobile path pick — card layout ───────────────────────────────────────────
+function mRenderPathPick(gs){
   if(!document.body.classList.contains('ui-mobile')) return;
-  const choices = gs.pathChoices;
-  if(!choices) return;
-  const grid = document.getElementById('pp-grid');
-  if(!grid) return;
-  grid.innerHTML = '';
-  mSelectedPath = null;
-
+  const choices=gs.pathChoices; if(!choices) return;
+  const grid=document.getElementById('pp-grid'); if(!grid) return;
+  grid.innerHTML='';
   choices.forEach(path=>{
-    const gains = Object.entries(path.levelGains||{}).map(([lv,arr])=>
-      arr.map(g=>`<span class="pp-tag${g.startsWith('+1')?'':' new'}">${g}</span>`).join('')
+    const gains=Object.entries(path.levelGains||{}).map(([lv,arr])=>
+      arr.map(g=>`<span class="pp-tag${!g.startsWith('+1')?' new':''}">${g}</span>`).join('')
     ).join('');
-
-    const card = document.createElement('div');
-    card.className = 'pp-card-m';
-    card.innerHTML=`
-      <div class="pp-card-m-name">${path.label}</div>
-      <div class="pp-card-m-sub">+${path.hpGain} HP/level${path.power?' · +'+path.power+' Power':''}</div>
-      <div class="pp-card-m-desc">${path.desc||''}</div>
-      <div class="pp-card-m-tags">${gains}</div>`;
-    card.onclick = ()=>{
+    const card=document.createElement('div'); card.className='pp-card-m';
+    card.innerHTML=`<div class="pp-card-m-name">${path.label}</div><div class="pp-card-m-sub">+${path.hpGain} HP/level${path.power?' · +'+path.power+' Power':''}</div><div class="pp-card-m-desc">${path.desc||''}</div><div class="pp-card-m-tags">${gains}</div>`;
+    card.onclick=()=>{
       grid.querySelectorAll('.pp-card-m').forEach(c=>c.classList.remove('sel-m'));
       card.classList.add('sel-m');
-      mSelectedPath = path.id;
       mOpenPathConfirm(path);
     };
     grid.appendChild(card);
   });
 }
-
 function mOpenPathConfirm(path){
-  const gainsRows = Object.entries(path.levelGains||{}).map(([lv,arr])=>
-    `<div class="m-sheet-row">Level ${lv}<span>${arr.join(', ')}</span></div>`
-  ).join('');
-  mOpenSheet(
-    `<div class="m-sheet-name">${path.label}</div>`+
-    `<div class="m-sheet-type">+${path.hpGain} HP/level${path.power?' · +'+path.power+' Power':''}</div>`+
-    `<div class="m-sheet-desc">${path.desc||'A powerful path of mastery.'}</div>`+
-    gainsRows+
-    `<div class="m-act-btns">
-      <button class="m-btn-use" onclick="mConfirmPath('${path.id}')">Choose ${path.label}</button>
-      <button class="m-btn-sec" onclick="mCloseSheet()">Back</button>
-    </div>`
-  );
+  const gainsRows=Object.entries(path.levelGains||{}).map(([lv,arr])=>`<div class="m-sheet-row">Level ${lv}<span>${arr.join(', ')}</span></div>`).join('');
+  mOpenSheet(`<div class="m-sheet-name">${path.label}</div><div class="m-sheet-type">+${path.hpGain} HP/level${path.power?' · +'+path.power+' Power':''}</div><div class="m-sheet-desc">${path.desc||'A powerful master path.'}</div>${gainsRows}<div class="m-act-btns"><button class="m-btn-use" onclick="mConfirmPath('${path.id}')">Choose ${path.label}</button><button class="m-btn-sec" onclick="mCloseSheet()">Back</button></div>`);
 }
+function mConfirmPath(pathId){mCloseSheet();send('PLAYER_ACTION',{action:'CHOOSE_PATH',data:{pathId}});}
 
-function mConfirmPath(pathId){
-  mCloseSheet();
-  send('PLAYER_ACTION',{action:'CHOOSE_PATH',data:{pathId}});
-}
+// Observe path pick screen activation
+new MutationObserver(()=>{
+  const s=document.getElementById('screen-pathpick');
+  if(s&&s.classList.contains('active')&&document.body.classList.contains('ui-mobile')&&lastState&&lastState.gs&&lastState.gs.pathChoices)
+    setTimeout(()=>mRenderPathPick(lastState.gs),50);
+}).observe(document.getElementById('screen-pathpick')||document.body,{attributes:true,attributeFilter:['class']});
 
-// Hook into the existing pathpick screen render
-const _origUpdate = typeof onMsg !== 'undefined' ? null : null; // patched via renderActions
-const _origShowPathScreen = window.showPathChoices;
-// Patch: after path screen is shown in mobile mode, also render cards
-const _ppObserver = new MutationObserver(()=>{
-  const screen = document.getElementById('screen-pathpick');
-  if(screen && screen.classList.contains('active') && document.body.classList.contains('ui-mobile')){
-    if(lastState && lastState.gs && lastState.gs.pathChoices){
-      setTimeout(()=>mRenderPathPick(lastState.gs, lastState.players&&lastState.players.find(p=>p.id===myId)), 50);
-    }
-  }
-});
-_ppObserver.observe(document.getElementById('screen-pathpick')||document.body, {attributes:true, attributeFilter:['class']});
+
+
 
 </script>
