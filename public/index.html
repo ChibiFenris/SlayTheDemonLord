@@ -1948,7 +1948,7 @@ function toggleUI(){
   localStorage.setItem('sorUIMode', mobile?'mobile':'classic');
   const btn=document.getElementById('ui-toggle');
   if(btn) btn.textContent = mobile ? '🖥 Classic UI' : '📱 Mobile UI';
-  if(lastState) onMsg({type:'STATE',payload:lastState});
+  if(lastState) renderState(lastState);
 }
 
 // ── Bottom sheet ─────────────────────────────────────────────────────────────
@@ -2328,10 +2328,17 @@ function mRenderGame(gs,players,me){
 }
 
 // ── Hook into update() to also render mobile view ────────────────────────────
-const _origUpdate=window.update;
-window.update=function(gs,players,me){
-  if(_origUpdate) _origUpdate.call(this,gs,players,me);
-  if(document.body.classList.contains('ui-mobile')) mRenderGame(gs,players,me);
+// Hook mRenderGame into renderState (the actual render function)
+const _mOrigRenderState=renderState;
+window.renderState=renderState=function(st){
+  _mOrigRenderState(st);
+  if(!document.body.classList.contains('ui-mobile')) return;
+  const{gs,players}=st;
+  const me=players.find(p=>p.id===myId);
+  // Only render mobile game view when on the game screen
+  if(me&&me.char&&gs.phase!=='lobby'&&gs.phase!=='gameover'&&gs.phase!=='victory'){
+    mRenderGame(gs,players,me);
+  }
 };
 
 // ── Mobile path pick — card layout ───────────────────────────────────────────
