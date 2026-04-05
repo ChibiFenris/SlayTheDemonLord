@@ -635,7 +635,8 @@ const ITEM_DESCS={
   'Spell Scroll':'Cast a random spell once. Consumed on use.',
   'Starting Weapon':'Your starting 1d6 weapon.',
   'Starting Armour':'Your starting armour.',
-  'Weapon Enhancement':'Apply +1 bonus damage to your currently equipped weapon permanently.',
+  'Weapon Enhancement':'+1 damage AND +1 to hit on equipped weapon. Damage capped at +6 (extra purchases give +1 to hit instead).',
+  '+1 Attribute':'Choose any attribute (STR/AGI/INT/WIL) to increase by 1. Opens a selection menu.',
 };
 
 const SPELL_DESCS={
@@ -686,6 +687,7 @@ function onMsg(msg){
     renderState(msg.payload);
   }
   if(msg.type==='ERROR'){ el('lobby-err').textContent=msg.payload.msg; }
+  if(msg.type==='STAT_CHOICE'){ showStatChoiceModal(msg.payload.attrs); }
 }
 
 // ─── LOBBY ────────────────────────────────────────────────────────────────────
@@ -1987,6 +1989,32 @@ function mHideDeathScreen(){
   ['death-title','death-sub','death-players'].forEach(id=>{
     const el2=document.getElementById(id); if(el2) el2.classList.remove('show');
   });
+}
+
+function showStatChoiceModal(attrs){
+  // Remove existing if any
+  const ex=document.getElementById('stat-choice-modal'); if(ex) ex.remove();
+  const modal=document.createElement('div');
+  modal.id='stat-choice-modal';
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9100;display:flex;align-items:center;justify-content:center;padding:16px;';
+  const ATTR_LABELS={str:'Strength',agi:'Agility',int:'Intellect',wil:'Will'};
+  const ATTR_DESC={str:'Increases melee damage bonus and HP.',agi:'Increases chance to hit with AGI weapons and Defense.',int:'Increases spell damage and effectiveness.',wil:'Increases healing power and divine spell effectiveness.'};
+  const btns=Object.entries(attrs).map(([k,v])=>`
+    <button onclick="chooseStatBoost('${k}')" style="background:rgba(40,25,8,.9);border:1px solid var(--border-bright);border-radius:6px;padding:12px 14px;cursor:pointer;text-align:left;transition:border-color .15s;width:100%">
+      <div style="font-family:'Cinzel',serif;font-size:14px;color:var(--gold);margin-bottom:2px">${ATTR_LABELS[k]} <span style="font-size:11px;color:var(--text-dim)">(currently ${v})</span></div>
+      <div style="font-size:11px;color:var(--text-dim)">${ATTR_DESC[k]}</div>
+    </button>`).join('');
+  modal.innerHTML=`
+    <div style="background:linear-gradient(160deg,#2a1e0e,#1e1508);border:1px solid var(--border-bright);border-radius:8px;padding:20px;max-width:400px;width:100%">
+      <div style="font-family:'Cinzel',serif;font-size:15px;color:var(--gold);letter-spacing:2px;margin-bottom:4px">APOTHECARY</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;font-style:italic">Choose one attribute to increase by 1.</div>
+      <div style="display:flex;flex-direction:column;gap:7px">${btns}</div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+function chooseStatBoost(attr){
+  send('PLAYER_ACTION',{action:'CHOOSE_STAT',data:{attr}});
+  const modal=document.getElementById('stat-choice-modal'); if(modal) modal.remove();
 }
 connect();
 initAudio();
