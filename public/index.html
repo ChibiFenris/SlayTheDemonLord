@@ -399,7 +399,7 @@ const NOVICE_INFO={
 const EXPERT_INFO={
   berserker:   {name:'Berserker',   gains:'+6 HP. Lv3: Combat Prowess (+1d6 every hit). Lv4,6: +1 STR. Lv5: Rage (on taking damage: +1 boon +1d6 next attack).',desc:'Battle-rage specialist. Combat Prowess on every hit. Rage procs after taking damage.'},
   fighter:     {name:'Fighter',     gains:'+5 HP. Lv3: Paced Strikes (arm: next hit deals +2d6, 1/combat). Lv4,6: +1 STR. Lv5: Combat Expertise (+1d6 every hit).',desc:'Master of arms. Paced Strikes adds +2d6 to one attack per combat. Combat Expertise deals +1d6 on every hit.'},
-  scout:       {name:'Scout',       gains:'+3 HP. Lv3: Quick Step (your miss = +2 Def 1 round). Lv4,6: +1 AGI. Lv5: Evasion (enemy attacks have 1 bane).',desc:'Swift skirmisher. Quick Step rewards dodging. Evasion forces banes on all attackers.'},
+  scout:       {name:'Scout',       gains:'+3 HP. Lv3: Quick Step (miss → +2 Def 1 round, reverts). Lv4,6: +1 AGI. Lv5: Evasion (1 bane on attackers).',desc:'Swift skirmisher. Quick Step rewards dodging. Evasion forces banes on all attackers.'},
   thief:       {name:'Thief',       gains:'+3 HP. Lv3: Trickery (+1d6 dmg + 1 poison on first attack/round). Lv4,6: +1 AGI. Lv5: Deathblow (+2/+4 poison stacks on hit/crit).',desc:'Cunning blade. Trickery adds +1d6 and 1 poison on your first attack each round. Deathblow stacks 2-4 poison on every hit.'},
   ranger:      {name:'Ranger',      gains:'+4 HP. Lv3: Quick Strike (free bonus attack in round 1, inherits Weapon Training). Lv4: +1 AGI. Lv5: Evasion (1 bane on attackers). Lv6: +1 STR.',desc:'Wilderness hunter. Quick Strike for a free round 1 attack and Evasion to force banes.'},
   defender:    {name:'Defender',    gains:'+5 HP. Lv3: Shieldwall (+2 Def vs all attacks). Lv4: +1 AGI. Lv5: Toughness (−1 all damage). Lv6: +1 STR.',desc:'Stalwart protector. Shieldwall and Toughness for extreme resilience.'},
@@ -480,7 +480,7 @@ const TALENT_DESCS={
   holyAura:'All allies gain +2 Defense while you are alive.',
   pacedStrikes:'Active (1×/combat) — Spend your turn to arm Paced Strikes. Your next weapon hit deals +2d6 bonus damage.',
   rage:'Passive — When you take damage, your next attack has +1 boon and +1d6 bonus damage.',
-  quickStep:'Passive — When YOUR attack misses, gain +2 Defense for 1 round.',
+  quickStep:'Passive — When your attack misses, gain +2 Defense for 1 round. Defense reverts automatically at round end.',
   bloodOffering:'Active — Lose 1d6 HP to regain 1 casting of every rank 0-2 spell you know.',
   darkEvoker:'Passive — Dark element spells deal ×2.5 vs weakness instead of ×2.',
   lightningIngrained:'Passive — Lightning element spells deal ×2.5 vs weakness instead of ×2.',
@@ -676,7 +676,7 @@ const TRADITION_SPELLS_CLIENT = {
   storm:          [{name:'Forked Lightning',rank:0,desc:'[R0 FREE] Hits SAME target TWICE. Each: 1d6+2+INTx2.'},{name:'Freezing Fog',rank:1,desc:'[R1] 1d3+INTx2. CHILLED (1d3/round, 1 bane, 2r).'},{name:'Call Lightning',rank:2,desc:'[R2] 3d6+5+INTx2. d20>=15: STUNNED 1 round.'},{name:'Lightning Bolt',rank:3,desc:'[R3] 5d6+INTx2. d20>=15: hits SECOND time.'}],
   protection:     [{name:'Force Field',rank:0,desc:'[R0 FREE] 50% damage reduction for self, 1 round.'},{name:'Sanctuary',rank:1,desc:'[R1] ALL allies take 50% damage for 1 round.'},{name:'Vigor',rank:2,desc:'[R2] Your max HP +10 for rest of combat.'},{name:'Protective Field',rank:3,desc:'[R3] ALL allies IMMUNE to damage for 1 round.'}],
   illusion:       [{name:'Figment',rank:0,desc:'[R0 FREE] Enemy attacks with 1 bane for 2 rounds.'},{name:'Vertigo',rank:1,desc:'[R1] You gain 2 boons on attacks for 2 rounds.'},{name:'Glamer',rank:2,desc:'[R2] Target enemy next attack automatically misses.'},{name:'Phantasm',rank:3,desc:'[R3] 4d6+INTx2 psychic damage.'}],
-  nature:         [{name:'Oak Hide',rank:0,desc:'[R0 FREE] +2 Defense for 2 rounds.'},{name:'Healing Berries',rank:1,desc:'[R1] 1d3+WIL heal, triggers THREE times.'},{name:'Shillelagh',rank:1,desc:'[R1] +1d6 to next weapon attack + 2 Speed.'},{name:'Wrath of Nature',rank:3,desc:'[R3] 3d6+INTx2. Target next 2 attacks have 2 banes.'}],
+  nature:         [{name:'Oak Hide',rank:0,desc:'[R0 FREE] +2 Defense for 2 rounds. Reverts when buff expires.'},{name:'Healing Berries',rank:1,desc:'[R1] 1d3+WIL heal, triggers THREE times.'},{name:'Shillelagh',rank:1,desc:'[R1] +1d6 to next weapon attack + 2 Speed.'},{name:'Wrath of Nature',rank:3,desc:'[R3] 3d6+INTx2. Target next 2 attacks have 2 banes.'}],
   transformation: [{name:'Beast Within',rank:0,desc:'[R0 FREE] 1 boon STR, +1d6 next attack.'},{name:'Dire Beast',rank:1,desc:'[R1] Size+1, attacks +1d6 for 1 min.'},{name:'Mist Form',rank:2,desc:'[R2] 50% damage reduction for 2 rounds.'},{name:'Speed Healing',rank:3,desc:'[R3] 3d6+WILx2 heal.'}],
   time:           [{name:'Swiftness',rank:0,desc:'[R0 FREE] +1 boon on attacks for 2 rounds.'},{name:'Rewrite Moment',rank:1,desc:'[R1] Auto-reroll missed attacks for 2 rounds.'},{name:'Minor Paradox',rank:2,desc:'[R2] Regain 1 casting of every rank 0-2 spell.'},{name:'Precognition',rank:3,desc:'[R3] 2 boons on your attacks, 2 banes on attacks vs you, 2 rounds.'}],
 };
@@ -927,7 +927,7 @@ function buildCard(p,gs,isMe){
       <div class="am"><div class="al">INT</div><div class="av">${c.attrs.int}</div><div class="amm">${modStr(c.attrs.int)}</div></div>
       <div class="am"><div class="al">WIL</div><div class="av">${c.attrs.wil}</div><div class="amm">${modStr(c.attrs.wil)}</div></div>
     </div>
-    <div class="mini-s">Defense <span>${c.defense}</span></div>
+    <div class="mini-s">Defense <span>${c.defense}${(c.activeBuffs||[]).some(b=>b.defBonus)?` <span style="color:var(--gold);font-size:10px">(+${(c.activeBuffs||[]).filter(b=>b.defBonus).reduce((s,b)=>s+b.defBonus,0)} buffed)</span>`:''}</span></div>
     <div class="mini-s">Power <span>${c.power}</span></div>
     ${c.power>0&&c.knownSpells&&c.knownSpells.length?`<div class="mini-s" style="font-size:10px"><span style="color:var(--text-dim)">Castings: ${c.knownSpells.map(sp=>sp.name.split(' ')[0]+': '+castingsLeftC(c,sp.name,sp.rank)+'/'+maxCastingsC(c.power,sp.rank)).join(' · ')}</span></div>`:''}
     <div class="mini-s">Equipped <span>${c.equippedWeapon?c.equippedWeapon.name+' '+c.equippedWeapon.dice+'+'+(c.equippedWeapon.bonus||0)+' '+(c.equippedWeapon.dmgType==='blunt'?'🔨':'⚔'):'—'}</span></div>
@@ -942,7 +942,6 @@ function buildCard(p,gs,isMe){
       if(c.pacedStrikes)    tags.push((c.activeBuffs&&c.activeBuffs.some(b=>b.pacedDmg))?'⚡ PACED ARMED':c.pacedStrikesUsed?'⚡ Paced (used)':'⚡ Paced Strike');
       if(c.quickstrike)     tags.push('⚡ Quick Strike (R1)');
       if(c.trickery)        tags.push('🗡 Trickery');
-      if(c.quickstrike)     tags.push('⚡ Quick Strike');
       if(c.quickStep)       tags.push('👟 Quick Step');
       if(c.evasion)         tags.push('🛡 Evasion (1 bane)');
       if(c.deathblow)       tags.push('☠ Poisoned Blades');

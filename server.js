@@ -816,7 +816,15 @@ function addDebuff(enemy, name, effects, duration=1){
 }
 function tickBuffs(char){
   if(!char.activeBuffs) return;
-  char.activeBuffs=char.activeBuffs.filter(b=>{ b.duration--; return b.duration>0; });
+  char.activeBuffs=char.activeBuffs.filter(b=>{
+    b.duration--;
+    if(b.duration<=0){
+      // Reverse any defense bonus when buff expires
+      if(b.defBonus) char.defense=Math.max(char.baseAgiDef||0, char.defense-b.defBonus);
+      return false;
+    }
+    return true;
+  });
 }
 const SELF_TICK_DOTS=new Set(['Bleed','Major Bleed','Burn','Chilled','Grave Grasp']); // Poison uses stack-based system, handled separately
 function tickDebuffs(enemy){
@@ -2137,7 +2145,7 @@ function handlePlayerAction(room,playerId,payload,ws){
       } else {
         addLog(room,`${player.name} <em>misses</em> — d20:<strong>${r.base}</strong>${r.boonInfo}+<strong>${r.atkMod>=0?'+':''}${r.atkMod}</strong>=<strong>${r.total}</strong> vs Def<strong>${targetEnemy.ac}</strong>.`,'sys');
         // Quick Step: when YOU miss an attack, gain +2 Defense for 1 round
-        if(char.quickStep){ addBuff(char,'Quick Step',{defBonus:2},1); char.defense+=2; addLog(room,`👟 ${player.name} Quick Steps — +2 Defense this round!`,'sys'); }
+        if(char.quickStep && !(char.activeBuffs||[]).some(b=>b.name==='Quick Step')){ addBuff(char,'Quick Step',{defBonus:2},1); char.defense+=2; addLog(room,`👟 ${player.name} Quick Steps — +2 Defense this round!`,'sys'); }
       }
     }
     // Bladestorm: 3 attacks total — only fires if first attack hit, inherits weapon training boon
