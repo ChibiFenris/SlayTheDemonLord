@@ -280,7 +280,7 @@ body.ui-mobile #m-game-view{display:flex;flex-direction:column;gap:8px;}
 body:not(.ui-mobile) #m-game-view{display:none;}
 /* Mobile player cards — compact strip */
 .m-player-strip{background:linear-gradient(160deg,#2a1e0e,#1e1508);border:1px solid var(--border-bright);border-radius:6px;padding:10px 12px;}
-.m-player-strip .pc-name{font-family:'Cinzel',serif;font-size:13px;color:var(--gold);margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;}
+.m-pname{font-family:'Cinzel',serif;font-size:13px;color:var(--gold);margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;}
 .m-hp-row{display:flex;align-items:center;gap:8px;margin-bottom:3px;}
 .m-hp-label{font-size:11px;color:var(--text-dim);min-width:60px;}
 .m-hp-bar{flex:1;height:6px;background:rgba(0,0,0,.4);border-radius:3px;overflow:hidden;}
@@ -304,7 +304,8 @@ body:not(.ui-mobile) #m-game-view{display:none;}
 .m-pill-dot{width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.8;}
 /* Mobile enemy card */
 .m-enemy-card{background:linear-gradient(160deg,#2a1e0e,#1e1508);border:1px solid var(--border-bright);border-radius:6px;padding:10px 12px;cursor:pointer;}
-.m-enemy-name{font-family:'Cinzel',serif;font-size:14px;color:var(--blood-bright);margin-bottom:2px;}
+.m-enemy-card:active{border-color:var(--gold-bright);}
+.m-enemy-name{font-family:'Cinzel',serif;font-size:14px;color:var(--blood-bright);margin-bottom:2px;font-style:italic;}
 .m-enemy-sub{font-size:11px;color:var(--text-dim);margin-bottom:5px;}
 .m-enemy-stats{display:flex;gap:10px;flex-wrap:wrap;}
 .m-estat{font-size:10px;color:var(--text-dim);}
@@ -1996,7 +1997,25 @@ function mTapEnemy(enemy){
   if(dr>0) rows.push(['Damage reduction','−'+dr+' all incoming']);
   const sCls=enemy.hp<enemy.maxHp*0.3?'m-status-warn':'m-status-ok';
   const sLabel=enemy.hp<=0?'Defeated':enemy.hp<enemy.maxHp*0.5?'Wounded':'Healthy';
-  mSheet(enemy.name,enemy.type+' — '+enemy.threat+' threat','Tap Attack in the action panel to strike this enemy.',rows,sCls,sLabel);
+  // Build abilities list from flags
+  const eAbs=[];
+  if(enemy.recklessCharge) eAbs.push(['Reckless Charge','Round 1: 1 boon on attacks + 1d6 bonus dmg']);
+  if(enemy.bloodgreed) eAbs.push(['Bloodgreed','Heals 1d6 HP on kill']);
+  if(enemy.packInstinct) eAbs.push(['Pack Instinct','+1 boon when another Skaven alive']);
+  if(enemy.undying) eAbs.push(['Undying','1-in-6 chance to rise at 1 HP on death']);
+  if(enemy.lifeLeech||enemy.lifeLeechFrac) eAbs.push(['Life Leech','Heals for a fraction of damage dealt']);
+  if(enemy.graveChill) eAbs.push(['Grave Chill','On hit: target has 1 bane for 2 attacks']);
+  if(enemy.virulentBlade) eAbs.push(['Virulent Blade','On hit: target gets Infected (1 bane 2 attacks)']);
+  if(enemy.brutalCleave) eAbs.push(['Brutal Cleave','On crit: 50% chance to splash dmg to another enemy']);
+  if(enemy.frenziedAssault) eAbs.push(['Frenzied Assault','Above 50% HP: makes 2 attacks per turn']);
+  if(enemy.warlordCommand) eAbs.push(['Warlord Command','+1 ATK to all Skaven allies']);
+  if(enemy.corrodingBite) eAbs.push(['Corroding Bite','On hit: -1 dmg to target for 1 round']);
+  if(enemy.scurryAway) eAbs.push(['Scurry Away','Once per turn: 50% chance to dodge an attack']);
+  if(enemy.hypnoticGaze) eAbs.push(['Hypnotic Gaze','On hit: target has 1 bane on next attack']);
+  if(enemy.mistForm) eAbs.push(['Mist Form','At 25% HP once: 50% damage reduction']);
+  const absHtml=eAbs.length?`<div style="margin:8px 0 3px;font-size:10px;color:var(--text-dim);letter-spacing:.5px;font-family:'Cinzel',serif">ABILITIES</div>`+eAbs.map(([n,d])=>`<div style="padding:4px 0;border-bottom:1px solid rgba(100,70,20,.15)"><span style="color:var(--gold);font-size:11px;font-family:'Cinzel',serif">${n}</span><br><span style="font-size:11px;color:var(--parch)">${d}</span></div>`).join(''):'';
+  const rowsH=rows.map(r=>`<div class="m-sheet-row">${r[0]}<span>${r[1]}</span></div>`).join('');
+  mOpenSheet(`<div class="m-sheet-name">${enemy.name}</div><div class="m-sheet-type">${enemy.type} — ${enemy.threat} threat</div><div class="m-sheet-desc">${(BESTIARY||[]).find(b=>b.name===enemy.name)?.lore||'A dangerous foe. Proceed with caution.'}</div>${rowsH}${absHtml}<div class="m-sheet-status ${sCls}">${sLabel}</div>`);
 }
 
 // ── Render full mobile game view ─────────────────────────────────────────────
@@ -2009,6 +2028,21 @@ function mRenderGame(gs,players,me){
   const char=me.char;
   const inCombat=gs.phase==='combat';
 
+  // ── Combat header banner ──────────────────────────────────────────────────
+  if(inCombat){
+    const curTurn=gs.turnOrder&&gs.turnOrder.length?gs.turnOrder[gs.activeTurnIdx||0]:null;
+    const isMyTurn=curTurn?(curTurn.type==='player'&&curTurn.id===myId):false;
+    const turnText=isMyTurn?'Your turn!'
+      :curTurn&&curTurn.type==='enemy'?`${curTurn.name} is attacking...`
+      :curTurn&&curTurn.type==='player'?`Waiting for ${curTurn.name}...`
+      :'Waiting...';
+    const turnCol=isMyTurn?'#80e060':curTurn&&curTurn.type==='enemy'?'var(--blood-bright)':'var(--gold)';
+    const banner=document.createElement('div');
+    banner.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:5px 2px;';
+    banner.innerHTML=`<span style="font-size:11px;color:${turnCol};font-family:'Cinzel',serif">${turnText}</span><span style="font-size:10px;color:var(--text-dim);border:1px solid var(--border);border-radius:4px;padding:2px 7px;font-family:'Cinzel',serif">Round ${gs.roundNumber||1}</span>`;
+    view.appendChild(banner);
+  }
+
   // ── Player HP cards ───────────────────────────────────────────────────────
   players.forEach(p=>{
     if(!p.char) return;
@@ -2020,9 +2054,12 @@ function mRenderGame(gs,players,me){
     const acted=gs.playersActedThisRound&&gs.playersActedThisRound.includes(p.id);
     const strip=document.createElement('div');
     strip.className='m-player-strip';
+    const xpCur=XP_T[Math.min(c.level,XP_T.length-1)]||0, xpNxt=XP_T[Math.min(c.level+1,XP_T.length-1)]||100;
+    const xpPct=c.level>=10?100:Math.min(100,Math.round(((c.xp-xpCur)/(xpNxt-xpCur))*100));
     strip.innerHTML=`
-      <div class="pc-name"><span>${p.name}${isMe?' <span style="font-size:10px;color:var(--text-dim)">(You)</span>':''} — Lv ${c.level}</span>${acted?'<span style="font-size:10px;color:#80e060">✓ Acted</span>':''}</div>
+      <div class="m-pname"><span>${p.name}${isMe?' <em style="font-size:10px;color:var(--text-dim)">(You)</em>':''} — Lv ${c.level}</span>${acted?'<span style="font-size:10px;color:#80e060">✓ Acted</span>':''}</div>
       <div class="m-hp-row"><div class="m-hp-label">HP</div><div class="m-hp-bar"><div class="m-hp-fill" style="width:${hpPct}%;background:${hpCol}"></div></div><div class="m-hp-val">${c.health}/${c.maxHealth}</div></div>
+      <div class="m-hp-row"><div class="m-hp-label">XP</div><div class="m-hp-bar"><div class="m-hp-fill" style="width:${xpPct}%;background:#534AB7"></div></div><div class="m-hp-val">${c.xp}/${xpNxt}</div></div>
       <div class="m-stats-row">
         <div class="m-stat">Def <b>${c.defense}</b></div>
         <div class="m-stat">STR <b>${c.attrs.str}</b></div>
@@ -2045,6 +2082,19 @@ function mRenderGame(gs,players,me){
       const ehpCol=ehpPct>60?'#cc2222':ehpPct>25?'#c9a235':'#662222';
       const ec=document.createElement('div');
       ec.className='m-enemy-card';
+      // Build ability hint from enemy tags
+      const abHints=[];
+      if(enemy.recklessCharge) abHints.push('Reckless Charge');
+      if(enemy.bloodgreed) abHints.push('Bloodgreed');
+      if(enemy.packInstinct) abHints.push('Pack Instinct');
+      if(enemy.undying) abHints.push('Undying');
+      if(enemy.lifeLeech||enemy.lifeLeechFrac) abHints.push('Life Leech');
+      if(enemy.graveChill) abHints.push('Grave Chill');
+      if(enemy.virulentBlade) abHints.push('Virulent Blade');
+      if(enemy.brutalCleave) abHints.push('Brutal Cleave');
+      if(enemy.frenziedAssault) abHints.push('Frenzied Assault');
+      if(enemy.warlordCommand) abHints.push('Warlord Command');
+      const abLine=abHints.length?abHints.join(' · '):'tap for details';
       ec.innerHTML=`
         <div style="display:flex;justify-content:space-between;align-items:center">
           <div><div class="m-enemy-name">${enemy.name}</div><div class="m-enemy-sub">${enemy.type} — ${enemy.threat}</div></div>
@@ -2058,7 +2108,7 @@ function mRenderGame(gs,players,me){
           ${enemy._poisonStacks>0?`<div class="m-estat">Poison <b>${enemy._poisonStacks} stacks</b></div>`:''}
           ${enemy.damageReduction?`<div class="m-estat">DR <b>−${enemy.damageReduction}</b></div>`:''}
         </div>
-        <div style="font-size:10px;color:var(--text-dim);margin-top:4px;text-align:center">tap for details</div>`;
+        <div style="font-size:10px;color:var(--text-dim);margin-top:5px;font-style:italic">${abLine}</div>`;
       ec.onclick=()=>mTapEnemy(enemy);
       view.appendChild(ec);
     });
