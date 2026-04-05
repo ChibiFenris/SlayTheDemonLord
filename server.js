@@ -1084,7 +1084,7 @@ function enterNode(room, nodeType) {
   }
   if(nodeType==='merchant') {
     gs.phase='merchant';
-    room.players.forEach(p=>{if(p.char&&p.char.alive) p.char.merchantStock=buildPlayerShop();});
+    room.players.forEach(p=>{if(p.char&&p.char.alive) p.char.merchantStock=buildPlayerShop(gs.bossCount);});
     addLog(room,'🛒 A merchant appears. Each warrior browses their own wares.','sys');
     return;
   }
@@ -1266,9 +1266,9 @@ function fireEnemyTurn(room, ae) {
   }
   // Poison DoT
   if (ae._poisonStacks && ae._poisonStacks > 0) {
-    const pdmg = rd(ae._poisonStacks, 3);
+    const pdmg = ae._poisonStacks; // 1 dmg per stack (flat)
     ae.hp = Math.max(0, ae.hp - pdmg);
-    addLog(room, `Poison (${ae._poisonStacks} stacks) burns ${ae.name} — -${pdmg} dmg -> ${ae.hp}/${ae.maxHp} HP`, 'spell');
+    addLog(room, `☠ <strong>Poison</strong> (${ae._poisonStacks} stack${ae._poisonStacks!==1?'s':''}) burns ${ae.name} — <strong class="num-dmg">−${pdmg}</strong> dmg → ${ae.name} ${ae.hp}/${ae.maxHp} HP`, 'spell');
     if (ae.hp <= 0) {
       const died = resolveEnemyDeath(room, ae);
       if (died !== false) { advanceTurn(room); return; } // enemy died — turn resolved
@@ -1568,7 +1568,7 @@ function maybeEnemyAttack(room) {
   // Apply Poison stacks at start of enemy turn (1d3 per stack)
   (gs.enemies||[]).filter(ae=>ae&&ae.hp>0).forEach(ae=>{
     if(ae._poisonStacks&&ae._poisonStacks>0){
-      const poisonDmg=rd(ae._poisonStacks,3);
+      const poisonDmg=ae._poisonStacks; // 1 dmg per stack (flat)
       ae.hp=Math.max(0,ae.hp-poisonDmg);
       addLog(room,`☠ <strong>Poison</strong> (${ae._poisonStacks} stack${ae._poisonStacks!==1?'s':''}) burns ${ae.name} — <strong class="num-dmg">−${poisonDmg}</strong> dmg → ${ae.name} ${ae.hp}/${ae.maxHp} HP`,'spell');
       if(ae.hp<=0){resolveEnemyDeath(room,ae);}
@@ -1813,7 +1813,7 @@ function genShopScroll(){
   const sp=SCROLL_SPELLS_SHOP[Math.floor(Math.random()*SCROLL_SPELLS_SHOP.length)];
   return{id:'sc'+uuidv4(),name:`Scroll: ${sp.name}`,spell:sp,cost:35,sellCost:1,bought:false,type:'scroll',desc:sp.desc};
 }
-function buildPlayerShop(){
+function buildPlayerShop(bossCount=0){
   const hd1={id:'hd1'+uuidv4(),name:'Healing Draught',cost:10,sellCost:1,desc:'Heal 1d6 HP',bought:false,type:'consumable'};
   const hd2={id:'hd2'+uuidv4(),name:'Healing Draught',cost:10,sellCost:1,desc:'Heal 1d6 HP',bought:false,type:'consumable'};
   const otherPool=SHOP_CONSUMABLES.filter(c=>c.name!=='Healing Draught').sort(()=>Math.random()-0.5);
@@ -1821,7 +1821,7 @@ function buildPlayerShop(){
   return{
     weaponEnhance:{id:'we'+uuidv4(),name:'Weapon Enhancement',desc:'+1 dmg to equipped weapon',cost:25,bought:false,type:'enhance'},
     statBoost:    {id:'sb'+uuidv4(),name:'+1 Primary Stat',desc:'Increase highest attribute by 1',cost:35,bought:false,type:'statboost'},
-    weapon1:genWpn(room&&room.gs?room.gs.bossCount:0),weapon2:genWpn(room&&room.gs?room.gs.bossCount:0),armor:genArmor(room&&room.gs?room.gs.bossCount:0),
+    weapon1:genWpn(bossCount),weapon2:genWpn(bossCount),armor:genArmor(bossCount),
     consumables:[hd1,hd2,other],scroll:genShopScroll(),
   };
 }
