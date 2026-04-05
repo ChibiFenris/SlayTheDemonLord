@@ -664,8 +664,8 @@ function connect(){
   try{ ws=new WebSocket(url); }catch(e){ sched('Could not open connection.'); return; }
   ws.onopen=()=>{ clearTimeout(reconnectTimer); show('screen-lobby'); buildCareerGrid(); };
   ws.onmessage=e=>{ try{ onMsg(JSON.parse(e.data)); }catch(ex){ console.error(ex); } };
-  ws.onclose=e=>{ sched('Disconnected ('+e.code+'). Retrying...'); };
-  ws.onerror=()=>{};
+  ws.onclose=e=>{ sched('Disconnected (code '+e.code+' reason: '+(e.reason||'none')+'). Retrying...'); console.warn('WS close',e.code,e.reason,e.wasClean); };
+  ws.onerror=e=>{ console.error('WS error',e); };
 }
 function sched(msg){ el('conn-msg').textContent=msg; show('screen-connect'); reconnectTimer=setTimeout(connect,3000); }
 function send(type,payload={}){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({type,payload})); }
