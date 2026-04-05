@@ -1225,9 +1225,7 @@ function endRound(room) {
   // Rebuild turn order for new round
   buildTurnOrder(room);
   if (!gs.turnOrder.length) {
-    gs.phase = 'gameover';
-    addLog(room, 'The warband has fallen.', 'death');
-    return;
+    triggerGameover(room); return;
   }
   const first = gs.turnOrder[0];
   if (first.type === 'enemy') {
@@ -1299,7 +1297,7 @@ function fireEnemyTurn(room, ae) {
   }
 
   const alive = room.players.filter(p => p.char && p.char.alive);
-  if (!alive.length) { gs.phase = 'gameover'; addLog(room, 'The warband has fallen.', 'death'); return; }
+  if (!alive.length) { triggerGameover(room); return; }
 
 
   // ── Pre-attack passives ───────────────────────────────────────────────────
@@ -1323,7 +1321,7 @@ function fireEnemyTurn(room, ae) {
       addLog(room, `🦎 <strong>Primordial Roar!</strong> ${ae.name} — <strong class="num-dmg">-${dmg}</strong> to ${p.name}!`, 'chaos');
       checkDeath(room, p);
     });
-    if (!room.players.filter(p=>p.char&&p.char.alive).length) { gs.phase='gameover'; advanceTurn(room); return; }
+    if (!room.players.filter(p=>p.char&&p.char.alive).length) { triggerGameover(room); return; }
   }
   // WARLORD'S COMMAND (Skaven Warlord): +1 ATK all skaven at first action
   if (ae.warlordCommand && !ae._commandUsed) {
@@ -1522,7 +1520,7 @@ function fireEnemyTurn(room, ae) {
     addLog(room, `🐀 <strong>Pack Leader!</strong> ${ae.name} — all skaven allies gain +2 ATK!`, 'chaos');
   }
   const nowAlive = room.players.filter(p => p.char && p.char.alive);
-  if (!nowAlive.length) { gs.phase = 'gameover'; addLog(room, 'The warband has fallen.', 'death'); return; }
+  if (!nowAlive.length) { triggerGameover(room); return; }
   room.players.forEach(p => { if (p.char && !p.char.alive) p.char.pendingRevive = true; });
 
 
@@ -1600,7 +1598,7 @@ function maybeEnemyAttack(room) {
   if(stillAliveEnemies.length===0) return;
 
   const alive=room.players.filter(p=>p.char&&p.char.alive);
-  if(alive.length===0){gs.phase='gameover';addLog(room,'💀 The entire warband has fallen.','death');return;}
+  if(alive.length===0){triggerGameover(room);return;}
 
   // Each living enemy attacks each player
   stillAliveEnemies.forEach(ae=>{
@@ -1661,7 +1659,7 @@ function maybeEnemyAttack(room) {
   });
 
   const nowAlive=room.players.filter(p=>p.char&&p.char.alive);
-  if(nowAlive.length===0){gs.phase='gameover';addLog(room,'💀 The entire warband has fallen.','death');return;}
+  if(nowAlive.length===0){triggerGameover(room);return;}
   room.players.forEach(p=>{if(p.char&&!p.char.alive){p.char.pendingRevive=true;}});
   // Tick buffs/debuffs each round
   room.players.forEach(p=>{if(p.char&&p.char.alive)tickBuffs(p.char);});
@@ -2669,6 +2667,19 @@ function handlePlayerAction(room,playerId,payload,ws){
 }
 
 function addLog(room,msg,type=''){room.gs.log.push({msg,type,ts:Date.now()});if(room.gs.log.length>200)room.gs.log=room.gs.log.slice(-200);}
+function triggerGameover(room){
+  const gs=room.gs;
+  gs.phase='dying';
+  gs.inCombat=false; // stop any queued enemy turns from firing
+  addLog(room,'💀 <strong>The warband has fallen...</strong>','death');
+  broadcastState(room.code);
+  setTimeout(()=>{
+    if(gs.phase!=='dying') return; // already resolved
+    gs.phase='gameover';
+    broadcastState(room.code);
+  },3500);
+}
+
 function broadcastState(roomCode){const room=rooms.get(roomCode);if(!room)return;const data=JSON.stringify({type:'STATE_UPDATE',payload:publicState(room)});room.players.forEach(p=>{if(p.ws.readyState===1)p.ws.send(data);});}
 
 wss.on('connection',ws=>{

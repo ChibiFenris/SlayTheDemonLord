@@ -252,6 +252,22 @@ input::placeholder{color:var(--text-dim);font-style:italic;}
    MOBILE UI — gated on body.ui-mobile
 ═══════════════════════════════════════════════════════════════════════════ */
 #ui-toggle{position:fixed;bottom:14px;right:14px;z-index:9000;background:#1e1508;border:1px solid var(--gold);color:var(--gold);font-family:'Cinzel',serif;font-size:11px;letter-spacing:1px;padding:7px 12px;border-radius:20px;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.5);}
+
+/* ── Death overlay ── */
+#m-death-overlay{display:none;position:fixed;inset:0;z-index:9500;background:rgba(60,0,0,0);pointer-events:none;transition:background .8s;}
+#m-death-overlay.active{display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(60,0,0,.82);}
+.death-title{font-family:'UnifrakturMaguntia',cursive;font-size:52px;color:#cc2222;text-shadow:0 0 40px rgba(200,0,0,.8),2px 2px 0 rgba(0,0,0,.9);opacity:0;transform:scale(.6);transition:opacity .6s .3s,transform .6s .3s;text-align:center;}
+.death-title.show{opacity:1;transform:scale(1);}
+.death-sub{font-family:'Cinzel',serif;font-size:14px;color:#f5e6c8;letter-spacing:3px;opacity:0;transition:opacity .5s .9s;margin-top:12px;text-align:center;}
+.death-sub.show{opacity:1;}
+.death-players{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-top:24px;opacity:0;transition:opacity .5s 1.2s;}
+.death-players.show{opacity:1;}
+.death-pcard{background:rgba(20,5,5,.8);border:1px solid #8b1a1a;border-radius:8px;padding:10px 16px;text-align:center;}
+.death-pcard .dpname{font-family:'Cinzel',serif;font-size:13px;color:#cc2222;margin-bottom:3px;}
+.death-pcard .dpstat{font-size:11px;color:rgba(245,230,200,.5);}
+/* Fallen log highlight */
+.log-line.death{color:#ff4444;font-weight:700;font-size:14px;text-shadow:0 0 8px rgba(255,0,0,.4);border-left:3px solid #cc2222;padding-left:6px;}
+
 #m-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:8000;}
 #m-sheet{display:none;position:fixed;bottom:0;left:0;right:0;background:#1e1508;border:1px solid var(--border-bright);border-radius:12px 12px 0 0;padding:16px 14px 28px;z-index:8001;max-height:82vh;overflow-y:auto;transform:translateY(100%);transition:transform .28s cubic-bezier(.32,0,.67,0);}
 #m-sheet.open{transform:translateY(0);}
@@ -362,6 +378,7 @@ body.ui-mobile #screen-connect{padding:8px;}
 <button id="ui-toggle" onclick="toggleUI()" title="Switch between mobile and desktop UI">📱 Mobile UI</button>
 
 <!-- MOBILE BOTTOM SHEET -->
+<div id="m-death-overlay"><div class="death-title" id="death-title">The Warband Has Fallen</div><div class="death-sub" id="death-sub"></div><div class="death-players" id="death-players"></div></div>
 <div id="m-overlay" onclick="mCloseSheet()"></div>
 <div id="m-sheet">
   <div class="m-x" onclick="mCloseSheet()">✕</div>
@@ -860,7 +877,18 @@ function renderState(st){
   const me=players.find(p=>p.id===myId);
   if(!me){ updateLobbySlots(players); return; }
   if(gs.phase==='lobby'){ show('screen-lobby'); updateLobbySlots(players); updateAudio(gs,players); prevLogLen=0; Object.keys(prevHp).forEach(k=>delete prevHp[k]); return; }
-  if(gs.phase==='gameover'){ show('screen-end'); el('end-title').className='end-title death'; el('end-title').textContent='The Warband Has Fallen'; el('end-sub').innerHTML=`Depth: <strong>${gs.depth}/30</strong>`; updateAudio(gs,players); return; }
+  if(gs.phase==='dying'){
+    show('screen-game');
+    updateAudio(gs,players);
+    // Show death state — render sidebars and log with fallen overlays
+    renderLog(gs.log);
+    renderSidebars(players,gs,me);
+    if(document.body.classList.contains('ui-mobile')) mRenderGame(gs,players,me);
+    // Dramatic full-screen death overlay
+    mShowDeathScreen(players,gs.depth);
+    return;
+  }
+  if(gs.phase==='gameover'){ show('screen-end'); el('end-title').className='end-title death'; el('end-title').textContent='The Warband Has Fallen'; el('end-sub').innerHTML=`Depth: <strong>${gs.depth}/30</strong>`; updateAudio(gs,players); mHideDeathScreen(); return; }
   if(gs.phase==='victory'){ show('screen-end'); el('end-title').className='end-title victory'; el('end-title').textContent='Victory!'; el('end-sub').innerHTML=`The warband conquers the depths!<br>Depth: ${gs.depth}/30`; updateAudio(gs,players); return; }
   if(me.char&&me.char.pendingLevelUp&&me.char.pendingPathTier&&!pathPickPending){ showPathPick(me); return; }
   if(pathPickPending) return;
@@ -1923,6 +1951,43 @@ function castingsLeftC(char, spellName, rank) {
   return v !== undefined ? v : maxCastingsC(char.power, rank);
 }
 
+
+function mShowDeathScreen(players,depth){
+  const ov=document.getElementById('m-death-overlay');
+  if(!ov||ov.classList.contains('active')) return;
+  ov.style.display='flex';
+  // Animate in
+  requestAnimationFrame(()=>{
+    ov.classList.add('active');
+    setTimeout(()=>{
+      const t=document.getElementById('death-title'); if(t) t.classList.add('show');
+    },100);
+    setTimeout(()=>{
+      const s=document.getElementById('death-sub');
+      if(s){s.textContent=`Depth ${depth} / 30`;s.classList.add('show');}
+    },400);
+    setTimeout(()=>{
+      const pc=document.getElementById('death-players');
+      if(pc){
+        pc.innerHTML=players.filter(p=>p.char).map(p=>`
+          <div class="death-pcard">
+            <div class="dpname">${p.name}</div>
+            <div class="dpstat">${p.char.level>0?'Lv '+p.char.level+' · ':''} ${p.char.xp} XP</div>
+          </div>`).join('');
+        pc.classList.add('show');
+      }
+    },900);
+  });
+}
+function mHideDeathScreen(){
+  const ov=document.getElementById('m-death-overlay');
+  if(!ov) return;
+  ov.classList.remove('active');
+  setTimeout(()=>{ov.style.display='none';},500);
+  ['death-title','death-sub','death-players'].forEach(id=>{
+    const el2=document.getElementById(id); if(el2) el2.classList.remove('show');
+  });
+}
 connect();
 initAudio();
 
