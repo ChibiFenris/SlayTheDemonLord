@@ -59,162 +59,212 @@ const CAREERS = {
 // ─── PATHS ───────────────────────────────────────────────────────────────────
 // SotDL: Novice path chosen at level 1, Expert at level 3, Master at level 7
 const NOVICE_PATHS = {
-  warrior: { hpGain:5, power:0, weaponTraining:true,  catchBreath:true,    trickery:false, nimbleRecovery:false, spellRecovery:false, sharedRecovery:false },
-  rogue:   { hpGain:3, power:0, weaponTraining:false, catchBreath:false,   trickery:true,  nimbleRecovery:true,  spellRecovery:false, sharedRecovery:false },
-  magician:{ hpGain:2, power:1, weaponTraining:false, catchBreath:false,   trickery:false, nimbleRecovery:false, spellRecovery:true,  sharedRecovery:false },
-  priest:  { hpGain:4, power:1, weaponTraining:false, catchBreath:false,   trickery:false, nimbleRecovery:false, spellRecovery:false, sharedRecovery:true  },
+  // Warrior — State Soldier: weapon training + toughness, bleed on crit with slashing
+  warrior: { hpGain:6, power:0, weaponTraining:true, catchBreath:true, trickery:false,
+             nimbleRecovery:false, spellRecovery:false, sharedRecovery:false,
+             toughness:true,          // -1 incoming damage always
+             bleedOnCrit:true,        // slashing crits apply Bleed (new DoT)
+             desc:'Weapon Training: +1 boon on attacks. Toughness: -1 all damage. Slashing crits cause Bleed.' },
+  // Rogue — Roadwarden: trickery + nimble, poison on first hit each combat
+  rogue:   { hpGain:3, power:0, weaponTraining:false, catchBreath:false, trickery:true,
+             nimbleRecovery:true, spellRecovery:false, sharedRecovery:false,
+             evasion:true,            // forces 1 bane on all attackers
+             venomOnFirstHit:true,    // first hit each combat applies 3 poison stacks
+             desc:'Trickery: poison stacks on hit. Evasion: 1 bane on all attackers. Venom Touch: 3 poison on first hit.' },
+  // Magician — Bright Wizard: spell power, burn on fire spells, weaker body
+  magician:{ hpGain:2, power:1, weaponTraining:false, catchBreath:false, trickery:false,
+             nimbleRecovery:false, spellRecovery:true, sharedRecovery:false,
+             burningSoul:true,        // +1d6 to fire spells
+             desc:'Power 1: extra rank-0 spells. Burning Soul: fire spells +1d6. Spell Recovery: heal + regain casting (1/combat).' },
+  // Priest — Sigmarite Priest: shared healing, holy fervor vs evil, better HP
+  priest:  { hpGain:4, power:1, weaponTraining:false, catchBreath:false, trickery:false,
+             nimbleRecovery:false, spellRecovery:false, sharedRecovery:true,
+             holyFervor:true,         // 1 boon vs undead/chaos
+             weaponTraining:true,     // priests are battle-hardened, train with weapons
+             desc:'Power 1: divine castings. Shared Recovery: heal allies. Holy Fervor: boon vs undead/chaos. Weapon Training.' },
 };
 
 // Full SotDL Expert Paths (level 3–6). All available to all careers.
 const EXPERT_PATHS = {
-  // Martial
-  berserker:   { label:'Berserker',   hpGain:6, power:0,
-    levelGains:{ 3:['combatProwess'], 4:['+1str'], 5:['rage'], 6:['+1str'] },
-    desc:'Channel battle-rage for +2d6 damage. Cannot be frightened or compelled while berserk.' },
-  fighter:     { label:'Fighter',     hpGain:5, power:0,
-    levelGains:{ 3:['pacedStrikes'], 4:['+1str'], 5:['combatExpertise'], 6:['+1str'] },
-    desc:'Master of arms. Attack with any weapon with 1 boon. Combat Prowess adds damage on every hit.' },
-  scout:       { label:'Scout',       hpGain:3, power:0,
-    levelGains:{ 3:['quickStep'], 4:['+1agi'], 5:['evasion'], 6:['+1agi'] },
-    desc:'Swift skirmisher. Quick Step grants +2 Defense when you miss an attack. Evasion forces 1 bane on all attackers.' },
-  thief:       { label:'Thief',       hpGain:3, power:0,
-    levelGains:{ 3:['trickery'], 4:['+1agi'], 5:['deathblow'], 6:['+1agi'] },
-    desc:'Cunning blade. Trickery adds bonus d6 damage. Deathblow makes crits deal triple weapon dice.' },
-  ranger:      { label:'Ranger',      hpGain:4, power:0,
-    levelGains:{ 3:['quickstrike'], 4:['+1agi'], 5:['evasion'], 6:['+1str'] },
-    desc:'Wilderness hunter. Tracking expertise, extra attack on round 1, and improved evasion.' },
-  // Defensive
+  // ── MARTIAL: TANK ────────────────────────────────────────────────
   defender:    { label:'Defender',    hpGain:5, power:0,
-    levelGains:{ 3:['shieldwall'], 4:['+1agi'], 5:['toughness'], 6:['+1str'] },
-    desc:'Stalwart protector. Shieldwall grants +2 Defense. Toughness reduces all damage taken by 1.' },
+    levelGains:{ 3:['shieldwall','ironResolve'], 4:['+1str'], 5:['toughness','bleedOnCrit','bulwark'], 6:['+1str'] },
+    desc:'Immovable Wall. Shieldwall +2 Defense. Toughness −1 damage. Bleed on slashing crits. Bulwark forces enemies to target you.' },
+
+  // ── MARTIAL: RAW DAMAGE ──────────────────────────────────────────
+  berserker:   { label:'Berserker',   hpGain:6, power:0,
+    levelGains:{ 3:['combatProwess','bleedOnCrit','rageTrigger'], 4:['+1str'], 5:['rage','frenzy'], 6:['+1str'] },
+    desc:'Rage & Fury. Combat Prowess +1d6/hit. Rage Trigger procs on taking 5+ damage. Frenzy extends rage on kills. Bleeds on crits.' },
+  ranger:      { label:'Ranger',      hpGain:4, power:0,
+    levelGains:{ 3:['quickstrike','venomOnFirstHit','huntersMark'], 4:['+1agi'], 5:['evasion','skirmish'], 6:['+1str'] },
+    desc:"Prey Marker. Quick Strike round-1 free attack. Hunter's Mark +1 dmg to all sources. Skirmish: kill mark → re-mark free. Venom on opener." },
+
+  // ── MARTIAL: BLEED / UTILITY ─────────────────────────────────────
+  fighter:     { label:'Fighter',     hpGain:5, power:0,
+    levelGains:{ 3:['pacedStrikes','pressTheAdvantage'], 4:['+1str'], 5:['combatExpertise','bleedDeep','weaponAptitude'], 6:['+1str'] },
+    desc:'Wound Stacker. Paced Strikes +2d6 burst. Bleed Deep doubles bleed stack. Combat Expertise +1d6/hit passive. Press the Advantage: hit after crit = 1 boon.' },
   paladin:     { label:'Paladin',     hpGain:4, power:1,
-    levelGains:{ 3:['holyFervor'], 4:['+1str'], 5:['divineSmite'], 6:['+1wil'] },
-    desc:'Holy warrior. Holy Fervor grants boon vs undead/chaos. Divine Smite deals +3d6 once per combat.' },
-  // Arcane
-  evoker:      { label:'Evoker',      hpGain:2, power:1,
-    levelGains:{ 3:['darkEvoker'], 4:['+1int'], 5:['metamagic'], 6:['+1int'] },
-    desc:'Destructive caster. Dark Evoker boosts dark spells to ×2.5 vs weakness. Metamagic for free casts.' },
-  elementalist:{ label:'Elementalist',hpGain:2, power:1,
-    levelGains:{ 3:['burningSoul'], 4:['+1int'], 5:['firewall'], 6:['+1wil'] },
-    desc:'Fire specialist. Burning Soul adds +1d6 to fire spells. Gains the Firewall area spell.' },
-  sorcerer:    { label:'Sorcerer',    hpGain:2, power:1,
-    levelGains:{ 3:['lightningIngrained'], 4:['+1int'], 5:['spellRecovery'], 6:['+1int'] },
-    desc:'Innate magic. Lightning Ingrained boosts storm spells to ×2.5 vs weakness. Recovers castings on rest.' },
-  wizard:      { label:'Wizard',      hpGain:2, power:1,
-    levelGains:{ 3:['utilityFocus'], 4:['+1int'], 5:['metamagic'], 6:['+1int'] },
-    desc:'Scholarly mage. Utility Focus extends all utility spell durations by 1 round. Metamagic for free casts.' },
-  warlock:     { label:'Warlock',     hpGain:2, power:1,
-    levelGains:{ 3:['bloodOffering'], 4:['+1int'], 5:['metamagic'], 6:['+1wil'] },
-    desc:'Pact-bound caster. Blood Offering sacrifices HP to regain spell castings. Metamagic for free casts.' },
-  spellbinder: { label:'Spellbinder', hpGain:3, power:1,
-    levelGains:{ 3:['burningSoul'], 4:['+1int'], 5:['combatProwess'], 6:['+1wil'] },
-    desc:'Imbues weapons with magic. Burning Soul adds fire damage. Combat Prowess deals +1d6 per hit.' },
-  // Divine
-  cleric:      { label:'Cleric',      hpGain:4, power:1,
-    levelGains:{ 3:['holyFervor'], 4:['+1wil'], 5:['massHeal'], 6:['+1str'] },
-    desc:'Champion of the faith. Holy Fervor vs evil, Mass Heal restores all allies each combat.' },
-  druid:       { label:'Druid',       hpGain:4, power:1,
-    levelGains:{ 3:['sharedRecovery'], 4:['+1wil'], 5:['massHeal'], 6:['+1wil'] },
-    desc:'Ancient nature magic. Shared Recovery heals self. Mass Heal heals the whole warband.' },
-  oracle:      { label:'Oracle',      hpGain:3, power:1,
-    levelGains:{ 3:['holyFervor'], 4:['+1wil'], 5:['divineSmite'], 6:['+1int'] },
-    desc:'Divine seer. Prophetic insight. Holy Fervor and Divine Smite channel divine wrath.' },
-  witch:       { label:'Witch',       hpGain:2, power:1,
-    levelGains:{ 3:['metamagic'], 4:['+1wil'], 5:['massHeal'], 6:['+1int'] },
-    desc:'Folk magic practitioner. Curses and hexes. Metamagic and Mass Heal for flexible support.' },
-  // Specialist
+    levelGains:{ 3:['holyFervor','layOnHands'], 4:['+1str'], 5:['divineSmite','sacredAegis'], 6:['+1wil'] },
+    desc:'Warrior of Faith (Sigmar). Holy Fervor boon vs evil. Lay on Hands heals self after dealing damage. Divine Smite +3d6. Sacred Aegis: undead/chaos attack you with 1 bane.' },
+  scout:       { label:'Scout',       hpGain:3, power:0,
+    levelGains:{ 3:['quickStep','venomOnFirstHit','fadePassive'], 4:['+1agi'], 5:['evasion','smokeScreen'], 6:['+1agi'] },
+    desc:'Ghost in the Ranks. Quick Step +2 Def on miss. Venom Touch opener. Fade: unbothered round = 1 boon. Smoke Screen all-enemy bane (1 use).' },
   assassin:    { label:'Assassin',    hpGain:3, power:0,
-    levelGains:{ 3:['deathblow'], 4:['+1agi'], 5:['assassination'], 6:['+1int'] },
-    desc:'Lethal precision. Deathblow triples crit dice. Assassination deals +1d6+3 when target is below 50% HP.' },
-  zealot:      { label:'Zealot',      hpGain:4, power:1,
-    levelGains:{ 3:['holyFervor'], 4:['+1wil'], 5:['divineSmite'], 6:['+1str'] },
-    desc:'Righteous fury. Holy Fervor grants boon vs undead/chaos. Divine Smite: +3d6 once per combat.' },
+    levelGains:{ 3:['deathblow','venomOnFirstHit','shadowOpening'], 4:['+1agi'], 5:['assassination','deadMansHand'], 6:['+1int'] },
+    desc:"Last Thing You See. Deathblow ×3 crits. Shadow Opening: first attack always has extra boon. Dead Man's Hand: Assassination kill poisons adjacent enemy." },
+  thief:       { label:'Thief',       hpGain:3, power:0,
+    levelGains:{ 3:['trickery','poisonBlade','quickHands'], 4:['+1agi'], 5:['deathblow','exploitWeakness'], 6:['+1agi'] },
+    desc:'Walking Toxin. Trickery 5-then-2 poison per hit. Poison Blade +1 stack every hit. Exploit Weakness: boon vs 5+ stacks. Quick Hands free inventory use.' },
+
+  // ── ARCANE: FIRE ─────────────────────────────────────────────────
+  elementalist:{ label:'Elementalist',hpGain:2, power:1,
+    levelGains:{ 3:['burningSoul','ignite'], 4:['+1int'], 5:['firewall','burnOnSpell','conflagration'], 6:['+1wil'] },
+    desc:'Bright Wizard — Fire. Burning Soul +1d6 fire. Ignite: fire crits upgrade Burn die. Conflagration: re-burning resets to max. Firewall zone.' },
+
+  // ── ARCANE: STORM ────────────────────────────────────────────────
+  sorcerer:    { label:'Sorcerer',    hpGain:2, power:1,
+    levelGains:{ 3:['lightningIngrained','surge'], 4:['+1int'], 5:['spellRecovery','chainReaction'], 6:['+1int'] },
+    desc:'Grey Wizard — Storm. Lightning Ingrained ×2.5 vs weakness. Surge: spell kill → free rank-0 regain. Chain Reaction: lightning kill arcs 1d6.' },
+
+  // ── ARCANE: DARK / CHAOS ─────────────────────────────────────────
+  evoker:      { label:'Evoker',      hpGain:2, power:1,
+    levelGains:{ 3:['darkEvoker','burnOnSpell','overload'], 4:['+1int'], 5:['metamagic','resonance'], 6:['+1int'] },
+    desc:'Amethyst Wizard — Death. Dark Evoker ×2.5 dark. Burn on Spell. Overload: rank-0 rolls twice (once/combat). Resonance: +1d6 on already-burning/bleeding target.' },
+  warlock:     { label:'Warlock',     hpGain:2, power:1,
+    levelGains:{ 3:['bloodOffering','burnOnSpell','darkPact'], 4:['+1int'], 5:['metamagic','hungeringFlame'], 6:['+1wil'] },
+    desc:'Chaos Pact. Blood Offering: HP → casting. Burn on Spell (3d6 start). Dark Pact: free rank-1 but 1d6 backlash. Hungering Flame: Burn ticks heal you.' },
+
+  // ── ARCANE: CONTROL ──────────────────────────────────────────────
+  wizard:      { label:'Wizard',      hpGain:2, power:1,
+    levelGains:{ 3:['utilityFocus','preparedSpell'], 4:['+1int'], 5:['metamagic','lingeringMagic'], 6:['+1int'] },
+    desc:'Jade Wizard — Illusion. Utility Focus +1 round duration. Prepared Spell: one rank-1 free on combat start. Lingering Magic: expiring buffs grant 1 boon.' },
+
+  // ── ARCANE: HYBRID ───────────────────────────────────────────────
+  spellbinder: { label:'Spellbinder', hpGain:3, power:1,
+    levelGains:{ 3:['burningSoul','arcaneStrike'], 4:['+1int'], 5:['combatProwess','flameEdge'], 6:['+1wil'] },
+    desc:'Battle Mage — Blade & Fire. Burning Soul +1d6 fire. Arcane Strike: weapon hits +INT mod bonus. Flame Edge: weapon crits apply Burn. Combat Prowess +1d6/hit.' },
+
+  // ── DIVINE: HEALERS ──────────────────────────────────────────────
   healer:      { label:'Healer',      hpGain:4, power:1,
-    levelGains:{ 3:['massHeal'], 4:['+1wil'], 5:['resurrection'], 6:['+1wil'] },
-    desc:'Devoted medic. Mass Heal restores all allies 1d6. Resurrection fully revives a fallen ally.' },
+    levelGains:{ 3:['massHeal','triage'], 4:['+1wil'], 5:['resurrection','battleMedic'], 6:['+1wil'] },
+    desc:'Shallya — Goddess of Mercy. Mass Heal 2d6 (enhanced). Triage: instantly set dying ally to 1 HP. Resurrection full revive. Battle Medic: healing allies heals you 1d4.' },
+  druid:       { label:'Druid',       hpGain:4, power:1,
+    levelGains:{ 3:['sharedRecovery','natureBond'], 4:['+1wil'], 5:['massHeal','entangle'], 6:['+1wil'] },
+    desc:'Taal & Rhya — Wild Faith. Shared Recovery heals self. Nature Bond: immune to poison; hitters get 1 poison stack. Mass Heal. Entangle: root enemy once/combat.' },
+  witch:       { label:'Witch',       hpGain:2, power:1,
+    levelGains:{ 3:['metamagic','evilEye'], 4:['+1wil'], 5:['massHeal','hex'], 6:['+1int'] },
+    desc:"Morr — God of Death & Dreams. Metamagic free cast. Evil Eye: 2 banes on one enemy 3 rounds. Hex: cursed targets take +1 dmg. Mass Heal backup support." },
+
+  // ── DIVINE: BUFFERS ──────────────────────────────────────────────
+  cleric:      { label:'Cleric',      hpGain:4, power:1,
+    levelGains:{ 3:['holyFervor','divineFavour'], 4:['+1wil'], 5:['massHeal','sacredGround'], 6:['+1str'] },
+    desc:'Sigmar — The Twin-Tailed Comet. Holy Fervor boon vs evil. Divine Favour: start combat with bonus rank-0. Mass Heal. Sacred Ground: ally regen zone.' },
+  oracle:      { label:'Oracle',      hpGain:3, power:1,
+    levelGains:{ 3:['holyFervor','foresight'], 4:['+1wil'], 5:['divineSmite','revelation'], 6:['+1int'] },
+    desc:'Verena — Lady of Justice. Holy Fervor. Foresight: force one enemy reroll (take worse). Divine Smite. Revelation: expose enemy stats to all.' },
+
+  // ── DIVINE: SMITE ────────────────────────────────────────────────
+  zealot:      { label:'Zealot',      hpGain:4, power:1,
+    levelGains:{ 3:['holyFervor','righteousFury'], 4:['+1wil'], 5:['divineSmite','wrathOfSigmar'], 6:['+1str'] },
+    desc:'Sigmar — Wrath & Purging. Holy Fervor. Righteous Fury: killing undead/chaos heals all 1 HP. Wrath of Sigmar: Divine Smite vs evil deals 6d6.' },
 };
 
 // Full SotDL Master Paths (level 7–10). All available to all.
 const MASTER_PATHS = {
-  // Martial masters
-  champion:    { label:'Champion',    hpGain:5, power:0,
-    levelGains:{ 7:['warlordAura'], 8:['+1str'], 9:['unstoppable'], 10:['+1str'] },
-    desc:'A living legend. Your presence grants allies 1 boon. Survive one killing blow per combat at 1 HP.' },
-  warlord:     { label:'Warlord',     hpGain:6, power:0,
-    levelGains:{ 7:['rallyingCry'], 8:['+1str'], 9:['sweepingBlow'], 10:['+1agi'] },
-    desc:'Battlefield commander. Rallying Cry heals all allies. Sweeping Blow strikes every enemy at once.' },
-  avenger:     { label:'Avenger',     hpGain:5, power:0,
-    levelGains:{ 7:['combatProwess'], 8:['+1str'], 9:['combatExpertise'], 10:['+1str'] },
-    desc:'Vengeance incarnate. Both Combat Prowess and Combat Expertise stack for massive damage per hit.' },
-  brute:       { label:'Brute',       hpGain:8, power:0,
-    levelGains:{ 7:['unstoppable'], 8:['+1str'], 9:['rallyingCry'], 10:['+1str'] },
-    desc:'Unstoppable force. Maximum health and cannot be killed easily. Rallying Cry heals the group.' },
-  cavalier:    { label:'Cavalier',    hpGain:5, power:0,
-    levelGains:{ 7:['quickstrike'], 8:['+1str'], 9:['sweepingBlow'], 10:['+1agi'] },
-    desc:'Mounted warrior. Quick Strike and Sweeping Blow for devastating charges into enemy formations.' },
+  // ── MARTIAL: TANKS ───────────────────────────────────────────────
   myrmidon:    { label:'Myrmidon',    hpGain:5, power:0,
-    levelGains:{ 7:['shieldwall'], 8:['+1str'], 9:['toughness'], 10:['+1agi'] },
-    desc:'Shield master. Shieldwall and Toughness combine for exceptional resilience in melee.' },
+    levelGains:{ 7:['shieldwall','shieldBash'], 8:['+1str'], 9:['toughness','fortressStance'], 10:['+1agi'] },
+    desc:'Fortress Fighter. Shieldwall +2 Def. Shield Bash: counter on enemy crit. Toughness −1 dmg. Fortress Stance: below 50% HP = extra −1 dmg.' },
+  brute:       { label:'Brute',       hpGain:8, power:0,
+    levelGains:{ 7:['unstoppable','fortitude'], 8:['+1str'], 9:['rallyingCry','endure'], 10:['+1str'] },
+    desc:'Unkillable Force. Unstoppable survives death. Fortitude: immune to Bleed/Poison. Endure: extra −1 dmg. Rallying Cry heals group.' },
   sentinel:    { label:'Sentinel',    hpGain:5, power:0,
-    levelGains:{ 7:['evasion'], 8:['+1agi'], 9:['toughness'], 10:['+1str'] },
-    desc:'Guardian of the warband. Evasion and Toughness make you the hardest member to cut down.' },
-  // Stealth/ranged masters
-  shadowblade: { label:'Shadowblade', hpGain:4, power:0,
-    levelGains:{ 7:['phantomStrike'], 8:['+1agi'], 9:['bladestorm'], 10:['+1agi'] },
-    desc:'Ghost with a blade. Phantom Strike bypasses armor. Bladestorm makes three attacks per action.' },
-  acrobat:     { label:'Acrobat',     hpGain:3, power:0,
-    levelGains:{ 7:['evasion'], 8:['+1agi'], 9:['swiftFeet'], 10:['+1agi'] },
-    desc:'Nimble and untouchable. Evasion forces 1 bane on attackers. Swift Feet grants 2 boons on all attacks.' },
-  executioner: { label:'Executioner', hpGain:3, power:0,
-    levelGains:{ 7:['deathblow'], 8:['+1agi'], 9:['phantomStrike'], 10:['+1int'] },
-    desc:'Lethal killer. Deathblow (triple crit dice) and Phantom Strike (ignore armor) for maximum lethality.' },
+    levelGains:{ 7:['evasion','bodyguard'], 8:['+1agi'], 9:['toughness','perfectDefence'], 10:['+1str'] },
+    desc:'Warband Guardian. Evasion 1 bane on attackers. Bodyguard: redirect one hit/round to yourself. Toughness. Perfect Defence: negate one hit/combat.' },
+
+  // ── MARTIAL: RAW DAMAGE ──────────────────────────────────────────
+  avenger:     { label:'Avenger',     hpGain:5, power:0,
+    levelGains:{ 7:['combatProwess','vengeancePassive'], 8:['+1str'], 9:['combatExpertise','relentless'], 10:['+1str'] },
+    desc:'Vengeance Engine. Prowess+Expertise both +1d6/hit. Vengeance: ally falls = free attack. Relentless: consecutive hits on same target +1 dmg stacking to +5.' },
+  warlord:     { label:'Warlord',     hpGain:6, power:0,
+    levelGains:{ 7:['rallyingCry','battleOrders'], 8:['+1str'], 9:['sweepingBlow','intercept'], 10:['+1agi'] },
+    desc:'Battlefield Commander. Rallying Cry heals all. Battle Orders: give ally free action. Sweeping Blow hits all enemies. Intercept: redirect attack to yourself.' },
+  cavalier:    { label:'Cavalier',    hpGain:5, power:0,
+    levelGains:{ 7:['quickstrike','devastatingCharge'], 8:['+1str'], 9:['sweepingBlow','killingMomentum'], 10:['+1agi'] },
+    desc:'Momentum Killer. Quick Strike free round-1 attack. Devastating Charge: +1d6 + Prone. Sweeping Blow. Killing Momentum: kill = free attack.' },
+  champion:    { label:'Champion',    hpGain:5, power:0,
+    levelGains:{ 7:['warlordAura','inspire'], 8:['+1str'], 9:['unstoppable','warCry'], 10:['+1str'] },
+    desc:'Living Legend. Warlord Aura all allies 1 boon. Inspire: kills heal allies 1 HP. Unstoppable. War Cry: all allies +2 ATK 1 round.' },
+
+  // ── MARTIAL: BLEED / ROGUE ───────────────────────────────────────
   inquisitor:  { label:'Inquisitor',  hpGain:3, power:0,
-    levelGains:{ 7:['holyFervor'], 8:['+1wil'], 9:['deathblow'], 10:['+1str'] },
-    desc:'Hunter of heretics. Holy Fervor vs evil, Deathblow for devastating crits against the wicked.' },
+    levelGains:{ 7:['holyFervor','markHeretic'], 8:['+1wil'], 9:['deathblow','purgeTheWicked'], 10:['+1str'] },
+    desc:'Righteous Killer (Sigmar). Holy Fervor boon vs evil. Mark Heretic: crits auto-bleed, cannot flee. Deathblow ×3 crit. Purge: marked kill heals allies 1d6.' },
+  shadowblade: { label:'Shadowblade', hpGain:4, power:0,
+    levelGains:{ 7:['phantomStrike','shadowStep'], 8:['+1agi'], 9:['bladestorm','vanish'], 10:['+1agi'] },
+    desc:'Unseen Blade. Phantom Strike ignores armour. Shadow Step: stealth first attack +1 boon. Bladestorm 3 attacks. Vanish: kill = enemies bane vs you.' },
+  acrobat:     { label:'Acrobat',     hpGain:3, power:0,
+    levelGains:{ 7:['evasion','acrobaticRiposte'], 8:['+1agi'], 9:['swiftFeet','flicker'], 10:['+1agi'] },
+    desc:'Impossible to Pin. Evasion 1 bane vs you. Acrobatic Riposte: miss triggers free counter (1/round). Swift Feet +2 boons. Flicker: negate one hit/combat.' },
+  executioner: { label:'Executioner', hpGain:3, power:0,
+    levelGains:{ 7:['deathblow','cleanup'], 8:['+1agi'], 9:['phantomStrike','deadAim'], 10:['+1int'] },
+    desc:'No Survivors. Deathblow ×3 crit + 6 poison. Cleanup: any kill = free attack vs another. Phantom Strike ignores armour. Dead Aim: once/combat declare → hit = crit.' },
   blade:       { label:'Blade',       hpGain:4, power:0,
-    levelGains:{ 7:['deathblow'], 8:['+1agi'], 9:['bladestorm'], 10:['+1agi'] },
-    desc:'Knife-fighter elite. Precision crits and Bladestorm for multiple devastating rapid strikes.' },
-  // Arcane masters
-  archmage:    { label:'Archmage',    hpGain:3, power:2,
-    levelGains:{ 7:['spellsurge'], 8:['+1int'], 9:['catastrophe'], 10:['+1int'] },
-    desc:'Pinnacle of arcane power. Spell Surge for free casting. Catastrophe deals 10d6 to all enemies.' },
-  arcanist:    { label:'Arcanist',    hpGain:2, power:1,
-    levelGains:{ 7:['utilityFocus'], 8:['+1int'], 9:['metamagic'], 10:['+1int'] },
-    desc:'Scholar of the arcane arts. Utility Focus extends all utility spells by 1 round. Metamagic for free casts.' },
-  abjurer:     { label:'Abjurer',     hpGain:2, power:1,
-    levelGains:{ 7:['shieldwall'], 8:['+1int'], 9:['toughness'], 10:['+1wil'] },
-    desc:'Master of Protection magic. Magical shields grant Shieldwall and Toughness defensively.' },
-  conjurer:    { label:'Conjurer',    hpGain:2, power:1,
-    levelGains:{ 7:['overcast'], 8:['+1int'], 9:['spellsurge'], 10:['+1int'] },
-    desc:'Summoner of forces. Overcast for power, Spell Surge to cast without spending a casting.' },
+    levelGains:{ 7:['deathblow','poisonBlade','unrelenting'], 8:['+1agi'], 9:['bladestorm','flurryBleed'], 10:['+1agi'] },
+    desc:'Flurry of Death. Deathblow ×3. Poison Blade every hit +1 stack. Unrelenting: Bladestorm hits gain +1 boon each. Flurry Bleed: Bladestorm crits apply Bleed.' },
+
+  // ── ARCANE: FIRE ─────────────────────────────────────────────────
   transmuter:  { label:'Transmuter',  hpGain:2, power:1,
-    levelGains:{ 7:['burningSoul'], 8:['+1int'], 9:['overcast'], 10:['+1wil'] },
-    desc:'Alters the fabric of reality. Burning Soul and Overcast for amplified arcane destruction.' },
+    levelGains:{ 7:['burningSoul','transmutedElement'], 8:['+1int'], 9:['overcast','volatileForm'], 10:['+1wil'] },
+    desc:'Gold Wizard — Alchemy. Burning Soul +1d6 fire. Transmute Element: change spell damage type. Overcast +2d6 bomb. Volatile Form: transmuted spells may apply DoT.' },
+
+  // ── ARCANE: STORM ────────────────────────────────────────────────
   stormbringer:{ label:'Stormbringer',hpGain:2, power:1,
-    levelGains:{ 7:['lightningIngrained'], 8:['+1int'], 9:['catastrophe'], 10:['+1int'] },
-    desc:'Commands the Storm tradition. Lightning Ingrained boosts storm spells to ×2.5 vs weakness. Catastrophe for 10d6 to all.' },
-  thaumaturge: { label:'Thaumaturge', hpGain:2, power:1,
-    levelGains:{ 7:['metamagic'], 8:['+1wil'], 9:['spellsurge'], 10:['+1int'] },
-    desc:'Master of Chaos magic. Metamagic and Spell Surge for unpredictable but powerful spellcasting.' },
-  // Divine masters
-  highpriest:  { label:'High Priest', hpGain:5, power:2,
-    levelGains:{ 7:['holyAura'], 8:['+1wil'], 9:['miracleHeal'], 10:['+1wil'] },
-    desc:'Bearer of Sigmar\'s grace. Holy Aura grants all allies +2 Defense. Miracle Heal restores full HP.' },
-  chaplain:    { label:'Chaplain',    hpGain:4, power:1,
-    levelGains:{ 7:['rallyingCry'], 8:['+1wil'], 9:['massHeal'], 10:['+1wil'] },
-    desc:'Battlefield spiritual guide. Rallying Cry and Mass Heal keep the warband fighting.' },
-  templar:     { label:'Templar',     hpGain:4, power:1,
-    levelGains:{ 7:['holyFervor'], 8:['+1str'], 9:['divineSmite'], 10:['+1wil'] },
-    desc:'Holy warrior-priest. Holy Fervor vs evil and Divine Smite for righteous melee combat.' },
-  exorcist:    { label:'Exorcist',    hpGain:4, power:1,
-    levelGains:{ 7:['holyFervor'], 8:['+1wil'], 9:['resurrection'], 10:['+1wil'] },
-    desc:'Banisher of daemons. Holy Fervor vs chaos, Resurrection to revive fallen allies.' },
-  healer_m:    { label:'Healer (Master)', hpGain:4, power:1,
-    levelGains:{ 7:['massHeal'], 8:['+1wil'], 9:['miracleHeal'], 10:['+1wil'] },
-    desc:'Supreme healer. Mass Heal for the whole group and Miracle Heal to restore anyone to full HP.' },
+    levelGains:{ 7:['lightningIngrained','ballLightning'], 8:['+1int'], 9:['catastrophe','overcharge'], 10:['+1int'] },
+    desc:'Storm Lord (Grey College). Lightning Ingrained ×2.5. Ball Lightning: kills arc 1d6. Catastrophe 10d6 all. Overcharge: once/combat free cast no decrement.' },
+
+  // ── ARCANE: DARK / CHAOS ─────────────────────────────────────────
   necromancer: { label:'Necromancer', hpGain:2, power:1,
-    levelGains:{ 7:['darkEvoker'], 8:['+1int'], 9:['spellsurge'], 10:['+1wil'] },
-    desc:'Master of death magic. Dark Evoker boosts dark spells to ×2.5 vs weakness. Spell Surge for free casts.' },
+    levelGains:{ 7:['darkEvoker','lifeDrain'], 8:['+1int'], 9:['spellsurge','undyingHunger'], 10:['+1wil'] },
+    desc:'Amethyst Master — Lord of Death. Dark Evoker ×2.5 death. Life Drain: spell kill heals you 1d4. Spell Surge free cast. Undying Hunger: DoT kill = free casting.' },
+  thaumaturge: { label:'Thaumaturge', hpGain:2, power:1,
+    levelGains:{ 7:['metamagic','chaosTouch'], 8:['+1wil'], 9:['spellsurge','uncontrolledPower'], 10:['+1int'] },
+    desc:'Chaos Sorcerer. Metamagic free cast. Chaos Touch: Metamagic casts trigger random bonus. Spell Surge. Uncontrolled Power: double spell dice, take 1d6 backlash.' },
+
+  // ── ARCANE: CONTROL ──────────────────────────────────────────────
+  abjurer:     { label:'Abjurer',     hpGain:2, power:1,
+    levelGains:{ 7:['shieldwall','counterspell'], 8:['+1int'], 9:['toughness','ward'], 10:['+1wil'] },
+    desc:'Protection Master. Shieldwall +2 Def. Counterspell: negate one on-hit ability targeting ally. Toughness −1 dmg. Ward: all allies +1 Defense while alive.' },
+  conjurer:    { label:'Conjurer',    hpGain:2, power:1,
+    levelGains:{ 7:['overcast','doubleCharge'], 8:['+1int'], 9:['spellsurge','forceOfWill'], 10:['+1int'] },
+    desc:'Battle Caster. Overcast +2d6. Double Charge: Overcast 2×/combat. Spell Surge free cast. Force of Will: Overcasted spells deal stun check.' },
+  arcanist:    { label:'Arcanist',    hpGain:2, power:1,
+    levelGains:{ 7:['utilityFocus','esotericKnowledge'], 8:['+1int'], 9:['metamagic','lingeringMagic'], 10:['+1int'] },
+    desc:'Scholar of All. Utility Focus +1 round. Esoteric Knowledge: use scroll without consuming once/combat. Metamagic free cast. Lingering Magic: expiring buffs grant 1 boon.' },
+  archmage:    { label:'Archmage',    hpGain:3, power:2,
+    levelGains:{ 7:['spellsurge','arcaneMastery'], 8:['+1int'], 9:['catastrophe','spellEcho'], 10:['+1int'] },
+    desc:'Arcane Pinnacle. +2 Power. Spell Surge free cast. Arcane Mastery: +1 Power + know all tradition rank-0. Catastrophe 10d6. Spell Echo: half-damage copy once/combat.' },
+
+  // ── DIVINE: HEALERS ──────────────────────────────────────────────
+  healer_m:    { label:'Healer (Master)', hpGain:4, power:1,
+    levelGains:{ 7:['massHeal','overflowingGrace'], 8:['+1wil'], 9:['miracleHeal','protectiveBlessing'], 10:['+1wil'] },
+    desc:'High Priestess of Shallya. Mass Heal 2d6 enhanced. Overflowing Grace: Mass Heal removes one debuff each. Miracle Heal full HP. Protective Blessing: +2 Def after heal.' },
+
+  // ── DIVINE: BUFFERS ──────────────────────────────────────────────
+  chaplain:    { label:'Chaplain',    hpGain:4, power:1,
+    levelGains:{ 7:['rallyingCry','lastRites'], 8:['+1wil'], 9:['massHeal','vigil'], 10:['+1wil'] },
+    desc:'Myrmidia — War Priest. Rallying Cry heals all. Last Rites: ally falls = 1 HP heal to rest. Mass Heal. Vigil: full-HP allies have 1 boon next attack.' },
+  highpriest:  { label:'High Priest', hpGain:5, power:2,
+    levelGains:{ 7:['holyAura','divineVessel'], 8:['+1wil'], 9:['miracleHeal','grace'], 10:['+1wil'] },
+    desc:'Sigmar — High Priest. +2 Power. Holy Aura all allies +2 Def. Divine Vessel: healing spells +1d6. Miracle Heal. Grace: once/combat killing blow leaves ally at 1 HP.' },
+
+  // ── DIVINE: SMITE ────────────────────────────────────────────────
+  templar:     { label:'Templar',     hpGain:4, power:1,
+    levelGains:{ 7:['holyFervor','blessedBlade'], 8:['+1str'], 9:['divineSmite','holyFire'], 10:['+1wil'] },
+    desc:'Myrmidia — Warrior Goddess. Holy Fervor boon vs evil. Blessed Blade: weapon attacks vs undead/chaos ignore DR. Divine Smite +3d6. Holy Fire: Smite vs Chaos applies Burn.' },
+  exorcist:    { label:'Exorcist',    hpGain:4, power:1,
+    levelGains:{ 7:['holyFervor','banish'], 8:['+1wil'], 9:['resurrection','sanctify'], 10:['+1wil'] },
+    desc:'Sigmar — Chaos Bane. Holy Fervor. Banish: Chaos/undead loses next action (once/combat). Resurrection. Sanctify: killed Chaos/undead cannot trigger death abilities.' },
 };
 
 
@@ -677,7 +727,7 @@ function buildChar(career) {
     holyAura:false, miracleHeal:false, miracleUsed:false,
     // Equipment
     equippedWeapon:startWpn, equippedArmor:startArmor,
-    weaponDmgBonus:0, weaponAtkBonus:0, pendingStatBoost:false, _armorLastTarget:false, _armorFireImmune:false, _armorFlatDR:false, _armorChaosWard:false, _armorPackScorn:false, _armorSpellbound:false, _armorBloodscent:false, _armorRighteous:false, _dwarfForgedStunUsed:false, _spellboundR0Used:false, _wpnBladeguard:false, _wpnBladeguardDef:false, _wpnChannelFaith:false, _wpnHolySmoke:false, _wpnHolySmokeProc:false, _wpnBlessedStrike:false, _wpnArcaneFocus:false, _wpnArcaneFocusMissed:false, _wpnSpellblade:false, _wpnSpellbladeUsed:false, _wpnSmite:false, _wpnSmiteUsed:false, _wpnSunder:false, _wpnOpeningShot:false, _wpnOpeningShotFired:false, _wpnReloading:false, _wpnMarksmanship:false, _wpnCleave:false, _wpnCleaveReady:false, _wpnCleaveBonus:false, _wpnReach:false, _wpnRiposte:false, _wpnRiposteUsedThisRound:false, _wpnSilverEdge:false, _wpnUnstable:false, _wpnRuneStrike:false, _wpnRuneStrikeUsed:false, _wpnRuneStrikeActive:false, _legVenomFang:false, _legVenomFangProc:false, _legBeastlordMaul:false, _legBeastlordMaulUsed:false, _legVarghulfTalon:false, _legVarghulfLeech:0, _legChainbreaker:false, _legSunstoneBlade:false, _legPrimordialStaff:false, _legExtinctionAegis:false, _legAncientScale:false, _legAncientScaleUsed:false, _legShroud:false, _legShroudUsed:false, _legShroudActive:false, _legBloodDrinker:false, _legRatking:false, _legBerserk:false, _legBerserkUsed:false, _legBerserkBonusActive:false,
+    weaponDmgBonus:0, weaponAtkBonus:0, pendingStatBoost:false, bleedOnCrit:false, bleedDeep:false, venomOnFirstHit:false, poisonBlade:false, burnOnSpell:false, _venomHitUsed:false, ironResolve:false, bulwark:false, rageTrigger:false, frenzy:false, huntersMark:false, _huntersMarkTarget:null, skirmish:false, pressTheAdvantage:false, weaponAptitude:false, layOnHands:false, _layOnHandsUsed:false, sacredAegis:false, fadePassive:false, _fadedLastRound:false, smokeScreen:false, _smokeScreenUsed:false, shadowOpening:false, _shadowOpeningUsed:false, deadMansHand:false, quickHands:false, exploitWeakness:false, arcaneStrike:false, flameEdge:false, ignite:false, conflagration:false, overload:false, _overloadUsed:false, resonance:false, surge:false, chainReaction:false, darkPact:false, _darkPactUsed:false, hungeringFlame:false, preparedSpell:false, _preparedSpellUsed:false, lingeringMagic:false, triage:false, _triageUsed:false, natureBond:false, evilEye:false, _evilEyeUsed:false, hex:false, divineFavour:false, foresight:false, _foresightUsed:false, revelation:false, _revelationUsed:false, righteousFury:false, wrathOfSigmar:false, shieldBash:false, _shieldBashUsed:false, fortressStance:false, bodyguard:false, _bodyguardUsed:false, perfectDefence:false, _perfectDefenceUsed:false, vengeancePassive:false, relentless:false, _relentlessCount:0, battleOrders:false, _battleOrdersUsed:false, intercept:false, _interceptUsed:false, devastatingCharge:false, _devastatingChargeUsed:false, killingMomentum:false, _killingMomentumUsed:false, inspire:false, warCry:false, _warCryUsed:false, markHeretic:false, _markHereticTarget:null, purgeTheWicked:false, shadowStep:false, _shadowStepUsed:false, vanish:false, acrobaticRiposte:false, _acrobaticRiposteUsed:false, flicker:false, _flickerUsed:false, cleanup:false, _cleanupUsed:false, deadAim:false, _deadAimUsed:false, unrelenting:false, flurryBleed:false, transmutedElement:false, ballLightning:false, overcharge:false, _overchargeUsed:false, lifeDrain:false, undyingHunger:false, chaosTouch:false, uncontrolledPower:false, _uncontrolledPowerUsed:false, counterspell:false, _counterspellUsed:false, ward:false, doubleCharge:false, _doubleChargeCount:0, forceOfWill:false, esotericKnowledge:false, _esotericKnowledgeUsed:false, arcaneMastery:false, _arcaneMasteryApplied:false, spellEcho:false, _spellEchoUsed:false, overflowingGrace:false, protectiveBlessing:false, lastRites:false, vigil:false, divineVessel:false, _divineVesselApplied:false, grace:false, _graceUsed:false, blessedBlade:false, holyFire:false, banish:false, _banishUsed:false, sanctify:false, fortitude:false, endure:false, rageTriggerActive:false, _armorLastTarget:false, _armorFireImmune:false, _armorFlatDR:false, _armorChaosWard:false, _armorPackScorn:false, _armorSpellbound:false, _armorBloodscent:false, _armorRighteous:false, _dwarfForgedStunUsed:false, _spellboundR0Used:false, _wpnBladeguard:false, _wpnBladeguardDef:false, _wpnChannelFaith:false, _wpnHolySmoke:false, _wpnHolySmokeProc:false, _wpnBlessedStrike:false, _wpnArcaneFocus:false, _wpnArcaneFocusMissed:false, _wpnSpellblade:false, _wpnSpellbladeUsed:false, _wpnSmite:false, _wpnSmiteUsed:false, _wpnSunder:false, _wpnOpeningShot:false, _wpnOpeningShotFired:false, _wpnReloading:false, _wpnMarksmanship:false, _wpnCleave:false, _wpnCleaveReady:false, _wpnCleaveBonus:false, _wpnReach:false, _wpnRiposte:false, _wpnRiposteUsedThisRound:false, _wpnSilverEdge:false, _wpnUnstable:false, _wpnRuneStrike:false, _wpnRuneStrikeUsed:false, _wpnRuneStrikeActive:false, _legVenomFang:false, _legVenomFangProc:false, _legBeastlordMaul:false, _legBeastlordMaulUsed:false, _legVarghulfTalon:false, _legVarghulfLeech:0, _legChainbreaker:false, _legSunstoneBlade:false, _legPrimordialStaff:false, _legExtinctionAegis:false, _legAncientScale:false, _legAncientScaleUsed:false, _legShroud:false, _legShroudUsed:false, _legShroudActive:false, _legBloodDrinker:false, _legRatking:false, _legBerserk:false, _legBerserkUsed:false, _legBerserkBonusActive:false,
     traditions:[], scrollSpells:{}, stimulantBoon:0, sharpeningStone:false, luckyPendant:false,
     alive:true,
     spellcaster:c.spellcaster, tradition:c.tradition||null,
@@ -712,15 +762,28 @@ function rollAttack(char, enemy, extraBoons=0) {
   const wpnDice=(wpn&&wpn.dice)?wpn.dice:'1d6';
   const wpnDmgBonus=((wpn&&wpn.bonus)?wpn.bonus:0)+char.weaponDmgBonus;
   const [num,sides]=wpnDice.split('d').map(Number);
-  const atkMod=modVal(char.attrs[wpnStat])+char.weaponAtkBonus;
+  const warCryBonus=(char.activeBuffs||[]).reduce((a,b)=>a+(b.atkBonus||0),0);
+  const atkMod=modVal(char.attrs[wpnStat])+char.weaponAtkBonus+warCryBonus;
   let boons=0, banes=0;
   if (char.weaponTraining) boons++;
   if (char.swiftFeet) boons+=2;
+  if (char.vigil && char.health===char.maxHealth) boons++;
+  if (char._vengeanceReady){ char._vengeanceReady=false; boons+=2; addLog_noop('Vengeance boon'); } // Vigil: boon when at full HP
   if (char.rage&&char.rageBoon) { boons++; } // rage boon — dmg applied on hit, flag cleared there
   if (char.stimulantBoon>0) { boons++; char.stimulantBoon--; }
   if (extraBoons) boons+=extraBoons;
-  if (char.holyFervor && enemy && ((enemy.undead||enemy.chaos)||(enemy.tags&&(enemy.tags.includes('undead')||enemy.tags.includes('chaos'))))) boons++; // boon vs undead/chaos
-  if (char._legRatking && enemy && enemy.tags && enemy.tags.includes('skaven')) boons++; // Ratking Crown boon vs Skaven
+  if (char.holyFervor && enemy && ((enemy.undead||enemy.chaos)||(enemy.tags&&(enemy.tags.includes('undead')||enemy.tags.includes('chaos'))))) boons++;
+  if (char._legRatking && enemy && enemy.tags && enemy.tags.includes('skaven')) boons++;
+  // arcaneStrike: weapon hits deal +INT mod bonus damage
+  if(char.arcaneStrike && enemy){ const am=Math.max(0,modVal(char.attrs.int)); if(am>0){dmg+=am; dmgParts.push(`+${am} arcane`);} }
+  // exploitWeakness: 1 boon vs poisoned target with 5+ stacks
+  if(char.exploitWeakness && enemy && (enemy._poisonStacks||0)>=5) boons++;
+  // shadowOpening: first attack each combat has 1 extra boon
+  if(char.shadowOpening && !char._shadowOpeningUsed){ char._shadowOpeningUsed=true; boons++; }
+  // deadAim: if armed, this attack is a guaranteed crit (handled in rollAttack hit check)
+  if(char._deadAimArmed){ char._deadAimArmed=false; /* force crit via luckyPendant mechanism */ char.luckyPendant=true; }
+  // presTheAdvantage: last attack was a crit, this one gets 1 boon
+  if(char._pressAdvantageReady){ char._pressAdvantageReady=false; boons++; } // boon vs undead/chaos
   if (char.warlordAura) boons++; // aura from warlord
   if (char.conditions.includes('Frightened')) banes++;
   if (char.conditions.includes('Stunned'))    banes++;
@@ -805,17 +868,21 @@ function rollEnemyAttack(enemy, char, hasBoon=false) {
   if(skipDebuff){ enemy.activeDebuffs=enemy.activeDebuffs.filter(d=>!d.skipTurn); return {hit:false,crit:false,dmg:0,dmgRoll:0,critRoll:0,total:0,base:0,skipped:true}; }
   // Boon: roll 2d20 take higher. Bane from debuffs reduces roll.
   const evasionBane=char.evasion?1:0;
+  const poisonBane=(enemy&&enemy._poisonStacks&&enemy._poisonStacks>=5)?1:0; // Poison threshold: 5+ stacks
   const packScornBane=char._armorPackScorn&&enemy&&enemy.tags&&enemy.tags.includes('skaven')?1:0;
   const shroudBane=char._legShroudActive?1:0; // Shroud of Undeath: below 25% HP enemies have 1 bane
   const ratkingBane=char._legRatking&&enemy&&enemy.tags&&enemy.tags.includes('skaven')?2:0; // Ratking Crown: 2 banes vs skaven
-  const totalBanes=baneDebuff+evasionBane+packScornBane+shroudBane+ratkingBane;
+  const totalBanes=baneDebuff+evasionBane+packScornBane+shroudBane+ratkingBane+poisonBane+sacredAegisBane+vanishBane;
   const roll1=d(20);
   const rawBase=hasBoon?Math.max(roll1,d(20)):roll1;
   const boonInfo=hasBoon?' (boon)':baneDebuff>0?` (${baneDebuff} bane)`:totalBanes>0?' (evasion bane)':'';
   const baneRoll=totalBanes>0?Math.max(...Array.from({length:Math.min(totalBanes,4)},()=>d(6))):0; // SotDL: subtract HIGHEST bane die, not sum
   const adjBase=totalBanes>0?Math.max(1,rawBase-baneRoll):rawBase;
-  const total2=adjBase+enemy.atk, crit2=adjBase===20;
-  const hit=adjBase!==1&&(crit2||total2>=char.defense);
+  // foresight: force reroll and take worse result
+  let finalBase=adjBase;
+  if(char._foresightActive){ char._foresightActive=false; const reroll=d(20); finalBase=Math.min(adjBase,reroll); addLog(room,`👁 <strong>Foresight!</strong> Rerolled — takes ${finalBase} (worse of ${adjBase}/${reroll})!`,'spell'); }
+  const total2=finalBase+enemy.atk, crit2=finalBase===20;
+  const hit=finalBase!==1&&(crit2||total2>=char.defense);
   let dmg=0, dmgRoll=0, critRoll=0;
   if (hit) {
     dmgRoll=rd(enemy.dmgNum,enemy.dmgSides);
@@ -840,9 +907,14 @@ function addDebuff(enemy, name, effects, duration=1){
 }
 function tickBuffs(char){
   if(!char.activeBuffs) return;
+  // Sacred Ground: heal 1 HP per round
+  char.activeBuffs.filter(b=>b.regenHp&&b.duration>0).forEach(b=>{ char.health=Math.min(char.maxHealth,char.health+(b.regenHp||0)); });
+  // War Cry: atkBonus buff — applied in rollAttack via activeBuffs
   char.activeBuffs=char.activeBuffs.filter(b=>{
     b.duration--;
     if(b.duration<=0){
+      // lingeringMagic: expiring buff grants 1 boon on next action
+      if(b.lingeringSource && b.lingeringSource.lingeringMagic){ char.activeBuffs.push({name:'Lingering Magic',atkBoon:1,duration:1}); }
       if(b.defBonus) char.defense=Math.max(char.baseAgiDef||0, char.defense-b.defBonus);
       if(b.name==='Corroded') char._corroded=false; // allow reapplication next hit
       return false;
@@ -850,7 +922,7 @@ function tickBuffs(char){
     return true;
   });
 }
-const SELF_TICK_DOTS=new Set(['Bleed','Major Bleed','Burn','Chilled','Grave Grasp','Acid Splash']); // Poison uses stack-based system, handled separately
+const SELF_TICK_DOTS=new Set(['Chilled','Grave Grasp','Acid Splash']); // Bleed/Burn now use new scalable system // Poison uses stack-based system, handled separately
 function tickDebuffs(enemy){
   if(!enemy.activeDebuffs) return;
   // Self-ticking DoTs manage their own duration at fire time — skip them here
@@ -861,9 +933,43 @@ function tickDebuffs(enemy){
   });
 }
 function getBuffVal(char, key){ return (char.activeBuffs||[]).filter(b=>b[key]).reduce((s,b)=>s+b[key],0); }
+// ─── NEW DOT SYSTEM ──────────────────────────────────────────────────────────
+// POISON: stacks-based. Decays 2/round. 5+ stacks = 1 bane. 10+ = wasting sickness.
 function applyPoison(enemy, stacks, room) {
   enemy._poisonStacks = (enemy._poisonStacks||0) + stacks;
-  addLog(room, `☠ ${enemy.name} poisoned — <strong>${enemy._poisonStacks}</strong> stack${enemy._poisonStacks!==1?'s':''} (+${stacks} new)!`, 'spell');
+  addLog(room, `☠ <strong>Poison!</strong> ${enemy.name} — <strong>${enemy._poisonStacks}</strong> stack${enemy._poisonStacks!==1?'s':''} (+${stacks} new)!`, 'spell');
+}
+
+// BLEED: stacking wound. Each application adds +1d4 to the bleed die (max 4d4). Duration 3 rounds.
+function applyBleed(enemy, room) {
+  const existing = (enemy.activeDebuffs||[]).find(d=>d.name==='Bleed');
+  if(existing){
+    existing.bleedDice = Math.min((existing.bleedDice||1)+1, 4);
+    existing.duration  = 3; // refresh
+    addLog(room,`🩸 <strong>Bleed worsens!</strong> ${enemy.name} — now ${existing.bleedDice}d4/round!`,'spell');
+  } else {
+    enemy.activeDebuffs = enemy.activeDebuffs||[];
+    enemy.activeDebuffs.push({id:Math.random(),name:'Bleed',bleedDice:1,duration:3});
+    addLog(room,`🩸 <strong>Bleeding!</strong> ${enemy.name} — 1d4/round for 3 rounds!`,'spell');
+  }
+}
+
+// BURN: front-loaded, fading. Starts at burnDice d6, drops 1d6/round. Stacking upgrades start die.
+function applyBurn(enemy, startDice, room, caster=null) {
+  const existing = (enemy.activeDebuffs||[]).find(d=>d.name==='Burn');
+  if(existing){
+    // conflagration: re-burning already-burning target resets to max die
+    if(caster&&caster.conflagration){
+      existing.burnDice=4; addLog(room,`🔥 <strong>Conflagration!</strong> ${enemy.name} reset to 4d6 Burn!`,'spell');
+    } else {
+      existing.burnDice = Math.min((existing.burnDice||startDice)+1, 4);
+      addLog(room,`🔥 <strong>Burn intensifies!</strong> ${enemy.name} — now ${existing.burnDice}d6 this round!`,'spell');
+    }
+  } else {
+    enemy.activeDebuffs = enemy.activeDebuffs||[];
+    enemy.activeDebuffs.push({id:Math.random(),name:'Burn',burnDice:startDice||2,duration:99});
+    addLog(room,`🔥 <strong>Burning!</strong> ${enemy.name} — ${startDice||2}d6 now, fading each round!`,'spell');
+  }
 }
 function getDebuffVal(enemy, key){ return (enemy.activeDebuffs||[]).filter(d=>d[key]).reduce((s,d)=>s+d[key],0); }
 
@@ -931,6 +1037,8 @@ function applyTalentList(char, talents) {
     if (t==='overcast'||t==='burningSoul') { /* no power, just talent */ }
     if (t==='spellsurge'||t==='catastrophe') { char.power+=1; char.maxPower+=1; refreshCastingPools(char); }
     if (t==='holyAura'||t==='miracleHeal')  { char.power+=1; char.maxPower+=1; refreshCastingPools(char); }
+    if (t==='arcaneMastery') { char.power+=1; char.maxPower+=1; char.arcaneMastery=true; refreshCastingPools(char); }
+    if (t==='divineVessel')  { char.power+=1; char.maxPower+=1; char.divineVessel=true;  refreshCastingPools(char); }
   });
 }
 
@@ -1078,6 +1186,11 @@ function enterNode(room, nodeType) {
       addLog(room,`⚔ ${tag}<strong>${e.name}</strong> appears! DMG: ${e.dmgDisplay}`,'dmg');
     }
     gs.inCombat=true; gs.phase='combat'; gs.playersActedThisRound=[]; gs.enemyHasActed=false; gs.roundNumber=1;
+    // preparedSpell: start combat with first rank-1 spell pre-armed (free cast)
+    room.players.filter(p=>p.char&&p.char.alive&&p.char.preparedSpell).forEach(p=>{
+      const r1=p.char.knownSpells&&p.char.knownSpells.find(sp=>sp.rank===1);
+      if(r1){ if(!p.char.castingPools) refreshCastingPools(p.char); p.char.castingPools[r1.name]=(p.char.castingPools[r1.name]||0)+1; addLog(room,`📚 <strong>Prepared Spell!</strong> ${p.name} has ${r1.name} ready — one free cast this combat.`,'spell'); }
+    });
     // Primordial Staff: grant +3 rank-1 castings at start of every combat
     room.players.filter(p=>p.char&&p.char.alive&&p.char._legPrimordialStaff).forEach(p=>{
       if(!p.char.castingPools) refreshCastingPools(p.char);
@@ -1325,11 +1438,11 @@ function endRound(room) {
     if (!en) return;
     tickDebuffs(en);
     if (en._poisonStacks && en._poisonStacks > 0) {
-      en._poisonStacks--;
+      en._poisonStacks = Math.max(0, en._poisonStacks - 2); // decay 2/round
       if (en._poisonStacks > 0)
-        addLog(room, `Poison on ${en.name} fades — ${en._poisonStacks} stack${en._poisonStacks !== 1 ? 's' : ''} remaining.`, 'sys');
+        addLog(room, `☠ Poison fades — ${en._poisonStacks} stack${en._poisonStacks !== 1 ? 's' : ''} on ${en.name}.`, 'sys');
       else
-        addLog(room, `Poison on ${en.name} cleared.`, 'sys');
+        addLog(room, `☠ Poison on ${en.name} cleared.`, 'sys');
     }
   });
   // Call the Pack cooldown
@@ -1339,6 +1452,8 @@ function endRound(room) {
   }
   gs.playersActedThisRound = [];
   gs.enemyHasActed = false;
+  // fadePassive: track who was attacked this round
+  room.players.forEach(p=>{ if(p.char&&p.char.fadePassive){ p.char._fadedLastRound=!p.char._wasAttackedThisRound; p.char._wasAttackedThisRound=false; } });
   room.players.forEach(p=>{ if(p.char) { p.char._killedThisTurn=false; p.char.trickeryUsed=false; p.char._wpnRiposteUsedThisRound=false; p.char._wpnCleaveReady=false; p.char._wpnCleaveBonus=false; } }); // trickeryUsed still resets for future use; _trickeryFirstHit persists for combat
   gs.roundNumber = (gs.roundNumber || 1) + 1;
   addLog(room, `--- Round ${gs.roundNumber} begins ---`, 'sys');
@@ -1385,15 +1500,44 @@ function fireEnemyTurn(room, ae) {
   // Poison DoT
   if (ae._poisonStacks && ae._poisonStacks > 0) {
     const pdmg = ae._poisonStacks; // 1 dmg per stack (flat)
+    // Threshold: 10+ stacks = wasting sickness (reduce max HP)
+    if(ae._poisonStacks>=10 && ae.maxHp>1){ ae.maxHp=Math.max(1,ae.maxHp-1); addLog(room,`☠ <strong>Wasting Sickness!</strong> ${ae.name} loses 1 max HP from virulent poison!`,'chaos'); }
     ae.hp = Math.max(0, ae.hp - pdmg);
-    addLog(room, `☠ <strong>Poison</strong> (${ae._poisonStacks} stack${ae._poisonStacks!==1?'s':''}) burns ${ae.name} — <strong class="num-dmg">−${pdmg}</strong> dmg → ${ae.name} ${ae.hp}/${ae.maxHp} HP`, 'spell');
+    addLog(room, `☠ <strong>Poison</strong> (${ae._poisonStacks} stk${ae._poisonStacks>=5?' · <span style="color:#ff9944">bane</span>':''}${ae._poisonStacks>=10?' · <span style="color:#cc4444">wasting</span>':''}) — <strong class="num-dmg">−${pdmg}</strong> to ${ae.name} → ${ae.hp}/${ae.maxHp} HP`, 'spell');
+    ae._poisonStacks = Math.max(0, ae._poisonStacks - 2); // decay 2/round
+    if(ae._poisonStacks > 0) addLog(room,`☠ Poison fades — ${ae._poisonStacks} stack${ae._poisonStacks!==1?'s':''} remaining.`,'sys');
+    else addLog(room,`☠ Poison on ${ae.name} cleared.`,'sys');
     if (ae.hp <= 0) {
       const died = resolveEnemyDeath(room, ae);
-      if (died !== false) { advanceTurn(room); return; } // enemy died — turn resolved
+      if (died !== false) { advanceTurn(room); return; }
       // Undying: enemy rose at 1 HP — continue with their attack turn normally
     }
   }
   // Other DoTs
+  // Tick new-style bleed/burn DoTs
+  const newDots = (ae.activeDebuffs||[]).filter(d=>d.bleedDice||d.burnDice);
+  for(const dbt of newDots){
+    if(dbt.name==='Bleed'){
+      if(ae.fortitude){dbt.duration=0;continue;} // fortitude: immune to Bleed
+      const dmg=Array.from({length:dbt.bleedDice},()=>Math.ceil(Math.random()*4)).reduce((a,b)=>a+b,0);
+      ae.hp=Math.max(0,ae.hp-dmg);
+      addLog(room,`🩸 <strong>Bleed</strong> (${dbt.bleedDice}d4) — <strong class="num-dmg">−${dmg}</strong> to ${ae.name} → ${ae.hp}/${ae.maxHp} HP`,'spell');
+      dbt.duration--;
+      if(ae.hp<=0){const died=resolveEnemyDeath(room,ae);if(died!==false){advanceTurn(room);return;}}
+    } else if(dbt.name==='Burn'){
+      const dice=dbt.burnDice||1;
+      const dmg=Array.from({length:dice},()=>Math.ceil(Math.random()*6)).reduce((a,b)=>a+b,0);
+      ae.hp=Math.max(0,ae.hp-dmg);
+      addLog(room,`🔥 <strong>Burn</strong> (${dice}d6→${Math.max(0,dice-1)}d6) — <strong class="num-dmg">−${dmg}</strong> to ${ae.name} → ${ae.hp}/${ae.maxHp} HP`,'spell');
+      // hungeringFlame: half of Burn tick heals the caster who applied it
+      room.players.filter(p=>p.char&&p.char.alive&&p.char.hungeringFlame).forEach(p=>{ const leech=Math.max(1,Math.floor(dmg/2)); p.char.health=Math.min(p.char.maxHealth,p.char.health+leech); });
+      dbt.burnDice=Math.max(0,dice-1);
+      if(dbt.burnDice<=0) dbt.duration=0; // mark for removal
+      else dbt.duration=99; // keep alive
+      if(ae.hp<=0){const died=resolveEnemyDeath(room,ae);if(died!==false){advanceTurn(room);return;}}
+    }
+  }
+  // Legacy dotDmg DoTs (Chilled, Grave Grasp, Acid Splash)
   const dots = (ae.activeDebuffs || []).filter(d => d.dotDmg);
   for (const dbt of dots) {
     ae.hp = Math.max(0, ae.hp - dbt.dotDmg);
@@ -1405,7 +1549,7 @@ function fireEnemyTurn(room, ae) {
       // Undying: rose at 1 HP — continue
     }
   }
-  ae.activeDebuffs = (ae.activeDebuffs || []).filter(d => !(SELF_TICK_DOTS.has(d.name) && d.duration <= 0));
+  ae.activeDebuffs = (ae.activeDebuffs || []).filter(d => !(SELF_TICK_DOTS.has(d.name) && d.duration <= 0) && !(d.name==='Bleed'&&d.duration<=0) && !(d.name==='Burn'&&d.burnDice<=0));
   if (!gs.inCombat) return;
 
   // Stunned debuff: skip attack
@@ -1501,16 +1645,21 @@ function fireEnemyTurn(room, ae) {
   // ── Attack loop ───────────────────────────────────────────────────────────
   // lastTarget (Shadowweave Cloak): sort wearer to end of attack order
   if(alive.length>1) alive.sort((a,b)=>(a.char._armorLastTarget?1:0)-(b.char._armorLastTarget?1:0));
+  // bulwark/bodyguard: players with these talents are attacked first
+  if(alive.length>1) alive.sort((a,b)=>((b.char.bulwark||b.char.bodyguard)?1:0)-((a.char.bulwark||a.char.bodyguard)?1:0));
   alive.forEach(p => {
     const auraBonus  = room.players.some(q=>q.char&&q.char.alive&&q.char.holyAura)?2:0;
     const shieldBonus = p.char.shieldwall ? 2 : 0;
     const ignoresDef  = ae.ignoresDef || 0;
+    // flicker: once/combat completely dodge one attack (before any calculation)
+    if(p.char.flicker && !p.char._flickerUsed){ p.char._flickerUsed=true; addLog(room,`🤸 <strong>Flicker!</strong> ${p.name} simply isn't there — attack negated!`,'spell'); return; }
     const aegisBonus  = room.players.some(q=>q.char&&q.char.alive&&q.char._legExtinctionAegis)?2:0;
+    const wardBonus   = room.players.some(q=>q.char&&q.char.alive&&q.char.ward)?1:0; // Ward talent
     // Shroud of Undeath: set bane flag BEFORE roll based on current HP
     if(p.char._legShroud && p.char.health>0 && p.char.health<=Math.floor(p.char.maxHealth*0.25)){
       p.char._legShroudActive=true;
     } else { p.char._legShroudActive=false; }
-    const defTotal    = Math.max(10, p.char.defense + auraBonus + shieldBonus + aegisBonus - ignoresDef);
+    const defTotal    = Math.max(10, p.char.defense + auraBonus + shieldBonus + aegisBonus + wardBonus - ignoresDef);
 
     for (let atk_i = 0; atk_i < baseAttacks; atk_i++) {
       if (!p.char.alive) break;
@@ -1559,8 +1708,23 @@ function fireEnemyTurn(room, ae) {
         // Beast rage
         if (ae.tags && ae.tags.includes('beast') && ae.hp < ae.maxHp * 0.5) { dmg += 3; }
 
+        // endure: extra -1 all damage (stacks with toughness)
+        if(p.char.endure && dmg>0) dmg=Math.max(0,dmg-1);
+        // fortressStance: extra -1 when below 50% HP
+        if(p.char.fortressStance && dmg>0 && p.char.health<=Math.floor(p.char.maxHealth*0.5)) dmg=Math.max(0,dmg-1);
+        // perfectDefence: once/combat negate one hit
+        if(p.char.perfectDefence && !p.char._perfectDefenceUsed && dmg>0){ p.char._perfectDefenceUsed=true; addLog(room,`🛡 <strong>Perfect Defence!</strong> ${p.name} negates the hit entirely!`,'spell'); dmg=0; }
         p.char.health = Math.max(0, p.char.health - dmg);
-        if(dmg>0) gs._anyPlayerHitThisTurn=true; // for Blood Drinker's Plate
+        if(dmg>0) gs._anyPlayerHitThisTurn=true;
+        // shieldBash: counter on enemy crit (once/combat)
+        if(r.crit && dmg>0 && p.char.shieldBash && !p.char._shieldBashUsed){ p.char._shieldBashUsed=true; const sb=rd(1,6)+Math.max(0,modVal(p.char.attrs.str)); ae.hp=Math.max(0,ae.hp-sb); addLog(room,`🛡 <strong>Shield Bash!</strong> ${p.name} counters the crit — <strong class="num-dmg">−${sb}</strong> to ${ae.name}!`,'crit'); if(ae.hp<=0){resolveEnemyDeath(room,ae);return;} }
+        // natureBond: enemy hitting you gets 1 poison stack
+        if(p.char.natureBond && dmg>0){ applyPoison(ae,1,room); }
+        // endure: extra -1 dmg reduction (stacks with toughness)
+        // (applied before health deduction — handled above via perfectDefence gate)
+        // rageTrigger: taking 5+ damage procs rage boon
+        if(p.char.rageTrigger && dmg>=5 && !p.char.rageBoon && !p.char.rageTriggerActive){ p.char.rageTriggerActive=true; p.char.rageBoon=true; addLog(room,`🔥 <strong>Rage Trigger!</strong> ${p.name} is hit hard — next attack +1 boon +1d6!`,'chaos'); }
+        if(p.char.rage && dmg>0 && !p.char.rageBoon){ p.char.rageBoon=true; addLog(room,`🔥 ${p.name} RAGES — next attack +1 boon +1d6!`,'crit'); }
         // Armour: Righteous Suffering — track big hit for next attack bonus
         if(p.char._armorRighteous && dmg>=5){ p.char._righteousBonusDmg=true; }
 
@@ -1583,6 +1747,7 @@ function fireEnemyTurn(room, ae) {
         }
         const critLabel = r.crit ? ' 💥 CRIT!' : '';
         const dmgBreak  = `${ae.dmgNum}d${ae.dmgSides}(${r.dmgRoll})${ae.dmgBonus?'+'+ae.dmgBonus:''}${r.critRoll?'+'+r.critRoll+' crit':''}`;
+        if(p.char.fadePassive) p.char._wasAttackedThisRound=true;
         addLog(room, `${ae.name} hits <strong>${p.name}</strong> — <strong class="num-dmg">-${dmg} dmg</strong>${critLabel} [d20:<strong>${r.base}</strong>+atk<strong>${aeProxy.atk>=0?'+':''}${aeProxy.atk}</strong>=<strong>${r.total}</strong> vs Def<strong>${defTotal}</strong>] [${dmgBreak}] → ${p.name} <strong>${p.char.health}</strong>/${p.char.maxHealth} HP`, 'dmg-taken');
 
         // ── On-hit abilities ──────────────────────────────────────────────
@@ -1605,7 +1770,7 @@ function fireEnemyTurn(room, ae) {
         // Crushing Tail (Saurian): 1 bane on target's next attack
         if (ae.crushingTail) { addBuff(p.char,'Prone',{bane:1},1); addLog(room, `🦎 <strong>Crushing Tail!</strong> ${p.name} knocked down — 1 bane on next attack!`, 'chaos'); }
         // Crushing Blow (Ratogre): stun on hit, 2-round cooldown
-        if (ae.crushingBlow && !ae._crushCooldown) { ae._crushCooldown=2; if(p.char._legExtinctionAegis||p.char._legAncientScale){ addLog(room,`🛡 Crushing Blow absorbed by ${p.name}'s legendary armour!`,'sys'); } else if(p.char._armorFlatDR&&p.char._dwarfForgedStunUsed){ addLog(room,`🛡 Crushing Blow! ${p.name}'s Gromril Plate absorbs the stun!`,'sys'); } else { if(p.char._armorFlatDR) p.char._dwarfForgedStunUsed=true; addBuff(p.char,'Stunned',{skipTurn:true},1); addLog(room, `💥 <strong>Crushing Blow!</strong> ${p.name} is STUNNED and loses their next action!`, 'chaos'); } }
+        if (ae.crushingBlow && !ae._crushCooldown) { ae._crushCooldown=2; if(p.char._legExtinctionAegis||p.char._legAncientScale){ addLog(room,`🛡 Crushing Blow absorbed by ${p.name}'s legendary armour!`,'sys'); } else if(p.char.ironResolve&&(p.char.activeBuffs||[]).some(b=>b.skipTurn)){ addLog(room,`💪 <strong>Iron Resolve!</strong> ${p.name} is already stunned — second stun ignored!`,'sys'); } else if(p.char._armorFlatDR&&p.char._dwarfForgedStunUsed){ addLog(room,`🛡 Crushing Blow! ${p.name}'s Gromril Plate absorbs the stun!`,'sys'); } else { if(p.char._armorFlatDR) p.char._dwarfForgedStunUsed=true; addBuff(p.char,'Stunned',{skipTurn:true},1); addLog(room, `💥 <strong>Crushing Blow!</strong> ${p.name} is STUNNED and loses their next action!`, 'chaos'); } }
         // Brutal Cleave (Chaos Warrior): crit splashes 50% to another player
         if (ae.brutalCleave && r.crit) {
           const others = alive.filter(o=>o!==p&&o.char&&o.char.alive);
@@ -1789,10 +1954,11 @@ function maybeEnemyAttack(room) {
           }
         }
         if(ae.insanityAtk&&d(6)>=4){p.char.insanity++;addLog(room,`${p.name} gains 1 Insanity!`,'chaos');}
-        // Rage passive: on taking damage, next attack has +1 boon and +1d6 damage
-        if(p.char.rage&&actualDmg>0&&!p.char.rageBoon){ p.char.rageBoon=true; addLog(room,`🔥 ${p.name} RAGES — next attack +1 boon +1d6!`,'crit'); }
+        // rage/rageTrigger/fortressStance handled in main fireEnemyTurn hit block
         checkDeath(room,p);
       } else {
+        // acrobaticRiposte: miss triggers free counter (once/round)
+        if(p.char.acrobaticRiposte && !p.char._acrobaticRiposteUsed){ p.char._acrobaticRiposteUsed=true; const rr=rollAttack(p.char,ae,0); if(rr.hit){ ae.hp=Math.max(0,ae.hp-rr.dmg); addLog(room,`🤸 <strong>Acrobatic Riposte!</strong> ${p.name} counters the miss — <strong class="num-dmg">−${rr.dmg}</strong>!`,'crit'); if(ae.hp<=0) resolveEnemyDeath(room,ae); } }
         if(p.char._wpnRiposte && !p.char._wpnRiposteUsedThisRound){
           p.char._wpnRiposteUsedThisRound=true;
           addLog(room,`⚔ <strong>Riposte!</strong> ${p.name} counterattacks ${ae.name}!`,'crit');
@@ -1857,6 +2023,11 @@ function maybeEnemyAttack(room) {
 
 function checkDeath(room, player) {
   if(player.char.health<=0&&player.char.alive){
+    // grace: once/combat a killing blow leaves ally at 1 HP instead
+    if(room.players.some(p=>p.char&&p.char.alive&&p.char.grace&&!p.char._graceUsed&&p.id!==player.id)){
+      const graceUser=room.players.find(p=>p.char&&p.char.alive&&p.char.grace&&!p.char._graceUsed&&p.id!==player.id);
+      if(graceUser){ graceUser.char._graceUsed=true; player.char.health=1; addLog(room,`🕊 <strong>Grace!</strong> ${graceUser.name}'s faith catches ${player.name} — survives at 1 HP!`,'heal'); return; }
+    }
     player.char.alive=false; player.char.health=0; player.char._killedThisTurn=true;
     addLog(room,`💀 <strong>${player.name}</strong> has fallen!`,'death');
     // Unstoppable: survive at 1 HP once per combat
@@ -1864,6 +2035,9 @@ function checkDeath(room, player) {
       player.char.unstoppableUsed=true; player.char.alive=true; player.char.health=1;
       addLog(room,`${player.name} is UNSTOPPABLE — survives at 1 HP!`,'crit');
     }
+    // vengeancePassive: ally falls = surviving allies get a free attack flag
+    room.players.filter(p=>p.char&&p.char.alive&&p.char.vengeancePassive&&p.id!==player.id).forEach(p=>{ p.char._vengeanceReady=true; });
+    if(room.players.some(p=>p.char&&p.char.alive&&p.char.lastRites)){ room.players.filter(p=>p.char&&p.char.alive).forEach(p=>{ p.char.health=Math.min(p.char.maxHealth,p.char.health+1); }); addLog(room,`⛪ <strong>Last Rites!</strong> A warrior falls — survivors steel themselves (+1 HP each).`,'heal'); }
     // Legendary: Shroud of Undeath — rise at 1d6 HP once per combat
     else if(player.char._legShroud&&!player.char._legShroudUsed){
       player.char._legShroudUsed=true; player.char.alive=true;
@@ -1879,7 +2053,7 @@ function resolveEnemyDeath(room, deadEnemy) {
   const gs=room.gs;
   const e=deadEnemy||gs.enemy;
   // DAEMONIC ICHOR (Bloodletter): on death deal 1d6 fire to all players
-  if(e&&e.daemonicIchor){
+  if(e&&e.daemonicIchor&&!isSanctified){
     room.players.filter(p=>p.char&&p.char.alive).forEach(p=>{
       if(p.char._armorFireImmune||p.char._legAncientScale){ addLog(room,`🔥 Daemonic Ichor! ${p.name}'s armour absorbs the fire!`,'spell'); return; }
       const dmg=rd(1,6); p.char.health=Math.max(0,p.char.health-dmg);
@@ -1888,7 +2062,11 @@ function resolveEnemyDeath(room, deadEnemy) {
     });
   }
   // UNDYING (Skeleton): 1-in-6 chance to rise at 1 HP
-  if(e&&e.undying&&!e._undyingUsed&&d(6)===6){
+  // sanctify: if any player has sanctify, killed Chaos/undead cannot trigger death abilities
+  const sanctifyActive=room.players.some(p=>p.char&&p.char.sanctify);
+  const isSanctified=sanctifyActive&&e&&(e.chaos||e.undead||(e.tags&&(e.tags.includes('chaos')||e.tags.includes('undead'))));
+  if(isSanctified) addLog(room,`✝ <strong>Sanctify!</strong> The wicked cannot rise or trigger death abilities!`,'spell');
+  if(e&&e.undying&&!e._undyingUsed&&d(6)===6&&!isSanctified){
     e._undyingUsed=true; e.hp=1;
     addLog(room,`💀 <strong>Undying!</strong> ${e.name} refuses to stay dead — rises at 1 HP!`,'chaos');
     return false; // enemy survived — callers must NOT treat this as a death
@@ -1935,7 +2113,9 @@ function resolveEnemyDeath(room, deadEnemy) {
   survivors.forEach(p=>{
     p.char.xp+=xpEach; p.char.gold+=goldEach; p.char.sharpeningStone=false;
     // Reset per-combat used flags
-    p.char.divineSmiteUsed=false; p.char.spellsurgeUsed=false; p.char.pacedStrikesUsed=false; p.char.rageBoon=false; p.char.catastropheUsed=false; p.char.overcastUsed=false; p.char._quickstrikeUsed=false; p.char.trickeryUsed=false; p.char._trickeryFirstHit=false; p.char._trickeryPoisonProc=0; p.char._spellboundCastingUsed=false; p.char._spellboundR0Used=false; p.char._bloodscentFired=false; p.char._dwarfForgedStunUsed=false; p.char._righteousBonusDmg=false; p.char._wpnOpeningShotFired=false; p.char._wpnReloading=false; p.char._wpnSpellbladeUsed=false; p.char._wpnSmiteUsed=false; p.char._wpnRuneStrikeUsed=false; p.char._wpnCleaveReady=false; p.char._wpnCleaveBonus=false; p.char._wpnRiposteUsedThisRound=false; p.char._wpnArcaneFocusMissed=false; p.char._wpnHolySmokeProc=false;
+    p.char.divineSmiteUsed=false; p.char.spellsurgeUsed=false; p.char.pacedStrikesUsed=false; p.char.rageBoon=false; p.char.catastropheUsed=false; p.char.overcastUsed=false; p.char._quickstrikeUsed=false; p.char.trickeryUsed=false; p.char._trickeryFirstHit=false; p.char._trickeryPoisonProc=0; p.char._spellboundCastingUsed=false; p.char._spellboundR0Used=false; p.char._bloodscentFired=false; p.char._dwarfForgedStunUsed=false; p.char._righteousBonusDmg=false; p.char._wpnOpeningShotFired=false; p.char._wpnReloading=false; p.char._wpnSpellbladeUsed=false; p.char._wpnSmiteUsed=false; p.char._wpnRuneStrikeUsed=false; p.char._wpnCleaveReady=false; p.char._wpnCleaveBonus=false; p.char._wpnRiposteUsedThisRound=false; p.char._wpnArcaneFocusMissed=false; p.char._wpnHolySmokeProc=false; p.char._venomHitUsed=false;
+    // New talent resets
+    p.char._layOnHandsUsed=false; p.char._smokeScreenUsed=false; p.char._shadowOpeningUsed=false; p.char._overloadUsed=false; p.char._darkPactUsed=false; p.char._preparedSpellUsed=false; p.char._triageUsed=false; p.char._evilEyeUsed=false; p.char._foresightUsed=false; p.char._revelationUsed=false; p.char._shieldBashUsed=false; p.char._bodyguardUsed=false; p.char._perfectDefenceUsed=false; p.char._battleOrdersUsed=false; p.char._interceptUsed=false; p.char._devastatingChargeUsed=false; p.char._killingMomentumUsed=false; p.char._warCryUsed=false; p.char._shadowStepUsed=false; p.char._acrobaticRiposteUsed=false; p.char._flickerUsed=false; p.char._cleanupUsed=false; p.char._deadAimUsed=false; p.char._overchargeUsed=false; p.char._uncontrolledPowerUsed=false; p.char._counterspellUsed=false; p.char._doubleChargeCount=0; p.char._esotericKnowledgeUsed=false; p.char._spellEchoUsed=false; p.char._graceUsed=false; p.char._banishUsed=false; p.char._relentlessCount=0; p.char._fadedLastRound=false; p.char.rageTriggerActive=false; p.char._huntersMarkTarget=null; p.char._markHereticTarget=null; p.char._sacredGroundUsed=false; p.char._divineFavourUsed=false; p.char._devastatingChargeArmed=false; p.char._devastatingChargeProc=false; p.char._uncontrolledPowerArmed=false; p.char._darkPactArmed=false; p.char._pressAdvantageReady=false; p.char._foresightActive=null; p.char._relentlessLast=null; p.char._intercepActive=null;
     // Legendary: Primordial Staff — grant +3 rank-1 castings at start of each combat
     if(p.char._legPrimordialStaff && p.char.knownSpells){ if(!p.char.castingPools) refreshCastingPools(p.char); // ensure pools initialised
       p.char.knownSpells.filter(sp=>sp.rank===1).forEach(sp=>{ if(p.char.castingPools[sp.name]!==undefined) p.char.castingPools[sp.name]+=3; });
@@ -2354,7 +2534,7 @@ _te.hp=Math.max(0,_te.hp-dmg);addLog(room,`${player.name} throws Flask of Oil �
         const htName=healTarget&&healTarget.name?healTarget.name:player.name;
         ht.activeBuffs=(ht.activeBuffs||[]).filter(b=>!(b.bane||b.skipTurn||b.dmgPenalty||b.dotDmg)); // remove harmful effects only
         ht.conditions=[];
-        const healAmt=rd(3,6)+Math.max(0,modVal(char.attrs.wil));
+        const healAmt=rd(3,6)+Math.max(0,modVal(char.attrs.wil))+(char.divineVessel?rd(1,6):0);
         ht.health=Math.min(ht.maxHealth,ht.health+healAmt);
         addLog(room,`${player.name} reads <strong>Shallya's Touch</strong> — all debuffs cleansed from ${htName} and healed <strong>${healAmt} HP</strong>!`,'heal');
         return true;
@@ -2393,7 +2573,14 @@ _te.hp=Math.max(0,_te.hp-dmg);addLog(room,`${player.name} throws Flask of Oil �
           if(spell.holyBonus&&(_t.undead||_t.chaos||(_t.tags&&(_t.tags.includes('undead')||_t.tags.includes('chaos'))))) dmg=Math.floor(dmg*(spell.daemonBonus?2:1.5)); // daemonBonus=×2, holyBonus alone=×1.5
           _t.hp=Math.max(0,_t.hp-dmg);
           addLog(room,`${player.name} reads <strong>${spell.name}</strong> — <strong>${dmg}</strong> dmg to ${_t.name}!`,'spell');
-          if(_t.hp<=0) resolveEnemyDeath(room,_t);
+          if(_t.hp<=0){
+            resolveEnemyDeath(room,_t);
+            // surge: kill with spell = regain 1 rank-0 casting
+            if(char.surge){ regainCasting(char,0); addLog(room,`⚡ <strong>Surge!</strong> ${player.name} regains a rank-0 casting!`,'spell'); }
+            // lifeDrain: spell kill heals caster 1d4
+            if(char.lifeDrain){ const ld=rd(1,4); char.health=Math.min(char.maxHealth,char.health+ld); addLog(room,`💀 <strong>Life Drain!</strong> ${player.name} absorbs life — +${ld} HP!`,'heal'); }
+            // undyingHunger: DoT kill not applicable here (direct kill)
+          }
         });
         if(spell.deathWind){
           // Only heal if at least one enemy died from this cast
@@ -2406,6 +2593,12 @@ _te.hp=Math.max(0,_te.hp-dmg);addLog(room,`${player.name} throws Flask of Oil �
         }
         // Arcane Bolt Storm: stuns all surviving enemies
         if(spell.boltStorm){ alive2.filter(e=>e&&e.hp>0).forEach(e=>{ addDebuff(e,'Bolt-Stunned',{skipTurn:true},1); addLog(room,`⚡ Bolt Storm stuns <strong>${e.name}</strong>!`,'spell'); }); }
+        // chainReaction: lightning spell kill arcs 1d6 to adjacent enemy
+        if(char.chainReaction && targets.some(_t=>_t.hp<=0)){ const adj=(gs.enemies||[]).find(e=>e&&e.hp>0&&!targets.includes(e)); if(adj){ const arc=rd(1,6); adj.hp=Math.max(0,adj.hp-arc); addLog(room,`⚡ <strong>Chain Reaction!</strong> Lightning arcs to ${adj.name} — <strong class="num-dmg">−${arc}</strong> dmg!`,'spell'); if(adj.hp<=0) resolveEnemyDeath(room,adj); } }
+        // ballLightning: same as chainReaction but for storm master path
+        if(char.ballLightning && targets.some(_t=>_t.hp<=0)){ const adj2=(gs.enemies||[]).find(e=>e&&e.hp>0&&!targets.includes(e)); if(adj2){ const arc2=rd(1,6); adj2.hp=Math.max(0,adj2.hp-arc2); addLog(room,`⚡ <strong>Ball Lightning!</strong> Arcs to ${adj2.name} — <strong class="num-dmg">−${arc2}</strong>!`,'spell'); if(adj2.hp<=0) resolveEnemyDeath(room,adj2); } }
+        // undyingHunger: DoT kills handled in poison/bleed tick — direct kills not counted here
+        // holyFire: Divine Smite vs Chaos applies Burn (handled in divineSmite talent action)
         return true;
       }
     }
@@ -2630,6 +2823,8 @@ function handlePlayerAction(room,playerId,payload,ws){
       let finalDmg=r.dmg;
       // Cleave bonus damage
       if(char._wpnCleaveBonus){ char._wpnCleaveBonus=false; finalDmg+=rd(1,6); }
+      // Devastating Charge: +1d6 + Prone on round-1 attack
+      if(char._devastatingChargeProc){ char._devastatingChargeProc=false; const dc=rd(1,6); finalDmg+=dc; addDebuff(targetEnemy,'Prone',{bane:1},1); addLog(room,`🐎 <strong>Devastating Charge!</strong> +${dc} dmg and ${targetEnemy.name} is Prone!`,'crit'); }
       // Legendary: Beastlord Maul — crit: +2d6 dmg + stun (once/combat)
       if(char._legBeastlordMaul && !char._legBeastlordMaulUsed && r.crit){
         char._legBeastlordMaulUsed=true;
@@ -2652,6 +2847,8 @@ function handlePlayerAction(room,playerId,payload,ws){
       // ── Post-hit weapon specials and poison ──
       if(targetEnemy.hp>0){
         if(char.deathblow){ const stacks=r.crit?6:4; applyPoison(targetEnemy,stacks,room); }
+        // venomOnFirstHit (Rogue novice): 3 poison stacks on first hit of combat
+        if(char.venomOnFirstHit && !char._venomHitUsed){ char._venomHitUsed=true; applyPoison(targetEnemy,3,room); addLog(room,`💀 <strong>Venom Touch!</strong> ${player.name}'s first strike poisons ${targetEnemy.name}!`,'spell'); }
         if(char._trickeryPoisonProc && targetEnemy.hp>0){ const ts=char._trickeryPoisonProc; char._trickeryPoisonProc=0; applyPoison(targetEnemy,ts,room); } else { char._trickeryPoisonProc=0; }
         if(char.assassination){
           if(targetEnemy.hp<targetEnemy.maxHp*0.5){ const ab=rd(1,6)+3;targetEnemy.hp=Math.max(0,targetEnemy.hp-ab);addLog(room,`🗡 Assassination! <strong class="num-dmg">-${ab}</strong> bonus dmg → ${targetEnemy.hp}/${targetEnemy.maxHp} HP!`,'crit'); }
@@ -2659,8 +2856,12 @@ function handlePlayerAction(room,playerId,payload,ws){
         }
         // Weapon specials post-hit
         if(char._wpnHolySmokeProc){ char._wpnHolySmokeProc=false; applyPoison(targetEnemy,1,room); } // War Censer
+        // poisonBlade (Thief expert): every hit applies 1 poison stack
+        if(char.poisonBlade){ applyPoison(targetEnemy,1,room); }
         // Legendary: Gnashteeth's Fang — 3 poison per hit (proc set in rollAttack)
         if(char._legVenomFangProc){ char._legVenomFangProc=false; applyPoison(targetEnemy,3,room); }
+        // layOnHands: once/combat heal self 1d6+WIL on dealing damage (Paladin)
+        if(char.layOnHands && !char._layOnHandsUsed && finalDmg>0){ char._layOnHandsUsed=true; const loh=rd(1,6)+Math.max(0,modVal(char.attrs.wil)); char.health=Math.min(char.maxHealth,char.health+loh); addLog(room,`🙏 <strong>Lay on Hands!</strong> ${player.name} heals <strong>${loh} HP</strong>!`,'heal'); }
         // Spellblade: on first hit this combat, channel the lowest-rank known spell for free
         if(char._wpnSpellblade && !char._wpnSpellbladeUsed && char.knownSpells && char.knownSpells.length){
           char._wpnSpellbladeUsed=true;
@@ -2695,6 +2896,25 @@ function handlePlayerAction(room,playerId,payload,ws){
           });
         }
         if(char._wpnSunder && r.crit && !targetEnemy._sundered){ targetEnemy._sundered=true; targetEnemy.ac=Math.max(1,targetEnemy.ac-2); addLog(room,`🔨 <strong>Sunder!</strong> ${targetEnemy.name}'s armour cracked — AC reduced to ${targetEnemy.ac}!`,'crit'); } // Warhammer
+        // flameEdge: weapon crits apply Burn (1d6 start)
+        if(char.flameEdge && r.crit){ applyBurn(targetEnemy,1,room); addLog(room,`🔥 <strong>Flame Edge!</strong> ${player.name}'s crit ignites ${targetEnemy.name}!`,'spell'); }
+        // resonance: +1d6 if target has Burn or Bleed
+        if(char.resonance && ((targetEnemy._poisonStacks||0)>0||(targetEnemy.activeDebuffs||[]).some(d=>d.name==='Bleed'||d.name==='Burn'))){ finalDmg+=rd(1,6); addLog(room,`💥 <strong>Resonance!</strong> +1d6 bonus on afflicted target.`,'spell'); }
+        // huntersMark: tracked target takes +1 from all sources (applied in fireEnemyTurn too)
+        if(char._huntersMarkTarget && targetEnemy===char._huntersMarkTarget){ finalDmg+=1; }
+        // markHeretic: crits vs marked target auto-apply Bleed
+        if(char._markHereticTarget && targetEnemy===char._markHereticTarget && r.crit){ applyBleed(targetEnemy,room); }
+        // relentless: consecutive hits on same target +1 dmg (stacking to +5)
+        if(char.relentless){ if(char._relentlessLast===targetEnemy){ char._relentlessCount=Math.min(5,(char._relentlessCount||0)+1); finalDmg+=char._relentlessCount; } else { char._relentlessCount=0; } char._relentlessLast=targetEnemy; }
+        // pressTheAdvantage: crit arms 1 boon for next attack
+        if(char.pressTheAdvantage && r.crit){ char._pressAdvantageReady=true; }
+        // sacredAegis: handled in rollEnemyAttack
+        // bleedOnCrit (Warrior novice/martial): slashing crits apply Bleed
+        if(char.bleedOnCrit && r.crit && (((char.equippedWeapon&&char.equippedWeapon.dmgType)==='slashing')||!char.equippedWeapon)){
+          applyBleed(targetEnemy,room);
+          // bleedDeep (Fighter expert): double stack on application
+          if(char.bleedDeep) applyBleed(targetEnemy,room);
+        }
         // Legendary: Sunstone Blade — crit = 1d6 fire splash to all other enemies
         if(char._legSunstoneBlade && r.crit && gs.enemies && gs.enemies.length>1){
           gs.enemies.filter(e2=>e2&&e2.hp>0&&e2!==targetEnemy).forEach(e2=>{
@@ -2708,6 +2928,8 @@ function handlePlayerAction(room,playerId,payload,ws){
         if(char._wpnUnstable && r.crit){ addDebuff(targetEnemy,'Acid Splash',{dotDmg:rd(1,6),name:'Acid Splash'},1); addLog(room,`⚗ Unstable Charge! ${targetEnemy.name} will take acid splash dmg next turn.`,'spell'); }
       } else {
         char._trickeryPoisonProc=0; char._wpnHolySmokeProc=false;
+        // frenzy: kills while rageBoon was active give it back (extend rage)
+        if(char.frenzy && char.rageBoon){ char.rageBoon=true; addLog(room,`🔥 <strong>Frenzy!</strong> ${player.name}'s kill extends the rage!`,'chaos'); }
         // Cleave: kill grants +1d6 on next attack this round
         if(char._wpnCleave){ char._wpnCleaveReady=true; addLog(room,`🪓 Cleave! ${player.name}'s next attack deals +1d6 bonus dmg.`,'crit'); }
         // Legendary: Varghulf's Talon — apply leech HP gained during rollAttack
@@ -2720,6 +2942,23 @@ function handlePlayerAction(room,playerId,payload,ws){
         if(char._legVenomFang){ addBuff(char,'Fang Kill',{atkBoon:1},1); addLog(room,`🐀 <strong>Gnashteeth's Fang!</strong> ${player.name} gains 1 boon on next attack!`,'loot'); }
         // Legendary: Varghulf's Talon — kill = full heal
         if(char._legVarghulfTalon){ char.health=char.maxHealth; addLog(room,`🩸 <strong>Varghulf's Talon!</strong> ${player.name} <strong>fully heals</strong> on kill!`,'heal'); }
+        // inspire: kills heal all allies 1 HP
+        if(char.inspire){ room.players.filter(p=>p.char&&p.char.alive).forEach(p=>{ p.char.health=Math.min(p.char.maxHealth,p.char.health+1); }); addLog(room,`👑 <strong>Inspire!</strong> ${player.name}'s kill restores 1 HP to all!`,'heal'); }
+        // righteousFury: killing undead/chaos heals all allies 1 HP
+        if(char.righteousFury && targetEnemy && (targetEnemy.undead||targetEnemy.chaos||(targetEnemy.tags&&(targetEnemy.tags.includes('undead')||targetEnemy.tags.includes('chaos'))))){ room.players.filter(p=>p.char&&p.char.alive).forEach(p=>{ p.char.health=Math.min(p.char.maxHealth,p.char.health+1); }); addLog(room,`✨ <strong>Righteous Fury!</strong> ${player.name} purges the wicked — all allies +1 HP!`,'heal'); }
+        // purgeTheWicked: killing marked heretic heals allies 1d6
+        if(char.purgeTheWicked && char._markHereticTarget && targetEnemy===char._markHereticTarget){ const ph=rd(1,6); room.players.filter(p=>p.char&&p.char.alive).forEach(p=>p.char.health=Math.min(p.char.maxHealth,p.char.health+ph)); addLog(room,`⚖ <strong>Purge the Wicked!</strong> ${player.name} kills the heretic — all allies +${ph} HP!`,'heal'); char._markHereticTarget=null; }
+        // skirmish: kill marked target → immediately mark next alive enemy
+        if(char.skirmish && char._huntersMarkTarget && targetEnemy===char._huntersMarkTarget){ const nextEnemy=(gs.enemies||[]).find(e=>e&&e.hp>0&&e!==targetEnemy); char._huntersMarkTarget=nextEnemy||null; if(nextEnemy) addLog(room,`🏹 <strong>Skirmish!</strong> ${player.name} marks ${nextEnemy.name}!`,'sys'); }
+        // cleanup: after any kill make one free attack vs another target
+        if(char.cleanup && !char._cleanupUsed){ const next=(gs.enemies||[]).find(e=>e&&e.hp>0&&e!==targetEnemy); if(next){ char._cleanupUsed=true; const rc=rollAttack(char,next,0); if(rc.hit){ let cd=rc.dmg; if(char.blessedBlade&&(next.undead||next.chaos)) cd+=(next.damageReduction||0); next.hp=Math.max(0,next.hp-cd); addLog(room,`💀 <strong>Cleanup!</strong> ${player.name} immediately strikes ${next.name} — <strong class="num-dmg">−${cd}</strong> dmg!`,'crit'); if(next.hp<=0) resolveEnemyDeath(room,next); } } }
+        // vanish: after kill, enemies have 1 bane targeting this player this round
+        if(char.vanish){ addBuff(char,'Vanish',{bane:-1},1); addLog(room,`🌑 <strong>Vanish!</strong> ${player.name} disappears into shadow!`,'sys'); }
+        // surge: kill with spell already handled in CAST_SPELL; this handles weapon kills
+        // killingMomentum: after any kill, free attack vs another target
+        if(char.killingMomentum && !char._killingMomentumUsed){ const nxt=(gs.enemies||[]).find(e=>e&&e.hp>0&&e!==targetEnemy); if(nxt){ char._killingMomentumUsed=true; const rk=rollAttack(char,nxt,0); if(rk.hit){ nxt.hp=Math.max(0,nxt.hp-rk.dmg); addLog(room,`🐎 <strong>Killing Momentum!</strong> ${player.name} charges ${nxt.name} — <strong class="num-dmg">−${rk.dmg}</strong> dmg!`,'crit'); if(nxt.hp<=0) resolveEnemyDeath(room,nxt); } } }
+        // deadMansHand: Assassination kill → 5 poison stacks on adjacent enemy
+        if(char.deadMansHand && char.assassination && targetEnemy && targetEnemy.hp<=0){ const adj=(gs.enemies||[]).find(e=>e&&e.hp>0&&e!==targetEnemy); if(adj){ applyPoison(adj,5,room); addLog(room,`☠ <strong>Dead Man's Hand!</strong> Poison spreads to ${adj.name}!`,'chaos'); } }
       }
       if(targetEnemy.hp<=0){resolveEnemyDeath(room,targetEnemy);return;}
     } else {
@@ -2745,11 +2984,12 @@ function handlePlayerAction(room,playerId,payload,ws){
     }
     // Bladestorm: 3 attacks total — only fires if first attack hit, inherits weapon training boon
     if(char.bladestorm && r.hit && targetEnemy && targetEnemy.hp>0){
-      const bsBoon=char.weaponTraining?1:0;
+      let bsBoon=char.weaponTraining?1:0; let bsBoonStride=0;
       for(let bsi=0;bsi<2;bsi++){
         if(targetEnemy.hp<=0) break;
         addLog(room,`🌪 ${player.name} <strong>Bladestorm</strong> strike ${bsi+2}/3!`,'crit');
-        const rbs=rollAttack(char,targetEnemy,bsBoon);
+        if(char.unrelenting) bsBoonStride++;
+        const rbs=rollAttack(char,targetEnemy,bsBoon+bsBoonStride);
         if(rbs.fumble){
           addLog(room,`Bladestorm fumbles!`,'sys');
         } else if(rbs.hit){
@@ -2784,6 +3024,8 @@ function handlePlayerAction(room,playerId,payload,ws){
       char._quickstrikeUsed=true;
       addLog(room,`⚡ ${player.name} <strong>Quick Strike</strong> — bonus attack!`,'crit');
       const qsBoon=(char.weaponTraining?1:0)+(char._wpnReach&&gs.roundNumber===1?1:0)+(char._wpnMarksmanship&&gs.roundNumber===1?1:0);
+      // devastatingCharge: arm extra 1d6 + Prone for round-1 attack
+      if(char._devastatingChargeArmed){ char._devastatingChargeArmed=false; char._devastatingChargeProc=true; }
       const rqs=rollAttack(char,targetEnemy,qsBoon);
       if(rqs.fumble){
         addLog(room,`Quick Strike fumbles!`,'sys');
@@ -3045,6 +3287,14 @@ function handlePlayerAction(room,playerId,payload,ws){
         total=roll+b+intMod+burnBonus+(arcaneFocusIntBonus||0);
         // Legendary: Primordial Staff — rank-0 spells deal double damage
         if(char._legPrimordialStaff && spell.rank===0) total*=2;
+        // overload: once/combat rank-0 spells roll twice, take higher
+        if(char.overload && !char._overloadUsed && spell.rank===0){ char._overloadUsed=true; const tot2=roll+b+intMod+burnBonus+(arcaneFocusIntBonus||0)+(char._legPrimordialStaff?tot2:0); total=Math.max(total,tot2); addLog(room,`💥 <strong>Overload!</strong> ${player.name} rolls twice — takes ${total}!`,'spell'); }
+        // uncontrolledPower: once/combat double all dice, take 1d6 backlash (triggered via talent action)
+        if(char._uncontrolledPowerArmed){ char._uncontrolledPowerArmed=false; total*=2; const bk=rd(1,6); char.health=Math.max(0,char.health-bk); addLog(room,`🌪 <strong>Uncontrolled Power!</strong> ${player.name} takes ${bk} backlash!`,'chaos'); }
+        // burnOnSpell talent: all attack spells apply 1-die Burn
+        if(char.burnOnSpell&&spell.type==='attack'&&!spell.applyBurn&&spellTarget.hp>0){ applyBurn(spellTarget,char.warlock?3:1,room); }
+        // resonance: +1d6 if target already has Burn or Bleed
+        if(char.resonance&&((spellTarget._poisonStacks||0)>0||(spellTarget.activeDebuffs||[]).some(d=>d.name==='Bleed'||d.name==='Burn'))){ total+=rd(1,6); addLog(room,`💥 <strong>Resonance!</strong> +1d6 on afflicted target.`,'spell'); }
         if(spell.lifeLeech){const heal=Math.floor(total/4);char.health=Math.min(char.maxHealth,char.health+heal);addLog(room,`${player.name} leeches ${heal} HP (¼)!`,'heal');}
         // Elemental weakness check — find tradition for this spell
         const spellTradKey=Object.keys(TRADITIONS).find(k=>TRADITIONS[k].spells&&TRADITIONS[k].spells.some(s=>s.name===spell.name));
@@ -3089,14 +3339,22 @@ function handlePlayerAction(room,playerId,payload,ws){
         addLog(room,`${player.name} casts <strong>${spell.name}</strong> — <strong>${total}</strong> dmg!`,'spell');
       }
       spellTarget.hp=Math.min(spellTarget.maxHp, spellTarget.hp-total);
+      // spellEcho: once/combat half-damage copy
+      if(char.spellEcho && !char._spellEchoUsed && spell.type==='attack' && total>0){ char._spellEchoUsed=true; const echo=Math.floor(total/2); spellTarget.hp=Math.max(0,spellTarget.hp-echo); addLog(room,`🌟 <strong>Spell Echo!</strong> ${player.name}'s spell echoes for <strong class="num-dmg">−${echo}</strong> more!`,'spell'); }
+      // divineVessel: healing spells +1d6 (applied after heal amount calculated)
 
       // ── On-hit special effects ──
       // BURN: 1d6/round for 2 rounds, resets timer if reapplied
       if(spell.applyBurn){
-        const existing=spellTarget.activeDebuffs&&spellTarget.activeDebuffs.find(d=>d.name==='Burn');
-        if(existing){ existing.duration=2; addLog(room,`🔥 ${spellTarget.name} BURN refreshed (2 rounds)!`,'spell'); }
-        else { addDebuff(spellTarget,'Burn',{dotDmg:rd(1,6)},2); addLog(room,`🔥 ${spellTarget.name} is BURNING — 1d6 damage/round for 2 rounds!`,'spell'); }
+        applyBurn(spellTarget,2,room,char);
+        // ignite: crit with fire spell upgrades Burn by +1 die
+        if(char.ignite && isCrit){
+          const ex=(spellTarget.activeDebuffs||[]).find(d=>d.name==='Burn');
+          if(ex){ ex.burnDice=Math.min(ex.burnDice+1,4); addLog(room,`🔥 <strong>Ignite!</strong> Burn upgraded to ${ex.burnDice}d6!`,'spell'); }
+        }
       }
+      // burnOnSpell talent: all attack spells apply 1d6 burn start
+      if(char.burnOnSpell&&spell.type==='attack'&&!spell.applyBurn&&spellTarget.hp>0){ applyBurn(spellTarget,1,room); }
       // CHILLED: 1d3/round + 1 bane on attacks, 2 rounds
       if(spell.applyChilled){
         const existing=spellTarget.activeDebuffs&&spellTarget.activeDebuffs.find(d=>d.name==='Chilled');
@@ -3117,17 +3375,9 @@ function handlePlayerAction(room,playerId,payload,ws){
         if(killRoll>=10){ spellTarget.hp=0; addLog(room,`💀 <strong>INSTANT KILL!</strong> ${spellTarget.name}'s bones explode!`,'crit'); }
       }
       // BLEED: 1d6/round 2 rounds, separate stack from MajorBleed, refresh on reapply
-      if(spell.applyBleed){
-        const ex=spellTarget.activeDebuffs&&spellTarget.activeDebuffs.find(d=>d.name==='Bleed');
-        if(ex){ex.duration=2;addLog(room,`🩸 ${spellTarget.name} BLEED refreshed!`,'spell');}
-        else{addDebuff(spellTarget,'Bleed',{dotDmg:rd(1,6)},2);addLog(room,`🩸 ${spellTarget.name} BLEEDING — 1d6/round for 2 rounds!`,'spell');}
-      }
+      if(spell.applyBleed){ applyBleed(spellTarget,room); }
       // MAJOR BLEED: 2d6/round 2 rounds, separate stack from Bleed
-      if(spell.applyMajorBleed){
-        const ex=spellTarget.activeDebuffs&&spellTarget.activeDebuffs.find(d=>d.name==='Major Bleed');
-        if(ex){ex.duration=2;addLog(room,`🩸🩸 ${spellTarget.name} MAJOR BLEED refreshed!`,'spell');}
-        else{addDebuff(spellTarget,'Major Bleed',{dotDmg:rd(2,6)},2);addLog(room,`🩸🩸 ${spellTarget.name} MAJOR BLEEDING — 2d6/round for 2 rounds!`,'spell');}
-      }
+      if(spell.applyMajorBleed){ applyBleed(spellTarget,room); applyBleed(spellTarget,room); } // Major Bleed = 2 applications
       // STUNNED: enemy cannot act this round
       if(spell.stunCheck){
         const stunRoll=d(20);
@@ -3180,12 +3430,15 @@ function handlePlayerAction(room,playerId,payload,ws){
     else if(t==='sharedRecovery'){if(char.sharedUsed){addLog(room,`${player.name}: already used.`,'sys');return;}char.sharedUsed=true;const h=talentHeal(char);char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} uses Shared Recovery — +<strong>${h}</strong> HP (1d6+attr×2).`,'heal');}
     else if(t==='spellRecovery'){if(char.spellRecoveryUsed){addLog(room,`${player.name}: already used.`,'sys');return;}char.spellRecoveryUsed=true;const h=talentHeal(char);char.health=Math.min(char.maxHealth,char.health+h);const rr=regainCasting(char,1);addLog(room,`${player.name} uses Spell Recovery — +<strong>${h}</strong> HP (1d6+attr×2) + 1 rank ${Math.max(0,rr)} casting.`,'spell');}
     else if(t==='divineSmite'){if(char.divineSmiteUsed){addLog(room,`${player.name}: Divine Smite already used.`,'sys');return;}char.divineSmiteUsed=true;const _te=getTargetEnemy(gs);if(!_te)return;
+      const isEvil=_te.undead||_te.chaos||(_te.tags&&(_te.tags.includes('undead')||_te.tags.includes('chaos')));
+      const smiteDice=char.wrathOfSigmar&&isEvil?6:3;
       // Weapon attack first
       const smiteRoll=rollAttack(char,_te,0);
       if(smiteRoll.hit){
-        const holyDmg=rd(3,6);
+        const holyDmg=rd(smiteDice||3,6);
         const totalSmite=smiteRoll.dmg+holyDmg;
         _te.hp=Math.max(0,_te.hp-totalSmite);
+    if(char.holyFire&&isEvil&&_te.hp>0){ applyBurn(_te,2,room); addLog(room,`🔥 <strong>Holy Fire!</strong> Divine wrath ignites ${_te.name}!`,'spell'); }
         addLog(room,`⚡ <strong>${player.name}</strong> calls Divine Smite — ${smiteRoll.dmgParts.join(' ')}=<strong>${smiteRoll.dmg}</strong> weapon + <strong>${holyDmg}</strong> holy = <strong class="num-dmg">−${totalSmite}</strong> total → ${_te.name} ${_te.hp}/${_te.maxHp} HP`,'crit');
       } else {
         addLog(room,`${player.name} calls Divine Smite but misses (d20:${smiteRoll.base}+${smiteRoll.atkMod} vs Def${_te.ac}).`,'sys');
@@ -3193,7 +3446,8 @@ function handlePlayerAction(room,playerId,payload,ws){
       if(_te.hp<=0){resolveEnemyDeath(room,_te);return;}}
     else if(t==='overcast'){
       if(!char.overcast){addLog(room,`${player.name}: no Overcast.`,'sys');return;}
-      if(char.overcastUsed){addLog(room,`${player.name}: Overcast already armed.`,'sys');return;}
+      const maxOvercast=(char.doubleCharge?2:1);
+      if(char.overcastUsed&&(char._doubleChargeCount||0)>=maxOvercast){addLog(room,`${player.name}: Overcast already armed (${maxOvercast} uses max).`,'sys');return;}
       char.overcastUsed=true;
       // Armed: next spell spends 2 castings and deals +2d6 damage (applied in CAST_SPELL handler)
       addBuff(char,'Overcast (+2d6)',{overcastDmg:true},1);
@@ -3234,7 +3488,125 @@ function handlePlayerAction(room,playerId,payload,ws){
       acted=true;
     }
     else if(t==='rallyingCry'){if(char.rallyingUsed){addLog(room,`${player.name}: Rallying Cry already used.`,'sys');return;}char.rallyingUsed=true;room.players.forEach(p=>{if(p.char&&p.char.alive){const h=talentHeal(p.char);p.char.health=Math.min(p.char.maxHealth,p.char.health+h);addLog(room,`${p.name} rallies — +<strong>${h}</strong> HP (1d6+attr×2).`,'heal');}});}
-    else if(t==='massHeal'){if(char.massHealUsed){addLog(room,`${player.name}: Mass Heal already used.`,'sys');return;}char.massHealUsed=true;room.players.forEach(p=>{if(p.char&&p.char.alive){const h=rd(1,6);p.char.health=Math.min(p.char.maxHealth,p.char.health+h);addLog(room,`${p.name} healed <strong>${h}</strong> HP.`,'heal');}});addLog(room,`${player.name} uses <strong>Mass Heal</strong>!`,'heal');}
+    else if(t==='massHeal'){if(char.massHealUsed){addLog(room,`${player.name}: Mass Heal already used.`,'sys');return;}char.massHealUsed=true;
+      const mhDice=char.triage?2:1; // Shallya path healer gets enhanced 2d6
+      room.players.forEach(p=>{if(p.char&&p.char.alive){const h=rd(mhDice,6);p.char.health=Math.min(p.char.maxHealth,p.char.health+h);addLog(room,`${p.name} healed <strong>${h}</strong> HP.`,'heal');
+        // overflowingGrace: remove one debuff per target
+        if(char.overflowingGrace&&p.char.activeBuffs){const before=p.char.activeBuffs.length;p.char.activeBuffs=p.char.activeBuffs.filter((b,i)=>i!==p.char.activeBuffs.findIndex(x=>x.bane||x.skipTurn||x.dmgPenalty));if(p.char.activeBuffs.length<before)addLog(room,`✨ Grace removes a debuff from ${p.name}!`,'heal');}
+      }});addLog(room,`${player.name} uses <strong>Mass Heal</strong>!`,'heal');}
+    else if(t==='huntersMark'){
+      const _te=getTargetEnemy(gs); if(!_te)return;
+      char._huntersMarkTarget=_te; addLog(room,`🏹 <strong>Hunter's Mark!</strong> ${player.name} marks ${_te.name} — all attacks deal +1 dmg!`,'sys');
+    }
+    else if(t==='markHeretic'){
+      const _te=getTargetEnemy(gs); if(!_te)return;
+      char._markHereticTarget=_te; addLog(room,`⚖ <strong>Mark Heretic!</strong> ${player.name} marks ${_te.name} — crits auto-Bleed, cannot flee!`,'sys');
+    }
+    else if(t==='smokeScreen'){
+      if(char._smokeScreenUsed){addLog(room,`${player.name}: Smoke Screen already used.`,'sys');return;}
+      char._smokeScreenUsed=true;
+      (gs.enemies||[]).filter(e=>e&&e.hp>0).forEach(e=>addDebuff(e,'Smoke',{bane:1},1));
+      addLog(room,`💨 <strong>Smoke Screen!</strong> All enemies have 1 bane this round!`,'spell');
+    }
+    else if(t==='evilEye'){
+      if(char._evilEyeUsed){addLog(room,`${player.name}: Evil Eye already used.`,'sys');return;}
+      const _te=getTargetEnemy(gs); if(!_te)return;
+      char._evilEyeUsed=true;
+      addDebuff(_te,'Evil Eye',{bane:2},3);
+      addLog(room,`🌙 <strong>Evil Eye!</strong> ${_te.name} has 2 banes on attacks for 3 rounds!`,'chaos');
+      if(char.hex) addDebuff(_te,'Hex',{dmgPenalty:1},3);
+    }
+    else if(t==='foresight'){
+      if(char._foresightUsed){addLog(room,`${player.name}: Foresight already used.`,'sys');return;}
+      char._foresightUsed=true; char._foresightActive=true;
+      addLog(room,`👁 <strong>Foresight!</strong> Next enemy attack must reroll — takes the worse result!`,'spell');
+    }
+    else if(t==='revelation'){
+      if(char._revelationUsed){addLog(room,`${player.name}: Revelation already used.`,'sys');return;}
+      char._revelationUsed=true;
+      const _te=getTargetEnemy(gs); if(!_te)return;
+      addLog(room,`👁 <strong>Revelation!</strong> ${_te.name}: HP ${_te.hp}/${_te.maxHp} · DEF ${_te.ac} · ATK ${_te.atk} · Abilities: ${Object.keys(_te).filter(k=>k!=='name'&&k!=='type'&&_te[k]===true).join(', ')||'none'}`,'spell');
+    }
+    else if(t==='triage'){
+      if(char._triageUsed){addLog(room,`${player.name}: Triage already used.`,'sys');return;}
+      char._triageUsed=true;
+      const dying=room.players.find(p=>p.char&&(!p.char.alive||p.char.health<=0)&&p.id!==playerId);
+      if(!dying){addLog(room,`${player.name}: No ally to triage.`,'sys');return;}
+      dying.char.health=1; dying.char.alive=true; dying.char.pendingRevive=false;
+      addLog(room,`💚 <strong>Triage!</strong> ${player.name} stabilises ${dying.name} at 1 HP!`,'heal');
+    }
+    else if(t==='sacredGround'){
+      if(char._sacredGroundUsed){addLog(room,`${player.name}: Sacred Ground already used.`,'sys');return;}
+      char._sacredGroundUsed=true;
+      room.players.filter(p=>p.char&&p.char.alive).forEach(p=>addBuff(p.char,'Sacred Ground',{regenHp:1},3));
+      addLog(room,`⛪ <strong>Sacred Ground!</strong> Blessed zone — all allies heal 1 HP at end of each round for 3 rounds!`,'heal');
+    }
+    else if(t==='divineFavour'){
+      if(char._divineFavourUsed){addLog(room,`${player.name}: Divine Favour already used.`,'sys');return;}
+      char._divineFavourUsed=true;
+      regainCasting(char,0);
+      addLog(room,`⛪ <strong>Divine Favour!</strong> ${player.name} restores a rank-0 casting!`,'heal');
+    }
+    else if(t==='warCry'){
+      if(char._warCryUsed){addLog(room,`${player.name}: War Cry already used.`,'sys');return;}
+      char._warCryUsed=true;
+      room.players.filter(p=>p.char&&p.char.alive).forEach(p=>addBuff(p.char,'War Cry',{atkBonus:2},1));
+      addLog(room,`👑 <strong>War Cry!</strong> All allies gain +2 ATK for this round!`,'crit');
+    }
+    else if(t==='devastatingCharge'){
+      if(char._devastatingChargeUsed){addLog(room,`${player.name}: Devastating Charge already used.`,'sys');return;}
+      if(gs.roundNumber!==1){addLog(room,`${player.name}: Devastating Charge is only usable on round 1!`,'sys');return;}
+      char._devastatingChargeUsed=true; char._devastatingChargeArmed=true;
+      addLog(room,`🐎 <strong>Devastating Charge!</strong> ${player.name} arms a devastating charge — next attack +1d6 and Prone!`,'crit');
+    }
+    else if(t==='counterspell'){
+      if(char._counterspellUsed){addLog(room,`${player.name}: Counterspell already used.`,'sys');return;}
+      char._counterspellUsed=true; char._counterspellActive=true;
+      addLog(room,`🔵 <strong>Counterspell!</strong> ${player.name} readies a counterspell — the next enemy on-hit ability will be negated!`,'spell');
+    }
+    else if(t==='banish'){
+      if(char._banishUsed){addLog(room,`${player.name}: Banish already used.`,'sys');return;}
+      const _te=getTargetEnemy(gs); if(!_te)return;
+      if(!(_te.chaos||_te.undead||(_te.tags&&(_te.tags.includes('chaos')||_te.tags.includes('undead'))))){addLog(room,`${player.name}: Banish only works on Chaos or Undead!`,'sys');return;}
+      char._banishUsed=true;
+      addDebuff(_te,'Banished',{skipTurn:true},1);
+      addLog(room,`✝ <strong>Banish!</strong> ${player.name} banishes ${_te.name} — loses next action!`,'spell');
+    }
+    else if(t==='darkPact'){
+      if(char._darkPactUsed){addLog(room,`${player.name}: Dark Pact already used this combat.`,'sys');return;}
+      char._darkPactUsed=true; char._darkPactArmed=true;
+      const bk=rd(1,6); char.health=Math.max(0,char.health-bk); addLog(room,`🩸 <strong>Dark Pact!</strong> ${player.name} pays ${bk} HP — next rank-1 spell costs no casting!`,'chaos');
+    }
+    else if(t==='uncontrolledPower'){
+      if(char._uncontrolledPowerUsed){addLog(room,`${player.name}: Uncontrolled Power already used.`,'sys');return;}
+      char._uncontrolledPowerUsed=true; char._uncontrolledPowerArmed=true;
+      addLog(room,`🌪 <strong>Uncontrolled Power!</strong> ${player.name} unleashes unstable magic — next spell deals double dice but takes 1d6 backlash!`,'chaos');
+    }
+    else if(t==='esotericKnowledge'){
+      if(char._esotericKnowledgeUsed){addLog(room,`${player.name}: Esoteric Knowledge already used.`,'sys');return;}
+      char._esotericKnowledgeUsed=true; char._esotericScrollArmed=true;
+      addLog(room,`📜 <strong>Esoteric Knowledge!</strong> ${player.name} can use a scroll spell this combat without consuming it!`,'spell');
+    }
+    else if(t==='doubleCharge'){
+      if((char._doubleChargeCount||0)>=2){addLog(room,`${player.name}: Double Charge both uses spent.`,'sys');return;}
+      if(char.overcastUsed){addLog(room,`${player.name}: Overcast already armed this round.`,'sys');return;}
+      char._doubleChargeCount=(char._doubleChargeCount||0)+1; char.overcastUsed=false;
+      addLog(room,`🌀 <strong>Double Charge!</strong> ${player.name} rearms Overcast (${2-(char._doubleChargeCount)} uses left)!`,'spell');
+    }
+    else if(t==='intercept'){
+      if(char._interceptUsed){addLog(room,`${player.name}: Intercept already used.`,'sys');return;}
+      char._interceptUsed=true; char._interceptActive=true;
+      addLog(room,`⚡ <strong>Intercept!</strong> ${player.name} will redirect the next attack aimed at an ally!`,'sys');
+    }
+    else if(t==='battleOrders'){
+      if(char._battleOrdersUsed){addLog(room,`${player.name}: Battle Orders already used.`,'sys');return;}
+      char._battleOrdersUsed=true;
+      // Grant a chosen ally an extra action — simplest: remove them from acted list so they can act again
+      const ally=room.players.find(p=>p.id!==playerId&&p.char&&p.char.alive&&gs.playersActedThisRound.includes(p.id));
+      if(!ally){addLog(room,`${player.name}: No acted allies to grant an extra action.`,'sys');return;}
+      gs.playersActedThisRound=gs.playersActedThisRound.filter(id=>id!==ally.id);
+      addLog(room,`⚡ <strong>Battle Orders!</strong> ${player.name} commands ${ally.name} — they may act again!`,'crit');
+    }
     else if(t==='resurrection'){if(char.resurrectionUsed){addLog(room,`${player.name}: Resurrection already used.`,'sys');return;}char.resurrectionUsed=true;const fallen=room.players.find(p=>p.char&&!p.char.alive);if(!fallen){addLog(room,`${player.name}: No fallen allies to revive.`,'sys');return;}fallen.char.health=fallen.char.maxHealth;fallen.char.alive=true;fallen.char.pendingRevive=false;addLog(room,`✨ ${player.name} uses <strong>Resurrection</strong> — ${fallen.name} returns at full HP!`,'heal');}
     acted=true;
   }
