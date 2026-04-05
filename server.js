@@ -109,7 +109,7 @@ const EXPERT_PATHS = {
   // ── MARTIAL: BLEED / UTILITY ─────────────────────────────────────
   fighter:     { label:'Fighter',     hpGain:5, power:0,
     levelGains:{ 3:['pacedStrikes','pressTheAdvantage'], 4:['+1str'], 5:['combatExpertise','bleedDeep','weaponAptitude'], 6:['+1str'] },
-    desc:'Wound Stacker. Paced Strikes +2d6 burst. Bleed Deep doubles bleed stack. Combat Expertise +1d6/hit passive. Press the Advantage: hit after crit = 1 boon.' },
+    desc:'Wound Stacker. Paced Strikes +3d6 burst. Bleed Deep doubles bleed stack. Combat Expertise +1d6/hit passive. Press the Advantage: hit after crit = 1 boon.' },
   paladin:     { label:'Paladin',     hpGain:4, power:1,
     levelGains:{ 3:['holyFervor','layOnHands'], 4:['+1str'], 5:['divineSmite','sacredAegis'], 6:['+1wil'] },
     desc:'Warrior of Faith (Sigmar). Holy Fervor boon vs evil. Lay on Hands heals self after dealing damage. Divine Smite +3d6. Sacred Aegis: undead/chaos attack you with 1 bane.' },
@@ -317,7 +317,10 @@ function castingsLeft(char, spellName, rank) {
 
 function spendCasting(char, spellName, rank) {
   if (!char.castingPools) refreshCastingPools(char);
-  if ((char.castingPools[spellName] || 0) > 0) {
+  if (char.castingPools[spellName] === undefined) {
+    char.castingPools[spellName] = maxCastings(char.power, rank);
+  }
+  if (char.castingPools[spellName] > 0) {
     char.castingPools[spellName]--;
     return true;
   }
@@ -868,7 +871,7 @@ function rollAttack(char, enemy, extraBoons=0) {
       if(wpnType==='blunt'&&enemy.weakToBlunt){ dmg=Math.floor(dmg*1.5); dmgParts.push('×1.5 Blunt (Brittle Bones)'); }
     }
     const pacedBuff=(char.activeBuffs||[]).find(b=>b.pacedDmg);
-    if(pacedBuff){ const pr=rd(2,6);dmg+=pr;dmgParts.push(`+${pr} Paced Strikes`); char.activeBuffs=char.activeBuffs.filter(b=>!b.pacedDmg); char.pacedStrikesUsed=true; }
+    if(pacedBuff){ const pr=rd(3,6);dmg+=pr;dmgParts.push(`+${pr} Paced Strikes`); char.activeBuffs=char.activeBuffs.filter(b=>!b.pacedDmg); }
     if(char.rage&&char.rageBoon){ const rb=rd(1,6);dmg+=rb;dmgParts.push(`+${rb} rage`);char.rageBoon=false; } // consume rage proc
     const corrodedBuff=(char.activeBuffs||[]).find(b=>b.dmgPenalty);
     if(corrodedBuff&&dmg>0){ dmg=Math.max(0,dmg-corrodedBuff.dmgPenalty); }
@@ -3231,10 +3234,8 @@ function handlePlayerAction(room,playerId,payload,ws){
     }
     else if(t==='pacedStrikes'){
       if(!char.pacedStrikes){addLog(room,`${player.name}: no Paced Strikes.`,'sys');return;}
-      if(char.pacedStrikesUsed){addLog(room,`${player.name}: Paced Strikes already used this combat.`,'sys');return;}
-      char.pacedStrikesUsed=true; // mark used when armed so buff can't be re-armed on miss
       addBuff(char,'Paced Strikes',{pacedDmg:true},1);
-      addLog(room,`⚡ <strong>${player.name}</strong> readies Paced Strikes — next weapon hit deals +2d6 bonus damage!`,'crit');
+      addLog(room,`⚡ <strong>${player.name}</strong> readies Paced Strikes — next weapon hit deals +3d6 bonus damage!`,'crit');
       acted=true;
     }
     else if(t==='rallyingCry'){if(char.rallyingUsed){addLog(room,`${player.name}: Rallying Cry already used.`,'sys');return;}char.rallyingUsed=true;room.players.forEach(p=>{if(p.char&&p.char.alive){const h=talentHeal(p.char);p.char.health=Math.min(p.char.maxHealth,p.char.health+h);addLog(room,`${p.name} rallies — +<strong>${h}</strong> HP (1d6+attr×2).`,'heal');}});}
