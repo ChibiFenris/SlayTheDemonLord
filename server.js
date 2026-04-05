@@ -409,7 +409,7 @@ const TRADITIONS = {
     label:'Shadow',
     spells:[
       {name:'Nightfall Blade',  rank:0, type:'utility', dmg:'0', shadowBlade:true,
-       desc:'Rank 0 · Free cast. Nightfall Blade: all weapon attacks deal +1d6 for 5 rounds.'},
+       desc:'Rank 0 · Free cast. Nightfall Blade: all weapon attacks deal +1d6 for 5 rounds. Applies to every hit.'},
       {name:'Shadow Dart',      rank:1, type:'attack', dmg:'2d6',
        desc:'Rank 1. Bolt of darkness: 2d6 + INT×2. Crit: +1d6.'},
       {name:'Shadow Strike',    rank:2, type:'attack', dmg:'2d6', tripleHit:true,
@@ -423,11 +423,11 @@ const TRADITIONS = {
     label:'Battle',
     spells:[
       {name:'Augmented Attack', rank:0, type:'utility', dmg:'0', dmgBuff:true,
-       desc:'Rank 0 · Free cast. Next weapon attack: +1d6 bonus damage and 1 boon on the roll.'},
+       desc:'Rank 0 · Free cast. Augmented Attack: +1d6 bonus damage on your next weapon hit. Consumed on hit.'},
       {name:'Close Wounds',     rank:1, type:'heal', dmg:'1d6_str2',
        desc:'Rank 1. Battle meditation: heal self 1d6 + STR×2.'},
       {name:'Mighty Attack',    rank:1, type:'utility', dmg:'2d6extra', mightyAtk:true,
-       desc:'Rank 1. Next weapon attack: +2d6 bonus damage and 2 boons on the attack roll.'},
+       desc:'Rank 1. Mighty Attack: +2d6 bonus damage and 2 boons on your next weapon hit. Consumed on hit.'},
       {name:'Battle Prowess',   rank:3, type:'utility', dmg:'0', battleProwessSpell:true,
        desc:'Rank 3. Battle Prowess: for 6 rounds your attacks roll twice (take better) and deal +1d6 each.'},
     ]
@@ -439,7 +439,7 @@ const TRADITIONS = {
       {name:'Burning Beam',  rank:0, type:'attack', dmg:'1d6',
        desc:'Rank 0 · Free cast. Celestial beam: 1d6 + INT×2. Crit: target Blinded (3 banes, 1 round).'},
       {name:'Flash',         rank:1, type:'attack', dmg:'0', blind:true, applyBlinded:true, aoe:true,
-       desc:'Rank 1. Blinding flash at ALL enemies: Blinded (3 banes on attacks) for 1 round. No damage.'},
+       desc:'Rank 1. Blinding flash at ALL enemies: 3 banes on their next attack. Consumed when they miss.'},
       {name:'Sunrays',       rank:2, type:'attack', dmg:'1d6', tripleHit:true,
        desc:'Rank 2. Three solar beams hit the SAME target. Each: 1d6 + INT×2.'},
       {name:'Radiation',     rank:3, type:'attack', dmg:'3d6', applyBlinded:true,
@@ -507,9 +507,9 @@ const TRADITIONS = {
     label:'Illusion',
     spells:[
       {name:'Figment',   rank:0, type:'utility', dmg:'0', figmentNew:true,
-       desc:'Rank 0 · Free cast. Figment: one enemy attacks with 1 bane for 3 rounds.'},
+       desc:'Rank 0 · Free cast. Figment: one enemy attacks with 1 bane until it misses you. Consumed on miss.'},
       {name:'Vertigo',   rank:1, type:'utility', dmg:'0', vertigoNew:true,
-       desc:'Rank 1. Vertigo: you gain 2 boons on attacks vs target for 3 rounds.'},
+       desc:'Rank 1. Vertigo: gain 2 boons on your next attack roll. Consumed on attack.'},
       {name:'Glamer',    rank:2, type:'utility', dmg:'0', glamerNew:true,
        desc:'Rank 2. Glamer: target enemy\'s next attack automatically misses.'},
       {name:'Phantasm',  rank:3, type:'attack', dmg:'4d6',
@@ -525,9 +525,9 @@ const TRADITIONS = {
       {name:'Healing Berries', rank:1, type:'heal', dmg:'berries',
        desc:'Rank 1. Healing Berries: heal 1d3+WIL three separate times (rolls three times).'},
       {name:'Shillelagh',      rank:1, type:'utility', dmg:'0', dmgBuff:true,
-       desc:'Rank 1. Shillelagh: next weapon attack deals +1d6 bonus damage.'},
+       desc:'Rank 1. Shillelagh: +1d6 bonus damage on your next weapon hit. Consumed on hit.'},
       {name:'Wrath of Nature', rank:3, type:'attack', dmg:'3d6', wrathNature:true,
-       desc:'Rank 3. Wrath of Nature: 3d6 + INT×2. Target\'s next 2 attacks each have 2 banes.'},
+       desc:'Rank 3. Wrath of Nature: 3d6 + INT×2. Target attacks with 2 banes until it misses. Consumed on miss.'},
     ]
   },
   transformation: {
@@ -535,9 +535,9 @@ const TRADITIONS = {
     label:'Transformation',
     spells:[
       {name:'Beast Within', rank:0, type:'utility', dmg:'0', dmgBuff:true,
-       desc:'Rank 0 · Free cast. Beast Within: infuse next attack — +1d6 damage and 1 boon (consumed on hit).'},
+       desc:'Rank 0 · Free cast. Beast Within: +1d6 damage and 1 boon on your next weapon hit. Consumed on hit.'},
       {name:'Dire Beast',   rank:1, type:'utility', dmg:'0', direBeast:true,
-       desc:'Rank 1. Dire Beast: grow in size — all attacks deal +1d6 for 5 rounds.'},
+       desc:'Rank 1. Dire Beast: grow in size — all attacks deal +1d6 for 5 rounds. Applies to every hit.'},
       {name:'Mist Form',    rank:2, type:'utility', dmg:'0', mistFormNew:true,
        desc:'Rank 2. Mist Form: become vapour — take 50% damage for 3 rounds.'},
       {name:'Speed Healing',rank:3, type:'heal', dmg:'3d6_wil2',
@@ -549,7 +549,7 @@ const TRADITIONS = {
     label:'Time',
     spells:[
       {name:'Swiftness',       rank:0, type:'utility', dmg:'0', swiftnessNew:true,
-       desc:'Rank 0 · Free cast. Swiftness: +1 boon on all attacks for 3 rounds.'},
+       desc:'Rank 0 · Free cast. Swiftness: +1 boon on all attacks for 3 rounds (applies to every roll, not consumed).'},
       {name:'Rewrite Moment',  rank:1, type:'utility', dmg:'0', rewriteNew:true,
        desc:'Rank 1. Rewrite Moment: for 3 rounds, all missed attacks are automatically rerolled once.'},
       {name:'Minor Paradox',   rank:2, type:'utility', dmg:'0', minorParadoxNew:true,
@@ -811,6 +811,8 @@ function rollAttack(char, enemy, extraBoons=0) {
   // Active buff bonuses
   const atkBuff=getBuffVal(char,'atkBoon'); boons+=atkBuff;
   const {base,final,boonDie,baneDie}=rollD20boons(boons,banes);
+  // Consume atkBoon buffs that are one-shot (consumeOnAttack)
+  char.activeBuffs=(char.activeBuffs||[]).filter(b=>!b.consumeOnAttack||!b.atkBoon);
   const fumble=base===1&&!forceCrit, crit=forceCrit||base===20;
   // Phantom Strike: first attack each combat ignores AC (auto-hit, not just DR bypass)
   const phantomThisHit=char.phantomStrike&&!char._phantomStrikeUsed;
@@ -837,6 +839,8 @@ function rollAttack(char, enemy, extraBoons=0) {
       else { char._trickeryPoisonProc=1; }
     }
     const dmgBuff=getBuffVal(char,'dmgBonus'); if(dmgBuff){dmg+=dmgBuff;dmgParts.push(`+${dmgBuff} buff`);}
+    // Consume one-shot damage buffs on hit
+    char.activeBuffs=(char.activeBuffs||[]).filter(b=>!b.consumeOnHit);
     // Holy Smoke (War Censer): +1 poison stack on every hit
     if(char._wpnHolySmoke && enemy) { char._wpnHolySmokeProc=true; } // applied after hit in ATTACK handler
     // Blessed Strike: +1d6 vs undead/chaos
@@ -911,6 +915,10 @@ function rollEnemyAttack(enemy, char, hasBoon=false) {
     if (crit2) { critRoll=rd(enemy.dmgNum,enemy.dmgSides); dmg+=critRoll; }
     if (char.toughness) dmg=Math.max(0,dmg-1);
     dmg=Math.max(1,dmg);
+  }
+  // Consume single-shot bane debuffs (consumeOnMiss) from the attacking enemy on miss
+  if(!hit && enemy && enemy.activeDebuffs){
+    enemy.activeDebuffs=enemy.activeDebuffs.filter(d=>!d.consumeOnMiss);
   }
   return {hit,crit:crit2,dmg,dmgRoll,critRoll,total:total2,base:adjBase,boonInfo};
 }
@@ -1264,7 +1272,7 @@ function _runNodeContent(room, gs, nodeType, playerCount) {
   }
   if(nodeType==='loot') {
     gs.phase='loot';
-    const coins=Math.floor((5+Math.floor(Math.random()*46))*0.5);
+    const coins=20+Math.floor(Math.random()*21); // 20-40 silver
     gs.lootRoom={coins}; gs.lootPicked=[];
     room.players.forEach(p=>{if(p.char&&p.char.alive) p.char.lootOptions=buildLootOptions(gs.bossCount);});
     addLog(room,`📦 A cache! ${coins} coins — each warrior finds their own haul.`,'loot');
@@ -1291,7 +1299,7 @@ function resolveUnknownEvent(room){
   // 1: Shrine of Sigmar — heal + atk boon
   if(roll===1){
     const heal=rd(1,6);
-    alive.forEach(p=>{p.char.health=Math.min(p.char.maxHealth,p.char.health+heal);addBuff(p.char,'Shrine Blessing',{atkBoon:1},1);});
+    alive.forEach(p=>{p.char.health=Math.min(p.char.maxHealth,p.char.health+heal);addBuff(p.char,'Shrine Blessing',{atkBoon:1,consumeOnAttack:true},99);});
     addLog(room,`⛪ <strong>Shrine of Sigmar!</strong> The warband prays — each warrior heals <strong>${heal} HP</strong> and gains 1 boon on their next attack!`,'heal');
     return;
   }
@@ -1387,7 +1395,24 @@ function buildLootOptions(bossCount=0) {
   const useScroll=d(6)>=4;
   const consumable=useScroll?'Spell Scroll':LOOT_CONS_LIST[Math.floor(Math.random()*LOOT_CONS_LIST.length)];
   const scrollSpell=useScroll?SCROLL_SPELLS_LIST[Math.floor(Math.random()*SCROLL_SPELLS_LIST.length)]:null;
-  return {consumable,scrollSpell,weapon:genWpn(bossCount),armor:genArmor(bossCount)};
+  // Loot room only offers items with specials/passives — no plain gear
+  return {consumable,scrollSpell,weapon:genSpecialWpn(bossCount),armor:genSpecialArmor(bossCount)};
+}
+function genSpecialWpn(bossCount=0){
+  // Only weapons with a special ability
+  const specials=WEAPON_BASES.filter(b=>b.special);
+  const pool=bossCount===0?specials.filter(b=>b.dice==='1d6'):specials;
+  const base=pool[Math.floor(Math.random()*pool.length)];
+  const bonus=bossCount===0?d(3):bossCount===1?d(2)+2:d(2)+4;
+  return{id:'w'+uuidv4(),name:base.name,dice:base.dice,stat:base.stat,bonus,dmgType:base.dmgType,special:base.special,cost:0,sellCost:1,bought:false,type:'weapon',desc:`${base.dice}+${bonus} · ${base.stat.toUpperCase()} · ${base.dmgType} — ${base.special.desc}`};
+}
+function genSpecialArmor(bossCount=0){
+  // Only armors with a special ability
+  const specials=ARMOR_BASES.filter(ab=>ab.special);
+  const base=specials[Math.floor(Math.random()*specials.length)];
+  const bonus=bossCount===0?d(3):bossCount===1?d(2)+1:d(3)+2;
+  const totalDef=base.def+bonus;
+  return{id:'a'+uuidv4(),name:base.name,defBonus:totalDef,special:base.special,cost:0,sellCost:1,bought:false,type:'armor',desc:`+${totalDef} Defense — ${base.special.desc}`};
 }
 
 // ─── COMBAT FLOW ─────────────────────────────────────────────────────────────
@@ -1996,6 +2021,8 @@ function resolveEnemyDeath(room, deadEnemy) {
     const lv=checkLevelUp(p.char);
     if(lv.leveled) addLog(room,`🌟 ${p.name} reaches <strong>Level ${lv.newLevel}</strong>! (+${lv.hpGain} max HP)${p.char.pendingLevelUp?' — Choose a path!':''}`, 'spell');
   });
+  // Roll for enemy item drop
+  rollEnemyDrop(e, room);
   // Remove dead enemy from pool
   gs.enemies=(gs.enemies||[]).filter(en=>en!==e&&en.hp>0);
   // If more enemies remain, continue combat targeting next alive enemy
@@ -2021,43 +2048,43 @@ function resolveEnemyDeath(room, deadEnemy) {
 // ─── MERCHANT ────────────────────────────────────────────────────────────────
 const WEAPON_BASES=[
   // Slashing: x1.5 vs AC ≤ 14 — STR
-  {name:'Reiklander Sword', dice:'1d6', stat:'str', dmgType:'slashing', special:{key:'bladeguard',  desc:'Passive: +1 Defense while equipped (crossguard). Lost if stunned.'}},
-  {name:'War Axe',          dice:'2d6', stat:'str', dmgType:'slashing', special:{key:'cleave',      desc:'Active: after killing an enemy, your next attack this round deals +1d6 dmg.'}},
-  {name:'Halberd',          dice:'2d6', stat:'str', dmgType:'slashing', special:{key:'reach',       desc:'Passive: +1 boon on round-1 attacks. Reckless Charge cannot apply vs you.'}},
+  {name:'Reiklander Sword', dice:'1d6', stat:'str', dmgType:'slashing', special:{key:'bladeguard',  desc:'Passive: +1 Defense while equipped. Blade catches enemy weapons — lost if you are stunned.'}},
+  {name:'War Axe',          dice:'2d6', stat:'str', dmgType:'slashing', special:{key:'cleave',      desc:'Active: killing an enemy arms a cleave — your next attack this round deals +1d6 damage.'}},
+  {name:'Halberd',          dice:'2d6', stat:'str', dmgType:'slashing', special:{key:'reach',       desc:'Passive: +1 boon on round 1 attacks. Your reach means charging enemies cannot use Reckless Charge vs you.'}},
   // Slashing — AGI
-  {name:'Duelling Sabre',   dice:'1d6', stat:'agi', dmgType:'slashing', special:{key:'riposte',     desc:'Active: when an enemy misses you, make one free counterattack with 1 boon. Once/round.'}},
-  {name:'Silvered Rapier',  dice:'1d6', stat:'agi', dmgType:'slashing', special:{key:'silverEdge',  desc:'Passive: attacks ignore damage reduction on undead enemies.'}},
+  {name:'Duelling Sabre',   dice:'1d6', stat:'agi', dmgType:'slashing', special:{key:'riposte',     desc:'Active: when an enemy misses you, immediately make one free counterattack with 1 boon (once/round).'}},
+  {name:'Silvered Rapier',  dice:'1d6', stat:'agi', dmgType:'slashing', special:{key:'silverEdge',  desc:'Passive: blessed silver edge — all attacks ignore damage reduction on undead enemies.'}},
   // Slashing — INT
-  {name:'Runestaff',        dice:'1d6', stat:'int', dmgType:'slashing', special:{key:'arcaneFocus', desc:'Passive: rank 0 spells deal +INT mod bonus dmg. 1 boon on spell attacks after a missed weapon attack.'}},
-  {name:'Engraved Blade',   dice:'2d6', stat:'int', dmgType:'slashing', special:{key:'spellblade',  desc:'Active: once/combat, channel a rank 0 spell into this attack for free — deals both weapon and spell damage.'}},
+  {name:'Runestaff',        dice:'1d6', stat:'int', dmgType:'slashing', special:{key:'arcaneFocus', desc:'Passive: rank 0 spells deal +INT mod bonus damage. Missing with a weapon attack gives 1 boon on your next spell.'}},
+  {name:'Engraved Blade',   dice:'2d6', stat:'int', dmgType:'slashing', special:{key:'spellblade',  desc:'Active (1/combat): channel a rank-0 spell into a weapon strike — deals weapon damage and spell damage simultaneously.'}},
   // Slashing — WIL
-  {name:"Sigmar's Mace",    dice:'1d6', stat:'wil', dmgType:'slashing', special:{key:'blessedStrike',desc:"Passive: +1d6 bonus dmg vs undead and chaos. Hits always ignore those enemies' damage reduction."}},
-  {name:'Consecrated Blade',dice:'2d6', stat:'wil', dmgType:'slashing', special:{key:'smiteTheFallen',desc:'Active: once/combat after hitting, expend 1 casting to add 3d6 holy bonus dmg.'}},
+  {name:"Sigmar's Mace",    dice:'1d6', stat:'wil', dmgType:'slashing', special:{key:'blessedStrike',desc:"Passive: Sigmar's blessing — +1d6 bonus damage vs undead and Chaos. These attacks always ignore enemy damage reduction."}},
+  {name:'Consecrated Blade',dice:'2d6', stat:'wil', dmgType:'slashing', special:{key:'smiteTheFallen',desc:'Active (1/combat): after landing a hit, expend 1 spell casting to add 3d6 holy bonus damage to that strike.'}},
   // Blunt: x1.5 vs AC ≥ 16 — STR
-  {name:'Warhammer',        dice:'2d6', stat:'str', dmgType:'blunt',    special:{key:'sunder',      desc:'Active: on a crit, the target loses 2 AC for the rest of combat. Does not stack.'}},
+  {name:'Warhammer',        dice:'2d6', stat:'str', dmgType:'blunt',    special:{key:'sunder',      desc:'Active: on a crit, the crushing blow cracks enemy armour — target loses 2 AC for the rest of combat.'}},
   // Blunt — AGI
-  {name:'Pistol',           dice:'1d6', stat:'agi', dmgType:'blunt',    special:{key:'openingShot', desc:'Active: round-1 attack has 2 boons and ignores DR. Next round you may not attack (reloading).'}},
-  {name:'Crossbow',         dice:'1d6', stat:'agi', dmgType:'blunt',    special:{key:'marksmanship',desc:'Passive: your attacks always have 1 boon on round 1. On a crit, target gains 1 bane on their next attack.'}},
+  {name:'Pistol',           dice:'1d6', stat:'agi', dmgType:'blunt',    special:{key:'openingShot', desc:'Active: your round-1 shot has 2 boons and ignores damage reduction. Spend the next round reloading.'}},
+  {name:'Crossbow',         dice:'1d6', stat:'agi', dmgType:'blunt',    special:{key:'marksmanship',desc:'Passive: 1 boon on all round-1 attacks. On a crit, the bolt pins the target — 1 bane on their next attack.'}},
   // Blunt — INT
-  {name:'Alchemical Rod',   dice:'1d6', stat:'int', dmgType:'blunt',    special:{key:'unstableCharge',desc:'Passive: on a crit, target takes 1d6 acid splash dmg at start of their next turn.'}},
-  {name:'Arcane Hammer',    dice:'2d6', stat:'int', dmgType:'blunt',    special:{key:'runeStrike',  desc:'Active: once/combat, next hit ignores all enemy DR and AC bonuses from buffs.'}},
+  {name:'Alchemical Rod',   dice:'1d6', stat:'int', dmgType:'blunt',    special:{key:'unstableCharge',desc:'Passive: on a crit, the unstable charge detonates — target takes 1d6 acid damage at the start of their next turn.'}},
+  {name:'Arcane Hammer',    dice:'2d6', stat:'int', dmgType:'blunt',    special:{key:'runeStrike',  desc:'Active (1/combat): overcharge the rune — next hit ignores all enemy damage reduction and defensive buff bonuses.'}},
   // Blunt — WIL
-  {name:'Blessed Staff',    dice:'1d6', stat:'wil', dmgType:'blunt',    special:{key:'channelFaith',desc:'Passive: when you use a healing spell, add +WIL mod to the amount healed.'}},
-  {name:'War Censer',       dice:'2d6', stat:'wil', dmgType:'blunt',    special:{key:'holySmoke',   desc:'Passive: each hit applies 1 poison stack to the target from sacred incense.'}},
+  {name:'Blessed Staff',    dice:'1d6', stat:'wil', dmgType:'blunt',    special:{key:'channelFaith',desc:'Passive: divine focus — adds your WIL modifier to all healing spells cast with this staff.'}},
+  {name:'War Censer',       dice:'2d6', stat:'wil', dmgType:'blunt',    special:{key:'holySmoke',   desc:'Passive: burning incense coats each hit with 1 poison stack from the sacred fumes.'}},
 ];
 const ARMOR_BASES=[
   {name:'Leather Jack',      def:1, special:null},
   {name:'Chain Shirt',       def:2, special:null},
   {name:'Breastplate',       def:3, special:null},
   {name:'Full Plate',        def:4, special:null},
-  {name:'Shadowweave Cloak', def:2, special:{key:'lastTarget',  desc:'Enemies target other allies first while you live.'}},
-  {name:'Wardstone Pauldrons',def:3,special:{key:'chaosWard',   desc:'-2 dmg from Chaos enemies. +1 boon on WIL saves vs Chaos.'}},
-  {name:'Gromril Plate',     def:5, special:{key:'dwarfForged', desc:'Cannot be stunned more than once per combat. -1 flat incoming dmg.'}},
-  {name:'Runebonded Hauberk',def:3, special:{key:'spellbound',  desc:'One free rank-1 casting per combat. Rank 0 spells +1 casting.'}},
-  {name:'Beastpelt Mantle',  def:1, special:{key:'bloodscent',  desc:'When below 25% HP: all allies gain 1 boon on their next attack.'}},
-  {name:'Flagellant Tabard', def:1, special:{key:'righteousSuffering', desc:'After taking 5+ dmg in one hit, your next attack deals +1d6 bonus.'}},
-  {name:'Dragonscale Vest',  def:4, special:{key:'fireImmune',  desc:'Immune to fire damage. Your fire items deal +1d6 bonus damage.'}},
-  {name:'Verminplate Coif',  def:4, special:{key:'packScorn',   desc:'Skaven attackers have 1 bane vs you. Heal 1 HP on each Skaven kill.'}},
+  {name:'Shadowweave Cloak', def:2, special:{key:'lastTarget',  desc:'Passive: your shadowy movement draws less attention — enemies always attack other allies before you.'}},
+  {name:'Wardstone Pauldrons',def:3,special:{key:'chaosWard',   desc:'Passive: warded against corruption — -2 damage from all Chaos enemies. +1 boon on WIL checks vs Chaos.'}},
+  {name:'Gromril Plate',     def:5, special:{key:'dwarfForged', desc:'Passive: Gromril is the hardest metal in the world — cannot be stunned more than once per combat. -1 to all incoming damage.'}},
+  {name:'Runebonded Hauberk',def:3, special:{key:'spellbound',  desc:'Passive: arcane binding in the armour — gain 1 free rank-1 casting per combat. Rank-0 spells gain +1 casting.'}},
+  {name:'Beastpelt Mantle',  def:1, special:{key:'bloodscent',  desc:'Passive: the scent of your blood drives the warband to fury — when you fall below 25% HP, all allies gain 1 boon on their next attack.'}},
+  {name:'Flagellant Tabard', def:1, special:{key:'righteousSuffering', desc:'Passive: pain fuels the strike — after taking 5+ damage in one hit, your next attack deals +1d6 bonus damage.'}},
+  {name:'Dragonscale Vest',  def:4, special:{key:'fireImmune',  desc:'Passive: dragonscale absorbs flame — immune to all fire damage. Your fire-element attacks and items deal +1d6 bonus damage.'}},
+  {name:'Verminplate Coif',  def:4, special:{key:'packScorn',   desc:'Passive: carved from a Skaven warlord — Skaven attackers have 1 bane vs you. Each Skaven you kill restores 1 HP.'}},
 ];
 
 // ─── LEGENDARY ITEMS ─────────────────────────────────────────────────────────
@@ -2806,7 +2833,7 @@ function handlePlayerAction(room,playerId,payload,ws){
           addLog(room,`🩸 Varghulf's Talon leeches <strong>${l} HP</strong>!`,'heal');
         }
         // Legendary: Gnashteeth's Fang — kill grants 1 boon on next attack
-        if(char._legVenomFang){ addBuff(char,'Fang Kill',{atkBoon:1},1); addLog(room,`🐀 <strong>Gnashteeth's Fang!</strong> ${player.name} gains 1 boon on next attack!`,'loot'); }
+        if(char._legVenomFang){ addBuff(char,'Fang Kill',{atkBoon:1,consumeOnAttack:true},99); addLog(room,`🐀 <strong>Gnashteeth's Fang!</strong> ${player.name} gains 1 boon on next attack!`,'loot'); }
         // Legendary: Varghulf's Talon — kill = full heal
         if(char._legVarghulfTalon){ char.health=char.maxHealth; addLog(room,`🩸 <strong>Varghulf's Talon!</strong> ${player.name} <strong>fully heals</strong> on kill!`,'heal'); }
         // inspire: kills heal all allies 1 HP
@@ -3028,10 +3055,10 @@ function handlePlayerAction(room,playerId,payload,ws){
         addBuff(char,'Dire Beast (+1d6/atk)',{dmgBonus:rd(1,6)},5);
         addLog(room,`${player.name} casts <strong>Dire Beast</strong> — transformed! All attacks +1d6 for 5 rounds!`,'spell');
       } else if(spell.dmgBuff){
-        addBuff(char,spell.name+' (+1d6 dmg)',{dmgBonus:rd(1,6)},1);
+        addBuff(char,spell.name+' (+1d6 dmg)',{dmgBonus:rd(1,6),consumeOnHit:true},99);
         addLog(room,`${player.name} casts <strong>${spell.name}</strong> — next attack +1d6 damage.`,'spell');
       } else if(spell.atkBoon){
-        addBuff(char,spell.name+' (atk boon)',{atkBoon:1},1);
+        addBuff(char,spell.name+' (atk boon)',{atkBoon:1,consumeOnAttack:true},99);
         addLog(room,`${player.name} casts <strong>${spell.name}</strong> — 1 boon on next attack.`,'spell');
       } else if(spell.battleProwessSpell){
         addBuff(char,spell.name,{battleProwess:true,atkBoon:1},7+_ufBonus);
@@ -3043,7 +3070,7 @@ function handlePlayerAction(room,playerId,payload,ws){
         room.players.forEach(p=>{if(p.char&&p.char.alive){addBuff(p.char,spell.name+' (Def)',{defBonus:spell.groupDefBonus},3);p.char.defense+=spell.groupDefBonus;}});
         addLog(room,`${player.name} casts <strong>${spell.name}</strong> — all allies +${spell.groupDefBonus} Defense.`,'spell');
       } else if(spell.enemyBane){
-        if(te){addDebuff(te,spell.name+' (bane)',{bane:2},3);addLog(room,`${player.name} casts <strong>${spell.name}</strong> — ${te.name} attacks with 1 bane for 2 rounds.`,'spell');}
+        if(te){addDebuff(te,spell.name+' (bane)',{bane:2,consumeOnMiss:true},99);addLog(room,`${player.name} casts <strong>${spell.name}</strong> — ${te.name} attacks with 2 banes until it misses.`,'spell');}
       } else if(spell.enemyMiss||spell.skipEnemy||spell.vanish){
         if(te){addDebuff(te,spell.name+' (skip)',{skipTurn:true},1);addLog(room,`${player.name} casts <strong>${spell.name}</strong> — ${te.name} loses next action!`,'spell');}
       } else if(spell.untouchable){
@@ -3079,7 +3106,7 @@ function handlePlayerAction(room,playerId,payload,ws){
         addBuff(char,'Nightfall Blade (+1d6)',{dmgBonus:rd(1,6)},5);
         addLog(room,`${player.name} casts <strong>Nightfall Blade</strong> — all weapon attacks +1d6 for 4 rounds!`,'spell');
       } else if(spell.mightyAtk){
-        addBuff(char,'Mighty Attack',{dmgBonus:rd(2,6+_ufBonus),atkBoon:2},1);
+        addBuff(char,'Mighty Attack',{dmgBonus:rd(2,6+_ufBonus),atkBoon:2,consumeOnHit:true},99);
         addLog(room,`${player.name} casts <strong>Mighty Attack</strong> — next attack: +2d6 and 2 boons!`,'spell');
       // ── NEW PROTECTION spells ──
       } else if(spell.forceFieldNew){
@@ -3096,9 +3123,9 @@ function handlePlayerAction(room,playerId,payload,ws){
         addLog(room,`${player.name} casts <strong>Protective Field</strong> — all allies IMMUNE to damage for 1 round!`,'spell');
       // ── NEW ILLUSION spells ──
       } else if(spell.figmentNew){
-        if(te){addDebuff(te,'Figment',{bane:1},3);addLog(room,`${player.name} casts <strong>Figment</strong> — ${te.name} attacks with 1 bane for 2 rounds!`,'spell');}
+        if(te){addDebuff(te,'Figment',{bane:1,consumeOnMiss:true},99);addLog(room,`${player.name} casts <strong>Figment</strong> — ${te.name} attacks with 1 bane until it misses!`,'spell');}
       } else if(spell.vertigoNew){
-        addBuff(char,'Vertigo (2 boons)',{atkBoon:2},3);
+        addBuff(char,'Vertigo (2 boons)',{atkBoon:2,consumeOnAttack:true},99);
         addLog(room,`${player.name} casts <strong>Vertigo</strong> — 2 boons on attacks for 2 rounds!`,'spell');
       } else if(spell.glamerNew){
         if(te){addDebuff(te,'Glamer (miss)',{skipTurn:true},1);addLog(room,`${player.name} casts <strong>Glamer</strong> — ${te.name} next attack misses!`,'spell');}
@@ -3239,7 +3266,7 @@ function handlePlayerAction(room,playerId,payload,ws){
       if(spell.applyBlinded||spell.blind){
         const existing=spellTarget.activeDebuffs&&spellTarget.activeDebuffs.find(d=>d.name==='Blinded');
         if(existing){ existing.duration=1; }
-        else { addDebuff(spellTarget,'Blinded',{bane:3},1); }
+        else { addDebuff(spellTarget,'Blinded',{bane:3,consumeOnMiss:true},99); }
         addLog(room,`💥 ${spellTarget.name} is BLINDED — 3 banes on all attacks for 1 round!`,'spell');
       }
       // BONE SPLINTERS: instant kill check at ≤25% HP
@@ -3357,6 +3384,7 @@ function handlePlayerAction(room,playerId,payload,ws){
       if(!char.pacedStrikes){addLog(room,`${player.name}: no Paced Strikes.`,'sys');return;}
       if(char.pacedStrikesUsed){addLog(room,`${player.name}: Paced Strikes already used this combat.`,'sys');return;}
       // Arm +2d6 buff for next weapon attack
+      char.pacedStrikesUsed=true; // mark used when armed so buff can't be re-armed on miss
       addBuff(char,'Paced Strikes',{pacedDmg:true},1);
       addLog(room,`⚡ <strong>${player.name}</strong> readies Paced Strikes — next weapon hit deals +2d6 bonus damage!`,'crit');
       acted=true;
@@ -3518,10 +3546,52 @@ function handlePlayerAction(room,playerId,payload,ws){
 }
 
 function addLog(room,msg,type=''){room.gs.log.push({msg,type,ts:Date.now()});if(room.gs.log.length>200)room.gs.log=room.gs.log.slice(-200);}
+// ─── ENEMY DROP WEAPONS ─────────────────────────────────────────────────────
+// Each enemy has a themed weapon/armor with a small drop chance (8-15%)
+const ENEMY_DROPS = {
+  'Skaven Clanrat':    [{type:'weapon',name:'Clanrat Blade',    dice:'1d6',stat:'agi',dmgType:'slashing',bonus:1,special:{key:'holySmoke',desc:'Passive: each hit applies 1 poison stack from filth-coated blade.'},chance:0.10}],
+  'Beastman Gor':      [{type:'weapon',name:'Gor Cleaver',      dice:'1d6',stat:'str',dmgType:'slashing',bonus:1,special:{key:'cleave',  desc:'Active: after a kill, next attack this round deals +1d6 dmg.'},chance:0.10}],
+  'Undead Skeleton':   [{type:'armor', name:'Bone-Laced Mail',  def:2, special:{key:'dwarfForged',desc:'Passive: Gromril is the hardest metal in the world — cannot be stunned more than once per combat. -1 to all incoming damage.'},chance:0.10}],
+  'Mutant Thug':       [{type:'weapon',name:'Chaos Cudgel',     dice:'1d6',stat:'str',dmgType:'blunt',  bonus:1,special:{key:'sunder',   desc:'Active: on a crit, target loses 2 AC for the rest of combat.'},chance:0.10}],
+  'Chaos Marauder':    [{type:'armor', name:'Marauder Hide',    def:2, special:{key:'chaosWard',desc:'Passive: warded against corruption — -2 damage from all Chaos enemies. +1 boon on WIL checks vs Chaos.'},chance:0.10}],
+  'Skaven Stormvermin':[{type:'weapon',name:'Stormvermin Halberd',dice:'2d6',stat:'str',dmgType:'slashing',bonus:2,special:{key:'reach',desc:'Passive: +1 boon on round 1 attacks. Your reach means charging enemies cannot use Reckless Charge vs you.'},chance:0.12}],
+  'Wight':             [{type:'armor', name:'Wight Shroud',     def:2, special:{key:'lastTarget',desc:'Passive: your shadowy movement draws less attention — enemies always attack other allies before you.'},chance:0.12}],
+  'Plague Monk':       [{type:'weapon',name:'Plague Censer',    dice:'2d6',stat:'wil',dmgType:'blunt',  bonus:2,special:{key:'holySmoke',desc:'Passive: each hit applies 1 poison stack from sacred incense.'},chance:0.12}],
+  'Chaos Warrior':     [{type:'armor', name:'Chaos Plate',      def:4, special:{key:'chaosWard',desc:'Passive: warded against corruption — -2 damage from all Chaos enemies. +1 boon on WIL checks vs Chaos.'},chance:0.12}],
+  'Vampire Count':     [{type:'weapon',name:'Vampiric Blade',   dice:'2d6',stat:'agi',dmgType:'slashing',bonus:2,special:{key:'riposte', desc:'Active: when an enemy misses you, make a free counterattack with 1 boon. Once/round.'},chance:0.12}],
+  'Bloodletter':       [{type:'weapon',name:"Bloodletter's Axe",dice:'2d6',stat:'str',dmgType:'slashing',bonus:3,special:{key:'cleave',  desc:'Active: after a kill, next attack this round deals +1d6 dmg.'},chance:0.12}],
+  'Skaven Warlord':    [{type:'weapon',name:'Warlord Blade',    dice:'2d6',stat:'agi',dmgType:'slashing',bonus:3,special:{key:'bladeguard',desc:'Passive: +1 Defense while equipped. Blade catches enemy weapons — lost if you are stunned.'},chance:0.15}],
+};
+function rollEnemyDrop(enemy, room){
+  const drops=ENEMY_DROPS[enemy.name];
+  if(!drops) return;
+  drops.forEach(drop=>{
+    if(Math.random()>drop.chance) return;
+    let item;
+    if(drop.type==='weapon'){
+      item={id:'w'+uuidv4(),name:drop.name,dice:drop.dice,stat:drop.stat,bonus:drop.bonus,dmgType:drop.dmgType,special:drop.special,cost:0,sellCost:1,bought:false,type:'weapon',desc:`${drop.dice}+${drop.bonus} · ${drop.stat.toUpperCase()} · ${drop.dmgType} — ${drop.special.desc}`};
+    } else {
+      const totalDef=(drop.def||2)+d(2);
+      item={id:'a'+uuidv4(),name:drop.name,defBonus:totalDef,special:drop.special,cost:0,sellCost:1,bought:false,type:'armor',desc:`+${totalDef} Defense — ${drop.special.desc}`};
+    }
+    // Give to first living player (or random)
+    const living=room.players.filter(p=>p.char&&p.char.alive);
+    if(!living.length) return;
+    const recipient=living[Math.floor(Math.random()*living.length)];
+    addToInventory(recipient.char,item.name,item);
+    addLog(room,`💀 ${enemy.name} drops <strong>${item.name}</strong>! ${recipient.name} picks it up.`,'loot');
+  });
+}
+
 function triggerGameover(room){
   const gs=room.gs;
   gs.phase='dying';
-  gs.inCombat=false; // stop any queued enemy turns from firing
+  gs.inCombat=false;
+  // Capture the killing blow — last damage taken entry before death
+  const logs=[...gs.log].reverse();
+  const lastBlow=logs.find(l=>l.type==='dmg-taken');
+  const lastDoT=logs.find(l=>l.type==='spell'&&l.msg&&(l.msg.includes('Bleed')||l.msg.includes('Burn')||l.msg.includes('Poison')));
+  gs.deathCause=(lastBlow||lastDoT||logs.find(l=>l.type==='chaos'))?.msg||null;
   addLog(room,'💀 <strong>The warband has fallen...</strong>','death');
   broadcastState(room.code);
   setTimeout(()=>{
