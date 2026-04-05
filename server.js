@@ -50,38 +50,53 @@ function publicState(room) {
 
 // ─── CAREERS ─────────────────────────────────────────────────────────────────
 const CAREERS = {
-  warrior: { label:'State Soldier',    startAttrs:{str:11,agi:10,int:9,wil:10},  armorDef:3, weaponDmg:'1d6', weaponStr:true,  spellcaster:false },
-  rogue:   { label:'Roadwarden',       startAttrs:{str:10,agi:11,int:10,wil:9},  armorDef:1, weaponDmg:'1d6', weaponStr:false, spellcaster:false },
-  wizard:  { label:'Bright Wizard',    startAttrs:{str:9,agi:10,int:11,wil:10},  armorDef:0, weaponDmg:'1d6', weaponStr:true,  spellcaster:true,  tradition:'fire' },
-  priest:  { label:'Sigmarite Priest', startAttrs:{str:10,agi:9,int:10,wil:11},  armorDef:3, weaponDmg:'1d6', weaponStr:true,  spellcaster:true,  tradition:'life' },
+  // Warrior: highest STR, starts with heavy armour and blunt weapon
+  warrior: { label:'State Soldier',    startAttrs:{str:13,agi:9,int:8,wil:10},  armorDef:4, weaponDmg:'1d6+2', weaponStr:true,  spellcaster:false },
+  // Rogue: highest AGI, light armour, fast slashing weapon
+  rogue:   { label:'Roadwarden',       startAttrs:{str:9,agi:13,int:11,wil:7},  armorDef:1, weaponDmg:'1d6',   weaponStr:false, spellcaster:false },
+  // Wizard: high INT, no armour, frail body — pure caster
+  wizard:  { label:'Bright Wizard',    startAttrs:{str:7,agi:9,int:13,wil:11},  armorDef:0, weaponDmg:'1d4',   weaponStr:true,  spellcaster:true,  tradition:'fire' },
+  // Priest: balanced but high WIL, medium armour, holy weapon
+  priest:  { label:'Sigmarite Priest', startAttrs:{str:11,agi:8,int:9,wil:13},  armorDef:3, weaponDmg:'1d6',   weaponStr:true,  spellcaster:true,  tradition:'life' },
 };
 
 // ─── PATHS ───────────────────────────────────────────────────────────────────
 // SotDL: Novice path chosen at level 1, Expert at level 3, Master at level 7
 const NOVICE_PATHS = {
-  // Warrior — State Soldier: weapon training + toughness, bleed on crit with slashing
-  warrior: { hpGain:6, power:0, weaponTraining:true, catchBreath:true, trickery:false,
-             nimbleRecovery:false, spellRecovery:false, sharedRecovery:false,
-             toughness:true,          // -1 incoming damage always
-             bleedOnCrit:true,        // slashing crits apply Bleed (new DoT)
-             desc:'Weapon Training: +1 boon on attacks. Toughness: -1 all damage. Slashing crits cause Bleed.' },
-  // Rogue — Roadwarden: trickery + nimble, poison on first hit each combat
-  rogue:   { hpGain:3, power:0, weaponTraining:false, catchBreath:false, trickery:true,
-             nimbleRecovery:true, spellRecovery:false, sharedRecovery:false,
-             evasion:true,            // forces 1 bane on all attackers
-             venomOnFirstHit:true,    // first hit each combat applies 3 poison stacks
-             desc:'Trickery: poison stacks on hit. Evasion: 1 bane on all attackers. Venom Touch: 3 poison on first hit.' },
-  // Magician — Bright Wizard: spell power, burn on fire spells, weaker body
-  magician:{ hpGain:2, power:1, weaponTraining:false, catchBreath:false, trickery:false,
-             nimbleRecovery:false, spellRecovery:true, sharedRecovery:false,
-             burningSoul:true,        // +1d6 to fire spells
-             desc:'Power 1: extra rank-0 spells. Burning Soul: fire spells +1d6. Spell Recovery: heal + regain casting (1/combat).' },
-  // Priest — Sigmarite Priest: shared healing, holy fervor vs evil, better HP
-  priest:  { hpGain:4, power:1, weaponTraining:false, catchBreath:false, trickery:false,
-             nimbleRecovery:false, spellRecovery:false, sharedRecovery:true,
-             holyFervor:true,         // 1 boon vs undead/chaos
-             weaponTraining:true,     // priests are battle-hardened, train with weapons
-             desc:'Power 1: divine castings. Shared Recovery: heal allies. Holy Fervor: boon vs undead/chaos. Weapon Training.' },
+  // ── WARRIOR (State Soldier) ──────────────────────────────────────
+  // Tank/damage hybrid. Hits hard, takes hits. Bleeds enemies on crits.
+  warrior: { hpGain:8, power:0,
+             weaponTraining:true,   // +1 boon on all attacks
+             catchBreath:true,      // once/combat: heal 1d6+STR×2
+             toughness:true,        // passive: -1 all incoming damage
+             bleedOnCrit:true,      // passive: slashing crits apply Bleed
+             desc:'Weapon Training: +1 boon on attacks. Catch Breath: 1d6+STR heal (1/combat). Toughness: -1 all damage taken. Slashing crits cause Bleed.' },
+
+  // ── ROGUE (Roadwarden) ────────────────────────────────────────────
+  // Evasion + poison + burst. Hardest to hit, softest to a big hit.
+  rogue:   { hpGain:4, power:0,
+             trickery:true,         // first hit applies 5 poison, subsequent hits 2
+             nimbleRecovery:true,   // once/combat: heal 1d6+AGI×2
+             evasion:true,          // passive: all attackers have 1 bane
+             venomOnFirstHit:true,  // passive: first attack each combat applies 3 poison stacks
+             desc:'Trickery: 5 poison on first hit, 2 on each after. Evasion: 1 bane on all attackers. Nimble Recovery: 1d6+AGI heal (1/combat). Venom on first strike.' },
+
+  // ── MAGICIAN (Bright Wizard) ──────────────────────────────────────
+  // Fragile but devastating. Most spells, highest burst. Weakest body.
+  magician:{ hpGain:2, power:1,    // +1 Power (extra castings)
+             spellRecovery:true,   // once/combat: heal + regain 1 rank-0 casting
+             burningSoul:true,     // passive: all fire spells deal +1d6 bonus
+             burnOnSpell:true,     // passive: all attack spells apply 1d6 Burn DoT
+             desc:'Power 1: extra rank-0 and rank-1 spell slots. Burning Soul: fire spells +1d6. Burn on Spell: attack spells apply Burn. Spell Recovery (1/combat).' },
+
+  // ── PRIEST (Sigmarite Priest) ─────────────────────────────────────
+  // Support + holy smite. Keeps allies alive, punishes undead/chaos.
+  priest:  { hpGain:6, power:1,    // +1 Power (divine castings)
+             weaponTraining:true,  // 1 boon on all attacks (battle-hardened)
+             sharedRecovery:true,  // once/combat: heal self when healing ally
+             holyFervor:true,      // passive: 1 boon vs undead/chaos
+             divineFavour:true,    // passive: start each combat with 1 free rank-0 casting
+             desc:'Power 1: divine castings. Weapon Training: +1 boon on attacks. Holy Fervor: boon vs undead/chaos. Shared Recovery (1/combat). Divine Favour: free rank-0 at combat start.' },
 };
 
 // Full SotDL Expert Paths (level 3–6). All available to all careers.
@@ -677,7 +692,9 @@ function buildChar(career) {
   const c = CAREERS[career];
   const attrs = {...c.startAttrs};
   const baseDefense = attrs.agi + c.armorDef;
-  const startWpn = {id:'w_start_'+uuidv4(),name:'Starting Weapon',dice:'1d6',stat:c.weaponStr?'str':'agi',bonus:0,dmgType:c.weaponStr?'blunt':'slashing',type:'weapon',desc:'1d6 — starting gear'};
+  // Parse weaponDmg string into dice/bonus components
+  const wpnDmgStr=c.weaponDmg||'1d6'; const wpnBonusParts=wpnDmgStr.split('+'); const wpnDicePart=wpnBonusParts[0]; const wpnStartBonus=parseInt(wpnBonusParts[1]||'0')||0;
+  const startWpn = {id:'w_start_'+uuidv4(),name:'Starting Weapon',dice:wpnDicePart,stat:c.weaponStr?'str':'agi',bonus:wpnStartBonus,dmgType:c.weaponStr?'blunt':'slashing',type:'weapon',desc:`${wpnDmgStr}+${wpnStartBonus} — starting gear`};
   const startArmor = c.armorDef>0 ? {id:'a_start_'+uuidv4(),name:'Starting Armour',defBonus:c.armorDef,type:'armor',desc:`+${c.armorDef} Defense`} : null;
   return {
     career, attrs,
@@ -1050,12 +1067,13 @@ function applyNovicePath(char, pathId) {
   const np=NOVICE_PATHS[pathId]; if(!np) return;
   char.maxHealth+=np.hpGain; char.health=Math.min(char.health+np.hpGain,char.maxHealth);
   if (np.power) { char.power+=np.power; char.maxPower+=np.power; refreshCastingPools(char); }
-  if (np.weaponTraining)  char.weaponTraining=true;
-  if (np.catchBreath)     char.catchBreath=true;
-  if (np.trickery)        char.trickery=true;
-  if (np.nimbleRecovery)  char.nimbleRecovery=true;
-  if (np.spellRecovery)   char.spellRecovery=true;
-  if (np.sharedRecovery)  char.sharedRecovery=true;
+  // Apply all boolean talent flags from the novice path definition
+  const NOVICE_FLAGS=[
+    'weaponTraining','catchBreath','trickery','nimbleRecovery','spellRecovery','sharedRecovery',
+    'toughness','bleedOnCrit','evasion','venomOnFirstHit','burningSoul','burnOnSpell',
+    'holyFervor','divineFavour','bleedDeep','poisonBlade',
+  ];
+  NOVICE_FLAGS.forEach(f=>{ if(np[f]) char[f]=true; });
   // Automatically discover the career's starting tradition and grant all eligible spells
   if (char.spellcaster && char.tradition) {
     grantTradition(char, char.tradition);
@@ -1137,11 +1155,13 @@ function restorePower(room, reason) {
 
 function showPathChoices(room) {
   const gs=room.gs; gs.pathVotes={};
-  // Bosses at depth 10, 20, and 30 (final)
-  const isBossDepth = (gs.depth===9||gs.depth===19||gs.depth>=29);
-  if (isBossDepth) {
+  // Boss every 10 rooms: depth 9→boss at 10, depth 19→boss at 20, depth 29→boss at 30
+  // Use modulo so it's robust to any depth drift
+  const isBossDepth = gs.depth>0 && gs.depth%10===9 && gs.bossCount<3;
+  const isFinalBoss = gs.depth>=29 && gs.bossCount<3; // only trigger if haven't beaten boss 3 yet
+  if (isBossDepth || isFinalBoss) {
     gs.phase='path'; gs.bossNode=true; gs.pathChoices=['boss'];
-    const msg = gs.depth>=29
+    const msg = isFinalBoss
       ? '💀 The Saurian Ancient stirs. The Final Darkness awaits — there is no retreat.'
       : '💀 A monstrous power bars your path. Face it or fall.';
     addLog(room,msg,'chaos');
@@ -1160,12 +1180,24 @@ function resolvePath(room) {
   const voteStr=Object.entries(gs.pathVotes).map(([id,v])=>{const p=room.players.find(p=>p.id===id);return`${p?p.name:'?'}→${v}`;}).join(', ');
   if(winners.length>1) addLog(room,`Split vote (${voteStr}). Fate chooses: <strong>${chosen}</strong>!`,'sys');
   else addLog(room,`Path chosen: <strong>${chosen}</strong>. (${voteStr})`,'sys');
+  if(gs.phase!=='path') return; // guard: don't resolve if phase changed
   enterNode(room,chosen);
+}
+
+function startNodeContent(room, nodeType) {
+  // Start a node's content without incrementing depth — used by unknown node resolution
+  const gs=room.gs;
+  const playerCount=room.players.filter(p=>p.connected&&p.char&&p.char.alive).length;
+  _runNodeContent(room, gs, nodeType, playerCount);
 }
 
 function enterNode(room, nodeType) {
   const gs=room.gs; gs.depth++; gs.pathChoices=null; gs.pathVotes={};
   const playerCount=room.players.filter(p=>p.connected&&p.char&&p.char.alive).length;
+  _runNodeContent(room, gs, nodeType, playerCount);
+}
+
+function _runNodeContent(room, gs, nodeType, playerCount) {
   if(nodeType==='combat'||nodeType==='elite'||nodeType==='boss') {
     const isBoss=nodeType==='boss', isElite=nodeType==='elite';
     gs.enemies=[];
@@ -1241,9 +1273,11 @@ function enterNode(room, nodeType) {
   if(nodeType==='unknown') {
     gs.phase='event';
     const r=d(10);
-    if(r<=2){enterNode(room,'combat');return;}
-    else if(r<=4){enterNode(room,'loot');return;}
-    else if(r<=5){enterNode(room,'rest');return;}
+    // Note: depth already incremented above — don't call enterNode (would double-increment)
+    // Directly start the resolved node type at current depth
+    if(r<=2){ startNodeContent(room,'combat'); return; }
+    else if(r<=4){ startNodeContent(room,'loot'); return; }
+    else if(r<=5){ startNodeContent(room,'rest'); return; }
     else { resolveUnknownEvent(room); }
     return;
   }
@@ -1826,7 +1860,7 @@ function fireEnemyTurn(room, ae) {
   }
   // Regular Call the Pack (non-boss skaven)
   if (!ae.packBoss && ae.tags&&ae.tags.includes('skaven')&&ae.hp<ae.maxHp*0.6&&!(gs.packCooldown>0)&&gs.enemies&&gs.enemies.length<4) {
-    gs.packCooldown=3;
+    gs.packCooldown=4;
     const clanrat=scaleEnemy({name:'Skaven Clanrat',type:'Skaven',threat:'Low',hp:13,ac:11,atk:0,xp:0,gold:[0,0],tags:['skaven'],packInstinct:true},
       room.players.filter(p=>p.connected&&p.char&&p.char.alive).length,false,gs.bossCount);
     clanrat.id='pack_'+Date.now(); gs.enemies.push(clanrat);
@@ -1976,7 +2010,7 @@ function maybeEnemyAttack(room) {
     });
     // CALL THE PACK (skaven tag): below 60% HP, shared 2-round cooldown across all skaven
     if(ae.tags&&ae.tags.includes('skaven')&&ae.hp<ae.maxHp*0.6&&!(gs.packCooldown>0)&&gs.enemies&&gs.enemies.length<4){
-      gs.packCooldown=3; // blocks all skaven from calling for 2 rounds
+      gs.packCooldown=4; // blocks all skaven from calling for 2 rounds
       const clanrat=scaleEnemy({name:'Skaven Clanrat',type:'Skaven',threat:'Low',hp:15,ac:12,atk:0,xp:0,gold:[0,0],tags:['skaven']},
         room.players.filter(p=>p.connected&&p.char&&p.char.alive).length,false,gs.bossCount);
       clanrat.id='pack_'+Date.now();
@@ -2769,6 +2803,8 @@ function handlePlayerAction(room,playerId,payload,ws){
     return;
   }
   if(action==='PRESS_ONWARD'){
+    // Guard: only allow from event phase (prevents double-firing and mid-combat skip)
+    if(gs.phase!=='event') return;
     if(gs.depth>0&&gs.depth%3===0&&gs.depth!==gs.lastPowerRestoreDepth){
       gs.lastPowerRestoreDepth=gs.depth; restorePower(room,`Depth ${gs.depth} milestone`);
     }
