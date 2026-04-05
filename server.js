@@ -796,7 +796,7 @@ function rollEnemyAttack(enemy, char, hasBoon=false) {
   if (hit) {
     dmgRoll=rd(enemy.dmgNum,enemy.dmgSides);
     dmg=dmgRoll+enemy.dmgBonus;
-    if (crit) { critRoll=rd(enemy.dmgNum,enemy.dmgSides); dmg+=critRoll; }
+    if (crit2) { critRoll=rd(enemy.dmgNum,enemy.dmgSides); dmg+=critRoll; }
     if (char.toughness) dmg=Math.max(0,dmg-1);
     dmg=Math.max(1,dmg);
   }
