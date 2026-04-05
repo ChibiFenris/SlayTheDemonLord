@@ -2343,12 +2343,13 @@ _te.hp=Math.max(0,_te.hp-dmg);addLog(room,`${player.name} throws Flask of Oil â€
     if(spell.type==='heal'){const[n,sh]=spell.dmgDice.split('d').map(Number);const roll=rd(n,sh);const wilBonus=Math.max(0,modVal(char.attrs.wil));const faithBonus=char._wpnChannelFaith?wilBonus:0;const amt=roll+4+faithBonus;char.health=Math.min(char.maxHealth,char.health+amt);addLog(room,`${player.name} reads ${itemName} â€” ${n}d${sh}(${roll})+4${faithBonus?'+'+faithBonus+' faith':''} = +<strong>${amt}</strong> HP.`,'heal');}
     else if(inCombat){
       const _te=getTargetEnemy(room.gs);
+      const gs=room.gs;
       const alive2=gs.enemies&&gs.enemies.filter(e=>e&&e.hp>0)||(_te?[_te]:[]);
       const[sn,ss]=spell.dmgDice.split('d').map(Number);
       // Utility scrolls
       // Shallya's Touch: cleanse + heal
       if(spell.cleanse){
-        const healTarget=data.targetId?room.players.find(p=>p.id===data.targetId&&p.char&&p.char.alive):player;
+        const healTarget=player; // Shallya's Touch via scroll always heals self (USE_ITEM path)
         const ht=healTarget&&healTarget.char?healTarget.char:char;
         const htName=healTarget&&healTarget.name?healTarget.name:player.name;
         ht.activeBuffs=(ht.activeBuffs||[]).filter(b=>!(b.bane||b.skipTurn||b.dmgPenalty||b.dotDmg)); // remove harmful effects only

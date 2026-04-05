@@ -74,7 +74,20 @@ input::placeholder{color:var(--text-dim);font-style:italic;}
 .inv-list{list-style:none;}
 .inv-list li{font-size:14px;color:var(--text-dim);padding:3px 0;border-bottom:1px solid rgba(60,40,10,.3);display:flex;justify-content:space-between;align-items:center;gap:3px;}
 .inv-list li:last-child{border-bottom:none;}
-.iname{color:var(--parch-dark);font-size:14px;flex:1;}
+.iname{color:var(--parch-dark);font-size:14px;flex:1;cursor:pointer;}
+.iname:hover{color:var(--gold);}
+/* Item detail popout */
+#item-popout{display:none;position:fixed;z-index:800;background:linear-gradient(160deg,#2a1e0e,#1e1508);border:1px solid var(--border-bright);border-radius:6px;padding:14px;max-width:340px;min-width:220px;box-shadow:0 6px 24px rgba(0,0,0,.8);pointer-events:auto;}
+#item-popout.show{display:block;}
+.ip-name{font-family:'Cinzel',serif;font-size:14px;color:var(--gold);margin-bottom:4px;}
+.ip-stat{font-size:11px;color:var(--text-dim);margin-bottom:8px;letter-spacing:.5px;}
+.ip-special{background:rgba(255,200,80,.06);border:1px solid rgba(255,200,80,.2);border-radius:4px;padding:8px 10px;margin-bottom:8px;}
+.ip-special-name{font-size:12px;color:var(--gold);font-weight:600;margin-bottom:3px;}
+.ip-special-desc{font-size:12px;color:var(--parch-dark);line-height:1.5;}
+.ip-base-desc{font-size:12px;color:var(--text-dim);margin-bottom:8px;}
+.ip-close{float:right;cursor:pointer;color:var(--text-dim);font-size:14px;line-height:1;padding:2px 5px;}
+.ip-close:hover{color:var(--gold);}
+.ip-btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
 .use-btn{background:none;border:1px solid var(--border);color:var(--text-dim);font-size:11px;padding:3px 8px;border-radius:2px;cursor:pointer;font-family:'Cinzel',serif;transition:all .15s;white-space:nowrap;}
 .use-btn:hover{border-color:var(--gold);color:var(--gold);}
 .sell-btn{background:none;border:1px solid rgba(100,70,20,.4);color:var(--text-dim);font-size:11px;padding:3px 8px;border-radius:2px;cursor:pointer;font-family:'Cinzel',serif;opacity:.6;}
@@ -379,6 +392,7 @@ body.ui-mobile #screen-connect{padding:8px;}
 
 <!-- MOBILE BOTTOM SHEET -->
 <div id="m-death-overlay"><div class="death-title" id="death-title">The Warband Has Fallen</div><div class="death-sub" id="death-sub"></div><div class="death-players" id="death-players"></div></div>
+<div id="item-popout"><span class="ip-close" onclick="closeItemPopout()">✕</span><div id="ip-content"></div></div>
 <div id="m-overlay" onclick="mCloseSheet()"></div>
 <div id="m-sheet">
   <div class="m-x" onclick="mCloseSheet()">✕</div>
@@ -1280,7 +1294,9 @@ function renderInv(char, inCombat, atMerchant){
     const isEqArm=isArmor&&char.equippedArmor&&item.itemObj&&item.itemObj.id===char.equippedArmor.id;
     const star=isEqWpn?'<span style="color:var(--gold);font-size:9px"> ★W</span>':isEqArm?'<span style="color:var(--gold);font-size:9px"> ★A</span>':'';
     const stat=isWpn&&item.itemObj?` ${item.itemObj.dice}+${item.itemObj.bonus}`:isArmor&&item.itemObj?` +${item.itemObj.defBonus}Def`:'';
-    const desc=ITEM_DESCS[item.name]||item.name;
+    // Build full description: prefer itemObj.desc (includes special passives) over ITEM_DESCS
+    const fullDesc=(item.itemObj&&item.itemObj.desc)||ITEM_DESCS[item.name]||item.name;
+    const tooltipDesc=fullDesc.length>80?fullDesc.slice(0,77)+'…':fullDesc;
     let btns='';
     if(isWpn&&!isEqWpn) btns+=`<button class="use-btn" onclick="equipItem(${idx})">Equip</button>`;
     if(isArmor&&!isEqArm) btns+=`<button class="use-btn" onclick="equipItem(${idx})">Equip</button>`;
@@ -1292,11 +1308,79 @@ function renderInv(char, inCombat, atMerchant){
         ?'<span style="font-size:9px;color:#aad4ff"> 🔨</span>'
         :'<span style="font-size:9px;color:#ffcc88"> ⚔</span>')
       :'';
-    h+=`<li><span class="iname tip">${item.name}${item.qty>1?' ('+item.qty+')':''}${stat}${dmgTypeBadge}${star}<span class="tiptext">${desc}${item._dmgTypeLabel?' — '+item._dmgTypeLabel:''}</span></span><span style="display:flex;gap:2px;flex-wrap:wrap">${btns}</span></li>`;
+    const hasSpecial=(isWpn||isArmor)&&item.itemObj&&item.itemObj.special;
+    const specialIndicator=hasSpecial?'<span style="font-size:9px;color:var(--gold);margin-left:3px" title="Has special ability">✦</span>':'';
+    const clickOpen=(isWpn||isArmor)?`onclick="openItemPopout(${idx},this)" `:'';
+    h+=`<li><span class="iname${hasSpecial?' tip':''}" ${clickOpen}>${item.name}${item.qty>1?' ('+item.qty+')':''}${stat}${dmgTypeBadge}${specialIndicator}${star}${hasSpecial?`<span class="tiptext">${tooltipDesc}</span>`:''}</span><span style="display:flex;gap:2px;flex-wrap:wrap">${btns}</span></li>`;
   });
   el2.innerHTML=h||'<li style="color:var(--text-dim)">Empty</li>';
 }
 
+function openItemPopout(invIdx, triggerEl){
+  if(!lastState) return;
+  const me=lastState.players.find(p=>p.id===myId); if(!me||!me.char) return;
+  const item=me.char.inventory[invIdx]; if(!item) return;
+  const obj=item.itemObj;
+  const pop=document.getElementById('item-popout');
+  const content=document.getElementById('ip-content');
+  if(!pop||!content) return;
+
+  const isWpn=item.type==='weapon', isArm=item.type==='armor';
+  const statLine=isWpn&&obj?`${obj.dice}+${obj.bonus} · ${(obj.stat||'').toUpperCase()} · ${obj.dmgType||''}`:
+                 isArm&&obj?`+${obj.defBonus} Defense`:'';
+  const isEqWpn=isWpn&&me.char.equippedWeapon&&obj&&obj.id===me.char.equippedWeapon.id;
+  const isEqArm=isArm&&me.char.equippedArmor&&obj&&obj.id===me.char.equippedArmor.id;
+  const inCombat=lastState.gs&&lastState.gs.phase==='combat';
+  const atMerchant=lastState.gs&&lastState.gs.phase==='merchant';
+  const usable=['Healing Draught','Greater Healing Draught','Flask of Oil','Fire Jar','Lucky Pendant','Sharpening Stone'].includes(item.name)||item.name.startsWith('Scroll:');
+  const legendary=obj&&obj.legendary;
+
+  // Special / passive block
+  let specialHtml='';
+  if(obj&&obj.special){
+    const tagLabel=obj.special.key==='passive'||(!obj.special.key.includes('Shot')&&!obj.special.key.includes('blade')&&!obj.special.key.includes('strike')&&!obj.special.key.includes('Smite')&&!obj.special.key.includes('Prison')&&!obj.special.key.includes('Rune'))?'Passive':'Active';
+    specialHtml=`<div class="ip-special"><div class="ip-special-name">${obj.special.key.replace(/([A-Z])/g,' $1').replace(/^./,s=>s.toUpperCase())}${legendary?' <span style="color:#e8c050">✦ Legendary</span>':''}</div><div class="ip-special-desc">${obj.special.desc}</div></div>`;
+  }
+
+  // Base stats line (dice, dmgType, defence)
+  const baseDesc=obj&&obj.desc?obj.desc.split(' — ')[0]:'';
+
+  // Action buttons
+  let btnHtml='<div class="ip-btns">';
+  if(isWpn&&!isEqWpn) btnHtml+=`<button class="use-btn" onclick="equipItem(${invIdx});closeItemPopout()">Equip</button>`;
+  if(isArm&&!isEqArm) btnHtml+=`<button class="use-btn" onclick="equipItem(${invIdx});closeItemPopout()">Equip</button>`;
+  if(usable) btnHtml+=`<button class="use-btn" onclick="useItem('${item.name.replace(/'/g,"\'")}',${inCombat});closeItemPopout()">Use</button>`;
+  if(atMerchant&&!isEqWpn&&!isEqArm) btnHtml+=`<button class="sell-btn" onclick="sellItem(${invIdx});closeItemPopout()">Sell 1ss</button>`;
+  btnHtml+='</div>';
+
+  content.innerHTML=`
+    <div class="ip-name">${item.name}${legendary?'<span style="color:#e8c050;font-size:11px;margin-left:6px">LEGENDARY</span>':''}</div>
+    ${statLine?`<div class="ip-stat">${statLine}${isEqWpn?' · <span style="color:var(--gold)">★ Equipped</span>':isEqArm?' · <span style="color:var(--gold)">★ Equipped</span>':''}</div>`:''}
+    ${specialHtml}
+    ${baseDesc&&!specialHtml?`<div class="ip-base-desc">${baseDesc}</div>`:''}
+    ${btnHtml}`;
+
+  // Position near the trigger element
+  pop.classList.remove('show');
+  const rect=triggerEl.getBoundingClientRect();
+  const winW=window.innerWidth, winH=window.innerHeight;
+  let left=rect.left, top=rect.bottom+6;
+  if(left+340>winW) left=Math.max(4,winW-344);
+  if(top+200>winH) top=Math.max(4,rect.top-210);
+  pop.style.left=left+'px'; pop.style.top=top+'px';
+  pop.classList.add('show');
+
+  // Close on outside click
+  setTimeout(()=>{ document.addEventListener('click',_ipOutside,{once:true,capture:true}); },10);
+}
+function _ipOutside(e){
+  const pop=document.getElementById('item-popout');
+  if(pop&&!pop.contains(e.target)) closeItemPopout();
+}
+function closeItemPopout(){
+  const pop=document.getElementById('item-popout');
+  if(pop) pop.classList.remove('show');
+}
 function esc(s){ return s.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"'); }
 function useItem(name,inCombat){ send('PLAYER_ACTION',{action:inCombat?'USE_ITEM':'USE_ITEM_OOC',data:{itemName:name}}); }
 function equipItem(idx){ send('PLAYER_ACTION',{action:'EQUIP_ITEM',data:{inventoryIndex:idx}}); }
@@ -1489,7 +1573,7 @@ function renderShop(stock,myGold){
 }
 function shopEl(item,gold){
   const d=document.createElement('div'); d.className='shop-item'+(item.bought?' sold':'');
-  const desc=ITEM_DESCS[item.name]||item.desc||'';
+  const desc=(item.itemObj&&item.itemObj.desc)||item.desc||ITEM_DESCS[item.name]||'';
   d.innerHTML=`<span class="si-name tip">${item.name}<span class="tiptext">${desc}</span></span><span class="si-desc">${item.desc||''}</span><div class="si-row"><span class="si-cost">${item.cost} ss</span><button class="buy-btn" onclick="buyItem('${item.id}')" ${item.bought||gold<item.cost?'disabled':''}>${item.bought?'Sold':'Buy'}</button></div>`;
   return d;
 }
@@ -2096,7 +2180,7 @@ function mCastSpell(n){mCloseSheet();send('PLAYER_ACTION',{action:'CAST_SPELL',d
 // ── Item tap ─────────────────────────────────────────────────────────────────
 function mTapItem(itemName,char,inCombat){
   const entry=(char.inventory||[]).find(i=>i.name===itemName); if(!entry) return;
-  const desc=ITEM_DESCS[itemName]||entry.name;
+  const desc=(entry.itemObj&&entry.itemObj.desc)||ITEM_DESCS[itemName]||entry.name;
   const isWpn=entry.type==='weapon', isArm=entry.type==='armor';
   if(isWpn||isArm){
     const stat=isWpn&&entry.itemObj?`${entry.itemObj.dice}+${entry.itemObj.bonus||0} ${entry.itemObj.dmgType}`:isArm&&entry.itemObj?`+${entry.itemObj.defBonus} Defense`:'';
@@ -2360,7 +2444,7 @@ function mRenderGame(gs,players,me){
     all.forEach(item=>{
       const si=document.createElement('div');
       si.style.cssText=`background:rgba(12,8,3,.9);border:1px solid ${item.bought?'rgba(80,60,20,.3)':'var(--border)'};border-radius:4px;padding:8px;display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;opacity:${item.bought?'0.4':'1'};`;
-      const desc=ITEM_DESCS[item.name]||item.desc||'';
+      const desc=(item.itemObj&&item.itemObj.desc)||item.desc||ITEM_DESCS[item.name]||'';
       si.innerHTML=`<div><div style="font-size:12px;color:var(--gold);font-family:'Cinzel',serif">${item.name}</div><div style="font-size:10px;color:var(--text-dim)">${desc}</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;"><div style="font-size:11px;color:var(--gold-bright)">${item.cost}ss</div>${!item.bought&&char.gold>=item.cost?`<button class="btn" style="font-size:10px;padding:3px 8px;letter-spacing:1px" onclick="buyItem('${item.id}')">Buy</button>`:'<div style="font-size:10px;color:var(--text-dim)">'+(item.bought?'Sold':'Need more silver')+'</div>'}</div>`;
       actWrap.appendChild(si);
     });
