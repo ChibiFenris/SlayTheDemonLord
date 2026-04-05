@@ -364,6 +364,8 @@ const TRADITIONS = {
     elemType:'holy',
     label:'Life',
     spells:[
+      {name:"Sigmar's Smite",   rank:0, type:'attack', dmg:'1d6',
+       desc:"Rank 0 · Free cast. Channel Sigmar's wrath: 1d6 + WIL×2 holy dmg. ×2 damage vs undead and Chaos. Crit: +1d6."},
       {name:'Minor Healing',    rank:0, type:'heal', dmg:'1d6_wil2',
        desc:'Rank 0 · Free cast. Heal self or one ally: 1d6 + WIL×2 HP.'},
       {name:'Cure',             rank:1, type:'utility', dmg:'1d6_wil', cure:true,
@@ -3028,7 +3030,7 @@ function handlePlayerAction(room,playerId,payload,ws){
       if(dMatch){
         const n=parseInt(dMatch[1]),sd=parseInt(dMatch[2]),b=parseInt(dMatch[3]||0);
         const roll=rd(n,sd);
-        const wilSpells=['Radiation','Minor Healing','Vitality Burst'];
+        const wilSpells=["Sigmar's Smite",'Radiation','Minor Healing','Vitality Burst'];
         const intMod=wilSpells.includes(spell.name)
           ? Math.max(0,modVal(char.attrs.wil))*2
           : Math.max(0,modVal(char.attrs.int))*2;
@@ -3059,7 +3061,7 @@ function handlePlayerAction(room,playerId,payload,ws){
         const eTags=(spellTarget.tags)||[];
         const WEAKNESSES={
           fire:      {tags:['undead'], mult:2},
-          holy:      {tags:['chaos','skaven'], mult:2},
+          holy:      {tags:['chaos','skaven','undead'], mult:2},
           lightning: {tags:['skaven'], mult:2},
           dark:      {tags:['beast'], mult:2},
           arcane:    {tags:['skaven','chaos','undead','beast'], mult:1.25},
