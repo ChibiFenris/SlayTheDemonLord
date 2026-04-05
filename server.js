@@ -348,16 +348,16 @@ const TRADITIONS = {
     elemType:'fire',
     label:'Fire',
     spells:[
-      {name:'Flame Missile', rank:0, type:'attack', dmg:'1d6',
-       desc:'Rank 0 · Free cast. Fiery bolt at one target: 1d6 + INT×2 dmg. Crit: +1d6.'},
-      {name:'Meteor',        rank:1, type:'attack', dmg:'2d6+2', aoe:true,
-       desc:'Rank 1. Flaming stone hits ALL enemies: 2d6+2 + INT×2. Half dmg on AGI save.'},
-      {name:'Fiery Volley',  rank:1, type:'attack', dmg:'1d6+1', tripleHit:true,
-       desc:'Rank 1. Three fiery missiles hit the SAME target. Each: 1d6+1 + INT×2.'},
+      {name:'Flame Missile', rank:0, type:'attack', dmg:'1d6', applyBurn:true, burnDiceOverride:1,
+       desc:'Rank 0 · Free cast. Fiery bolt: 1d6 + INT×2. Applies Burn (1d6/round, fading).'},
+      {name:'Meteor',        rank:1, type:'attack', dmg:'2d6+2', aoe:true, applyBurn:true, burnDiceOverride:2,
+       desc:'Rank 1. Flaming stone hits ALL enemies: 2d6+2 + INT×2. Half on AGI save. Applies Burn.'},
+      {name:'Fiery Volley',  rank:1, type:'attack', dmg:'1d6+1', tripleHit:true, applyBurn:true, burnDiceOverride:2,
+       desc:'Rank 1. Three fiery missiles hit the SAME target. Each: 1d6+1 + INT×2. Applies Burn.'},
       {name:'Fireball',      rank:2, type:'attack', dmg:'5d6', applyBurn:true, aoe:true,
-       desc:'Rank 2. Giant fireball hits ALL enemies: 5d6 + INT×2. Half on AGI save. Applies Burn DoT.'},
-      {name:'Immolate',      rank:3, type:'attack', dmg:'4d6', applyBurn:true,
-       desc:'Rank 3. Consume one target in fire: 4d6 + INT×2. Crit: +2d6. Applies Burn DoT.'},
+       desc:'Rank 2. Giant fireball hits ALL enemies: 5d6 + INT×2. Half on AGI save. Applies Burn (2d6, fading).'},
+      {name:'Immolate',      rank:3, type:'attack', dmg:'4d6', applyBurn:true, burnDiceOverride:3,
+       desc:'Rank 3. Consume one target in fire: 4d6 + INT×2. Crit: +2d6. Applies Burn (3d6, fading).'},
     ]
   },
   life: {
@@ -426,8 +426,8 @@ const TRADITIONS = {
     elemType:'holy',
     label:'Celestial',
     spells:[
-      {name:'Burning Beam',  rank:0, type:'attack', dmg:'1d6',
-       desc:'Rank 0 · Free cast. Celestial beam: 1d6 + INT×2. Crit: target Blinded (3 banes, 1 round).'},
+      {name:'Burning Beam',  rank:0, type:'attack', dmg:'1d6', applyBurn:true, burnDiceOverride:1,
+       desc:'Rank 0 · Free cast. Celestial beam: 1d6 + INT×2. Applies Burn (1d6). Crit: also Blinds target.'},
       {name:'Flash',         rank:1, type:'attack', dmg:'0', blind:true, applyBlinded:true, aoe:true,
        desc:'Rank 1. Blinding flash at ALL enemies: 3 banes on their next attack. Consumed when they miss.'},
       {name:'Sunrays',       rank:2, type:'attack', dmg:'1d6', tripleHit:true,
@@ -1090,7 +1090,7 @@ function applyExpertPath(char, pathId) {
     char.pendingLevelUp=true; char.pendingPathTier='tradition'; char.pendingSpellChoices=1;
   }
   if (pathId==='elementalist' && char.traditions.includes('fire')) {
-    const fw=TRADITIONS.fire?.spells.find(s=>s.name==='Firewall')||{name:'Firewall',rank:1,type:'attack',dmg:'4d6',desc:'Rank 1. Firewall: lingering fire zone deals 4d6 + INT×2 to all enemies passing through.'};
+    const fw=TRADITIONS.fire?.spells.find(s=>s.name==='Firewall')||{name:'Firewall',rank:1,type:'attack',dmg:'4d6',applyBurn:true,burnDiceOverride:2,desc:'Rank 1. Firewall: lingering fire zone deals 4d6 + INT×2 to all enemies passing through.'};
     if(!char.knownSpells.find(k=>k.name==='Firewall')) char.knownSpells.push({...fw,heal:false});
   }
 }
@@ -3087,6 +3087,13 @@ function handlePlayerAction(room,playerId,payload,ws){
         } else {
           addLog(room,`${player.name} casts <strong>${spell.name}</strong> [${spellElem}] — ${n}d${sd}(${roll})${b?'+'+b:''}+${intMod} INT${burnBonus?'+'+burnBonus+' burn':''} = <strong>${total}</strong> dmg!`,'spell');
         }
+        if(spell.doubleHit && spellTarget.hp>0){
+          const roll2=rd(n,sd);
+          const hit2=roll2+b+intMod;
+          spellTarget.hp=Math.max(0,spellTarget.hp-hit2);
+          addLog(room,`⚡ <strong>Second fork!</strong> ${n}d${sd}(${roll2})+${intMod} INT = <strong class="num-dmg">−${hit2}</strong> → ${spellTarget.name} ${spellTarget.hp}/${spellTarget.maxHp} HP`,'spell');
+          total+=hit2;
+        }
       } else {
         total=parseInt(dStr)||0;
         addLog(room,`${player.name} casts <strong>${spell.name}</strong> — <strong>${total}</strong> dmg!`,'spell');
@@ -3094,6 +3101,18 @@ function handlePlayerAction(room,playerId,payload,ws){
       const _hitTargets=isAoe?aoeTargets:[spellTarget];
       _hitTargets.forEach(_t=>{ if(_t.hp>0){ _t.hp=Math.max(0,_t.hp-total); if(isAoe&&_hitTargets.length>1) addLog(room,`  ↳ ${_t.name}: <strong class="num-dmg">−${total}</strong> → ${_t.hp}/${_t.maxHp} HP`,'spell'); } });
       if(isAoe){ _hitTargets.filter(_t=>_t.hp<=0).forEach(_t=>{ resolveEnemyDeath(room,_t); }); if(!gs.inCombat){acted=true;return;} }
+      // CANNIBALIZE MAGIC: regain casting on hit
+      if(spell.name==='Cannibalize Magic' && total>0 && spellTarget){
+        // Regain 1 rank-1 casting on hit
+        const r1sp=(char.knownSpells||[]).find(sp=>sp.rank===1);
+        if(r1sp&&char.castingPools){
+          const max1=maxCastings(char.power,1);
+          if((char.castingPools[r1sp.name]||0)<max1){
+            char.castingPools[r1sp.name]=(char.castingPools[r1sp.name]||0)+1;
+            addLog(room,`💀 <strong>Cannibalize Magic!</strong> ${player.name} devours the target's essence — regains a rank-1 casting!`,'spell');
+          }
+        }
+      }
       if(char.spellEcho&&!char._spellEchoUsed&&spell.type==='attack'&&total>0){
         char._spellEchoUsed=true;
         const echo=Math.floor(total/2);
@@ -3103,7 +3122,8 @@ function handlePlayerAction(room,playerId,payload,ws){
 
       const _dotTargets=isAoe?_hitTargets.filter(t=>t.hp>0):[spellTarget];
       if(spell.applyBurn){
-        _dotTargets.forEach(t=>applyBurn(t,2,room,char));
+        const _burnStart=spell.burnDiceOverride||2;
+        _dotTargets.forEach(t=>applyBurn(t,_burnStart,room,char));
         if(char.ignite){
           _dotTargets.forEach(t=>{ const ex=(t.activeDebuffs||[]).find(d=>d.name==='Burn'); if(ex&&ex.burnDice<3){ ex.burnDice=3; addLog(room,`🔥 <strong>Ignite!</strong> ${t.name} Burn upgraded to 3d6!`,'spell'); } });
         }
@@ -3111,6 +3131,11 @@ function handlePlayerAction(room,playerId,payload,ws){
       if(char.burnOnSpell&&spell.type==='attack'&&!spell.applyBurn){ _dotTargets.filter(t=>t.hp>0).forEach(t=>applyBurn(t,1,room)); }
       if(spell.applyChilled){
         _dotTargets.forEach(t=>{ const ex=t.activeDebuffs&&t.activeDebuffs.find(d=>d.name==='Chilled'); if(ex){ex.duration=2;} else{addDebuff(t,'Chilled',{dotDmg:rd(1,3),bane:1},2); addLog(room,`❄ ${t.name} is CHILLED — 1d3/round + 1 bane for 2 rounds!`,'spell');} });
+      }
+      // SLOW: Freezing Fog adds an extra bane on attacks (slowed movement)
+      if(spell.slowDebuff && spellTarget && spellTarget.hp>0){
+        addDebuff(spellTarget,'Slowed',{bane:1},2);
+        addLog(room,`🐢 <strong>Slowed!</strong> ${spellTarget.name} — movement hindered, 1 bane on attacks for 2 rounds!`,'spell');
       }
       if(spell.applyBlinded||spell.blind){
         const existing=spellTarget.activeDebuffs&&spellTarget.activeDebuffs.find(d=>d.name==='Blinded');
@@ -3125,6 +3150,11 @@ function handlePlayerAction(room,playerId,payload,ws){
       }
       if(spell.applyBleed){ _dotTargets.forEach(t=>applyBleed(t,room)); }
       if(spell.applyMajorBleed){ _dotTargets.forEach(t=>{ applyBleed(t,room); applyBleed(t,room); }); } // Major Bleed = 2 applications
+      // PRONE: knock down — 1 bane on next attack (consumed on miss)
+      if(spell.prone && spellTarget && spellTarget.hp>0){
+        addDebuff(spellTarget,'Prone',{bane:1,consumeOnMiss:true},99);
+        addLog(room,`🪨 <strong>Prone!</strong> ${spellTarget.name} is knocked down — 1 bane on next attack!`,'spell');
+      }
       if(spell.stunCheck){
         const stunRoll=d(20);
         addLog(room,`⚡ Stun check: d20=${stunRoll} (need 15+)...`,'spell');
@@ -3135,12 +3165,7 @@ function handlePlayerAction(room,playerId,payload,ws){
         addLog(room,`⚡ Double-strike check: d20=${dblRoll} (need 15+)...`,'spell');
         if(dblRoll>=15){spellTarget.hp=Math.max(0,spellTarget.hp-total);addLog(room,`⚡ <strong>DOUBLE STRIKE!</strong> Hits again for ${total} more damage!`,'crit');}
       }
-      if(spell.doubleHit){
-        const hit2=rd(n,sd)+b+intMod;
-        spellTarget.hp=Math.max(0,spellTarget.hp-hit2);
-        addLog(room,`⚡ Second strike: <strong>${hit2}</strong> dmg!`,'spell');
-        total+=hit2; // for display
-      }
+      // doubleHit handled inside dMatch block
       if(spell.wrathNature){
         addDebuff(spellTarget,'Vine Snare',{bane:2},3);
         addLog(room,`🌿 ${spellTarget.name} is ensnared — next 2 attacks have 2 banes!`,'spell');
