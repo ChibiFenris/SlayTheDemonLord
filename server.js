@@ -699,11 +699,10 @@ function talentHeal(char) {
 
 // ─── COMBAT ROLLS ────────────────────────────────────────────────────────────
 function rollD20boons(boons, banes) {
-  // SotDL: each boon/bane contributes +1d6/-1d6 to the roll (summed, not max-of).
-  // Boons and banes cancel 1:1. Final is capped at [1, 20].
+  // SotDL RAW: roll d20 + highest boon die, or d20 - highest bane die. Boons/banes cancel 1:1.
   const net=boons-banes, base=d(20);
-  if (net>0) { let bonus=0; for(let i=0;i<Math.min(net,4);i++) bonus+=d(6); return {base,final:Math.min(20,base+bonus)}; }
-  if (net<0) { let penalty=0; for(let i=0;i<Math.min(-net,4);i++) penalty+=d(6); return {base,final:Math.max(1,base-penalty)}; }
+  if (net>0) { const bd=[]; for(let i=0;i<Math.min(net,4);i++) bd.push(d(6)); return {base,final:Math.min(20,base+Math.max(...bd))}; }
+  if (net<0) { const bd=[]; for(let i=0;i<Math.min(-net,4);i++) bd.push(d(6)); return {base,final:Math.max(1,base-Math.max(...bd))}; }
   return {base,final:base};
 }
 
@@ -813,7 +812,7 @@ function rollEnemyAttack(enemy, char, hasBoon=false) {
   const roll1=d(20);
   const rawBase=hasBoon?Math.max(roll1,d(20)):roll1;
   const boonInfo=hasBoon?' (boon)':baneDebuff>0?` (${baneDebuff} bane)`:totalBanes>0?' (evasion bane)':'';
-  const baneRoll=totalBanes>0?Array.from({length:Math.min(totalBanes,4)},()=>d(6)).reduce((a,b)=>a+b,0):0;
+  const baneRoll=totalBanes>0?Math.max(...Array.from({length:Math.min(totalBanes,4)},()=>d(6))):0; // SotDL: subtract HIGHEST bane die, not sum
   const adjBase=totalBanes>0?Math.max(1,rawBase-baneRoll):rawBase;
   const total2=adjBase+enemy.atk, crit2=adjBase===20;
   const hit=adjBase!==1&&(crit2||total2>=char.defense);
@@ -2341,7 +2340,7 @@ _te.hp=Math.max(0,_te.hp-dmg);addLog(room,`${player.name} throws Flask of Oil �
   else if(itemName.startsWith('Scroll:')){
     const spell=char.scrollSpells[itemName];
     if(!spell){addLog(room,`${player.name}: scroll crumbles.`,'sys');return false;}
-    if(spell.type==='heal'){const[n,s]=spell.dmgDice.split('d').map(Number);const roll=rd(n,s);const amt=roll+4;char.health=Math.min(char.maxHealth,char.health+amt);addLog(room,`${player.name} reads ${itemName} — ${n}d${s}(${roll})+4 = +<strong>${amt}</strong> HP.`,'heal');}
+    if(spell.type==='heal'){const[n,sh]=spell.dmgDice.split('d').map(Number);const roll=rd(n,sh);const wilBonus=Math.max(0,modVal(char.attrs.wil));const faithBonus=char._wpnChannelFaith?wilBonus:0;const amt=roll+4+faithBonus;char.health=Math.min(char.maxHealth,char.health+amt);addLog(room,`${player.name} reads ${itemName} — ${n}d${sh}(${roll})+4${faithBonus?'+'+faithBonus+' faith':''} = +<strong>${amt}</strong> HP.`,'heal');}
     else if(inCombat){
       const _te=getTargetEnemy(room.gs);
       const alive2=gs.enemies&&gs.enemies.filter(e=>e&&e.hp>0)||(_te?[_te]:[]);
@@ -2352,7 +2351,7 @@ _te.hp=Math.max(0,_te.hp-dmg);addLog(room,`${player.name} throws Flask of Oil �
         const healTarget=data.targetId?room.players.find(p=>p.id===data.targetId&&p.char&&p.char.alive):player;
         const ht=healTarget&&healTarget.char?healTarget.char:char;
         const htName=healTarget&&healTarget.name?healTarget.name:player.name;
-        ht.activeBuffs=(ht.activeBuffs||[]).filter(b=>b.bane||b.skipTurn?false:true); // remove debuffs
+        ht.activeBuffs=(ht.activeBuffs||[]).filter(b=>!(b.bane||b.skipTurn||b.dmgPenalty||b.dotDmg)); // remove harmful effects only
         ht.conditions=[];
         const healAmt=rd(3,6)+Math.max(0,modVal(char.attrs.wil));
         ht.health=Math.min(ht.maxHealth,ht.health+healAmt);
@@ -2361,12 +2360,13 @@ _te.hp=Math.max(0,_te.hp-dmg);addLog(room,`${player.name} throws Flask of Oil �
       }
       if(spell.veilShadows){
         alive2.forEach(e=>{ addDebuff(e,'Veiled',{bane:2},1); });
-        addLog(room,`${player.name} reads <strong>Veil of Shadows</strong> — all enemies have 2 banes this round!`,'spell');
+        addLog(room,`${player.name} reads <strong>Veil of Shadows</strong> — all enemies have 2 banes on attack rolls this round!`,'spell');
+        broadcastState(room.code);
         return true;
       }
       if(spell.wallFaith){
         room.players.filter(p=>p.char&&p.char.alive).forEach(p=>{ addBuff(p.char,'Wall of Faith',{defBonus:3,atkBoon:1},3); p.char.defense+=3; });
-        addLog(room,`${player.name} reads <strong>Wall of Faith</strong> — +3 Defense and 1 boon for all for 3 rounds!`,'spell');
+        addLog(room,`${player.name} reads <strong>Wall of Faith</strong> — all allies gain +3 Defense and 1 boon for 3 rounds!`,'spell');
         return true;
       }
       if(spell.bonePrison&&_te&&_te.hp>0){
@@ -2389,20 +2389,26 @@ _te.hp=Math.max(0,_te.hp-dmg);addLog(room,`${player.name} throws Flask of Oil �
         targets.forEach(_t=>{
           if(!_t||_t.hp<=0) return;
           let dmg=rd(sn,ss)+(char.attrs&&char.attrs.int?Math.max(0,modVal(char.attrs.int)):0);
-          if(spell.holyBonus&&(_t.undead||_t.chaos||(_t.tags&&(_t.tags.includes('undead')||_t.tags.includes('chaos'))))) dmg*=spell.daemonBonus?2:2;
+          if(spell.holyBonus&&(_t.undead||_t.chaos||(_t.tags&&(_t.tags.includes('undead')||_t.tags.includes('chaos'))))) dmg=Math.floor(dmg*(spell.daemonBonus?2:1.5)); // daemonBonus=×2, holyBonus alone=×1.5
           _t.hp=Math.max(0,_t.hp-dmg);
           addLog(room,`${player.name} reads <strong>${spell.name}</strong> — <strong>${dmg}</strong> dmg to ${_t.name}!`,'spell');
           if(_t.hp<=0) resolveEnemyDeath(room,_t);
         });
         if(spell.deathWind){
-          const ally=room.players.filter(p=>p.char&&p.char.alive)[Math.floor(Math.random()*room.players.filter(p=>p.char&&p.char.alive).length)];
-          if(ally){const heal=rd(1,6);ally.char.health=Math.min(ally.char.maxHealth,ally.char.health+heal);addLog(room,`💀 Winds of Death restores <strong>${heal}</strong> HP to ${ally.name}!`,'heal');}
+          // Only heal if at least one enemy died from this cast
+          const anyKilled=targets.some(_t=>_t.hp<=0);
+          if(anyKilled){
+            const aliveP=room.players.filter(p=>p.char&&p.char.alive);
+            const ally=aliveP[Math.floor(Math.random()*aliveP.length)];
+            if(ally){const heal=rd(1,6);ally.char.health=Math.min(ally.char.maxHealth,ally.char.health+heal);addLog(room,`💀 Winds of Death restores <strong>${heal}</strong> HP to ${ally.name}!`,'heal');}
+          }
         }
-        if(spell.boltStorm) alive2.filter(e=>e&&e.hp>0).forEach(e=>{ addDebuff(e,'Bolt-Stunned',{skipTurn:true},1); });
+        // Arcane Bolt Storm: stuns all surviving enemies
+        if(spell.boltStorm){ alive2.filter(e=>e&&e.hp>0).forEach(e=>{ addDebuff(e,'Bolt-Stunned',{skipTurn:true},1); addLog(room,`⚡ Bolt Storm stuns <strong>${e.name}</strong>!`,'spell'); }); }
         return true;
       }
     }
-    else{consumed=false;}
+    else{consumed=false; addLog(room,`${player.name}: ${itemName} can only be used in combat.`,'sys');}
   } else {consumed=false;}
   if(consumed){char.inventory[idx].qty--;if(char.inventory[idx].qty<=0)char.inventory.splice(idx,1);}
   return consumed;
