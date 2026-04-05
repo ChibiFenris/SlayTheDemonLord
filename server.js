@@ -507,40 +507,73 @@ function getSpellsForPower(traditionId, power) {
 }
 
 // ─── ENEMY POOLS ─────────────────────────────────────────────────────────────
-// All ATK values are 0 — hit is purely d20 vs Defense
+// Enemy roles: Tank=high HP low AC, Striker=high ATK, Hi-AC=low HP high AC, Debuffer=status on hit, Buffer=team buff
 const ENEMY_POOLS = {
   low: [
-    // tags: skaven=call the pack, chaos=holy weakness, undead=fire weakness+undeath passive, beast=dark weakness+rage passive
-    {name:'Skaven Clanrat',     type:'Skaven',  threat:'Low',      hp:15, ac:12,atk:0,xp:3,gold:[2,8],   tags:['skaven']},
-    {name:'Beastman Gor',       type:'Beastmen',threat:'Low',      hp:10, ac:13,atk:0,xp:3,gold:[3,10],  tags:['beast'],  chaos:true},
-    {name:'Undead Skeleton',    type:'Undead',  threat:'Low',      hp:15, ac:10,atk:0,xp:3,gold:[0,5],   tags:['undead'], undead:true},
-    {name:'Mutant Thug',        type:'Cultist', threat:'Low',      hp:15, ac:11,atk:0,xp:3,gold:[5,15],  tags:['chaos'],  chaos:true},
+    // SWARM — Pack Instinct: 2+ clanrats alive gives +1 ATK each. Call the Pack coded in fireEnemyTurn.
+    {name:'Skaven Clanrat',  type:'Skaven',  threat:'Low', hp:13,ac:11,atk:0,xp:3,gold:[2,8],  tags:['skaven'],
+     packInstinct:true},
+    // STRIKER — Reckless Charge: round 1 attack has 1 boon +1d6. Bloodgreed: heals 1d6 on kill.
+    {name:'Beastman Gor',    type:'Beastmen',threat:'Low', hp:16,ac:12,atk:1,xp:3,gold:[3,10], tags:['beast'],chaos:true,
+     recklessCharge:true, bloodgreed:true},
+    // TANK — high HP, low AC. Undying: 1-in-6 chance to rise at 1 HP on first death. Weak to blunt (x1.5).
+    {name:'Undead Skeleton', type:'Undead',  threat:'Low', hp:18,ac:10,atk:0,xp:3,gold:[0,5],  tags:['undead'],undead:true,
+     undying:true, weakToBlunt:true},
+    // DEBUFFER — Corroding Bite: on hit target takes -1 to all damage for 1 round.
+    {name:'Mutant Thug',     type:'Cultist', threat:'Low', hp:11,ac:13,atk:1,xp:3,gold:[5,15], tags:['chaos'],chaos:true,
+     corrodingBite:true},
   ],
   mid: [
-    {name:'Chaos Marauder',     type:'Chaos',   threat:'Moderate', hp:30, ac:14,atk:2,xp:5,gold:[10,25], tags:['chaos'],  chaos:true},
-    {name:'Skaven Stormvermin', type:'Skaven',  threat:'Moderate', hp:30, ac:15,atk:2,xp:5,gold:[8,20],  tags:['skaven']},
-    {name:'Wight',              type:'Undead',  threat:'Moderate', hp:35, ac:12,atk:2,xp:5,gold:[5,15],  tags:['undead'], undead:true,lifeLeech:true},
-    {name:'Plague Monk',        type:'Chaos',   threat:'Moderate', hp:35, ac:13,atk:2,xp:5,gold:[5,15],  tags:['chaos'],  chaos:true},
+    // STRIKER — Frenzied Assault: attacks twice while above 50% HP. Chaos Crit: +1d6 on crits.
+    {name:'Chaos Marauder',    type:'Chaos',  threat:'Moderate',hp:32,ac:13,atk:2,xp:5,gold:[10,25],tags:['chaos'],chaos:true,
+     frenziedAssault:true, chaosCrit:true},
+    // HI-AC STRIKER — AC16 low HP, DR:1. Gutter Fighting: 1 boon on attacks in round 1.
+    {name:'Skaven Stormvermin',type:'Skaven', threat:'Moderate',hp:22,ac:16,atk:2,xp:5,gold:[8,20], tags:['skaven'],
+     damageReduction:1, gutterFighting:true},
+    // TANK — low AC, life leech (1/4), Grave Chill on hit (Chilled debuff 2 rounds).
+    {name:'Wight',             type:'Undead', threat:'Moderate',hp:30,ac:11,atk:2,xp:5,gold:[5,15], tags:['undead'],undead:true,lifeLeech:true,
+     graveChill:true},
+    // DEBUFFER — Virulent Blade: 1 poison stack on hit. Frenzy: ATK->4 below 50% HP.
+    {name:'Plague Monk',       type:'Chaos',  threat:'Moderate',hp:22,ac:13,atk:3,xp:5,gold:[5,15], tags:['chaos'],chaos:true,
+     virulentBlade:true, frenzyAtk:{threshold:0.5,newAtk:4}},
   ],
   high: [
-    {name:'Chaos Warrior',      type:'Chaos',   threat:'High',     hp:45, ac:16,atk:3,xp:8,gold:[15,40], tags:['chaos'],  chaos:true},
-    {name:'Vampire Count',      type:'Undead',  threat:'High',     hp:45, ac:15,atk:3,xp:8,gold:[20,60], tags:['undead'], undead:true,lifeLeech:true},
-    {name:'Bloodletter',        type:'Chaos',   threat:'High',     hp:45, ac:15,atk:3,xp:8,gold:[25,50], tags:['chaos'],  insanityAtk:true,chaos:true},
-    {name:'Skaven Warlord',     type:'Skaven',  threat:'High',     hp:50, ac:14,atk:3,xp:8,gold:[10,30], tags:['skaven']},
+    // HIGH-AC TANK — DR:2, immune to fire, Brutal Cleave: on crit 50% splash to another player.
+    {name:'Chaos Warrior',  type:'Chaos',  threat:'High',hp:45,ac:16,atk:3,xp:8,gold:[15,40],tags:['chaos'],chaos:true,
+     damageReduction:2, immuneFire:true, brutalCleave:true},
+    // STRIKER — high ATK+4, 50% life leech, Hypnotic Gaze: target has 1 bane next attack. Mist Form: 50% DR at 25% HP once.
+    {name:'Vampire Count', type:'Undead', threat:'High',hp:35,ac:14,atk:4,xp:8,gold:[20,60],tags:['undead'],undead:true,lifeLeech:true,
+     lifeLeechFrac:0.5, hypnoticGaze:true, mistForm:true},
+    // BERSERKER — ignores 2 player Def. Warp-frenzy below 50%: +boon +1d6. Daemonic Ichor: 1d6 fire to all on death.
+    {name:'Bloodletter',   type:'Chaos',  threat:'High',hp:38,ac:15,atk:4,xp:8,gold:[25,50],tags:['chaos'],chaos:true,insanityAtk:true,
+     ignoresDef:2, frenzyAtk:{threshold:0.5,newAtk:4,boon:true,extraDmg:true}, daemonicIchor:true},
+    // BUFFER/SUPPORT — HP 38 (adjusted up). Warlord's Command: +1 ATK all skaven at combat start. Scurry Away: 1 auto-dodge. Poison Blade: 2 stacks on hit.
+    {name:'Skaven Warlord',type:'Skaven', threat:'High',hp:38,ac:13,atk:3,xp:8,gold:[10,30],tags:['skaven'],
+     warlordCommand:true, scurryAway:true, poisonBlade:2},
   ],
-  // Boss 1 (depth 10) — random
+  // Boss 1 — depth 9
   boss1: [
-    {name:'Skaven Warlord Gnashteeth', type:'Skaven Boss', threat:'Boss',hp:45, ac:15,atk:0,xp:15,gold:[30,80],  tags:['skaven']},
-    {name:'Beastlord Kragthor',        type:'Beastmen Boss',threat:'Boss',hp:40, ac:16,atk:0,xp:15,gold:[25,70], tags:['beast'], chaos:true},
+    // MULTI-PHASE: attacks twice, summons clanrats at 60%+30% HP, Skaven Cunning (bane on attackers), Seething Rage at 40%.
+    {name:'Skaven Warlord Gnashteeth',type:'Skaven Boss', threat:'Boss',hp:40,ac:15,atk:2,xp:15,gold:[30,80], tags:['skaven'],
+     multi:true, skavencunning:true, seethingRage:true, packBoss:true},
+    // BRUISER: HP 32 (reduced from 40, DR:2 compensates). Stampede round 1, Bloodlust on kill, DR:2, Bellowing Roar at 50%.
+    {name:'Beastlord Kragthor',       type:'Beastmen Boss',threat:'Boss',hp:32,ac:16,atk:2,xp:15,gold:[25,70], tags:['beast'],chaos:true,
+     stampede:true, bloodlust:true, damageReduction:2, belowRoar:true},
   ],
-  // Boss 2 (depth 20) — random, regen removed from Varghulf, life leech stays
+  // Boss 2 — depth 19
   boss2: [
-    {name:'Varghulf',            type:'Undead Boss', threat:'Boss',hp:120,ac:15,atk:3,xp:15,gold:[200,200],tags:['undead'],undead:true,lifeLeech:true},
-    {name:'Bonebreaker Ratogre', type:'Skaven Boss', threat:'Boss',hp:105,ac:16,atk:3,xp:15,gold:[200,200],tags:['skaven'],insanityAtk:true},
+    // SUSTAIN: 1/4 leech, crit->Major Bleed, Undeath at 30%, multi attack at 50%.
+    {name:'Varghulf',            type:'Undead Boss', threat:'Boss',hp:100,ac:15,atk:4,xp:15,gold:[200,200],tags:['undead'],undead:true,lifeLeech:true,
+     lifeLeechFrac:0.25, frenzyMulti:{threshold:0.5}, critMajorBleed:true},
+    // TANK BOSS: DR:3, Crushing Blow stun (cooldown 2r), Insanity on hit, Pack Leader.
+    {name:'Bonebreaker Ratogre', type:'Skaven Boss', threat:'Boss',hp:95,ac:16,atk:3,xp:15,gold:[200,200],tags:['skaven'],insanityAtk:true,
+     damageReduction:3, crushingBlow:true, packLeader:true},
   ],
-  // Boss 3 (depth 30) — Saurian Ancient with regeneration
+  // Boss 3 — depth 29
   boss3: [
-    {name:'Saurian Ancient', type:'Ancient Boss',threat:'Boss',hp:140,ac:15,atk:4,xp:15,gold:[60,150],tags:[],regen:true},
+    // FINAL: regen 1d6/turn, Primordial Roar round 1 (2d6 all), Crushing Tail (bane on hit), DR:2, Extinction Pulse at 30%.
+    {name:'Saurian Ancient',type:'Ancient Boss',threat:'Boss',hp:125,ac:15,atk:4,xp:15,gold:[60,150],tags:[],
+     regen:true, primordialRoar:true, crushingTail:true, damageReduction:2, extinctionPulse:true},
   ],
 };
 
@@ -689,6 +722,11 @@ function rollAttack(char, enemy, extraBoons=0) {
   if (char.warlordAura) boons++; // aura from warlord
   if (char.conditions.includes('Frightened')) banes++;
   if (char.conditions.includes('Stunned'))    banes++;
+  // Skaven Cunning (Gnashteeth): enemy has skavencunning flag → attacker has 1 bane
+  if (enemy && enemy.skavencunning) banes++;
+  // Player debuff banes (Hypnotised, Infected, Roared, Prone, Corroded)
+  const baneBuff = getBuffVal(char, 'bane');
+  if (baneBuff) banes += baneBuff;
   const forceCrit=char.luckyPendant; if(forceCrit) char.luckyPendant=false;
   // Active buff bonuses
   const atkBuff=getBuffVal(char,'atkBoon'); boons+=atkBuff;
@@ -726,6 +764,11 @@ function rollAttack(char, enemy, extraBoons=0) {
     if(char.rage&&char.rageBoon){ const rb=rd(1,6);dmg+=rb;dmgParts.push(`+${rb} rage`);char.rageBoon=false; } // consume rage proc
     // Assassination: target below 50% HP, +1d6+3 bonus damage
     // Assassination: +1d6+3 dmg if below 50% HP; if above 50%, will add 3 poison stacks (applied after hit)
+    // Corroded debuff on player: -1 to damage
+    const corrodedBuff=(char.activeBuffs||[]).find(b=>b.dmgPenalty);
+    if(corrodedBuff&&dmg>0){ dmg=Math.max(0,dmg-corrodedBuff.dmgPenalty); }
+    // Clear _corroded flag so it can be reapplied
+    char._corroded=false;
     dmg=Math.max(1,dmg);
   }
   const boonInfo=boons>0?` (${boons} boon)`:banes>0?` (${banes} bane)`:'';
@@ -1238,59 +1281,219 @@ function fireEnemyTurn(room, ae) {
   const alive = room.players.filter(p => p.char && p.char.alive);
   if (!alive.length) { gs.phase = 'gameover'; addLog(room, 'The warband has fallen.', 'death'); return; }
 
-  // Attack every living player
-  alive.forEach(p => {
-    const auraBonus = room.players.some(q => q.char && q.char.alive && q.char.holyAura) ? 2 : 0;
-    const shieldBonus = p.char.shieldwall ? 2 : 0;
-    const defTotal = p.char.defense + auraBonus + shieldBonus;
-    const r = rollEnemyAttack(ae, { ...p.char, defense: defTotal });
-    if (r.hit) {
-      let dmg = r.dmg;
-      const isImmune = (p.char.activeBuffs || []).some(b => b.immune);
-      const drBuff = (p.char.activeBuffs || []).find(b => b.damageReduction);
-      if (isImmune) { dmg = 0; addLog(room, `${p.name} is IMMUNE — blocked!`, 'spell'); }
-      else if (drBuff) { dmg = Math.floor(dmg * (1 - drBuff.damageReduction)); }
-      if (ae.tags && ae.tags.includes('beast') && ae.hp < ae.maxHp * 0.5) { dmg += 3; }
+
+  // ── Pre-attack passives ───────────────────────────────────────────────────
+
+  // STAMPEDE (Kragthor): round 1 unavoidable 1d6 to all players
+  if (ae.stampede && !ae._stampedeUsed && gs.roundNumber === 1) {
+    ae._stampedeUsed = true;
+    alive.forEach(p => {
+      const dmg = rd(1,6);
       p.char.health = Math.max(0, p.char.health - dmg);
-      const crit = r.crit ? ' CRIT!' : '';
-      const dmgBreak = `${ae.dmgNum}d${ae.dmgSides}(${r.dmgRoll})${ae.dmgBonus ? '+' + ae.dmgBonus : ''}${r.critRoll ? '+' + r.critRoll + ' crit' : ''}`;
-      addLog(room, `${ae.name} hits <strong>${p.name}</strong> — <strong class="num-dmg">-${dmg} dmg</strong>${crit} [d20:<strong>${r.base}</strong>+atk<strong>${ae.atk>=0?'+':''}${ae.atk}</strong>=<strong>${r.total}</strong> vs Def<strong>${defTotal}</strong>] [dmg: ${dmgBreak}] → ${p.name} <strong>${p.char.health}</strong>/${p.char.maxHealth} HP`, 'dmg-taken');
-      if (ae.lifeLeech) {
-        if (ae.name === 'Varghulf') { ae._leechAccum = (ae._leechAccum || 0) + dmg; }
-        else { const l = Math.floor(dmg / 4); ae.hp = Math.min(ae.maxHp, ae.hp + l); addLog(room, `${ae.name} leeches ${l} HP.`, 'chaos'); }
-      }
-      if (ae.insanityAtk && d(6) >= 4) { p.char.insanity++; addLog(room, `${p.name} gains 1 Insanity!`, 'chaos'); }
-      if (p.char.rage && dmg > 0 && !p.char.rageBoon) { p.char.rageBoon = true; addLog(room, `${p.name} RAGES — next attack +1 boon +1d6!`, 'crit'); }
+      addLog(room, `🐂 <strong>Stampede!</strong> ${ae.name} charges — <strong class="num-dmg">-${dmg}</strong> unavoidable to ${p.name}!`, 'chaos');
       checkDeath(room, p);
-    } else {
-      if (!r.skipped) addLog(room, `${ae.name} <em>misses</em> <strong>${p.name}</strong> — d20:<strong>${r.base}</strong>+atk<strong>${ae.atk>=0?'+':''}${ae.atk}</strong>=<strong>${r.total}</strong> vs Def<strong>${defTotal}</strong>.`, 'sys');
+    });
+  }
+  // PRIMORDIAL ROAR (Saurian): round 1 unavoidable 2d6 to all
+  if (ae.primordialRoar && !ae._roarUsed && gs.roundNumber === 1) {
+    ae._roarUsed = true;
+    alive.forEach(p => {
+      const dmg = rd(2,6);
+      p.char.health = Math.max(0, p.char.health - dmg);
+      addLog(room, `🦎 <strong>Primordial Roar!</strong> ${ae.name} — <strong class="num-dmg">-${dmg}</strong> to ${p.name}!`, 'chaos');
+      checkDeath(room, p);
+    });
+    if (!room.players.filter(p=>p.char&&p.char.alive).length) { gs.phase='gameover'; advanceTurn(room); return; }
+  }
+  // WARLORD'S COMMAND (Skaven Warlord): +1 ATK all skaven at first action
+  if (ae.warlordCommand && !ae._commandUsed) {
+    ae._commandUsed = true;
+    (gs.enemies||[]).forEach(e => { if(e&&e!==ae&&e.tags&&e.tags.includes('skaven')&&e.hp>0){e.atk=(e.atk||0)+1;} });
+    addLog(room, `⚔ <strong>Warlord's Command!</strong> ${ae.name} rallies the skaven — all skaven +1 ATK!`, 'chaos');
+  }
+  // PACK INSTINCT (Clanrat): 2+ alive skaven → +1 ATK dynamically
+  if (ae.packInstinct) {
+    const skavenCount = (gs.enemies||[]).filter(e=>e&&e.hp>0&&e.tags&&e.tags.includes('skaven')).length;
+    ae._packBonus = skavenCount >= 2 ? 1 : 0;
+  }
+  // SEETHING RAGE (Gnashteeth): below 40% HP → boon + extra d6 on attacks
+  if (ae.seethingRage && !ae._rageActive && ae.hp < ae.maxHp * 0.4) {
+    ae._rageActive = true;
+    addLog(room, `😡 <strong>Seething Rage!</strong> ${ae.name} erupts — +1 boon and +1d6 on all attacks!`, 'chaos');
+  }
+  // EXTINCTION PULSE (Saurian): once below 30% — 2d6 all + Blind all 1 round
+  if (ae.extinctionPulse && !ae._pulseUsed && ae.hp < ae.maxHp * 0.3) {
+    ae._pulseUsed = true;
+    alive.forEach(p => {
+      const dmg = rd(2,6);
+      p.char.health = Math.max(0, p.char.health - dmg);
+      addBuff(p.char, 'Blinded', {bane:3}, 1);
+      addLog(room, `💥 <strong>Extinction Pulse!</strong> <strong class="num-dmg">-${dmg}</strong> + Blinded to ${p.name}!`, 'chaos');
+      checkDeath(room, p);
+    });
+    addLog(room, `💥 Extinction Pulse fades... (1-round Blind on all warriors)`, 'sys');
+  }
+  // MIST FORM (Vampire): 50% DR once below 25% HP
+  if (ae.mistForm && !ae._mistUsed && ae.hp < ae.maxHp * 0.25) {
+    ae._mistUsed = true;
+    if(!ae.activeDebuffs) ae.activeDebuffs=[];
+    ae.activeDebuffs.push({name:'Mist Form',damageReduction:0.5,duration:1});
+    addLog(room, `🌫 <strong>Mist Form!</strong> ${ae.name} — 50% damage reduction for 1 round!`, 'chaos');
+  }
+  // BELLOWING ROAR (Kragthor): below 50% HP → all players 1 bane next attack (once)
+  if (ae.belowRoar && !ae._roarActive && ae.hp < ae.maxHp * 0.5) {
+    ae._roarActive = true;
+    room.players.filter(p=>p.char&&p.char.alive).forEach(p => { addBuff(p.char,'Roared',{bane:1},1); });
+    addLog(room, `🐂 <strong>Bellowing Roar!</strong> All warriors have 1 bane on next attack!`, 'chaos');
+  }
+  // FRENZY ATK (Plague Monk, Bloodletter): ATK increases below threshold
+  if (ae.frenzyAtk && ae.hp < ae.maxHp * ae.frenzyAtk.threshold && !ae._frenzyActive) {
+    ae._frenzyActive = true;
+    addLog(room, `😤 <strong>Frenzy!</strong> ${ae.name} enters a frenzied state!`, 'chaos');
+  }
+  // CRUSHING BLOW cooldown tick
+  if (ae._crushCooldown > 0) ae._crushCooldown--;
+
+  // ── Determine attack multiplier ───────────────────────────────────────────
+  const frenziedDouble  = ae.frenziedAssault && ae.hp > ae.maxHp * 0.5;
+  const frenzyMultiDouble = ae.frenzyMulti && ae.hp < ae.maxHp * (ae.frenzyMulti.threshold||0.5);
+  const baseAttacks = (ae.multi || frenziedDouble || frenzyMultiDouble) ? 2 : 1;
+  const gutterBoon  = ae.gutterFighting && gs.roundNumber === 1;
+
+  // ── Attack loop ───────────────────────────────────────────────────────────
+  alive.forEach(p => {
+    const auraBonus  = room.players.some(q=>q.char&&q.char.alive&&q.char.holyAura)?2:0;
+    const shieldBonus = p.char.shieldwall ? 2 : 0;
+    const ignoresDef  = ae.ignoresDef || 0;
+    const defTotal    = Math.max(10, p.char.defense + auraBonus + shieldBonus - ignoresDef);
+
+    for (let atk_i = 0; atk_i < baseAttacks; atk_i++) {
+      if (!p.char.alive) break;
+
+      const atkBase  = ae._frenzyActive && ae.frenzyAtk ? ae.frenzyAtk.newAtk : ae.atk;
+      const atkBonus = ae._packBonus || 0;
+      const hasExtraBoon = gutterBoon || ae._rageActive || (ae._frenzyActive && ae.frenzyAtk && ae.frenzyAtk.boon);
+      const aeProxy = {...ae, atk: atkBase + atkBonus};
+
+      // RECKLESS CHARGE (Gor): round 1 first attack gets boon + will add d6 via chaosCrit-like flag
+      const recklessBoon = ae.recklessCharge && !ae._recklessUsed && gs.roundNumber === 1;
+      if (recklessBoon && atk_i === 0) ae._recklessUsed = true;
+
+      const r = rollEnemyAttack(aeProxy, {...p.char, defense: defTotal}, hasExtraBoon || recklessBoon);
+
+      if (r.hit) {
+        let dmg = r.dmg;
+        // Bonus damage sources
+        if (ae.chaosCrit && r.crit)                                  { dmg += rd(1,6); }
+        if (ae.recklessCharge && recklessBoon)                        { dmg += rd(1,6); }
+        if (ae._frenzyActive && ae.frenzyAtk && ae.frenzyAtk.extraDmg){ dmg += rd(1,6); }
+        if (ae._rageActive)                                           { dmg += rd(1,6); }
+        // Mist Form damage reduction on enemy
+        const mistDR = (ae.activeDebuffs||[]).find(d=>d.name==='Mist Form');
+        if (mistDR) dmg = Math.floor(dmg * (1 - mistDR.damageReduction));
+        // Player immunity/DR buffs
+        const isImmune = (p.char.activeBuffs||[]).some(b=>b.immune);
+        const drBuff   = (p.char.activeBuffs||[]).find(b=>b.damageReduction);
+        if (isImmune)  { dmg = 0; addLog(room, `🛡 ${p.name} is IMMUNE — blocked!`, 'spell'); }
+        else if (drBuff){ dmg = Math.floor(dmg * (1 - drBuff.damageReduction)); }
+        // Beast rage
+        if (ae.tags && ae.tags.includes('beast') && ae.hp < ae.maxHp * 0.5) { dmg += 3; }
+
+        p.char.health = Math.max(0, p.char.health - dmg);
+        const critLabel = r.crit ? ' 💥 CRIT!' : '';
+        const dmgBreak  = `${ae.dmgNum}d${ae.dmgSides}(${r.dmgRoll})${ae.dmgBonus?'+'+ae.dmgBonus:''}${r.critRoll?'+'+r.critRoll+' crit':''}`;
+        addLog(room, `${ae.name} hits <strong>${p.name}</strong> — <strong class="num-dmg">-${dmg} dmg</strong>${critLabel} [d20:<strong>${r.base}</strong>+atk<strong>${aeProxy.atk>=0?'+':''}${aeProxy.atk}</strong>=<strong>${r.total}</strong> vs Def<strong>${defTotal}</strong>] [${dmgBreak}] → ${p.name} <strong>${p.char.health}</strong>/${p.char.maxHealth} HP`, 'dmg-taken');
+
+        // ── On-hit abilities ──────────────────────────────────────────────
+        // Life leech
+        if (ae.lifeLeech) {
+          const frac = ae.lifeLeechFrac || 0.25;
+          if (ae.name === 'Varghulf') { ae._leechAccum = (ae._leechAccum||0) + dmg; }
+          else { const l = Math.floor(dmg * frac); ae.hp = Math.min(ae.maxHp, ae.hp+l); addLog(room, `🩸 ${ae.name} leeches <strong>${l}</strong> HP.`, 'chaos'); }
+        }
+        // Insanity
+        if (ae.insanityAtk && d(6) >= 4) { p.char.insanity++; addLog(room, `${p.name} gains 1 Insanity!`, 'chaos'); }
+        // Grave Chill (Wight)
+        if (ae.graveChill) { addBuff(p.char,'Chilled',{bane:1},2); addLog(room, `❄ <strong>Grave Chill!</strong> ${p.name} is Chilled — 1 bane on attacks for 2 rounds!`, 'spell'); }
+        // Corroding Bite (Mutant Thug): -1 dmg debuff on player
+        if (ae.corrodingBite && !p.char._corroded) { p.char._corroded=true; addBuff(p.char,'Corroded',{dmgPenalty:1},1); addLog(room, `🟢 <strong>Corroding Bite!</strong> ${p.name} weakened — -1 damage for 1 round!`, 'chaos'); }
+        // Virulent Blade (Plague Monk): 1 bane on player's next 2 attacks
+        if (ae.virulentBlade) { addBuff(p.char,'Infected',{bane:1},2); addLog(room, `☠ <strong>Virulent Blade!</strong> ${p.name} infected — 1 bane on next 2 attacks!`, 'chaos'); }
+        // Hypnotic Gaze (Vampire): 1 bane on target's next attack
+        if (ae.hypnoticGaze) { addBuff(p.char,'Hypnotised',{bane:1},1); addLog(room, `👁 <strong>Hypnotic Gaze!</strong> ${p.name} entranced — 1 bane on next attack!`, 'chaos'); }
+        // Crushing Tail (Saurian): 1 bane on target's next attack
+        if (ae.crushingTail) { addBuff(p.char,'Prone',{bane:1},1); addLog(room, `🦎 <strong>Crushing Tail!</strong> ${p.name} knocked down — 1 bane on next attack!`, 'chaos'); }
+        // Crushing Blow (Ratogre): stun on hit, 2-round cooldown
+        if (ae.crushingBlow && !ae._crushCooldown) { ae._crushCooldown=2; addBuff(p.char,'Stunned',{skipTurn:true},1); addLog(room, `💥 <strong>Crushing Blow!</strong> ${p.name} is STUNNED and loses their next action!`, 'chaos'); }
+        // Brutal Cleave (Chaos Warrior): crit splashes 50% to another player
+        if (ae.brutalCleave && r.crit) {
+          const others = alive.filter(o=>o!==p&&o.char&&o.char.alive);
+          if (others.length) { const splash=Math.floor(dmg*0.5); others[0].char.health=Math.max(0,others[0].char.health-splash); addLog(room, `⚔ <strong>Brutal Cleave!</strong> ${others[0].name} takes <strong class="num-dmg">-${splash}</strong> splash!`, 'chaos'); checkDeath(room,others[0]); }
+        }
+        // Crit Major Bleed (Varghulf)
+        if (ae.critMajorBleed && r.crit) { addDebuff(ae,'Major Bleed',{dotDmg:rd(2,6)},2); addLog(room, `🩸🩸 <strong>Frenzied Rending!</strong> Major Bleed on ${p.name}!`, 'chaos'); }
+        // Poison Blade (Skaven Warlord)
+        if (ae.poisonBlade) { applyPoison(ae, ae.poisonBlade, room); }
+        // Bloodlust (Kragthor): on kill, bonus attack on another player
+        if (ae.bloodlust && p.char.health <= 0) {
+          const next = alive.filter(o=>o!==p&&o.char&&o.char.alive);
+          if (next.length) { const r3=rollEnemyAttack(ae,next[0].char); if(r3.hit){next[0].char.health=Math.max(0,next[0].char.health-r3.dmg); addLog(room,`🩸 <strong>Bloodlust!</strong> ${ae.name} charges ${next[0].name} — <strong class="num-dmg">-${r3.dmg}</strong>!`,'chaos'); checkDeath(room,next[0]);} }
+        }
+        // Player rage
+        if (p.char.rage && dmg > 0 && !p.char.rageBoon) { p.char.rageBoon=true; addLog(room,`🔥 ${p.name} RAGES — next attack +1 boon +1d6!`,'crit'); }
+        checkDeath(room, p);
+
+      } else {
+        if (!r.skipped) addLog(room, `${ae.name} <em>misses</em> <strong>${p.name}</strong> — d20:<strong>${r.base}</strong>+atk<strong>${aeProxy.atk>=0?'+':''}${aeProxy.atk}</strong>=<strong>${r.total}</strong> vs Def<strong>${defTotal}</strong>.`, 'sys');
+      }
     }
   });
-  // Multi-attack
-  if (ae.multi) {
-    const t = alive[Math.floor(Math.random() * alive.length)];
-    if (t) { const r2 = rollEnemyAttack(ae, t.char); if (r2.hit) { t.char.health = Math.max(0, t.char.health - r2.dmg); addLog(room, `${ae.name} bonus attack on ${t.name} for ${r2.dmg}!`, 'dmg'); checkDeath(room, t); } }
-  }
-  // Varghulf leech
-  if (ae.name === 'Varghulf' && ae._leechAccum > 0) {
-    const l = Math.floor(ae._leechAccum / 4);
-    ae.hp = Math.min(ae.maxHp, ae.hp + l);
-    addLog(room, `Varghulf leeches ${l} HP.`, 'chaos');
+
+  // ── Post-attack ───────────────────────────────────────────────────────────
+  // Varghulf accumulated leech
+  if (ae._leechAccum > 0) {
+    const l = Math.floor(ae._leechAccum * (ae.lifeLeechFrac||0.25));
+    ae.hp = Math.min(ae.maxHp, ae.hp+l);
+    addLog(room, `🩸 ${ae.name} leeches <strong>${l}</strong> HP.`, 'chaos');
     ae._leechAccum = 0;
   }
-  // Call the Pack
-  if (ae.tags && ae.tags.includes('skaven') && ae.hp < ae.maxHp * 0.6 && !(gs.packCooldown > 0) && gs.enemies && gs.enemies.length < 4) {
-    gs.packCooldown = 2;
-    const clanrat = scaleEnemy({ name: 'Skaven Clanrat', type: 'Skaven', threat: 'Low', hp: 15, ac: 12, atk: 0, xp: 0, gold: [0, 0], tags: ['skaven'] },
-      room.players.filter(p => p.connected && p.char && p.char.alive).length, false, gs.bossCount);
-    clanrat.id = 'pack_' + Date.now();
-    gs.enemies.push(clanrat);
-    addLog(room, `Call the Pack! ${ae.name} summons a Skaven Clanrat! (2-round cooldown)`, 'chaos');
-    // Note: clanrat joins next round's turn order via endRound -> buildTurnOrder
+  // Bloodgreed (Gor): heals 1d6 if a player died this turn
+  if (ae.bloodgreed && room.players.some(p=>p.char&&!p.char.alive&&p.char.health===0)) {
+    const h=rd(1,6); ae.hp=Math.min(ae.maxHp,ae.hp+h);
+    addLog(room, `🩸 <strong>Bloodgreed!</strong> ${ae.name} heals <strong>${h}</strong> HP!`, 'chaos');
+  }
+  // Pack Boss (Gnashteeth): summon clanrats at 60% and 30%
+  if (ae.packBoss) {
+    const ratio = ae.hp / ae.maxHp;
+    const threshold = ratio < 0.3 && !ae._pack30 ? '_pack30' : ratio < 0.6 && !ae._pack60 ? '_pack60' : null;
+    if (threshold && gs.enemies && gs.enemies.length < 5) {
+      ae[threshold] = true;
+      const clanrat = scaleEnemy({name:'Skaven Clanrat',type:'Skaven',threat:'Low',hp:13,ac:11,atk:0,xp:0,gold:[0,0],tags:['skaven'],packInstinct:true},
+        room.players.filter(p=>p.connected&&p.char&&p.char.alive).length, false, gs.bossCount);
+      clanrat.id='pack_'+Date.now(); gs.enemies.push(clanrat);
+      addLog(room, `🐀 <strong>Call the Pack!</strong> ${ae.name} summons a Skaven Clanrat!`, 'chaos');
+    }
+  }
+  // Regular Call the Pack (non-boss skaven)
+  if (!ae.packBoss && ae.tags&&ae.tags.includes('skaven')&&ae.hp<ae.maxHp*0.6&&!(gs.packCooldown>0)&&gs.enemies&&gs.enemies.length<4) {
+    gs.packCooldown=2;
+    const clanrat=scaleEnemy({name:'Skaven Clanrat',type:'Skaven',threat:'Low',hp:13,ac:11,atk:0,xp:0,gold:[0,0],tags:['skaven'],packInstinct:true},
+      room.players.filter(p=>p.connected&&p.char&&p.char.alive).length,false,gs.bossCount);
+    clanrat.id='pack_'+Date.now(); gs.enemies.push(clanrat);
+    addLog(room, `🐀 <strong>Call the Pack!</strong> ${ae.name} summons a Skaven Clanrat! (2-round cooldown)`, 'chaos');
+  }
+  // Pack Leader (Ratogre): +2 ATK to all skaven while alive — applied passively each turn
+  // Pack Leader (Ratogre): skaven allies get +2 ATK while Ratogre alive — applied once on first turn
+  if (ae.packLeader && !ae._packLeaderApplied) {
+    ae._packLeaderApplied = true;
+    (gs.enemies||[]).forEach(e=>{ if(e&&e!==ae&&e.tags&&e.tags.includes('skaven')&&e.hp>0){ e.atk=(e.atk||0)+2; } });
+    addLog(room, `🐀 <strong>Pack Leader!</strong> ${ae.name} — all skaven allies gain +2 ATK!`, 'chaos');
   }
   const nowAlive = room.players.filter(p => p.char && p.char.alive);
   if (!nowAlive.length) { gs.phase = 'gameover'; addLog(room, 'The warband has fallen.', 'death'); return; }
   room.players.forEach(p => { if (p.char && !p.char.alive) p.char.pendingRevive = true; });
+
+
   advanceTurn(room);
 }
 
@@ -1467,6 +1670,20 @@ function checkDeath(room, player) {
 function resolveEnemyDeath(room, deadEnemy) {
   const gs=room.gs;
   const e=deadEnemy||gs.enemy;
+  // DAEMONIC ICHOR (Bloodletter): on death deal 1d6 fire to all players
+  if(e&&e.daemonicIchor){
+    room.players.filter(p=>p.char&&p.char.alive).forEach(p=>{
+      const dmg=rd(1,6); p.char.health=Math.max(0,p.char.health-dmg);
+      addLog(room,`💥 <strong>Daemonic Ichor!</strong> ${e.name} explodes — <strong class="num-dmg">-${dmg}</strong> fire dmg to ${p.name}!`,'chaos');
+      checkDeath(room,p);
+    });
+  }
+  // UNDYING (Skeleton): 1-in-6 chance to rise at 1 HP
+  if(e&&e.undying&&!e._undyingUsed&&d(6)===6){
+    e._undyingUsed=true; e.hp=1;
+    addLog(room,`💀 <strong>Undying!</strong> ${e.name} refuses to stay dead — rises at 1 HP!`,'chaos');
+    return; // don't die
+  }
   addLog(room,`⚔ <strong>${e.name}</strong> is slain! FOR SIGMAR!`,'crit');
   room.players.forEach(p=>{
     if(p.char&&(!p.char.alive||p.char.pendingRevive)){
@@ -1837,6 +2054,16 @@ function handlePlayerAction(room,playerId,payload,ws){
   // ── Combat actions ──
   if(gs.phase!=='combat'||!gs.inCombat)return;
   if(!char.alive)return;
+  // Player stun check — Crushing Blow can stun a player
+  const _stunBuff = (char.activeBuffs||[]).find(b=>b.skipTurn);
+  if(_stunBuff){
+    char.activeBuffs = char.activeBuffs.filter(b=>!b.skipTurn);
+    addLog(room,`💫 ${player.name} is stunned and loses their action!`,'sys');
+    // Advance turn as if they acted
+    if(!gs.playersActedThisRound.includes(playerId)) gs.playersActedThisRound.push(playerId);
+    if(gs.turnOrder&&gs.turnOrder.length) advanceTurn(room);
+    broadcastState(room.code); return;
+  }
   // Turn-order guard
   if(gs.turnOrder && gs.turnOrder.length) {
     const _cur = getCurrentTurn(gs);
