@@ -579,7 +579,7 @@ const ENEMY_POOLS = {
 
 function enemyDmgDice(threat, isElite, bossCount) {
   if (threat === 'Boss') {
-    if (bossCount === 0) return {n:2,s:6,b:0}; // Boss 1: 2d6
+    if (bossCount === 0) return {n:1,s:6,b:3}; // Boss 1: 1d6+3
     if (bossCount === 1) return {n:3,s:6,b:0}; // Boss 2: 3d6
     return {n:4,s:6,b:0};                       // Boss 3 (Saurian): 4d6
   }
