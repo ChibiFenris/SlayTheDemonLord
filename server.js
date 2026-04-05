@@ -872,6 +872,8 @@ function rollEnemyAttack(enemy, char, hasBoon=false) {
   const packScornBane=char._armorPackScorn&&enemy&&enemy.tags&&enemy.tags.includes('skaven')?1:0;
   const shroudBane=char._legShroudActive?1:0; // Shroud of Undeath: below 25% HP enemies have 1 bane
   const ratkingBane=char._legRatking&&enemy&&enemy.tags&&enemy.tags.includes('skaven')?2:0; // Ratking Crown: 2 banes vs skaven
+  const sacredAegisBane=char.sacredAegis&&enemy&&(enemy.undead||enemy.chaos||(enemy.tags&&(enemy.tags.includes('undead')||enemy.tags.includes('chaos'))))?1:0;
+  const vanishBane=(char.activeBuffs||[]).some(b=>b.name==='Vanish')?1:0;
   const totalBanes=baneDebuff+evasionBane+packScornBane+shroudBane+ratkingBane+poisonBane+sacredAegisBane+vanishBane;
   const roll1=d(20);
   const rawBase=hasBoon?Math.max(roll1,d(20)):roll1;
@@ -2196,76 +2198,76 @@ const LEGENDARY_ITEMS = {
   boss1: [
     // Gnashteeth / Kragthor themed — Skaven cunning, Beastmen fury
     {
-      id:'leg', name:"Gnashteeth's Fang", type:'weapon', dice:'1d6', stat:'agi', bonus:3,
+      id:'leg', name:"Gnashteeth's Fang", type:'weapon', dice:'2d6', stat:'agi', bonus:4,
       dmgType:'slashing', legendary:true,
       special:{key:'venomFang', desc:'Legendary: every hit applies 3 poison stacks. On kill, gain 1 boon on your next attack this round.'},
-      desc:"1d6+3 · AGI · slashing — Legendary. Every hit: 3 poison stacks. Kill: 1 boon next attack.",
+      desc:"2d6+4 · AGI · slashing — Legendary. Every hit: 3 poison stacks. Kill: 1 boon next attack.",
     },
     {
-      id:'leg', name:"Kragthor's Warplate", type:'armor', defBonus:5, legendary:true,
+      id:'leg', name:"Kragthor's Warplate", type:'armor', defBonus:7, legendary:true,
       special:{key:'berserkPlate', desc:'Legendary: when you fall below 50% HP, gain +2 ATK bonus permanently for this combat. Triggers once.'},
-      desc:"+5 Defense — Legendary. Below 50% HP: +2 ATK bonus for this combat.",
+      desc:"+7 Defense — Legendary. Below 50% HP: +2 ATK bonus for this combat.",
     },
     {
-      id:'leg', name:'Ratking Crown', type:'armor', defBonus:4, legendary:true,
+      id:'leg', name:'Ratking Crown', type:'armor', defBonus:6, legendary:true,
       special:{key:'ratkingCrown', desc:'Legendary: Skaven enemies have 2 banes on all attacks against you. You gain +1 boon on attacks vs Skaven.'},
-      desc:"+4 Defense — Legendary. Skaven have 2 banes vs you. +1 boon vs Skaven.",
+      desc:"+6 Defense — Legendary. Skaven have 2 banes vs you. +1 boon vs Skaven.",
     },
     {
-      id:'leg', name:'Beastlord Maul', type:'weapon', dice:'2d6', stat:'str', bonus:4,
+      id:'leg', name:'Beastlord Maul', type:'weapon', dice:'3d6', stat:'str', bonus:5,
       dmgType:'blunt', legendary:true,
       special:{key:'beastlordMaul', desc:'Legendary: on crit, deal +2d6 bonus and the target is Stunned (loses next action). Once per combat.'},
-      desc:"2d6+4 · STR · blunt — Legendary. Crit: +2d6 bonus and Stun target (once/combat).",
+      desc:"3d6+5 · STR · blunt — Legendary. Crit: +2d6 bonus and Stun target (once/combat).",
     },
   ],
   boss2: [
     // Varghulf / Ratogre themed — undead hunger, Skaven brute force
     {
-      id:'leg', name:"Varghulf's Talon", type:'weapon', dice:'2d6', stat:'str', bonus:4,
+      id:'leg', name:"Varghulf's Talon", type:'weapon', dice:'3d6', stat:'str', bonus:5,
       dmgType:'slashing', legendary:true,
       special:{key:'varghulfTalon', desc:'Legendary: steal ¼ of all damage dealt as HP (life leech). On kill, fully heal yourself.'},
-      desc:"2d6+4 · STR · slashing — Legendary. Leech ¼ dmg as HP. Kill: full heal.",
+      desc:"3d6+5 · STR · slashing — Legendary. Leech ¼ dmg as HP. Kill: full heal.",
     },
     {
-      id:'leg', name:'Shroud of Undeath', type:'armor', defBonus:5, legendary:true,
+      id:'leg', name:'Shroud of Undeath', type:'armor', defBonus:7, legendary:true,
       special:{key:'shroudUndeath', desc:'Legendary: when you die, you rise at 1d6 HP once per combat. While at or below 25% HP, enemies have 1 bane vs you.'},
-      desc:"+5 Defense — Legendary. Rise at 1d6 HP once on death. Below 25%: enemies have 1 bane vs you.",
+      desc:"+7 Defense — Legendary. Rise at 1d6 HP once on death. Below 25%: enemies have 1 bane vs you.",
     },
     {
-      id:'leg', name:'Ratogre Chainbreaker', type:'weapon', dice:'2d6', stat:'str', bonus:5,
+      id:'leg', name:'Ratogre Chainbreaker', type:'weapon', dice:'3d6', stat:'str', bonus:6,
       dmgType:'blunt', legendary:true,
       special:{key:'chainbreaker', desc:'Legendary: ignore all enemy damage reduction. +1d6 bonus vs enemies with DR > 0.'},
-      desc:"2d6+5 · STR · blunt — Legendary. Ignore enemy DR. +1d6 bonus vs DR > 0 targets.",
+      desc:"3d6+6 · STR · blunt — Legendary. Ignore enemy DR. +1d6 bonus vs DR > 0 targets.",
     },
     {
-      id:'leg', name:"Blood Drinker's Plate", type:'armor', defBonus:6, legendary:true,
+      id:'leg', name:"Blood Drinker's Plate", type:'armor', defBonus:8, legendary:true,
       special:{key:'bloodDrinker', desc:'Legendary: after each enemy turn, if any ally was hit this round, you heal 1d3 HP.'},
-      desc:"+6 Defense — Legendary. After each enemy turn where an ally was hit, heal 1d3 HP.",
+      desc:"+8 Defense — Legendary. After each enemy turn where an ally was hit, heal 1d3 HP.",
     },
   ],
   boss3: [
     // Saurian Ancient themed — primordial power, ancient magic
     {
-      id:'leg', name:'Sunstone Blade', type:'weapon', dice:'2d6', stat:'int', bonus:5,
+      id:'leg', name:'Sunstone Blade', type:'weapon', dice:'3d6', stat:'int', bonus:6,
       dmgType:'slashing', legendary:true,
       special:{key:'sunstoneBlade', desc:'Legendary: on hit, deals additional +INT mod fire damage. On crit, also burns all other enemies for 1d6 fire.'},
-      desc:"2d6+5 · INT · slashing — Legendary. +INT mod fire on hit. Crit: 1d6 fire splash to all enemies.",
+      desc:"3d6+6 · INT · slashing — Legendary. +INT mod fire on hit. Crit: 1d6 fire splash to all enemies.",
     },
     {
-      id:'leg', name:'Scale of the Ancient', type:'armor', defBonus:7, legendary:true,
+      id:'leg', name:'Scale of the Ancient', type:'armor', defBonus:9, legendary:true,
       special:{key:'ancientScale', desc:'Legendary: immune to fire damage. All incoming damage reduced by 2. Once per combat, negate one hit entirely.'},
-      desc:"+7 Defense — Legendary. Fire immune. -2 all incoming dmg. Negate one hit (once/combat).",
+      desc:"+9 Defense — Legendary. Fire immune. -2 all incoming dmg. Negate one hit (once/combat).",
     },
     {
-      id:'leg', name:"Primordial Staff", type:'weapon', dice:'2d6', stat:'int', bonus:5,
+      id:'leg', name:"Primordial Staff", type:'weapon', dice:'3d6', stat:'int', bonus:6,
       dmgType:'blunt', legendary:true,
       special:{key:'primordialStaff', desc:'Legendary: rank 0 spells deal double damage. Rank 1 spells gain +3 castings per combat.'},
-      desc:"2d6+5 · INT · blunt — Legendary. Rank 0 spells deal ×2 dmg. Rank 1 spells +3 castings.",
+      desc:"3d6+6 · INT · blunt — Legendary. Rank 0 spells deal ×2 dmg. Rank 1 spells +3 castings.",
     },
     {
-      id:'leg', name:'Extinction Aegis', type:'armor', defBonus:6, legendary:true,
+      id:'leg', name:'Extinction Aegis', type:'armor', defBonus:8, legendary:true,
       special:{key:'extinctionAegis', desc:'Legendary: all allies within the warband gain +2 Defense while you are alive. You cannot be stunned.'},
-      desc:"+6 Defense — Legendary. All allies +2 Defense while you live. Cannot be stunned.",
+      desc:"+8 Defense — Legendary. All allies +2 Defense while you live. Cannot be stunned.",
     },
   ],
 };
