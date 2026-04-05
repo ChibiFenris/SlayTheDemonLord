@@ -364,15 +364,15 @@ const TRADITIONS = {
     label:'Fire',
     spells:[
       {name:'Flame Missile', rank:0, type:'attack', dmg:'1d6',
-       desc:'[FIRE ATTACK 0] Fiery missile at one target. 1d6 + INT×2 damage. +1d6 on crit. Free cast.'},
-      {name:'Meteor',        rank:1, type:'attack', dmg:'2d6+2',
-       desc:'[FIRE ATTACK 1] Fiery stone explodes in 1-yard sphere. 2d6+2 + INT×2 to all in area. Half on Agility save.'},
+       desc:'Rank 0 · Free cast. Fiery bolt at one target: 1d6 + INT×2 dmg. Crit: +1d6.'},
+      {name:'Meteor',        rank:1, type:'attack', dmg:'2d6+2', aoe:true,
+       desc:'Rank 1. Flaming stone hits ALL enemies: 2d6+2 + INT×2. Half dmg on AGI save.'},
       {name:'Fiery Volley',  rank:1, type:'attack', dmg:'1d6+1', tripleHit:true,
-       desc:'[FIRE ATTACK 2] Three fiery missiles all hit the SAME target. Each: 1d6+1 + INT×2. Three separate rolls.'},
-      {name:'Fireball',      rank:2, type:'attack', dmg:'5d6', applyBurn:true,
-       desc:'[FIRE ATTACK 3] Globe of fire explodes in 5-yard sphere. 5d6 + INT×2. Half on Agility save. Applies BURN (1d6/round, 2 rounds).'},
+       desc:'Rank 1. Three fiery missiles hit the SAME target. Each: 1d6+1 + INT×2.'},
+      {name:'Fireball',      rank:2, type:'attack', dmg:'5d6', applyBurn:true, aoe:true,
+       desc:'Rank 2. Giant fireball hits ALL enemies: 5d6 + INT×2. Half on AGI save. Applies Burn DoT.'},
       {name:'Immolate',      rank:3, type:'attack', dmg:'4d6', applyBurn:true,
-       desc:'[FIRE ATTACK 3] Target smolders and ignites. 4d6 + INT×2. +2d6 on crit. Applies BURN (1d6/round, 2 rounds).'},
+       desc:'Rank 3. Consume one target in fire: 4d6 + INT×2. Crit: +2d6. Applies Burn DoT.'},
     ]
   },
   life: {
@@ -380,17 +380,17 @@ const TRADITIONS = {
     label:'Life',
     spells:[
       {name:'Minor Healing',    rank:0, type:'heal', dmg:'1d6_wil2',
-       desc:'[LIFE UTILITY 0] Touch one creature. Heals 1d6 + WIL×2. Free cast.'},
+       desc:'Rank 0 · Free cast. Heal self or one ally: 1d6 + WIL×2 HP.'},
       {name:'Cure',             rank:1, type:'utility', dmg:'1d6_wil', cure:true,
-       desc:'[LIFE UTILITY 1] Remove ALL active debuffs from target. Then heals 1d6 + WIL.'},
+       desc:'Rank 1. Cure all debuffs on target, then heal 1d6 + WIL HP.'},
       {name:'Light Healing',    rank:1, type:'heal', dmg:'2d6_wil2',
-       desc:'[LIFE UTILITY 1] Touch one creature. Heals 2d6 + WIL×2.'},
+       desc:'Rank 1. Touch one ally: heal 2d6 + WIL×2 HP.'},
       {name:'Moderate Healing', rank:2, type:'heal', dmg:'3d6_wil2',
-       desc:'[LIFE UTILITY 2] Touch one creature. Heals 3d6 + WIL×2.'},
+       desc:'Rank 2. Touch one ally: heal 3d6 + WIL×2 HP.'},
       {name:'Vitality Burst',   rank:2, type:'heal', dmg:'2d6_wil2_multi', multiTarget:true,
-       desc:'[LIFE UTILITY 2] All living allies heal 2d6 + WIL×2 simultaneously.'},
+       desc:'Rank 2. ALL living allies each heal 2d6 + WIL×2 simultaneously.'},
       {name:'Major Healing',    rank:3, type:'heal', dmg:'max',
-       desc:'[LIFE UTILITY 3] Touch one creature. Restores it to full HP.'},
+       desc:'Rank 3. Restore one ally to full HP.'},
     ]
   },
   death: {
@@ -398,13 +398,13 @@ const TRADITIONS = {
     label:'Death (Necromancy)',
     spells:[
       {name:'Spectral Grasp',   rank:0, type:'attack', dmg:'1d3',
-       desc:'[NECROMANCY ATTACK 0] Shadowy hand at one creature. 1d3 + INT×2. Target attacks with 1 bane for 1 round. +1d6 on crit. Free cast.'},
+       desc:'Rank 0 · Free cast. Shadowy hand: 1d3 + INT×2. Target attacks with 1 bane (1 round). Crit: +1d6.'},
       {name:'Grave Grasp',      rank:1, type:'attack', dmg:'1d6', applyChilled:true,
-       desc:'[NECROMANCY ATTACK 1] 1d6 + INT×2 damage. Applies CHILLED (1d3/round, 1 bane on attacks, 2 rounds).'},
+       desc:'Rank 1. Death chill: 1d6 + INT×2. Applies Chilled (1d3/round + 1 bane for 2 rounds).'},
       {name:'Bone Splinters',   rank:2, type:'attack', dmg:'3d6', boneSplinters:true,
-       desc:'[NECROMANCY ATTACK 2] 3d6 + INT×2. If target is at 25% HP or less after hit: roll d20 — on 10+ target dies instantly.'},
+       desc:'Rank 2. 3d6 + INT×2. If target ≤25% HP after hit: d20 roll — 10+ = instant death.'},
       {name:'Cannibalize Magic',rank:3, type:'attack', dmg:'3d6',
-       desc:'[NECROMANCY ATTACK 3] 3d6 + INT×2. Regain one rank 1 casting on hit. On crit: +2d6, regain rank 2 casting.'},
+       desc:'Rank 3. Devour magic: 3d6 + INT×2. Hit: regain a rank-1 casting. Crit: +2d6 and regain rank-2 casting.'},
     ]
   },
   shadow: {
@@ -412,13 +412,13 @@ const TRADITIONS = {
     label:'Shadow',
     spells:[
       {name:'Nightfall Blade',  rank:0, type:'utility', dmg:'0', shadowBlade:true,
-       desc:'[SHADOW UTILITY 0] Shadow blade buffs all your weapon attacks with +1d6 damage for 4 rounds. Free cast.'},
+       desc:'Rank 0 · Free cast. Nightfall Blade: all weapon attacks deal +1d6 for 5 rounds.'},
       {name:'Shadow Dart',      rank:1, type:'attack', dmg:'2d6',
-       desc:'[SHADOW ATTACK 1] Darkness missile. 2d6 + INT×2. +1d6 on crit.'},
+       desc:'Rank 1. Bolt of darkness: 2d6 + INT×2. Crit: +1d6.'},
       {name:'Shadow Strike',    rank:2, type:'attack', dmg:'2d6', tripleHit:true,
-       desc:'[SHADOW ATTACK 2] Strike the SAME target three times. Each: 2d6 + INT×2. Three separate attack rolls.'},
+       desc:'Rank 2. Shadow blades strike the SAME target three times. Each: 2d6 + INT×2.'},
       {name:'Enervation',       rank:3, type:'attack', dmg:'0', healthPenalty:20,
-       desc:'[SHADOW ATTACK 3] Reduce target max HP by 20 for the rest of combat. Target also impaired.'},
+       desc:'Rank 3. Sap life force: target max HP reduced by 20 for the rest of combat.'},
     ]
   },
   battle: {
@@ -426,13 +426,13 @@ const TRADITIONS = {
     label:'Battle',
     spells:[
       {name:'Augmented Attack', rank:0, type:'utility', dmg:'0', dmgBuff:true,
-       desc:'[BATTLE ATTACK 0] Your next weapon attack gains +1d6 bonus damage and 1 boon. Free cast.'},
+       desc:'Rank 0 · Free cast. Next weapon attack: +1d6 bonus damage and 1 boon on the roll.'},
       {name:'Close Wounds',     rank:1, type:'heal', dmg:'1d6_str2',
-       desc:'[BATTLE UTILITY 1] Heals 1d6 + STR×2.'},
+       desc:'Rank 1. Battle meditation: heal self 1d6 + STR×2.'},
       {name:'Mighty Attack',    rank:1, type:'utility', dmg:'2d6extra', mightyAtk:true,
-       desc:'[BATTLE ATTACK 1] Your next weapon attack gains +2d6 damage AND 2 boons on the attack roll.'},
+       desc:'Rank 1. Next weapon attack: +2d6 bonus damage and 2 boons on the attack roll.'},
       {name:'Battle Prowess',   rank:3, type:'utility', dmg:'0', battleProwessSpell:true,
-       desc:'[BATTLE UTILITY 3] For 6 rounds: roll attacks twice + take better. +1d6 per attack.'},
+       desc:'Rank 3. Battle Prowess: for 6 rounds your attacks roll twice (take better) and deal +1d6 each.'},
     ]
   },
   celestial: {
@@ -440,13 +440,13 @@ const TRADITIONS = {
     label:'Celestial',
     spells:[
       {name:'Burning Beam',  rank:0, type:'attack', dmg:'1d6',
-       desc:'[CELESTIAL ATTACK 0] Fiery beam. 1d6 + INT×2. On crit: target blinded for 1 round. Free cast.'},
-      {name:'Flash',         rank:1, type:'attack', dmg:'0', blind:true, applyBlinded:true,
-       desc:'[CELESTIAL ATTACK 1] Brilliant flash. Applies BLINDED (3 banes on attacks, 1 round).'},
+       desc:'Rank 0 · Free cast. Celestial beam: 1d6 + INT×2. Crit: target Blinded (3 banes, 1 round).'},
+      {name:'Flash',         rank:1, type:'attack', dmg:'0', blind:true, applyBlinded:true, aoe:true,
+       desc:'Rank 1. Blinding flash at ALL enemies: Blinded (3 banes on attacks) for 1 round. No damage.'},
       {name:'Sunrays',       rank:2, type:'attack', dmg:'1d6', tripleHit:true,
-       desc:'[CELESTIAL ATTACK 2] Three blazing beams all hit the SAME target. Each: 1d6 + INT×2.'},
+       desc:'Rank 2. Three solar beams hit the SAME target. Each: 1d6 + INT×2.'},
       {name:'Radiation',     rank:3, type:'attack', dmg:'3d6', applyBlinded:true,
-       desc:'[CELESTIAL ATTACK 3] 3d6 + WIL×2. Also applies BLINDED (3 banes, 1 round) on hit.'},
+       desc:'Rank 3. Radiant burst: 3d6 + INT×2. Also Blinds target (3 banes, 1 round).'},
     ]
   },
   chaos: {
@@ -454,13 +454,13 @@ const TRADITIONS = {
     label:'Chaos',
     spells:[
       {name:'Erratic Bolt',          rank:0, type:'attack', dmg:'1d6', chaosBolt:true,
-       desc:'[CHAOS ATTACK 0] 1d6 + INT×2. On hit roll d20 — 12+: deal 2d6 extra chaos damage. Free cast.'},
+       desc:'Rank 0 · Free cast. Unpredictable bolt: 1d6 + INT×2. On hit: d20 12+ = 2d6 extra chaos damage.'},
       {name:'Capricious Devastation',rank:1, type:'attack', dmg:'2d6', chaosBolt:true,
-       desc:'[CHAOS ATTACK 1] 2d6 + INT×2. On hit roll d20 — 12+: deal 2d6 extra chaos damage.'},
+       desc:'Rank 1. Chaos surge: 2d6 + INT×2. On hit: d20 12+ = 2d6 extra chaos damage.'},
       {name:'Color of Magic',        rank:2, type:'attack', dmg:'1d6+2', chaosBolt:true,
-       desc:'[CHAOS ATTACK 2] 1d6+2 + INT×2. On hit roll d20 — 12+: deal 2d6 extra chaos damage.'},
-      {name:'Chaotic Lance',         rank:3, type:'attack', dmg:'4d6', chaosBolt:true,
-       desc:'[CHAOS ATTACK 3] 4d6 + INT×2 in a 15-yard line. On hit roll d20 — 12+: deal 2d6 extra chaos damage.'},
+       desc:'Rank 2. Mutating ray: 1d6+2 + INT×2. On hit: d20 12+ = 2d6 extra chaos damage.'},
+      {name:'Chaotic Lance',         rank:3, type:'attack', dmg:'4d6', chaosBolt:true, aoe:true,
+       desc:'Rank 3. Chaos lance through ALL enemies: 4d6 + INT×2 each. On hit: d20 12+ = 2d6 extra per target.'},
     ]
   },
   earth: {
@@ -468,13 +468,13 @@ const TRADITIONS = {
     label:'Earth',
     spells:[
       {name:'Earth Spike',   rank:0, type:'attack', dmg:'1d6', prone:true, applyBleed:true,
-       desc:'[EARTH ATTACK 0] 1d6+INT×2. Target falls prone. Applies BLEED (1d6/round 2 rounds).'},
-      {name:'Stone Blades',  rank:1, type:'attack', dmg:'2d6', bleed:true, applyBleed:true,
-       desc:'[EARTH ATTACK 1] 2d6+INT×2 cone. Applies BLEED (1d6/round 2 rounds).'},
-      {name:'Avalanche',     rank:2, type:'attack', dmg:'4d6', applyMajorBleed:true,
-       desc:'[EARTH ATTACK 2] 4d6+INT×2 area. Applies MAJOR BLEED (2d6/round 2 rounds).'},
-      {name:'Eruption',      rank:3, type:'attack', dmg:'5d6', applyMajorBleed:true,
-       desc:'[EARTH ATTACK 3] 5d6+INT×2. Targets pushed 1d6 yards. Applies MAJOR BLEED (2d6/round 2 rounds).'},
+       desc:'Rank 0 · Free cast. Rock spike: 1d6 + INT×2. Target Prone (1 bane). Applies Bleed DoT.'},
+      {name:'Stone Blades',  rank:1, type:'attack', dmg:'2d6', bleed:true, applyBleed:true, aoe:true,
+       desc:'Rank 1. Stone blade cone: 2d6 + INT×2. Applies Bleed DoT.'},
+      {name:'Avalanche',     rank:2, type:'attack', dmg:'4d6', applyMajorBleed:true, aoe:true,
+       desc:'Rank 2. Crushing avalanche hits ALL enemies: 4d6 + INT×2. Applies Major Bleed DoT.'},
+      {name:'Eruption',      rank:3, type:'attack', dmg:'5d6', applyMajorBleed:true, aoe:true,
+       desc:'Rank 3. Volcanic eruption: 5d6 + INT×2. Targets thrown back. Applies Major Bleed DoT.'},
     ]
   },
   storm: {
@@ -482,13 +482,13 @@ const TRADITIONS = {
     label:'Storm',
     spells:[
       {name:'Forked Lightning', rank:0, type:'attack', dmg:'1d6+2', tripleHit:false, doubleHit:true,
-       desc:'[STORM ATTACK 0] Hits the SAME target TWICE. Each: 1d6+2+INT×2. Free cast.'},
+       desc:'Rank 0 · Free cast. Fork of lightning hits SAME target TWICE. Each: 1d6+2 + INT×2.'},
       {name:'Freezing Fog',    rank:1, type:'attack', dmg:'1d3', slowDebuff:true, applyChilled:true,
-       desc:'[STORM ATTACK 1] 1d3+INT×2. Applies CHILLED (1d3/round, 1 bane, 2 rounds).'},
+       desc:'Rank 1. Freezing fog: 1d3 + INT×2. Applies Chilled (1d3/round + 1 bane for 2 rounds).'},
       {name:'Call Lightning',  rank:2, type:'attack', dmg:'3d6+5', stunCheck:true,
-       desc:'[STORM ATTACK 2] 3d6+5+INT×2. On hit: d20≥15 = target STUNNED for 1 round (can\'t act).'},
+       desc:'Rank 2. Lightning strike: 3d6+5 + INT×2. On hit: d20 15+ = target Stunned (loses next action).'},
       {name:'Lightning Bolt',  rank:3, type:'attack', dmg:'5d6', lightningDoubleCheck:true,
-       desc:'[STORM ATTACK 3] 5d6+INT×2. On hit: d20≥15 = strikes a SECOND time for full damage.'},
+       desc:'Rank 3. Massive lightning bolt: 5d6 + INT×2. On hit: d20 15+ = strikes AGAIN for full damage.'},
     ]
   },
   protection: {
@@ -496,13 +496,13 @@ const TRADITIONS = {
     label:'Protection',
     spells:[
       {name:'Force Field',      rank:0, type:'utility', dmg:'0', forceFieldNew:true,
-       desc:'[PROTECTION UTILITY 0] Reduce all damage YOU take by 50% for 1 round. Free cast.'},
+       desc:'Rank 0 · Free cast. Force Field: you take 50% damage for 2 rounds.'},
       {name:'Sanctuary',        rank:1, type:'utility', dmg:'0', sanctuaryNew:true,
-       desc:'[PROTECTION UTILITY 1] Reduce all damage ALL PLAYERS take by 50% for 1 round.'},
+       desc:'Rank 1. Sanctuary: ALL allies take 50% damage for 2 rounds.'},
       {name:'Vigor',            rank:2, type:'utility', dmg:'0', vigorNew:true,
-       desc:'[PROTECTION UTILITY 2] Increase YOUR max HP by +10 for the rest of combat.'},
+       desc:'Rank 2. Vigor: your max HP +10 for the rest of combat (also heals 10 HP immediately).'},
       {name:'Protective Field', rank:3, type:'utility', dmg:'0', protectiveFieldNew:true,
-       desc:'[PROTECTION UTILITY 3] ALL players are IMMUNE to damage for 1 round.'},
+       desc:'Rank 3. Protective Field: ALL allies are IMMUNE to damage for 1 round.'},
     ]
   },
   illusion: {
@@ -510,13 +510,13 @@ const TRADITIONS = {
     label:'Illusion',
     spells:[
       {name:'Figment',   rank:0, type:'utility', dmg:'0', figmentNew:true,
-       desc:'[ILLUSION UTILITY 0] Target enemy makes all attacks with 1 bane for 2 rounds. Free cast.'},
+       desc:'Rank 0 · Free cast. Figment: one enemy attacks with 1 bane for 3 rounds.'},
       {name:'Vertigo',   rank:1, type:'utility', dmg:'0', vertigoNew:true,
-       desc:'[ILLUSION UTILITY 1] You gain 2 boons against target enemy for 2 rounds.'},
+       desc:'Rank 1. Vertigo: you gain 2 boons on attacks vs target for 3 rounds.'},
       {name:'Glamer',    rank:2, type:'utility', dmg:'0', glamerNew:true,
-       desc:'[ILLUSION UTILITY 2] Target enemy\'s NEXT attack is an automatic miss.'},
+       desc:'Rank 2. Glamer: target enemy\'s next attack automatically misses.'},
       {name:'Phantasm',  rank:3, type:'attack', dmg:'4d6',
-       desc:'[ILLUSION ATTACK 3] 4d6+INT×2 psychic damage.'},
+       desc:'Rank 3. Phantasm: psychic assault — 4d6 + INT×2 damage.'},
     ]
   },
   nature: {
@@ -524,13 +524,13 @@ const TRADITIONS = {
     label:'Nature',
     spells:[
       {name:'Oak Hide',        rank:0, type:'utility', dmg:'0', defBonus:2,
-       desc:'[NATURE UTILITY 0] +2 Defense for 2 rounds. Free cast.'},
+       desc:'Rank 0 · Free cast. Oak Hide: +2 Defense for 3 rounds.'},
       {name:'Healing Berries', rank:1, type:'heal', dmg:'berries',
-       desc:'[NATURE UTILITY 1] Heal 1d3+WIL — triggers THREE times (3 separate heal rolls).'},
+       desc:'Rank 1. Healing Berries: heal 1d3+WIL three separate times (rolls three times).'},
       {name:'Shillelagh',      rank:1, type:'utility', dmg:'0', dmgBuff:true,
-       desc:'[NATURE UTILITY 1] +1d6 to next weapon attack and +2 Speed.'},
+       desc:'Rank 1. Shillelagh: next weapon attack deals +1d6 bonus damage.'},
       {name:'Wrath of Nature', rank:3, type:'attack', dmg:'3d6', wrathNature:true,
-       desc:'[NATURE ATTACK 3] 3d6+INT×2. Target\'s next TWO attacks have 2 banes each.'},
+       desc:'Rank 3. Wrath of Nature: 3d6 + INT×2. Target\'s next 2 attacks each have 2 banes.'},
     ]
   },
   transformation: {
@@ -538,13 +538,13 @@ const TRADITIONS = {
     label:'Transformation',
     spells:[
       {name:'Beast Within', rank:0, type:'utility', dmg:'0', dmgBuff:true,
-       desc:'[PRIMAL UTILITY 0] +1d6 to next attack + 1 boon on STR. Free cast.'},
-      {name:'Dire Beast',   rank:1, type:'utility', dmg:'0', dmgBuff:true,
-       desc:'[PRIMAL UTILITY 1] Size+1, attacks deal +1d6 for 1 min.'},
+       desc:'Rank 0 · Free cast. Beast Within: infuse next attack — +1d6 damage and 1 boon (consumed on hit).'},
+      {name:'Dire Beast',   rank:1, type:'utility', dmg:'0', direBeast:true,
+       desc:'Rank 1. Dire Beast: grow in size — all attacks deal +1d6 for 5 rounds.'},
       {name:'Mist Form',    rank:2, type:'utility', dmg:'0', mistFormNew:true,
-       desc:'[TRANSFORMATION UTILITY 2] Reduce all damage you take by 50% for 2 rounds.'},
+       desc:'Rank 2. Mist Form: become vapour — take 50% damage for 3 rounds.'},
       {name:'Speed Healing',rank:3, type:'heal', dmg:'3d6_wil2',
-       desc:'[TRANSFORMATION UTILITY 3] Heal 3d6+WIL×2.'},
+       desc:'Rank 3. Speed Healing: regenerate rapidly — heal 3d6 + WIL×2.'},
     ]
   },
   time: {
@@ -552,13 +552,13 @@ const TRADITIONS = {
     label:'Time',
     spells:[
       {name:'Swiftness',       rank:0, type:'utility', dmg:'0', swiftnessNew:true,
-       desc:'[TIME UTILITY 0] Your attacks gain +1 boon for 2 rounds. Free cast.'},
+       desc:'Rank 0 · Free cast. Swiftness: +1 boon on all attacks for 3 rounds.'},
       {name:'Rewrite Moment',  rank:1, type:'utility', dmg:'0', rewriteNew:true,
-       desc:'[TIME UTILITY 1] For 2 rounds: automatically reroll any missed attacks.'},
+       desc:'Rank 1. Rewrite Moment: for 3 rounds, all missed attacks are automatically rerolled once.'},
       {name:'Minor Paradox',   rank:2, type:'utility', dmg:'0', minorParadoxNew:true,
-       desc:'[TIME UTILITY 2] Regain 1 casting of every rank 0–2 spell you know.'},
+       desc:'Rank 2. Minor Paradox: regain 1 casting of every rank 0–2 spell you know.'},
       {name:'Precognition',    rank:3, type:'utility', dmg:'0', precognitionNew:true,
-       desc:'[TIME UTILITY 3] For 2 rounds: all attacks against you have 2 banes, all your attacks have 2 boons.'},
+       desc:'Rank 3. Precognition: for 3 rounds, enemies attack you with 2 banes and you attack with 2 boons.'},
     ]
   },
 };
@@ -785,14 +785,13 @@ function rollAttack(char, enemy, extraBoons=0) {
   if (char.weaponTraining) boons++;
   if (char.swiftFeet) boons+=2;
   if (char.vigil && char.health===char.maxHealth) boons++;
-  if (char._vengeanceReady){ char._vengeanceReady=false; boons+=2; addLog_noop('Vengeance boon'); } // Vigil: boon when at full HP
+  if (char._vengeanceReady){ char._vengeanceReady=false; boons+=2; } // vengeancePassive: 2 boons after ally falls
   if (char.rage&&char.rageBoon) { boons++; } // rage boon — dmg applied on hit, flag cleared there
   if (char.stimulantBoon>0) { boons++; char.stimulantBoon--; }
   if (extraBoons) boons+=extraBoons;
   if (char.holyFervor && enemy && ((enemy.undead||enemy.chaos)||(enemy.tags&&(enemy.tags.includes('undead')||enemy.tags.includes('chaos'))))) boons++;
   if (char._legRatking && enemy && enemy.tags && enemy.tags.includes('skaven')) boons++;
-  // arcaneStrike: weapon hits deal +INT mod bonus damage
-  if(char.arcaneStrike && enemy){ const am=Math.max(0,modVal(char.attrs.int)); if(am>0){dmg+=am; dmgParts.push(`+${am} arcane`);} }
+  // arcaneStrike applied in hit block below
   // exploitWeakness: 1 boon vs poisoned target with 5+ stacks
   if(char.exploitWeakness && enemy && (enemy._poisonStacks||0)>=5) boons++;
   // shadowOpening: first attack each combat has 1 extra boon
@@ -825,6 +824,7 @@ function rollAttack(char, enemy, extraBoons=0) {
     if(wpnDmgBonus)dmgParts.push(`+${wpnDmgBonus} wpn`);
     if (crit)           { const r=rd(num,sides); dmg+=r; dmgParts.push(`+${r} crit`); }
     // Poisoned Blades (formerly Deathblow): +2 poison stacks on hit, +4 on crit — applied after hit resolved
+    if (char.arcaneStrike){ const am=Math.max(0,modVal(char.attrs.int)); if(am>0){dmg+=am; dmgParts.push(`+${am} arcane`);} }
     if (char.combatProwess)   { const r=rd(1,6); dmg+=r; dmgParts.push(`+${r} prowess`); }
     if (char.combatExpertise) { const r=rd(1,6); dmg+=r; dmgParts.push(`+${r} expertise`); }
     if (char.sharpeningStone) { const r=rd(1,6); dmg+=r; dmgParts.push(`+${r} sharpened`); }
@@ -1106,7 +1106,7 @@ function applyExpertPath(char, pathId) {
   }
   // Elementalist specifically gains Firewall if Fire tradition already known
   if (pathId==='elementalist' && char.traditions.includes('fire')) {
-    const fw=TRADITIONS.fire?.spells.find(s=>s.name==='Firewall')||{name:'Firewall',rank:1,type:'attack',dmg:'4d6',desc:'[FIRE ATTACK 1] Wall of fire deals 4d6 + INT×2 damage.'};
+    const fw=TRADITIONS.fire?.spells.find(s=>s.name==='Firewall')||{name:'Firewall',rank:1,type:'attack',dmg:'4d6',desc:'Rank 1. Firewall: lingering fire zone deals 4d6 + INT×2 to all enemies passing through.'};
     if(!char.knownSpells.find(k=>k.name==='Firewall')) char.knownSpells.push({...fw,heal:false});
   }
 }
@@ -2088,6 +2088,10 @@ function resolveEnemyDeath(room, deadEnemy) {
   room.players.forEach(p=>{ if(p.char&&p.char.activeBuffs){ const had=p.char.activeBuffs.some(b=>b.name==='Rattled'); p.char.activeBuffs=p.char.activeBuffs.filter(b=>b.name!=='Rattled'); if(had) addLog(room,`${p.name} steels their nerve.`,'sys'); } });
   const gs=room.gs;
   const e=deadEnemy||gs.enemy;
+  // sanctify: declare FIRST so it can gate all death triggers below
+  const sanctifyActive=room.players.some(p=>p.char&&p.char.sanctify);
+  const isSanctified=sanctifyActive&&e&&(e.chaos||e.undead||(e.tags&&(e.tags.includes('chaos')||e.tags.includes('undead'))));
+  if(isSanctified) addLog(room,`✝ <strong>Sanctify!</strong> ${e.name} cannot trigger death abilities!`,'spell');
   // DAEMONIC ICHOR (Bloodletter): on death deal 1d6 fire to all players
   if(e&&e.daemonicIchor&&!isSanctified){
     room.players.filter(p=>p.char&&p.char.alive).forEach(p=>{
@@ -2097,11 +2101,7 @@ function resolveEnemyDeath(room, deadEnemy) {
       checkDeath(room,p);
     });
   }
-  // UNDYING (Skeleton): 1-in-6 chance to rise at 1 HP
-  // sanctify: if any player has sanctify, killed Chaos/undead cannot trigger death abilities
-  const sanctifyActive=room.players.some(p=>p.char&&p.char.sanctify);
-  const isSanctified=sanctifyActive&&e&&(e.chaos||e.undead||(e.tags&&(e.tags.includes('chaos')||e.tags.includes('undead'))));
-  if(isSanctified) addLog(room,`✝ <strong>Sanctify!</strong> The wicked cannot rise or trigger death abilities!`,'spell');
+  // isSanctified log already shown above
   if(e&&e.undying&&!e._undyingUsed&&d(6)===6&&!isSanctified){
     e._undyingUsed=true; e.hp=1;
     addLog(room,`💀 <strong>Undying!</strong> ${e.name} refuses to stay dead — rises at 1 HP!`,'chaos');
@@ -3186,7 +3186,7 @@ function handlePlayerAction(room,playerId,payload,ws){
       // Utility Focus: all utility spell buffs last 1 extra round
       const _ufBonus=char.utilityFocus?1:0;
       if(spell.defBonus){
-        addBuff(char,spell.name+' (Def)',{defBonus:spell.defBonus},2);
+        addBuff(char,spell.name+' (Def)',{defBonus:spell.defBonus},3);
         char.defense+=spell.defBonus;
         addLog(room,`${player.name} casts <strong>${spell.name}</strong> — +${spell.defBonus} Defense for 2 rounds.`,'spell');
       } else if(spell.healthBonus){
@@ -3194,6 +3194,10 @@ function handlePlayerAction(room,playerId,payload,ws){
         char.health=Math.min(char.maxHealth+spell.healthBonus,char.health+spell.healthBonus);
         char.maxHealth+=spell.healthBonus;
         addLog(room,`${player.name} casts <strong>${spell.name}</strong> — +${spell.healthBonus} max Health for 8 rounds.`,'spell');
+      } else if(spell.direBeast){
+        // Dire Beast: grow in size — persistent +1d6 per attack for 5 rounds (was 4, +1)
+        addBuff(char,'Dire Beast (+1d6/atk)',{dmgBonus:rd(1,6)},5);
+        addLog(room,`${player.name} casts <strong>Dire Beast</strong> — transformed! All attacks +1d6 for 5 rounds!`,'spell');
       } else if(spell.dmgBuff){
         addBuff(char,spell.name+' (+1d6 dmg)',{dmgBonus:rd(1,6)},1);
         addLog(room,`${player.name} casts <strong>${spell.name}</strong> — next attack +1d6 damage.`,'spell');
@@ -3201,16 +3205,16 @@ function handlePlayerAction(room,playerId,payload,ws){
         addBuff(char,spell.name+' (atk boon)',{atkBoon:1},1);
         addLog(room,`${player.name} casts <strong>${spell.name}</strong> — 1 boon on next attack.`,'spell');
       } else if(spell.battleProwessSpell){
-        addBuff(char,spell.name,{battleProwess:true,atkBoon:1},6+_ufBonus);
+        addBuff(char,spell.name,{battleProwess:true,atkBoon:1},7+_ufBonus);
         addLog(room,`${player.name} casts <strong>${spell.name}</strong> — roll attacks twice + bonus dmg for 6 rounds!`,'spell');
       } else if(spell.groupBoon){
         room.players.forEach(p=>{if(p.char&&p.char.alive)addBuff(p.char,spell.name+' (boon)',{atkBoon:1},1);});
         addLog(room,`${player.name} casts <strong>${spell.name}</strong> — all allies gain 1 boon this round.`,'spell');
       } else if(spell.groupDefBonus){
-        room.players.forEach(p=>{if(p.char&&p.char.alive){addBuff(p.char,spell.name+' (Def)',{defBonus:spell.groupDefBonus},2);p.char.defense+=spell.groupDefBonus;}});
+        room.players.forEach(p=>{if(p.char&&p.char.alive){addBuff(p.char,spell.name+' (Def)',{defBonus:spell.groupDefBonus},3);p.char.defense+=spell.groupDefBonus;}});
         addLog(room,`${player.name} casts <strong>${spell.name}</strong> — all allies +${spell.groupDefBonus} Defense.`,'spell');
       } else if(spell.enemyBane){
-        if(te){addDebuff(te,spell.name+' (bane)',{bane:2},2);addLog(room,`${player.name} casts <strong>${spell.name}</strong> — ${te.name} attacks with 1 bane for 2 rounds.`,'spell');}
+        if(te){addDebuff(te,spell.name+' (bane)',{bane:2},3);addLog(room,`${player.name} casts <strong>${spell.name}</strong> — ${te.name} attacks with 1 bane for 2 rounds.`,'spell');}
       } else if(spell.enemyMiss||spell.skipEnemy||spell.vanish){
         if(te){addDebuff(te,spell.name+' (skip)',{skipTurn:true},1);addLog(room,`${player.name} casts <strong>${spell.name}</strong> — ${te.name} loses next action!`,'spell');}
       } else if(spell.untouchable){
@@ -3218,21 +3222,21 @@ function handlePlayerAction(room,playerId,payload,ws){
         char.defense+=15;
         addLog(room,`${player.name} casts <strong>${spell.name}</strong> — untouchable this round!`,'spell');
       } else if(spell.fullBuff){
-        addBuff(char,spell.name,{defBonus:2,atkBoon:1},2+_ufBonus);
+        addBuff(char,spell.name,{defBonus:2,atkBoon:1},3+_ufBonus);
         char.defense+=2;
         addLog(room,`${player.name} casts <strong>${spell.name}</strong> — +2 Defense and 1 boon for 2 rounds.`,'spell');
       } else if(spell.reroll){
-        addBuff(char,spell.name+' (reroll)',{reroll:true},2);
+        addBuff(char,spell.name+' (reroll)',{reroll:true},3);
         addLog(room,`${player.name} casts <strong>${spell.name}</strong> — may reroll dice for 2 rounds.`,'spell');
       } else if(spell.sanctuary){
-        addBuff(char,spell.name+' (hidden)',{sanctuary:true},2);
+        addBuff(char,spell.name+' (hidden)',{sanctuary:true},3);
         char.defense+=5;
         addLog(room,`${player.name} casts <strong>${spell.name}</strong> — hidden from enemies for 2 rounds (+5 Def).`,'spell');
       } else if(spell.forceField){
-        addBuff(char,spell.name+' (shield)',{forceField:10},4);
+        addBuff(char,spell.name+' (shield)',{forceField:10},5);
         addLog(room,`${player.name} casts <strong>${spell.name}</strong> — Force Field absorbs 10 damage!`,'spell');
       } else if(spell.speedBuff){
-        addBuff(char,spell.name+' (speed)',{speedBuff:true},4);
+        addBuff(char,spell.name+' (speed)',{speedBuff:true},5);
         addLog(room,`${player.name} casts <strong>${spell.name}</strong> — +10 Speed for 4 rounds.`,'spell');
       } else if(spell.cure){
         const wilMod2=Math.max(0,modVal(char.attrs.wil));
@@ -3243,17 +3247,17 @@ function handlePlayerAction(room,playerId,payload,ws){
         char.health=Math.min(char.maxHealth,char.health+h2);
         addLog(room,`${player.name} casts <strong>Cure</strong> — ${hadDebuffs?'all debuffs cleared! ':''}heals 1d6(${roll2})+${wilMod2} = +<strong>${h2}</strong> HP.`,'heal');
       } else if(spell.shadowBlade){
-        addBuff(char,'Nightfall Blade (+1d6)',{dmgBonus:rd(1,6)},4);
+        addBuff(char,'Nightfall Blade (+1d6)',{dmgBonus:rd(1,6)},5);
         addLog(room,`${player.name} casts <strong>Nightfall Blade</strong> — all weapon attacks +1d6 for 4 rounds!`,'spell');
       } else if(spell.mightyAtk){
         addBuff(char,'Mighty Attack',{dmgBonus:rd(2,6+_ufBonus),atkBoon:2},1);
         addLog(room,`${player.name} casts <strong>Mighty Attack</strong> — next attack: +2d6 and 2 boons!`,'spell');
       // ── NEW PROTECTION spells ──
       } else if(spell.forceFieldNew){
-        addBuff(char,'Force Field (50% DR)',{damageReduction:0.5},1);
+        addBuff(char,'Force Field (50% DR)',{damageReduction:0.5},2);
         addLog(room,`${player.name} casts <strong>Force Field</strong> — 50% damage reduction for 1 round!`,'spell');
       } else if(spell.sanctuaryNew){
-        room.players.forEach(p=>{if(p.char&&p.char.alive)addBuff(p.char,'Sanctuary (50% DR)',{damageReduction:0.5},1);});
+        room.players.forEach(p=>{if(p.char&&p.char.alive)addBuff(p.char,'Sanctuary (50% DR)',{damageReduction:0.5},2);});
         addLog(room,`${player.name} casts <strong>Sanctuary</strong> — all allies take 50% damage for 1 round!`,'spell');
       } else if(spell.vigorNew){
         char.maxHealth+=10; char.health=Math.min(char.maxHealth,char.health+10);
@@ -3263,22 +3267,22 @@ function handlePlayerAction(room,playerId,payload,ws){
         addLog(room,`${player.name} casts <strong>Protective Field</strong> — all allies IMMUNE to damage for 1 round!`,'spell');
       // ── NEW ILLUSION spells ──
       } else if(spell.figmentNew){
-        if(te){addDebuff(te,'Figment',{bane:1},2);addLog(room,`${player.name} casts <strong>Figment</strong> — ${te.name} attacks with 1 bane for 2 rounds!`,'spell');}
+        if(te){addDebuff(te,'Figment',{bane:1},3);addLog(room,`${player.name} casts <strong>Figment</strong> — ${te.name} attacks with 1 bane for 2 rounds!`,'spell');}
       } else if(spell.vertigoNew){
-        addBuff(char,'Vertigo (2 boons)',{atkBoon:2},2);
+        addBuff(char,'Vertigo (2 boons)',{atkBoon:2},3);
         addLog(room,`${player.name} casts <strong>Vertigo</strong> — 2 boons on attacks for 2 rounds!`,'spell');
       } else if(spell.glamerNew){
         if(te){addDebuff(te,'Glamer (miss)',{skipTurn:true},1);addLog(room,`${player.name} casts <strong>Glamer</strong> — ${te.name} next attack misses!`,'spell');}
       // ── NEW TRANSFORMATION ──
       } else if(spell.mistFormNew){
-        addBuff(char,'Mist Form (50% DR)',{damageReduction:0.5},2);
+        addBuff(char,'Mist Form (50% DR)',{damageReduction:0.5},3);
         addLog(room,`${player.name} casts <strong>Mist Form</strong> — 50% damage reduction for 2 rounds!`,'spell');
       // ── NEW TIME spells ──
       } else if(spell.swiftnessNew){
-        addBuff(char,'Swiftness (+1 boon)',{atkBoon:1},2);
+        addBuff(char,'Swiftness (+1 boon)',{atkBoon:1},3);
         addLog(room,`${player.name} casts <strong>Swiftness</strong> — +1 boon on attacks for 2 rounds!`,'spell');
       } else if(spell.rewriteNew){
-        addBuff(char,'Rewrite Moment (reroll misses)',{rerollMiss:true},2);
+        addBuff(char,'Rewrite Moment (reroll misses)',{rerollMiss:true},3);
         addLog(room,`${player.name} casts <strong>Rewrite Moment</strong> — reroll missed attacks for 2 rounds!`,'spell');
       } else if(spell.minorParadoxNew){
         char.knownSpells.forEach(sp=>{
@@ -3289,7 +3293,7 @@ function handlePlayerAction(room,playerId,payload,ws){
         });
         addLog(room,`${player.name} casts <strong>Minor Paradox</strong> — regained 1 casting of every rank 0-2 spell!`,'spell');
       } else if(spell.precognitionNew){
-        addBuff(char,'Precognition',{atkBoon:2,defBoon:2},2+_ufBonus);
+        addBuff(char,'Precognition',{atkBoon:2,defBoon:2},3+_ufBonus);
         char.defense+=4;
         addLog(room,`${player.name} casts <strong>Precognition</strong> — 2 boons on your attacks, +4 effective Defense for 2 rounds!`,'spell');
       } else {
@@ -3376,15 +3380,20 @@ function handlePlayerAction(room,playerId,payload,ws){
         total=parseInt(dStr)||0;
         addLog(room,`${player.name} casts <strong>${spell.name}</strong> — <strong>${total}</strong> dmg!`,'spell');
       }
-      spellTarget.hp=Math.min(spellTarget.maxHp, spellTarget.hp-total);
+      // Apply damage to AoE targets or single target
+      const _hitTargets=isAoe?aoeTargets:[spellTarget];
+      _hitTargets.forEach(_t=>{ if(_t.hp>0){ _t.hp=Math.max(0,_t.hp-total); if(isAoe&&_hitTargets.length>1) addLog(room,`  ↳ ${_t.name}: <strong class="num-dmg">−${total}</strong> → ${_t.hp}/${_t.maxHp} HP`,'spell'); } });
+      // spellTarget already updated above (first in _hitTargets or single target)
       // spellEcho: once/combat half-damage copy
       if(char.spellEcho && !char._spellEchoUsed && spell.type==='attack' && total>0){ char._spellEchoUsed=true; const echo=Math.floor(total/2); spellTarget.hp=Math.max(0,spellTarget.hp-echo); addLog(room,`🌟 <strong>Spell Echo!</strong> ${player.name}'s spell echoes for <strong class="num-dmg">−${echo}</strong> more!`,'spell'); }
       // divineVessel: healing spells +1d6 (applied after heal amount calculated)
 
       // ── On-hit special effects ──
       // BURN: 1d6/round for 2 rounds, resets timer if reapplied
+      // Apply DoTs to all hit targets
+      const _dotTargets=isAoe?_hitTargets.filter(t=>t.hp>0):[spellTarget];
       if(spell.applyBurn){
-        applyBurn(spellTarget,2,room,char);
+        _dotTargets.forEach(t=>applyBurn(t,2,room,char));
         // ignite: crit with fire spell upgrades Burn by +1 die
         if(char.ignite && isCrit){
           const ex=(spellTarget.activeDebuffs||[]).find(d=>d.name==='Burn');
@@ -3395,9 +3404,7 @@ function handlePlayerAction(room,playerId,payload,ws){
       if(char.burnOnSpell&&spell.type==='attack'&&!spell.applyBurn&&spellTarget.hp>0){ applyBurn(spellTarget,1,room); }
       // CHILLED: 1d3/round + 1 bane on attacks, 2 rounds
       if(spell.applyChilled){
-        const existing=spellTarget.activeDebuffs&&spellTarget.activeDebuffs.find(d=>d.name==='Chilled');
-        if(existing){ existing.duration=2; addLog(room,`❄ ${spellTarget.name} CHILL refreshed!`,'spell'); }
-        else { addDebuff(spellTarget,'Chilled',{dotDmg:rd(1,3),bane:1},2); addLog(room,`❄ ${spellTarget.name} is CHILLED — 1d3 dmg/round + 1 bane on attacks for 2 rounds!`,'spell'); }
+        _dotTargets.forEach(t=>{ const ex=t.activeDebuffs&&t.activeDebuffs.find(d=>d.name==='Chilled'); if(ex){ex.duration=2;} else{addDebuff(t,'Chilled',{dotDmg:rd(1,3),bane:1},2); addLog(room,`❄ ${t.name} is CHILLED — 1d3/round + 1 bane for 2 rounds!`,'spell');} });
       }
       // BLINDED: 3 banes on attacks for 1 round
       if(spell.applyBlinded||spell.blind){
@@ -3413,9 +3420,9 @@ function handlePlayerAction(room,playerId,payload,ws){
         if(killRoll>=10){ spellTarget.hp=0; addLog(room,`💀 <strong>INSTANT KILL!</strong> ${spellTarget.name}'s bones explode!`,'crit'); }
       }
       // BLEED: 1d6/round 2 rounds, separate stack from MajorBleed, refresh on reapply
-      if(spell.applyBleed){ applyBleed(spellTarget,room); }
+      if(spell.applyBleed){ _dotTargets.forEach(t=>applyBleed(t,room)); }
       // MAJOR BLEED: 2d6/round 2 rounds, separate stack from Bleed
-      if(spell.applyMajorBleed){ applyBleed(spellTarget,room); applyBleed(spellTarget,room); } // Major Bleed = 2 applications
+      if(spell.applyMajorBleed){ _dotTargets.forEach(t=>{ applyBleed(t,room); applyBleed(t,room); }); } // Major Bleed = 2 applications
       // STUNNED: enemy cannot act this round
       if(spell.stunCheck){
         const stunRoll=d(20);
@@ -3437,7 +3444,7 @@ function handlePlayerAction(room,playerId,payload,ws){
       }
       // WRATH OF NATURE — target's next 2 attacks have 2 banes
       if(spell.wrathNature){
-        addDebuff(spellTarget,'Vine Snare',{bane:2},2);
+        addDebuff(spellTarget,'Vine Snare',{bane:2},3);
         addLog(room,`🌿 ${spellTarget.name} is ensnared — next 2 attacks have 2 banes!`,'spell');
       }
       // CHAOS BOLT: d20 on hit — 12+ deals 2d6 extra chaos damage
@@ -3550,9 +3557,9 @@ function handlePlayerAction(room,playerId,payload,ws){
       if(char._evilEyeUsed){addLog(room,`${player.name}: Evil Eye already used.`,'sys');return;}
       const _te=getTargetEnemy(gs); if(!_te)return;
       char._evilEyeUsed=true;
-      addDebuff(_te,'Evil Eye',{bane:2},3);
+      addDebuff(_te,'Evil Eye',{bane:2},4);
       addLog(room,`🌙 <strong>Evil Eye!</strong> ${_te.name} has 2 banes on attacks for 3 rounds!`,'chaos');
-      if(char.hex) addDebuff(_te,'Hex',{dmgPenalty:1},3);
+      if(char.hex) addDebuff(_te,'Hex',{dmgPenalty:1},4);
     }
     else if(t==='foresight'){
       if(char._foresightUsed){addLog(room,`${player.name}: Foresight already used.`,'sys');return;}
@@ -3576,7 +3583,7 @@ function handlePlayerAction(room,playerId,payload,ws){
     else if(t==='sacredGround'){
       if(char._sacredGroundUsed){addLog(room,`${player.name}: Sacred Ground already used.`,'sys');return;}
       char._sacredGroundUsed=true;
-      room.players.filter(p=>p.char&&p.char.alive).forEach(p=>addBuff(p.char,'Sacred Ground',{regenHp:1},3));
+      room.players.filter(p=>p.char&&p.char.alive).forEach(p=>addBuff(p.char,'Sacred Ground',{regenHp:1},4));
       addLog(room,`⛪ <strong>Sacred Ground!</strong> Blessed zone — all allies heal 1 HP at end of each round for 3 rounds!`,'heal');
     }
     else if(t==='divineFavour'){
