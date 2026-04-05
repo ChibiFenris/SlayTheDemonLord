@@ -391,7 +391,7 @@ const CAREER_DETAILS={
 
 const NOVICE_INFO={
   warrior:{name:'Warrior',    gains:'Starts Lv1. +5 Max HP, Weapon Training (1 boon on attacks), Catch Your Breath (heal once per rest).'},
-  rogue:  {name:'Rogue',      gains:'Starts Lv1. +3 Max HP, Trickery (+1d6 first attack each round + 1 poison stack), Nimble Recovery.'},
+  rogue:  {name:'Rogue',      gains:'Starts Lv1. +3 Max HP, Trickery (5 poison on first hit, 2 poison on all hits), Nimble Recovery.'},
   magician:{name:'Magician',  gains:'Starts Lv1. +2 Max HP, +1 Power (spell casting), Spell Recovery (heal + regain a casting once per rest).'},
   priest: {name:'Priest',     gains:'Starts Lv1. +4 Max HP, +1 Power (spell casting), Shared Recovery (heal yourself once per rest).'},
 };
@@ -400,7 +400,7 @@ const EXPERT_INFO={
   berserker:   {name:'Berserker',   gains:'+6 HP. Lv3: Combat Prowess (+1d6 every hit). Lv4,6: +1 STR. Lv5: Rage (on taking damage: +1 boon +1d6 next attack).',desc:'Battle-rage specialist. Combat Prowess on every hit. Rage procs after taking damage.'},
   fighter:     {name:'Fighter',     gains:'+5 HP. Lv3: Paced Strikes (arm: next hit deals +2d6, 1/combat). Lv4,6: +1 STR. Lv5: Combat Expertise (+1d6 every hit).',desc:'Master of arms. Paced Strikes adds +2d6 to one attack per combat. Combat Expertise deals +1d6 on every hit.'},
   scout:       {name:'Scout',       gains:'+3 HP. Lv3: Quick Step (miss → +2 Def 1 round, reverts). Lv4,6: +1 AGI. Lv5: Evasion (1 bane on attackers).',desc:'Swift skirmisher. Quick Step rewards dodging. Evasion forces banes on all attackers.'},
-  thief:       {name:'Thief',       gains:'+3 HP. Lv3: Trickery (+1d6 dmg + 1 poison on first attack/round). Lv4,6: +1 AGI. Lv5: Deathblow (+2/+4 poison stacks on hit/crit).',desc:'Cunning blade. Trickery adds +1d6 and 1 poison on your first attack each round. Deathblow stacks 2-4 poison on every hit.'},
+  thief:       {name:'Thief',       gains:'+3 HP. Lv3: Trickery (5 poison on first hit, 2 on all hits). Lv4,6: +1 AGI. Lv5: Deathblow (+4/+6 poison stacks on hit/crit).',desc:'Cunning blade. Trickery applies 5 poison on first hit, 2 on all hits. Deathblow stacks 4-6 poison on every hit.'},
   ranger:      {name:'Ranger',      gains:'+4 HP. Lv3: Quick Strike (free bonus attack in round 1, inherits Weapon Training). Lv4: +1 AGI. Lv5: Evasion (1 bane on attackers). Lv6: +1 STR.',desc:'Wilderness hunter. Quick Strike for a free round 1 attack and Evasion to force banes.'},
   defender:    {name:'Defender',    gains:'+5 HP. Lv3: Shieldwall (+2 Def vs all attacks). Lv4: +1 AGI. Lv5: Toughness (−1 all damage). Lv6: +1 STR.',desc:'Stalwart protector. Shieldwall and Toughness for extreme resilience.'},
   paladin:     {name:'Paladin',     gains:'+4 HP, +1 Power. Lv3: Holy Fervor (1 boon vs undead/chaos). Lv4: +1 STR. Lv5: Divine Smite (+3d6 once/combat). Lv6: +1 WIL.',desc:'Holy warrior. Boons vs evil and a devastating divine smite.'},
@@ -414,7 +414,7 @@ const EXPERT_INFO={
   druid:       {name:'Druid',       gains:'+4 HP, +1 Power. Lv3: Shared Recovery. Lv4: +1 WIL. Lv5: Mass Heal. Lv6: +1 WIL.',desc:'Ancient nature magic. Shared Recovery and Mass Heal for sustained support.'},
   oracle:      {name:'Oracle',      gains:'+3 HP, +1 Power. Lv3: Holy Fervor. Lv4: +1 WIL. Lv5: Divine Smite. Lv6: +1 INT.',desc:'Divine seer. Holy Fervor and Divine Smite channel prophetic wrath.'},
   witch:       {name:'Witch',       gains:'+2 HP, +1 Power. Lv3: Metamagic. Lv4: +1 WIL. Lv5: Mass Heal. Lv6: +1 INT.',desc:'Folk magic. Metamagic and Mass Heal for flexible curse-and-heal play.'},
-  assassin:    {name:'Assassin',    gains:'+3 HP. Lv3: Deathblow (+2 poison on hit, +4 on crit). Lv4: +1 AGI. Lv5: Assassination (+1d6+3 below 50% HP, else +3 poison stacks). Lv6: +1 INT.',desc:'Lethal precision. Deathblow stacks 2-4 poison on every hit. Assassination deals +1d6+3 or adds 3 poison stacks below 50% HP.'},
+  assassin:    {name:'Assassin',    gains:'+3 HP. Lv3: Deathblow (+4 poison on hit, +6 on crit). Lv4: +1 AGI. Lv5: Assassination (+1d6+3 below 50% HP, else +5 poison stacks). Lv6: +1 INT.',desc:'Lethal precision. Deathblow stacks 4-6 poison on every hit. Assassination deals +1d6+3 or adds 5 poison stacks above 50% HP.'},
   zealot:      {name:'Zealot',      gains:'+4 HP, +1 Power. Lv3: Holy Fervor. Lv4: +1 WIL. Lv5: Divine Smite (+3d6). Lv6: +1 STR.',desc:'Righteous fury. Boon vs evil, Divine Smite once per combat.'},
   healer:      {name:'Healer',      gains:'+4 HP, +1 Power. Lv3: Mass Heal (all allies 1d6). Lv4: +1 WIL. Lv5: Resurrection (revive 1 ally to full HP, 1/combat). Lv6: +1 WIL.',desc:'Devoted medic. Mass Heal all allies, Resurrection fully revives the fallen.'},
 };
@@ -449,7 +449,7 @@ const MASTER_INFO={
 const TALENT_DESCS={
   weaponTraining:'Attack with 1 boon (add a d6 to your d20 roll, take higher).',
   catchBreath:'Once per rest: heal 1d6 + your highest attribute modifier × 2 HP.',
-  trickery:'+1d6 bonus damage on first attack each round. Also applies 1 poison stack on hit.',
+  trickery:'First hit in combat applies 5 poison stacks (3 base + 2 bonus). Every subsequent hit applies 2 stacks. Resets on new combat.',
   nimbleRecovery:'Once per rest: heal 1d6 + your highest attribute modifier × 2 HP.',
   spellRecovery:'Once per rest: heal your Healing Rate and regain 1 spell casting.',
   sharedRecovery:'Once per rest: heal 1d6 + your highest attribute modifier × 2 HP.',
@@ -459,7 +459,7 @@ const TALENT_DESCS={
   toughness:'All damage you take is reduced by 1.',
   quickstrike:'Round 1 only: make a free bonus attack after your main attack. Inherits Weapon Training.',
   evasion:'Passive — Enemy attacks against you have 1 bane (forced reroll to lower d20).',
-  deathblow:'Every hit applies 2 poison stacks. Critical hits apply 4 poison stacks instead.',
+  deathblow:'Every hit applies 4 poison stacks. Critical hits apply 6 poison stacks instead.',
   shadowstep:'Fleeing combat never provokes an opportunity attack.',
   overcast:'Spend 2 castings on any spell to deal +2d6 bonus damage.',
   metamagic:'Once per rest, recast a spell without spending a casting.',
@@ -485,7 +485,7 @@ const TALENT_DESCS={
   darkEvoker:'Passive — Dark element spells deal ×2.5 vs weakness instead of ×2.',
   lightningIngrained:'Passive — Lightning element spells deal ×2.5 vs weakness instead of ×2.',
   utilityFocus:'Passive — All utility spells last 1 extra round.',
-  assassination:'Passive — Below 50% HP: deal +1d6+3 bonus damage. Above 50% HP: apply 3 poison stacks instead.',
+  assassination:'Passive — Below 50% HP: deal +1d6+3 bonus damage. Above 50% HP: apply 5 poison stacks instead.',
   swiftFeet:'Passive — All your attacks have 2 boons.',
   miracleHeal:'Once per rest: restore a target to their full maximum HP.',
 };

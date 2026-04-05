@@ -549,7 +549,7 @@ const ENEMY_POOLS = {
      ignoresDef:2, frenzyAtk:{threshold:0.5,newAtk:4,boon:true,extraDmg:true}, daemonicIchor:true},
     // BUFFER/SUPPORT — HP 38 (adjusted up). Warlord's Command: +1 ATK all skaven at combat start. Scurry Away: 1 auto-dodge. Poison Blade: 2 stacks on hit.
     {name:'Skaven Warlord',type:'Skaven', threat:'High',hp:38,ac:13,atk:3,xp:8,gold:[10,30],tags:['skaven'],
-     warlordCommand:true, scurryAway:true, poisonBlade:2},
+     warlordCommand:true, scurryAway:true, poisonBlade:4},
   ],
   // Boss 1 — depth 9
   boss1: [
@@ -657,13 +657,13 @@ function buildChar(career) {
     utilityFocus:false,
     assassination:false,
     swiftFeet:false,
-    trickery:false, trickeryUsed:false, // reset each round
+    trickery:false, trickeryUsed:false, _trickeryPoisonProc:0, _trickeryFirstHit:false,
     nimbleRecovery:false, nimbleUsed:false,
     spellRecovery:false, spellRecoveryUsed:false,
     sharedRecovery:false, sharedUsed:false,
     // Expert talents
     shieldwall:false, toughness:false,
-    quickstrike:false, evasion:false,
+    quickstrike:false, evasion:false, _quickstrikeUsed:false,
     deathblow:false, shadowstep:false,
     overcast:false, metamagic:false, metamagicUsed:false,
     burningSoul:false, firewall:false,
@@ -746,8 +746,12 @@ function rollAttack(char, enemy, extraBoons=0) {
     if (char.combatProwess)   { const r=rd(1,6); dmg+=r; dmgParts.push(`+${r} prowess`); }
     if (char.combatExpertise) { const r=rd(1,6); dmg+=r; dmgParts.push(`+${r} expertise`); }
     if (char.sharpeningStone) { const r=rd(1,6); dmg+=r; dmgParts.push(`+${r} sharpened`); }
-    // Trickery: +1d6 on FIRST attack each round + poison proc. trickeryUsed resets each round.
-    if (char.trickery && !char.trickeryUsed) { const r=rd(1,6); dmg+=r; char.trickeryUsed=true; dmgParts.push(`+${r} Trickery`); char._trickeryPoisonProc=true; } // poison applied after hit
+    // Trickery: first hit in COMBAT → 5 poison stacks (3+2 bonus). All later hits → 2 stacks.
+    // _trickeryFirstHit is combat-scoped (reset on combat start, not per round).
+    if (char.trickery) {
+      if (!char._trickeryFirstHit) { char._trickeryFirstHit=true; char._trickeryPoisonProc=5; }
+      else { char._trickeryPoisonProc=2; }
+    }
     const dmgBuff=getBuffVal(char,'dmgBonus'); if(dmgBuff){dmg+=dmgBuff;dmgParts.push(`+${dmgBuff} buff`);}
     const battleProwessBuff=(char.activeBuffs||[]).some(b=>b.battleProwess);
     if(battleProwessBuff){const r=rd(1,6);dmg+=r;dmgParts.push(`+${r} prowess`);}
@@ -800,7 +804,7 @@ function rollEnemyAttack(enemy, char, hasBoon=false) {
     if (char.toughness) dmg=Math.max(0,dmg-1);
     dmg=Math.max(1,dmg);
   }
-  return {hit,crit:crit2||false,dmg,dmgRoll,critRoll,total:total2,base:adjBase,boonInfo};
+  return {hit,crit:crit2,dmg,dmgRoll,critRoll,total:total2,base:adjBase,boonInfo};
 }
 
 
@@ -819,8 +823,8 @@ function tickBuffs(char){
   char.activeBuffs=char.activeBuffs.filter(b=>{
     b.duration--;
     if(b.duration<=0){
-      // Reverse any defense bonus when buff expires
       if(b.defBonus) char.defense=Math.max(char.baseAgiDef||0, char.defense-b.defBonus);
+      if(b.name==='Corroded') char._corroded=false; // allow reapplication next hit
       return false;
     }
     return true;
@@ -1215,7 +1219,7 @@ function endRound(room) {
   }
   gs.playersActedThisRound = [];
   gs.enemyHasActed = false;
-  room.players.forEach(p=>{ if(p.char) { p.char._killedThisTurn=false; p.char.trickeryUsed=false; } });
+  room.players.forEach(p=>{ if(p.char) { p.char._killedThisTurn=false; p.char.trickeryUsed=false; } }); // trickeryUsed still resets for future use; _trickeryFirstHit persists for combat
   gs.roundNumber = (gs.roundNumber || 1) + 1;
   addLog(room, `--- Round ${gs.roundNumber} begins ---`, 'sys');
   // Rebuild turn order for new round
@@ -1265,7 +1269,11 @@ function fireEnemyTurn(room, ae) {
     const pdmg = rd(ae._poisonStacks, 3);
     ae.hp = Math.max(0, ae.hp - pdmg);
     addLog(room, `Poison (${ae._poisonStacks} stacks) burns ${ae.name} — -${pdmg} dmg -> ${ae.hp}/${ae.maxHp} HP`, 'spell');
-    if (ae.hp <= 0) { resolveEnemyDeath(room, ae); return; }
+    if (ae.hp <= 0) {
+      const died = resolveEnemyDeath(room, ae);
+      if (died !== false) { advanceTurn(room); return; } // enemy died — turn resolved
+      // Undying: enemy rose at 1 HP — continue with their attack turn normally
+    }
   }
   // Other DoTs
   const dots = (ae.activeDebuffs || []).filter(d => d.dotDmg);
@@ -1273,7 +1281,11 @@ function fireEnemyTurn(room, ae) {
     ae.hp = Math.max(0, ae.hp - dbt.dotDmg);
     addLog(room, `${dbt.name} burns ${ae.name} — -${dbt.dotDmg} dmg -> ${ae.hp}/${ae.maxHp} HP`, 'spell');
     if (SELF_TICK_DOTS.has(dbt.name)) dbt.duration--;
-    if (ae.hp <= 0) { resolveEnemyDeath(room, ae); return; }
+    if (ae.hp <= 0) {
+      const died = resolveEnemyDeath(room, ae);
+      if (died !== false) { advanceTurn(room); return; }
+      // Undying: rose at 1 HP — continue
+    }
   }
   ae.activeDebuffs = (ae.activeDebuffs || []).filter(d => !(SELF_TICK_DOTS.has(d.name) && d.duration <= 0));
   if (!gs.inCombat) return;
@@ -1427,7 +1439,7 @@ function fireEnemyTurn(room, ae) {
         // Life leech
         if (ae.lifeLeech) {
           const frac = ae.lifeLeechFrac || 0.25;
-          if (ae.name === 'Varghulf') { ae._leechAccum = (ae._leechAccum||0) + dmg; }
+          if (ae.lifeLeechFrac && ae.lifeLeechFrac <= 0.25) { ae._leechAccum = (ae._leechAccum||0) + dmg; } // accumulate leech for sustain-type (Varghulf)
           else { const l = Math.floor(dmg * frac); ae.hp = Math.min(ae.maxHp, ae.hp+l); addLog(room, `🩸 ${ae.name} leeches <strong>${l}</strong> HP.`, 'chaos'); }
         }
         // Insanity
@@ -1437,7 +1449,7 @@ function fireEnemyTurn(room, ae) {
         // Corroding Bite (Mutant Thug): -1 dmg debuff on player
         if (ae.corrodingBite && !p.char._corroded) { p.char._corroded=true; addBuff(p.char,'Corroded',{dmgPenalty:1},1); addLog(room, `🟢 <strong>Corroding Bite!</strong> ${p.name} weakened — -1 damage for 1 round!`, 'chaos'); }
         // Virulent Blade (Plague Monk): 1 bane on player's next 2 attacks
-        if (ae.virulentBlade) { addBuff(p.char,'Infected',{bane:1},2); addLog(room, `☠ <strong>Virulent Blade!</strong> ${p.name} infected — 1 bane on next 2 attacks!`, 'chaos'); }
+        if (ae.virulentBlade) { addBuff(p.char,'Infected',{bane:1},2); addLog(room, `☠ <strong>Virulent Blade!</strong> ${p.name} infected — 1 bane on next 2 attacks!`, 'chaos'); applyPoison(ae, 2, room); addLog(room, `☠ Virulent Blade applies 2 poison stacks on ${ae.name}!`, 'spell'); }
         // Hypnotic Gaze (Vampire): 1 bane on target's next attack
         if (ae.hypnoticGaze) { addBuff(p.char,'Hypnotised',{bane:1},1); addLog(room, `👁 <strong>Hypnotic Gaze!</strong> ${p.name} entranced — 1 bane on next attack!`, 'chaos'); }
         // Crushing Tail (Saurian): 1 bane on target's next attack
@@ -1452,8 +1464,8 @@ function fireEnemyTurn(room, ae) {
         // Crit Major Bleed (Varghulf)
         if (ae.critMajorBleed && r.crit) { addDebuff(ae,'Major Bleed',{dotDmg:rd(2,6)},2); addLog(room, `🩸🩸 <strong>Frenzied Rending!</strong> Major Bleed on ${p.name}!`, 'chaos'); }
         // Poison Blade (Skaven Warlord)
-        // Poison Blade: no player poison system — apply 1 bane on player's next 2 attacks
-        if (ae.poisonBlade) { addBuff(p.char,'Poisoned',{bane:1},2); addLog(room,`☠ <strong>Poison Blade!</strong> ${p.name} is poisoned — 1 bane on next 2 attacks!`,'chaos'); }
+        // Poison Blade: bane on player + poison stacks on the warlord (DoT system proxy for player poison)
+        if (ae.poisonBlade) { addBuff(p.char,'Poisoned',{bane:1},2); applyPoison(ae,ae.poisonBlade,room); addLog(room,`☠ <strong>Poison Blade!</strong> ${p.name} is poisoned — 1 bane on next 2 attacks + ${ae.poisonBlade} poison stacks!`,'chaos'); }
         // Bloodlust (Kragthor): on kill, bonus attack on another player
         if (ae.bloodlust && p.char.health <= 0) {
           const next = alive.filter(o=>o!==p&&o.char&&o.char.alive);
@@ -1503,8 +1515,7 @@ function fireEnemyTurn(room, ae) {
     clanrat.id='pack_'+Date.now(); gs.enemies.push(clanrat);
     addLog(room, `🐀 <strong>Call the Pack!</strong> ${ae.name} summons a Skaven Clanrat! (3-round cooldown)`, 'chaos');
   }
-  // Pack Leader (Ratogre): +2 ATK to all skaven while alive — applied passively each turn
-  // Pack Leader (Ratogre): skaven allies get +2 ATK while Ratogre alive — applied once on first turn
+  // Pack Leader (Ratogre): +2 ATK to all skaven — applied once on Ratogre's first turn
   if (ae.packLeader && !ae._packLeaderApplied) {
     ae._packLeaderApplied = true;
     (gs.enemies||[]).forEach(e=>{ if(e&&e!==ae&&e.tags&&e.tags.includes('skaven')&&e.hp>0){ e.atk=(e.atk||0)+2; } });
@@ -1609,11 +1620,10 @@ function maybeEnemyAttack(room) {
         const critLabel=r.crit?' 💥 CRIT!':'';
         const dmgBreak=`${ae.dmgNum}d${ae.dmgSides}(${r.dmgRoll})${ae.dmgBonus?'+'+ae.dmgBonus:''}${r.critRoll?'+'+r.critRoll+' crit':''}`;
         addLog(room,`${ae.name} hits <strong>${p.name}</strong> — <strong class="num-dmg">−${actualDmg} dmg</strong>${critLabel} [d20:<strong>${r.base}</strong>+atk<strong>${ae.atk>=0?'+':''}${ae.atk}</strong>=<strong>${r.total}</strong> vs Def<strong>${p.char.defense+auraBonus+shieldBonus}</strong>] [dmg: ${dmgBreak}] → ${p.name} <strong>${p.char.health}</strong>/${p.char.maxHealth} HP`,'dmg-taken');
-        // Beast rage handled per-hit in fireEnemyTurn
         if(ae.lifeLeech){
-          const isVarghulf=ae.name==='Varghulf';
-          if(isVarghulf){
-            ae._leechAccum=(ae._leechAccum||0)+actualDmg;
+          const isAccumLeech=ae.lifeLeechFrac&&ae.lifeLeechFrac<=0.25;
+          if(isAccumLeech){
+            ae._leechAccum=(ae._leechAccum||0)+actualDmg; // accumulate for end-of-turn resolve
           } else {
             const l=Math.floor(r.dmg/4); ae.hp=Math.min(ae.maxHp,ae.hp+l);
             addLog(room,`${ae.name} leeches ${l} HP (¼)!`,'chaos');
@@ -1703,7 +1713,7 @@ function resolveEnemyDeath(room, deadEnemy) {
   if(e&&e.undying&&!e._undyingUsed&&d(6)===6){
     e._undyingUsed=true; e.hp=1;
     addLog(room,`💀 <strong>Undying!</strong> ${e.name} refuses to stay dead — rises at 1 HP!`,'chaos');
-    return; // don't die
+    return false; // enemy survived — callers must NOT treat this as a death
   }
   addLog(room,`⚔ <strong>${e.name}</strong> is slain! FOR SIGMAR!`,'crit');
   room.players.forEach(p=>{
@@ -1729,7 +1739,7 @@ function resolveEnemyDeath(room, deadEnemy) {
   survivors.forEach(p=>{
     p.char.xp+=xpEach; p.char.gold+=goldEach; p.char.sharpeningStone=false;
     // Reset per-combat used flags
-    p.char.divineSmiteUsed=false; p.char.spellsurgeUsed=false; p.char.pacedStrikesUsed=false; p.char.rageBoon=false; p.char.catastropheUsed=false; p.char.overcastUsed=false; p.char._quickstrikeUsed=false; p.char.trickeryUsed=false;
+    p.char.divineSmiteUsed=false; p.char.spellsurgeUsed=false; p.char.pacedStrikesUsed=false; p.char.rageBoon=false; p.char.catastropheUsed=false; p.char.overcastUsed=false; p.char._quickstrikeUsed=false; p.char.trickeryUsed=false; p.char._trickeryFirstHit=false; p.char._trickeryPoisonProc=0;
     const lv=checkLevelUp(p.char);
     if(lv.leveled) addLog(room,`🌟 ${p.name} reaches <strong>Level ${lv.newLevel}</strong>! (+${lv.hpGain} max HP)${p.char.pendingLevelUp?' — Choose a path!':''}`, 'spell');
   });
@@ -2115,17 +2125,17 @@ function handlePlayerAction(room,playerId,payload,ws){
       // ── Post-hit poison applications (only if enemy still alive) ──
       if(targetEnemy.hp>0){
         // Poisoned Blades (deathblow): +2 stacks on hit, +4 on crit
-        if(char.deathblow){ const stacks=r.crit?4:2; applyPoison(targetEnemy,stacks,room); }
+        if(char.deathblow){ const stacks=r.crit?6:4; applyPoison(targetEnemy,stacks,room); }
         // Trickery: +1 poison stack on hit
-        if(char._trickeryPoisonProc){ char._trickeryPoisonProc=false; applyPoison(targetEnemy,1,room); }
+        if(char._trickeryPoisonProc && targetEnemy.hp>0){ const ts=char._trickeryPoisonProc; char._trickeryPoisonProc=0; applyPoison(targetEnemy,ts,room); } else { char._trickeryPoisonProc=0; }
         // Assassination: +1d6+3 dmg if below 50% HP, else +3 poison stacks
         if(char.assassination){
           if(targetEnemy.hp<targetEnemy.maxHp*0.5){ const ab=rd(1,6)+3;targetEnemy.hp=Math.max(0,targetEnemy.hp-ab);addLog(room,`🗡 Assassination! <strong class="num-dmg">-${ab}</strong> bonus dmg → ${targetEnemy.hp}/${targetEnemy.maxHp} HP!`,'crit'); }
-          else { applyPoison(targetEnemy,3,room); }
+          else { applyPoison(targetEnemy,5,room); }
         }
       } else {
         // Enemy died — clear trickery proc without applying poison
-        char._trickeryPoisonProc=false;
+        char._trickeryPoisonProc=0;
       }
       if(targetEnemy.hp<=0){resolveEnemyDeath(room,targetEnemy);return;}
     } else {
@@ -2162,7 +2172,7 @@ function handlePlayerAction(room,playerId,payload,ws){
           const bsBreak=rbs.dmgParts.length?` [${rbs.dmgParts.join(' ')} = <strong>${rbs.dmg}</strong>]`:'';
           addLog(room,`Bladestorm ${rbs.crit?'<strong>CRITS</strong>':'hits'} — <strong class="num-dmg">−${rbs.dmg} dmg</strong>${bsBreak} → ${targetEnemy.name} ${Math.max(0,targetEnemy.hp)}/${targetEnemy.maxHp} HP`,rbs.crit?'crit':'dmg');
           // Trickery poison on bonus strikes too
-          if(targetEnemy.hp>0 && rbs.dmgParts.some(p=>p.includes('Trickery'))){ applyPoison(targetEnemy,1,room); }
+          if(char._trickeryPoisonProc){ const ts=char._trickeryPoisonProc; char._trickeryPoisonProc=0; if(targetEnemy.hp>0){ applyPoison(targetEnemy,ts,room); } }
           if(targetEnemy.hp<=0){resolveEnemyDeath(room,targetEnemy);return;}
         } else {
           addLog(room,`Bladestorm strike misses — d20:${rbs.base}+${rbs.atkMod>=0?'+':''}${rbs.atkMod}=${rbs.total} vs Def${targetEnemy.ac}.`,'sys');
@@ -2191,7 +2201,7 @@ function handlePlayerAction(room,playerId,payload,ws){
         const qsBreak=rqs.dmgParts.length?` [${rqs.dmgParts.join(' ')} = <strong>${rqs.dmg}</strong>]`:'';
         addLog(room,`Quick Strike ${rqs.crit?'<strong>CRITS</strong>':'hits'} — <strong class="num-dmg">−${rqs.dmg} dmg</strong>${qsBreak} → ${targetEnemy.name} ${Math.max(0,targetEnemy.hp)}/${targetEnemy.maxHp} HP`,rqs.crit?'crit':'dmg');
         // Trickery poison applies on bonus attacks too
-        if(rqs.hit && targetEnemy.hp>0 && rqs.dmgParts.some(p=>p.includes('Trickery'))){ applyPoison(targetEnemy,1,room); }
+        if(rqs.hit && char._trickeryPoisonProc && targetEnemy.hp>0){ const ts=char._trickeryPoisonProc; char._trickeryPoisonProc=0; applyPoison(targetEnemy,ts,room); }
         if(targetEnemy.hp<=0){resolveEnemyDeath(room,targetEnemy);return;}
       } else {
         addLog(room,`Quick Strike misses — d20:${rqs.base}+${rqs.atkMod>=0?'+':''}${rqs.atkMod}=${rqs.total} vs Def${targetEnemy.ac}.`,'sys');
