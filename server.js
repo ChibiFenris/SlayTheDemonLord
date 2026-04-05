@@ -11,7 +11,6 @@ const wss = new WebSocketServer({ server, path: '/ws' });
 app.get('/health', (req, res) => res.send('OK'));
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.set('trust proxy', 1);
-server.on('upgrade', (req) => console.log('WS upgrade:', req.url));
 app.use(express.static(path.join(__dirname, 'public')));
 
 const rooms = new Map();
@@ -79,7 +78,7 @@ const NOVICE_PATHS = {
              nimbleRecovery:true,   // once/combat: heal 1d6+AGI×2
              evasion:true,          // passive: all attackers have 1 bane
              venomOnFirstHit:true,  // passive: first attack each combat applies 3 poison stacks
-             desc:'Trickery: 5 poison on first hit, 2 on each after. Evasion: 1 bane on all attackers. Nimble Recovery: 1d6+AGI heal (1/combat). Venom on first strike.' },
+             desc:'Trickery: 3 poison on first hit, 1 on each after. Evasion: 1 bane on all attackers. Nimble Recovery: 1d6+AGI heal (1/combat). Venom Touch (2 poison) on first strike.' },
 
   // ── MAGICIAN (Bright Wizard) ──────────────────────────────────────
   // Fragile but devastating. Most spells, highest burst. Weakest body.
@@ -281,8 +280,6 @@ const MASTER_PATHS = {
     levelGains:{ 7:['holyFervor','banish'], 8:['+1wil'], 9:['resurrection','sanctify'], 10:['+1wil'] },
     desc:'Sigmar — Chaos Bane. Holy Fervor. Banish: Chaos/undead loses next action (once/combat). Resurrection. Sanctify: killed Chaos/undead cannot trigger death abilities.' },
 };
-
-
 
 // ─── CASTINGS TABLE (PDF p.112) ──────────────────────────────────────────────
 // PDF castings by rank. We support ranks 0–3.
@@ -796,8 +793,10 @@ function rollAttack(char, enemy, extraBoons=0) {
   if(char.exploitWeakness && enemy && (enemy._poisonStacks||0)>=5) boons++;
   // shadowOpening: first attack each combat has 1 extra boon
   if(char.shadowOpening && !char._shadowOpeningUsed){ char._shadowOpeningUsed=true; boons++; }
-  // deadAim: if armed, this attack is a guaranteed crit (handled in rollAttack hit check)
-  if(char._deadAimArmed){ char._deadAimArmed=false; /* force crit via luckyPendant mechanism */ char.luckyPendant=true; }
+  // shadowStep: first attack each combat is from stealth (+1 boon, no counter)
+  if(char.shadowStep && !char._shadowStepUsed){ char._shadowStepUsed=true; boons++; }
+  // deadAim: armed flag forces a crit on this attack
+  const forceCritDeadAim=char._deadAimArmed; if(forceCritDeadAim){ char._deadAimArmed=false; }
   // presTheAdvantage: last attack was a crit, this one gets 1 boon
   if(char._pressAdvantageReady){ char._pressAdvantageReady=false; boons++; } // boon vs undead/chaos
   if (char.warlordAura) boons++; // aura from warlord
@@ -808,7 +807,7 @@ function rollAttack(char, enemy, extraBoons=0) {
   // Player debuff banes (Hypnotised, Infected, Roared, Prone, Corroded)
   const baneBuff = getBuffVal(char, 'bane');
   if (baneBuff) banes += baneBuff;
-  const forceCrit=char.luckyPendant; if(forceCrit) char.luckyPendant=false;
+  const forceCrit=char.luckyPendant||forceCritDeadAim; if(char.luckyPendant) char.luckyPendant=false;
   // Active buff bonuses
   const atkBuff=getBuffVal(char,'atkBoon'); boons+=atkBuff;
   const {base,final,boonDie,baneDie}=rollD20boons(boons,banes);
@@ -834,8 +833,8 @@ function rollAttack(char, enemy, extraBoons=0) {
     // Trickery: first hit in COMBAT → 5 poison stacks (3+2 bonus). All later hits → 2 stacks.
     // _trickeryFirstHit is combat-scoped (reset on combat start, not per round).
     if (char.trickery) {
-      if (!char._trickeryFirstHit) { char._trickeryFirstHit=true; char._trickeryPoisonProc=5; }
-      else { char._trickeryPoisonProc=2; }
+      if (!char._trickeryFirstHit) { char._trickeryFirstHit=true; char._trickeryPoisonProc=3; }
+      else { char._trickeryPoisonProc=1; }
     }
     const dmgBuff=getBuffVal(char,'dmgBonus'); if(dmgBuff){dmg+=dmgBuff;dmgParts.push(`+${dmgBuff} buff`);}
     // Holy Smoke (War Censer): +1 poison stack on every hit
@@ -915,7 +914,6 @@ function rollEnemyAttack(enemy, char, hasBoon=false) {
   }
   return {hit,crit:crit2,dmg,dmgRoll,critRoll,total:total2,base:adjBase,boonInfo};
 }
-
 
 // ─── BUFF / DEBUFF SYSTEM ────────────────────────────────────────────────────
 let _buffId=0;
@@ -1126,7 +1124,6 @@ function applyMasterPath(char, pathId) {
     char.pendingLevelUp=true; char.pendingPathTier='tradition'; char.pendingSpellChoices=1;
   }
 }
-
 
 // Get the currently targeted enemy (supports multi-enemy)
 function getTargetEnemy(gs) {
@@ -1605,7 +1602,6 @@ function fireEnemyTurn(room, ae) {
   const alive = room.players.filter(p => p.char && p.char.alive);
   if (!alive.length) { triggerGameover(room); return; }
 
-
   // ── Pre-attack passives ───────────────────────────────────────────────────
 
   // STAMPEDE (Kragthor): round 1 unavoidable 1d6 to all players
@@ -1882,7 +1878,6 @@ function fireEnemyTurn(room, ae) {
   if (!nowAlive.length) { triggerGameover(room); return; }
   room.players.forEach(p => { if (p.char && !p.char.alive) p.char.pendingRevive = true; });
 
-
   // Legendary: Blood Drinker's Plate — heal after any enemy attack
   if(gs._anyPlayerHitThisTurn && room.players.some(p=>p.char&&p.char._legBloodDrinker)){
     room.players.filter(p=>p.char&&p.char.alive&&p.char._legBloodDrinker).forEach(p=>{
@@ -1893,174 +1888,6 @@ function fireEnemyTurn(room, ae) {
   gs._anyPlayerHitThisTurn=false; // reset for next enemy turn
 
   advanceTurn(room);
-}
-
-function allPlayersActed(room) {
-  const alive=room.players.filter(p=>p.char&&p.char.alive);
-  return alive.length>0&&alive.every(p=>room.gs.playersActedThisRound.includes(p.id));
-}
-
-function maybeEnemyAttack(room) {
-  if(!allPlayersActed(room)) return;
-  const gs=room.gs;
-  if(gs.enemyHasActed||!gs.inCombat) return;
-  // Ensure gs.enemy is up to date (may have changed if first enemy died to DoT)
-  if(!gs.enemy&&gs.enemies&&gs.enemies.length>0){
-    gs.enemy=gs.enemies.find(e=>e&&e.hp>0)||null;
-  }
-  if(!gs.enemy) return;
-  gs.enemyHasActed=true;
-  const e=gs.enemy;
-  const attackingEnemies=(gs.enemies&&gs.enemies.length>0)
-    ? gs.enemies.filter(ae=>ae&&ae.hp>0)
-    : [e];
-
-  addLog(room,`--- ${attackingEnemies.map(ae=>ae.name).join(' & ')} retaliates! ---`,'sys');
-
-  // Regen on all living enemies + passive checks
-  attackingEnemies.forEach(ae=>{
-    // UNDEATH passive (undead tag): below 30% HP, heal 2d6 once per combat
-    if(ae.tags&&ae.tags.includes('undead')&&ae.hp>0&&ae.hp<ae.maxHp*0.3&&!ae._undeathUsed){
-      ae._undeathUsed=true;
-      const heal=rd(2,6);
-      ae.hp=Math.min(ae.maxHp,ae.hp+heal);
-      addLog(room,`☠ <strong>Undeath!</strong> ${ae.name} surges with dark energy — heals <strong>${heal}</strong> HP!`,'chaos');
-    }
-  });
-  attackingEnemies.forEach(ae=>{
-    if(ae.regen&&ae.hp<ae.maxHp){const r=rd(1,6);ae.hp=Math.min(ae.maxHp,ae.hp+r);addLog(room,`${ae.name} regenerates ${r} HP.`,'chaos');}
-  });
-
-  // Apply Poison stacks at start of enemy turn (1d3 per stack)
-  (gs.enemies||[]).filter(ae=>ae&&ae.hp>0).forEach(ae=>{
-    if(ae._poisonStacks&&ae._poisonStacks>0){
-      const poisonDmg=ae._poisonStacks; // 1 dmg per stack (flat)
-      ae.hp=Math.max(0,ae.hp-poisonDmg);
-      addLog(room,`☠ <strong>Poison</strong> (${ae._poisonStacks} stack${ae._poisonStacks!==1?'s':''}) burns ${ae.name} — <strong class="num-dmg">−${poisonDmg}</strong> dmg → ${ae.name} ${ae.hp}/${ae.maxHp} HP`,'spell');
-      if(ae.hp<=0){resolveEnemyDeath(room,ae);}
-    }
-  });
-  if(!gs.inCombat) return;
-
-  // Apply DoT debuffs on all active enemies at start of enemy turn
-  (gs.enemies||[]).filter(ae=>ae&&ae.hp>0).forEach(ae=>{
-    (ae.activeDebuffs||[]).filter(d=>d.dotDmg).forEach(d=>{
-      ae.hp=Math.max(0,ae.hp-d.dotDmg);
-      addLog(room,`${d.name==='Burn'?'🔥':d.name==='Chilled'?'❄':d.name==='Bleed'?'🩸':d.name==='Major Bleed'?'🩸🩸':'☠'} <strong>${d.name}</strong> burns ${ae.name} — <strong class="num-dmg">−${d.dotDmg}</strong> dmg → ${ae.name} ${ae.hp}/${ae.maxHp} HP`,'spell');
-      // Bleed/MajorBleed tick their own duration here (start of enemy turn), not at round end
-      if(d.name==='Bleed'||d.name==='Major Bleed'||d.name==='Burn'||d.name==='Chilled'||d.name==='Grave Grasp') d.duration--;
-      if(ae.hp<=0){resolveEnemyDeath(room,ae);}
-    });
-    // Remove expired self-ticking debuffs
-    ae.activeDebuffs=(ae.activeDebuffs||[]).filter(d=>!(
-      (d.name==='Bleed'||d.name==='Major Bleed'||d.name==='Burn'||d.name==='Chilled'||d.name==='Grave Grasp')&&d.duration<=0
-    ));
-  });
-  // If DoT killed all enemies, combat is over — bail
-  if(!gs.inCombat) return;
-
-  // Rebuild after DoTs — some enemies may have died
-  const stillAliveEnemies=(gs.enemies&&gs.enemies.length>0)
-    ? gs.enemies.filter(ae=>ae&&ae.hp>0)
-    : (gs.enemy&&gs.enemy.hp>0?[gs.enemy]:[]);
-  if(stillAliveEnemies.length===0) return;
-
-  const alive=room.players.filter(p=>p.char&&p.char.alive);
-  if(alive.length===0){triggerGameover(room);return;}
-
-  // Each living enemy attacks each player
-  stillAliveEnemies.forEach(ae=>{
-    if(stillAliveEnemies.length>1) addLog(room,`▸ <strong>${ae.name}</strong> attacks!`,'sys');
-    alive.forEach(p=>{
-      const auraBonus=room.players.some(q=>q.char&&q.char.alive&&q.char.holyAura)?2:0;
-      const shieldBonus=p.char.shieldwall?2:0;
-      const r=rollEnemyAttack(ae,{...p.char,defense:p.char.defense+auraBonus+shieldBonus});
-      if(r.hit){
-        // Apply damage reduction / immunity buffs
-        let actualDmg=r.dmg;
-        const isImmune=(p.char.activeBuffs||[]).some(b=>b.immune);
-        const drBuff=(p.char.activeBuffs||[]).find(b=>b.damageReduction);
-        if(isImmune){ actualDmg=0; addLog(room,`🛡 ${p.name} is IMMUNE — damage blocked!`,'spell'); }
-        else if(drBuff){ actualDmg=Math.floor(actualDmg*(1-drBuff.damageReduction)); addLog(room,`🛡 ${p.name} takes 50% damage — ${r.dmg}→${actualDmg}!`,'spell'); }
-        p.char.health=Math.max(0,p.char.health-actualDmg);
-        const critLabel=r.crit?' 💥 CRIT!':'';
-        const dmgBreak=`${ae.dmgNum}d${ae.dmgSides}(${r.dmgRoll})${ae.dmgBonus?'+'+ae.dmgBonus:''}${r.critRoll?'+'+r.critRoll+' crit':''}`;
-        addLog(room,`${ae.name} hits <strong>${p.name}</strong> — <strong class="num-dmg">−${actualDmg} dmg</strong>${critLabel} [d20:<strong>${r.base}</strong>+atk<strong>${ae.atk>=0?'+':''}${ae.atk}</strong>=<strong>${r.total}</strong> vs Def<strong>${p.char.defense+auraBonus+shieldBonus}</strong>] [dmg: ${dmgBreak}] → ${p.name} <strong>${p.char.health}</strong>/${p.char.maxHealth} HP`,'dmg-taken');
-        if(ae.lifeLeech){
-          const isAccumLeech=ae.lifeLeechFrac&&ae.lifeLeechFrac<=0.25;
-          if(isAccumLeech){
-            ae._leechAccum=(ae._leechAccum||0)+actualDmg; // accumulate for end-of-turn resolve
-          } else {
-            const l=Math.floor(r.dmg/4); ae.hp=Math.min(ae.maxHp,ae.hp+l);
-            addLog(room,`${ae.name} leeches ${l} HP (¼)!`,'chaos');
-          }
-        }
-        if(ae.insanityAtk&&d(6)>=4){p.char.insanity++;addLog(room,`${p.name} gains 1 Insanity!`,'chaos');}
-        // rage/rageTrigger/fortressStance handled in main fireEnemyTurn hit block
-        checkDeath(room,p);
-      } else {
-        // acrobaticRiposte: miss triggers free counter (once/round)
-        if(p.char.acrobaticRiposte && !p.char._acrobaticRiposteUsed){ p.char._acrobaticRiposteUsed=true; const rr=rollAttack(p.char,ae,0); if(rr.hit){ ae.hp=Math.max(0,ae.hp-rr.dmg); addLog(room,`🤸 <strong>Acrobatic Riposte!</strong> ${p.name} counters the miss — <strong class="num-dmg">−${rr.dmg}</strong>!`,'crit'); if(ae.hp<=0) resolveEnemyDeath(room,ae); } }
-        if(p.char._wpnRiposte && !p.char._wpnRiposteUsedThisRound){
-          p.char._wpnRiposteUsedThisRound=true;
-          addLog(room,`⚔ <strong>Riposte!</strong> ${p.name} counterattacks ${ae.name}!`,'crit');
-          const rr=rollAttack(p.char,ae,1);
-          if(rr.hit&&ae.hp>0){
-            ae.hp=Math.max(0,ae.hp-rr.dmg);
-            addLog(room,`Riposte hits ${ae.name} — <strong class="num-dmg">−${rr.dmg} dmg</strong> → ${ae.hp}/${ae.maxHp} HP`,rr.crit?'crit':'dmg');
-            if(ae.hp<=0){resolveEnemyDeath(room,ae);return;}
-          } else { addLog(room,`Riposte misses!`,'sys'); }
-        }
-        if(!r.skipped) addLog(room,`${ae.name} <em>misses</em> <strong>${p.name}</strong> — d20:<strong>${r.base}</strong>+atk<strong>${ae.atk>=0?'+':''}${ae.atk}</strong>=<strong>${r.total}</strong> vs Def<strong>${p.char.defense+auraBonus+shieldBonus}</strong>.`,'sys');
-      }
-    });
-    // CALL THE PACK (skaven tag): below 60% HP, shared 2-round cooldown across all skaven
-    if(ae.tags&&ae.tags.includes('skaven')&&ae.hp<ae.maxHp*0.6&&!(gs.packCooldown>0)&&gs.enemies&&gs.enemies.length<4){
-      gs.packCooldown=4; // blocks all skaven from calling for 2 rounds
-      const clanrat=scaleEnemy({name:'Skaven Clanrat',type:'Skaven',threat:'Low',hp:15,ac:12,atk:0,xp:0,gold:[0,0],tags:['skaven']},
-        room.players.filter(p=>p.connected&&p.char&&p.char.alive).length,false,gs.bossCount);
-      clanrat.id='pack_'+Date.now();
-      gs.enemies.push(clanrat);
-      addLog(room,`🐀 <strong>Call the Pack!</strong> ${ae.name} summons a <strong>Skaven Clanrat</strong>! (3-round cooldown)`,'chaos');
-    }
-    // Bonus multi-attack hits random player
-    if(ae.multi){
-      const t=alive[Math.floor(Math.random()*alive.length)];
-      if(t){const r2=rollEnemyAttack(ae,t.char);if(r2.hit){t.char.health=Math.max(0,t.char.health-r2.dmg);addLog(room,`${ae.name} bonus attack on ${t.name} for <strong>${r2.dmg}</strong>!`,'dmg');checkDeath(room,t);}}
-    }
-    // Resolve Varghulf life leech for this enemy
-    if(ae.name==='Varghulf'&&ae._leechAccum>0){
-      const leech=Math.floor(ae._leechAccum/4);
-      ae.hp=Math.min(ae.maxHp,ae.hp+leech);
-      addLog(room,`Varghulf leeches <strong>${leech}</strong> HP (¼ of ${ae._leechAccum} total damage dealt)!`,'chaos');
-      ae._leechAccum=0;
-    }
-  });
-
-  const nowAlive=room.players.filter(p=>p.char&&p.char.alive);
-  if(nowAlive.length===0){triggerGameover(room);return;}
-  room.players.forEach(p=>{if(p.char&&!p.char.alive){p.char.pendingRevive=true;}});
-  // Tick buffs/debuffs each round
-  room.players.forEach(p=>{if(p.char&&p.char.alive)tickBuffs(p.char);});
-  if(gs.enemies) gs.enemies.forEach(en=>{
-    if(en){
-      tickDebuffs(en);
-      // Poison: reduce by 1 stack at end of round
-      if(en._poisonStacks&&en._poisonStacks>0){
-        en._poisonStacks--;
-        if(en._poisonStacks>0) addLog(room,`☠ ${en.name} poison fades — <strong>${en._poisonStacks}</strong> stack${en._poisonStacks!==1?'s':''} remaining.`,'sys');
-        else addLog(room,`☠ ${en.name} poison cleared.`,'sys');
-      }
-    }
-  });
-  // Tick Call the Pack cooldown
-  if(gs.packCooldown>0){
-    gs.packCooldown--;
-    if(gs.packCooldown===0) addLog(room,`🐀 Call the Pack cooldown lifted.`,'sys');
-  }
-  gs.playersActedThisRound=[]; gs.enemyHasActed=false;
-  // roundNumber increment handled by endRound() in turn-order system
-  if(!gs.turnOrder||!gs.turnOrder.length) gs.roundNumber=(gs.roundNumber||1)+1;
 }
 
 function checkDeath(room, player) {
@@ -2242,7 +2069,7 @@ const LEGENDARY_ITEMS = {
       id:'leg', name:"Gnashteeth's Fang", type:'weapon', dice:'2d6', stat:'agi', bonus:4,
       dmgType:'slashing', legendary:true,
       special:{key:'venomFang', desc:'Legendary: every hit applies 3 poison stacks. On kill, gain 1 boon on your next attack this round.'},
-      desc:"2d6+4 · AGI · slashing — Legendary. Every hit: 3 poison stacks. Kill: 1 boon next attack.",
+      desc:"2d6+4 · AGI · slashing — Legendary. Every hit: 2 poison stacks. Kill: 1 boon next attack.",
     },
     {
       id:'leg', name:"Kragthor's Warplate", type:'armor', defBonus:7, legendary:true,
@@ -2326,7 +2153,6 @@ function genLegendaryItem(bossIndex) {
   item.bought = false;
   return item;
 }
-
 
 const SHOP_CONSUMABLES=[
   {name:'Healing Draught',        desc:'Heal 1d6 HP',cost:10},
@@ -2719,25 +2545,20 @@ function handlePlayerAction(room,playerId,payload,ws){
   }
   if(action==='APPLY_PATH'){
     if(!char.pendingLevelUp){
-      console.log('[APPLY_PATH] rejected — pendingLevelUp=false for',player.name,'tier=',char.pendingPathTier,'pathId=',data.pathId);
       return;
     }
     const tier=char.pendingPathTier||'novice';
-    console.log('[APPLY_PATH]',player.name,'tier=',tier,'pathId=',data.pathId,'pendingSpellChoices=',char.pendingSpellChoices);
 
     if(tier==='tradition'){
       // Only accept pathIds that start with 'tradition:' — reject stale path-name messages
       if(!data.pathId.startsWith('tradition:')){
-        console.log('[TRADITION] rejected non-tradition pathId:',data.pathId,'(stale message?)');
         return;
       }
       const tradId=data.pathId.replace('tradition:','');
       const trad=TRADITIONS[tradId];
-      console.log('[TRADITION] tradId=',tradId,'trad found=',!!trad,'already known=',char.traditions.includes(tradId));
       if(trad && !char.traditions.includes(tradId)){
         grantTradition(char, tradId);
         addLog(room,`${player.name} discovers the <strong>${trad.label}</strong> tradition — all eligible spells granted!`,'spell');
-        console.log('[TRADITION] granted. traditions now:',char.traditions,'spells now:',char.knownSpells.map(s=>s.name));
       } else if(!trad){
         addLog(room,`Unknown tradition: ${tradId}`,'sys');
       } else {
@@ -2892,13 +2713,13 @@ function handlePlayerAction(room,playerId,payload,ws){
       addLog(room,`${player.name} ${r.crit?'<strong>CRITS</strong>':'hits'} ${targetEnemy.name} — <strong class="num-dmg">−${finalDmg} dmg</strong>${cl} [${rollBreak}]${dmgBreak} → ${targetEnemy.name} ${targetEnemy.hp}/${targetEnemy.maxHp} HP`,r.crit?'crit':'dmg');
       // ── Post-hit weapon specials and poison ──
       if(targetEnemy.hp>0){
-        if(char.deathblow){ const stacks=r.crit?6:4; applyPoison(targetEnemy,stacks,room); }
+        if(char.deathblow){ const stacks=r.crit?4:3; applyPoison(targetEnemy,stacks,room); }
         // venomOnFirstHit (Rogue novice): 3 poison stacks on first hit of combat
-        if(char.venomOnFirstHit && !char._venomHitUsed){ char._venomHitUsed=true; applyPoison(targetEnemy,3,room); addLog(room,`💀 <strong>Venom Touch!</strong> ${player.name}'s first strike poisons ${targetEnemy.name}!`,'spell'); }
+        if(char.venomOnFirstHit && !char._venomHitUsed){ char._venomHitUsed=true; applyPoison(targetEnemy,2,room); addLog(room,`💀 <strong>Venom Touch!</strong> ${player.name}'s first strike poisons ${targetEnemy.name}!`,'spell'); }
         if(char._trickeryPoisonProc && targetEnemy.hp>0){ const ts=char._trickeryPoisonProc; char._trickeryPoisonProc=0; applyPoison(targetEnemy,ts,room); } else { char._trickeryPoisonProc=0; }
         if(char.assassination){
           if(targetEnemy.hp<targetEnemy.maxHp*0.5){ const ab=rd(1,6)+3;targetEnemy.hp=Math.max(0,targetEnemy.hp-ab);addLog(room,`🗡 Assassination! <strong class="num-dmg">-${ab}</strong> bonus dmg → ${targetEnemy.hp}/${targetEnemy.maxHp} HP!`,'crit'); }
-          else { applyPoison(targetEnemy,5,room); }
+          else { applyPoison(targetEnemy,3,room); } // Assassination above 50% HP
         }
         // Weapon specials post-hit
         if(char._wpnHolySmokeProc){ char._wpnHolySmokeProc=false; applyPoison(targetEnemy,1,room); } // War Censer
@@ -3004,7 +2825,7 @@ function handlePlayerAction(room,playerId,payload,ws){
         // killingMomentum: after any kill, free attack vs another target
         if(char.killingMomentum && !char._killingMomentumUsed){ const nxt=(gs.enemies||[]).find(e=>e&&e.hp>0&&e!==targetEnemy); if(nxt){ char._killingMomentumUsed=true; const rk=rollAttack(char,nxt,0); if(rk.hit){ nxt.hp=Math.max(0,nxt.hp-rk.dmg); addLog(room,`🐎 <strong>Killing Momentum!</strong> ${player.name} charges ${nxt.name} — <strong class="num-dmg">−${rk.dmg}</strong> dmg!`,'crit'); if(nxt.hp<=0) resolveEnemyDeath(room,nxt); } } }
         // deadMansHand: Assassination kill → 5 poison stacks on adjacent enemy
-        if(char.deadMansHand && char.assassination && targetEnemy && targetEnemy.hp<=0){ const adj=(gs.enemies||[]).find(e=>e&&e.hp>0&&e!==targetEnemy); if(adj){ applyPoison(adj,5,room); addLog(room,`☠ <strong>Dead Man's Hand!</strong> Poison spreads to ${adj.name}!`,'chaos'); } }
+        if(char.deadMansHand && char.assassination && targetEnemy && targetEnemy.hp<=0){ const adj=(gs.enemies||[]).find(e=>e&&e.hp>0&&e!==targetEnemy); if(adj){ applyPoison(adj,3,room); addLog(room,`☠ <strong>Dead Man's Hand!</strong> Poison spreads to ${adj.name}!`,'chaos'); } }
       }
       if(targetEnemy.hp<=0){resolveEnemyDeath(room,targetEnemy);return;}
     } else {
@@ -3047,7 +2868,7 @@ function handlePlayerAction(room,playerId,payload,ws){
           // Holy Smoke: War Censer applies 1 poison per hit (including Bladestorm)
           if(char._wpnHolySmokeProc){ char._wpnHolySmokeProc=false; if(targetEnemy.hp>0) applyPoison(targetEnemy,1,room); }
           // Legendary: Gnashteeth's Fang — 3 poison per Bladestorm hit too
-          if(char._legVenomFangProc){ char._legVenomFangProc=false; if(targetEnemy.hp>0) applyPoison(targetEnemy,3,room); }
+          if(char._legVenomFangProc){ char._legVenomFangProc=false; if(targetEnemy.hp>0) applyPoison(targetEnemy,2,room); }
           // Varghulf Talon: full heal on kill (any kill path)
           if(char._legVarghulfTalon && targetEnemy.hp<=0){ char.health=char.maxHealth; addLog(room,`🩸 <strong>Varghulf's Talon!</strong> ${player.name} <strong>fully heals</strong> on kill!`,'heal'); }
           if(targetEnemy.hp<=0){resolveEnemyDeath(room,targetEnemy);return;}
@@ -3237,7 +3058,7 @@ function handlePlayerAction(room,playerId,payload,ws){
         addBuff(char,spell.name+' (reroll)',{reroll:true},3);
         addLog(room,`${player.name} casts <strong>${spell.name}</strong> — may reroll dice for 2 rounds.`,'spell');
       } else if(spell.sanctuary){
-        addBuff(char,spell.name+' (hidden)',{sanctuary:true},3);
+        addBuff(char,spell.name+' (hidden)',{sanctuary:true,defBonus:5},3);
         char.defense+=5;
         addLog(room,`${player.name} casts <strong>${spell.name}</strong> — hidden from enemies for 2 rounds (+5 Def).`,'spell');
       } else if(spell.forceField){
@@ -3301,7 +3122,7 @@ function handlePlayerAction(room,playerId,payload,ws){
         });
         addLog(room,`${player.name} casts <strong>Minor Paradox</strong> — regained 1 casting of every rank 0-2 spell!`,'spell');
       } else if(spell.precognitionNew){
-        addBuff(char,'Precognition',{atkBoon:2,defBoon:2},3+_ufBonus);
+        addBuff(char,'Precognition',{atkBoon:2,defBonus:4},3+_ufBonus);
         char.defense+=4;
         addLog(room,`${player.name} casts <strong>Precognition</strong> — 2 boons on your attacks, +4 effective Defense for 2 rounds!`,'spell');
       } else {
@@ -3692,10 +3513,6 @@ function handlePlayerAction(room,playerId,payload,ws){
     if(gs.turnOrder && gs.turnOrder.length) {
       advanceTurn(room);
       // advanceTurn handles broadcastState internally
-    } else {
-      // Legacy fallback
-      try { maybeEnemyAttack(room); } catch(e) { console.error(e); gs.playersActedThisRound=[]; gs.enemyHasActed=false; }
-      broadcastState(room.code);
     }
   }
 }
@@ -3728,4 +3545,4 @@ wss.on('connection',ws=>{
 });
 
 const PORT=process.env.PORT||3000;
-server.listen(PORT,'0.0.0.0',()=>console.log(`Shadows Over Reikland on 0.0.0.0:${PORT}`));
+server.listen(PORT,'0.0.0.0',()=>{ console.error(`Shadows Over Reikland on 0.0.0.0:${PORT}`); });
