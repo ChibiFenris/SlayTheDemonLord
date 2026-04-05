@@ -276,7 +276,7 @@ input::placeholder{color:var(--text-dim);font-style:italic;}
 /* Mobile layout: hide desktop sidebars, show stacked mobile view */
 body.ui-mobile .game-grid{display:flex;flex-direction:column;gap:8px;}
 body.ui-mobile .sidebar{display:none;}
-body.ui-mobile #m-game-view{display:flex;flex-direction:column;gap:8px;}
+body.ui-mobile #m-game-view{display:flex;flex-direction:column;gap:8px;width:100%;}
 body:not(.ui-mobile) #m-game-view{display:none;}
 /* Mobile player cards — compact strip */
 .m-player-strip{background:linear-gradient(160deg,#2a1e0e,#1e1508);border:1px solid var(--border-bright);border-radius:6px;padding:10px 12px;}
@@ -312,6 +312,63 @@ body:not(.ui-mobile) #m-game-view{display:none;}
 .m-estat b{color:var(--parch);}
 /* Mobile path pick */
 body.ui-mobile #pp-grid{display:flex;flex-direction:column;gap:10px;}
+
+/* ── Screen-wide mobile overrides ── */
+body.ui-mobile #app{padding:8px;}
+body.ui-mobile .head h1{font-size:28px;}
+body.ui-mobile .head .sub{font-size:10px;letter-spacing:2px;}
+body.ui-mobile .head>div:last-child{gap:8px;}
+/* Lobby */
+body.ui-mobile .lobby-wrap{grid-template-columns:1fr;gap:10px;margin:10px auto;}
+body.ui-mobile .career-grid{grid-template-columns:1fr;}
+body.ui-mobile .cbtn{padding:10px 12px;font-size:13px;}
+body.ui-mobile .cn{font-size:14px;}
+body.ui-mobile .cx{font-size:11px;}
+body.ui-mobile input[type=text]{font-size:16px;padding:10px 12px;}/* prevent iOS zoom on focus */
+/* Path pick panel */
+body.ui-mobile #screen-pathpick .panel{margin:8px 0;padding:12px;max-width:100% !important;}
+body.ui-mobile .pp-grid{grid-template-columns:1fr;}
+/* Game main-col — full width, tight padding */
+body.ui-mobile .main-col{display:none !important;}
+body.ui-mobile .map-header{padding:7px 10px;}
+body.ui-mobile .panel{padding:10px;}
+body.ui-mobile .narrative{font-size:12px;max-height:110px;overflow-y:auto;}
+.dim{font-size:12px;color:var(--text-dim);font-style:italic;}
+/* Battle arena — compact */
+body.ui-mobile .battle-panel{display:none !important;}/* hide VS arena — enemy info is in m-game-view */
+/* Actions — path vote nodes */
+body.ui-mobile .path-nodes{grid-template-columns:1fr 1fr;gap:6px;}
+body.ui-mobile .path-node{min-height:60px;padding:8px 6px;}
+body.ui-mobile .node-name{font-size:12px;}
+body.ui-mobile .node-desc{font-size:10px;}
+/* Actions — combat buttons */
+body.ui-mobile .action-grid{grid-template-columns:1fr 1fr;gap:5px;}
+body.ui-mobile .act-btn{padding:10px 6px;font-size:11px;}
+body.ui-mobile .abl{font-size:11px;}
+body.ui-mobile .abs{font-size:9px;}
+/* Loot */
+body.ui-mobile .loot-opts{grid-template-columns:1fr 1fr;gap:6px;}
+body.ui-mobile .loot-opt{padding:9px 7px;font-size:12px;}
+body.ui-mobile .loot-icon{font-size:18px;}
+body.ui-mobile .loot-name{font-size:11px;}
+body.ui-mobile .loot-desc{font-size:10px;}
+/* Merchant */
+body.ui-mobile .shop-grid{grid-template-columns:1fr;gap:6px;}
+body.ui-mobile .shop-item{padding:8px;}
+body.ui-mobile .si-name{font-size:12px;}
+body.ui-mobile .si-desc{font-size:10px;}
+body.ui-mobile .buy-btn{padding:5px 10px;font-size:11px;}
+/* Depth track */
+body.ui-mobile .depth-track{padding:4px 0;}
+body.ui-mobile .dpip{width:14px;height:14px;}
+/* End screen */
+body.ui-mobile .end-wrap{padding:30px 16px;}
+body.ui-mobile .end-title{font-size:28px;}
+/* Bestiary — hide on mobile by default */
+body.ui-mobile .bestiary-grid{grid-template-columns:1fr;}
+/* Toggle button positioning — move up on small screens */
+@media(max-height:600px){#ui-toggle{bottom:6px;right:6px;font-size:10px;padding:5px 9px;}}
+
 .pp-card-m{background:rgba(20,14,6,.6);border:1px solid var(--border-bright);border-radius:8px;padding:12px;cursor:pointer;transition:border-color .15s;}
 .pp-card-m.sel-m{border-color:var(--gold);background:rgba(55,35,0,.2);}
 .pp-card-m-name{font-family:'Cinzel',serif;font-size:14px;color:var(--gold);margin-bottom:3px;}
@@ -398,6 +455,7 @@ body.ui-mobile #pp-grid{display:flex;flex-direction:column;gap:10px;}
 <div class="screen" id="screen-game">
   <div class="game-grid">
     <div class="sidebar" id="sb-left"></div>
+    <div id="m-game-view"></div>
     <div class="main-col">
       <div class="map-header">
         <div>
@@ -438,9 +496,6 @@ body.ui-mobile #pp-grid{display:flex;flex-direction:column;gap:10px;}
     </div>
     <div class="sidebar" id="sb-right"></div>
   </div>
-  <!-- MOBILE GAME VIEW -->
-  <div id="m-game-view"></div>
-
   <!-- BESTIARY -->
   <div style="margin-top:12px">
     <button class="btn gold" style="width:100%;font-size:12px;letter-spacing:3px;margin-bottom:0" onclick="toggleBestiary()">
@@ -2018,7 +2073,7 @@ function mTapEnemy(enemy){
   mOpenSheet(`<div class="m-sheet-name">${enemy.name}</div><div class="m-sheet-type">${enemy.type} — ${enemy.threat} threat</div><div class="m-sheet-desc">${(BESTIARY||[]).find(b=>b.name===enemy.name)?.lore||'A dangerous foe. Proceed with caution.'}</div>${rowsH}${absHtml}<div class="m-sheet-status ${sCls}">${sLabel}</div>`);
 }
 
-// ── Render full mobile game view ─────────────────────────────────────────────
+// ── Render full mobile game view (replaces main-col entirely) ────────────────
 function mRenderGame(gs,players,me){
   if(!document.body.classList.contains('ui-mobile')) return;
   const view=document.getElementById('m-game-view');
@@ -2027,23 +2082,39 @@ function mRenderGame(gs,players,me){
   if(!me||!me.char) return;
   const char=me.char;
   const inCombat=gs.phase==='combat';
+  const inMerchant=gs.phase==='merchant';
+  const inLoot=gs.phase==='loot';
 
-  // ── Combat header banner ──────────────────────────────────────────────────
+  // ── MAP HEADER ────────────────────────────────────────────────────────────
+  const mhdr=document.createElement('div');
+  mhdr.style.cssText='display:flex;justify-content:space-between;align-items:center;background:linear-gradient(160deg,#2a1e0e,#1e1508);border:1px solid var(--border-bright);border-radius:6px;padding:8px 11px;';
+  const phaseLabel=gs.phase==='combat'?'In Combat':gs.phase==='merchant'?'Merchant':gs.phase==='loot'?'Loot Room':gs.phase==='path'?'Choose Path':'Travelling';
+  const phaseCol=gs.phase==='combat'?'var(--blood-bright)':gs.phase==='merchant'||gs.phase==='loot'?'var(--gold-bright)':'var(--gold)';
+  mhdr.innerHTML=`<div><div style="font-family:'Cinzel',serif;font-size:12px;color:var(--gold);font-style:italic" id="m-loc">${LOCS[Math.min(gs.depth,LOCS.length-1)]}</div><div style="font-size:9px;color:var(--text-dim)">Depth ${gs.depth}/30</div></div><div style="font-family:'Cinzel',serif;font-size:10px;padding:2px 8px;border:1px solid ${phaseCol};border-radius:4px;color:${phaseCol}">${phaseLabel}</div>`;
+  view.appendChild(mhdr);
+
+  // ── DEPTH TRACK ───────────────────────────────────────────────────────────
+  const dtWrap=document.createElement('div');
+  dtWrap.style.cssText='background:linear-gradient(160deg,#2a1e0e,#1e1508);border:1px solid var(--border-bright);border-radius:6px;padding:7px 10px;';
+  const dt=document.createElement('div'); dt.className='depth-track';
+  for(let i=0;i<30;i++){const p=document.createElement('div');p.className='dpip'+(i<gs.depth?' done':i===gs.depth?' cur':'');dt.appendChild(p);}
+  dtWrap.appendChild(dt); view.appendChild(dtWrap);
+
+  // ── COMBAT TURN BANNER ────────────────────────────────────────────────────
   if(inCombat){
     const curTurn=gs.turnOrder&&gs.turnOrder.length?gs.turnOrder[gs.activeTurnIdx||0]:null;
     const isMyTurn=curTurn?(curTurn.type==='player'&&curTurn.id===myId):false;
     const turnText=isMyTurn?'Your turn!'
       :curTurn&&curTurn.type==='enemy'?`${curTurn.name} is attacking...`
-      :curTurn&&curTurn.type==='player'?`Waiting for ${curTurn.name}...`
-      :'Waiting...';
+      :curTurn&&curTurn.type==='player'?`Waiting for ${curTurn.name}...`:'Waiting...';
     const turnCol=isMyTurn?'#80e060':curTurn&&curTurn.type==='enemy'?'var(--blood-bright)':'var(--gold)';
     const banner=document.createElement('div');
-    banner.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:5px 2px;';
+    banner.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:4px 2px;';
     banner.innerHTML=`<span style="font-size:11px;color:${turnCol};font-family:'Cinzel',serif">${turnText}</span><span style="font-size:10px;color:var(--text-dim);border:1px solid var(--border);border-radius:4px;padding:2px 7px;font-family:'Cinzel',serif">Round ${gs.roundNumber||1}</span>`;
     view.appendChild(banner);
   }
 
-  // ── Player HP cards ───────────────────────────────────────────────────────
+  // ── PLAYER STRIPS ─────────────────────────────────────────────────────────
   players.forEach(p=>{
     if(!p.char) return;
     const c=p.char;
@@ -2052,10 +2123,9 @@ function mRenderGame(gs,players,me){
     const hpCol=hpPct>60?'#4a9a2a':hpPct>25?'#c9a235':'#cc2222';
     const paths=[c.novicePath,c.expertPath,c.masterPath].filter(Boolean).join(' › ');
     const acted=gs.playersActedThisRound&&gs.playersActedThisRound.includes(p.id);
-    const strip=document.createElement('div');
-    strip.className='m-player-strip';
     const xpCur=XP_T[Math.min(c.level,XP_T.length-1)]||0, xpNxt=XP_T[Math.min(c.level+1,XP_T.length-1)]||100;
     const xpPct=c.level>=10?100:Math.min(100,Math.round(((c.xp-xpCur)/(xpNxt-xpCur))*100));
+    const strip=document.createElement('div'); strip.className='m-player-strip';
     strip.innerHTML=`
       <div class="m-pname"><span>${p.name}${isMe?' <em style="font-size:10px;color:var(--text-dim)">(You)</em>':''} — Lv ${c.level}</span>${acted?'<span style="font-size:10px;color:#80e060">✓ Acted</span>':''}</div>
       <div class="m-hp-row"><div class="m-hp-label">HP</div><div class="m-hp-bar"><div class="m-hp-fill" style="width:${hpPct}%;background:${hpCol}"></div></div><div class="m-hp-val">${c.health}/${c.maxHealth}</div></div>
@@ -2074,15 +2144,13 @@ function mRenderGame(gs,players,me){
     view.appendChild(strip);
   });
 
-  // ── Enemy card (combat) ───────────────────────────────────────────────────
-  const enemies=gs.enemies&&gs.enemies.length?gs.enemies.filter(e=>e&&e.hp>0):[];
-  if(inCombat&&enemies.length){
+  // ── ENEMY CARDS (combat) ──────────────────────────────────────────────────
+  if(inCombat){
+    const enemies=(gs.enemies||[]).filter(e=>e&&e.hp>0);
     enemies.forEach(enemy=>{
       const ehpPct=Math.max(0,Math.round(enemy.hp/enemy.maxHp*100));
-      const ehpCol=ehpPct>60?'#cc2222':ehpPct>25?'#c9a235':'#662222';
-      const ec=document.createElement('div');
-      ec.className='m-enemy-card';
-      // Build ability hint from enemy tags
+      const ehpCol=ehpPct>60?'#8b1a1a':ehpPct>25?'#993c1d':'#662222';
+      const ec=document.createElement('div'); ec.className='m-enemy-card';
       const abHints=[];
       if(enemy.recklessCharge) abHints.push('Reckless Charge');
       if(enemy.bloodgreed) abHints.push('Bloodgreed');
@@ -2094,6 +2162,8 @@ function mRenderGame(gs,players,me){
       if(enemy.brutalCleave) abHints.push('Brutal Cleave');
       if(enemy.frenziedAssault) abHints.push('Frenzied Assault');
       if(enemy.warlordCommand) abHints.push('Warlord Command');
+      if(enemy.scurryAway) abHints.push('Scurry Away');
+      if(enemy.mistForm) abHints.push('Mist Form');
       const abLine=abHints.length?abHints.join(' · '):'tap for details';
       ec.innerHTML=`
         <div style="display:flex;justify-content:space-between;align-items:center">
@@ -2114,31 +2184,141 @@ function mRenderGame(gs,players,me){
     });
   }
 
-  // ── Tab card: Abilities / Spells / Items ──────────────────────────────────
-  const tabCard=document.createElement('div');
-  tabCard.className='m-tab-card';
+  // ── NARRATIVE LOG ─────────────────────────────────────────────────────────
+  const log=gs.log||[];
+  const logWrap=document.createElement('div');
+  logWrap.style.cssText='background:linear-gradient(160deg,#1a1005,#100c04);border:1px solid var(--border);border-radius:6px;padding:8px 10px;max-height:130px;overflow-y:auto;display:flex;flex-direction:column;gap:1px;';
+  const recent=log.slice(-12);
+  if(recent.length){
+    recent.forEach(e=>{
+      const d=document.createElement('div');
+      d.className='log-line'+(e.type?' '+e.type:'');
+      d.style.cssText='font-size:11px;line-height:1.4;padding:1px 0;';
+      d.innerHTML=e.msg;
+      logWrap.appendChild(d);
+    });
+    setTimeout(()=>logWrap.scrollTop=logWrap.scrollHeight,0);
+  } else {
+    logWrap.innerHTML='<div style="font-size:11px;color:var(--text-dim);font-style:italic">The warband gathers...</div>';
+  }
+  view.appendChild(logWrap);
 
+  // ── ACTIONS PANEL ─────────────────────────────────────────────────────────
+  const actWrap=document.createElement('div');
+  actWrap.style.cssText='background:linear-gradient(160deg,#2a1e0e,#1e1508);border:1px solid var(--border-bright);border-radius:6px;padding:10px 12px;';
+
+  if(gs.phase==='event'){
+    const btn=document.createElement('button');
+    btn.className='btn gold btn-w';
+    btn.style.cssText='font-size:13px;letter-spacing:2px;margin-top:0;';
+    btn.textContent='Press Onward →';
+    btn.onclick=()=>send('PLAYER_ACTION',{action:'PRESS_ONWARD'});
+    actWrap.appendChild(btn);
+    view.appendChild(actWrap);
+  }
+  else if(gs.phase==='path'){
+    const heading=document.createElement('div');
+    heading.style.cssText='font-family:"Cinzel",serif;font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:8px;';
+    heading.textContent='VOTE YOUR PATH';
+    actWrap.appendChild(heading);
+    const myVote=gs.pathVotes&&gs.pathVotes[myId];
+    const tally={}; if(gs.pathVotes) Object.values(gs.pathVotes).forEach(v=>{tally[v]=(tally[v]||0)+1;});
+    const icons={combat:'⚔',elite:'💀',rest:'🔥',merchant:'🛒',loot:'📦',unknown:'❓',boss:'💀'};
+    const descs={combat:'An enemy emerges.',elite:'A powerful foe.',rest:'Rest and recover.',merchant:'Browse wares.',loot:'Claim treasure.',unknown:'Unknown dangers.',boss:'⚠ BOSS!'};
+    const grid=document.createElement('div'); grid.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:6px;';
+    (gs.pathChoices||[]).forEach(t=>{
+      const node=document.createElement('div');
+      const isBoss=t==='boss', isVoted=myVote===t;
+      node.style.cssText=`background:rgba(12,8,3,.9);border:${isBoss?'2px solid var(--blood)':'1px solid '+(isVoted?'var(--gold)':'var(--border)')};border-radius:4px;padding:8px;cursor:pointer;text-align:center;${isBoss?'grid-column:1/-1;':''}`;
+      const vc=tally[t]||0;
+      node.innerHTML=`<div style="font-size:16px">${icons[t]}</div><div style="font-family:'Cinzel',serif;font-size:12px;color:var(--gold);margin:2px 0">${t.charAt(0).toUpperCase()+t.slice(1)}</div><div style="font-size:10px;color:var(--text-dim)">${descs[t]}</div>${vc?`<div style="font-size:10px;color:var(--gold-bright);margin-top:2px">${vc} vote${vc>1?'s':''}</div>`:''}`;
+      if(!isVoted) node.onclick=()=>send('PLAYER_ACTION',{action:'VOTE_PATH',data:{nodeType:t}});
+      grid.appendChild(node);
+    });
+    actWrap.appendChild(grid);
+    if(myVote){const m=document.createElement('div');m.style.cssText='font-size:11px;color:var(--gold);margin-top:7px;font-style:italic;text-align:center;';m.textContent=`Voted: ${myVote} — waiting for others...`;actWrap.appendChild(m);}
+    view.appendChild(actWrap);
+  }
+  else if(inCombat&&char.alive){
+    const curTurn=gs.turnOrder&&gs.turnOrder.length?gs.turnOrder[gs.activeTurnIdx||0]:null;
+    const isMyTurn=curTurn?(curTurn.type==='player'&&curTurn.id===myId):false;
+    if(!isMyTurn){
+      const w=document.createElement('div');w.style.cssText='font-size:12px;color:var(--text-dim);font-style:italic;text-align:center;padding:8px;';
+      const waitMsg=curTurn&&curTurn.type==='enemy'?`${curTurn.name} is attacking...`:curTurn&&curTurn.type==='player'?`Waiting for ${curTurn.name}...`:'Waiting...';
+      w.textContent=waitMsg; actWrap.appendChild(w);
+    } else {
+      // Render actual action buttons from the desktop renderActions but clone them
+      const heading=document.createElement('div');
+      heading.style.cssText='font-family:"Cinzel",serif;font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:8px;';
+      heading.textContent='COMBAT ACTIONS';
+      actWrap.appendChild(heading);
+      // Temporarily render into desktop panel then clone the buttons
+      const tmpDiv=document.createElement('div');
+      const origBody=document.getElementById('g-actions-body');
+      const origPanel=document.getElementById('g-actions-panel');
+      if(origBody&&origPanel){
+        // Re-use the desktop renderActions result — just copy its content
+        renderActions(gs,players,me);
+        const clone=origBody.cloneNode(true);
+        // Make all buttons in clone work by keeping their onclick
+        actWrap.appendChild(clone);
+      }
+    }
+    view.appendChild(actWrap);
+  }
+  else if(inLoot&&gs.lootRoom){
+    const heading=document.createElement('div');heading.style.cssText='font-family:"Cinzel",serif;font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:8px;';heading.textContent='LOOT ROOM';
+    actWrap.appendChild(heading);
+    const hasPicked=gs.lootPicked&&gs.lootPicked.includes(myId);
+    if(hasPicked){
+      const m=document.createElement('div');m.style.cssText='font-size:12px;color:var(--text-dim);font-style:italic;text-align:center;';m.textContent='Waiting for others...';actWrap.appendChild(m);
+    } else {
+      const o=me.char&&me.char.lootOptions;
+      if(o){
+        const grid=document.createElement('div');grid.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:6px;';
+        const consName=o.consumable==='Spell Scroll'&&o.scrollSpell?`Scroll: ${o.scrollSpell.name}`:o.consumable;
+        const mLootOpt=(icon,name,desc,action)=>{const d=document.createElement('div');d.style.cssText='background:rgba(12,8,3,.9);border:1px solid var(--border);border-radius:4px;padding:9px 7px;text-align:center;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;';d.innerHTML=`<div style="font-size:18px">${icon}</div><div style="font-family:'Cinzel',serif;font-size:11px;color:var(--gold)">${name}</div><div style="font-size:10px;color:var(--text-dim);line-height:1.3">${desc}</div>`;d.onclick=action;grid.appendChild(d);};
+        mLootOpt('💰',`${gs.lootRoom.coins} Silver`,'Coin from the cache.',()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'coins'}}));
+        mLootOpt('🧪',consName,o.scrollSpell?o.scrollSpell.desc:ITEM_DESCS[o.consumable]||'',()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'consumable'}}));
+        mLootOpt('⚔',o.weapon.name,`${o.weapon.dice}+${o.weapon.bonus} · ${o.weapon.stat.toUpperCase()}`,()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'weapon'}}));
+        mLootOpt('🛡',o.armor.name,`+${o.armor.defBonus} Defense`,()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'armor'}}));
+        actWrap.appendChild(grid);
+      }
+    }
+    view.appendChild(actWrap);
+  }
+  else if(inMerchant&&me.char&&me.char.merchantStock){
+    const stock=me.char.merchantStock;
+    const heading=document.createElement('div');heading.style.cssText='font-family:"Cinzel",serif;font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:3px;';heading.textContent='MERCHANT';
+    const goldRow=document.createElement('div');goldRow.style.cssText='font-size:11px;color:var(--text-dim);margin-bottom:8px;';goldRow.textContent=`Your silver: ${char.gold} ss`;
+    actWrap.appendChild(heading);actWrap.appendChild(goldRow);
+    const all=[stock.weaponEnhance,stock.statBoost,stock.weapon1,stock.weapon2,stock.armor,...(stock.consumables||[]),stock.scroll].filter(Boolean);
+    all.forEach(item=>{
+      const si=document.createElement('div');
+      si.style.cssText=`background:rgba(12,8,3,.9);border:1px solid ${item.bought?'rgba(80,60,20,.3)':'var(--border)'};border-radius:4px;padding:8px;display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;opacity:${item.bought?'0.4':'1'};`;
+      const desc=ITEM_DESCS[item.name]||item.desc||'';
+      si.innerHTML=`<div><div style="font-size:12px;color:var(--gold);font-family:'Cinzel',serif">${item.name}</div><div style="font-size:10px;color:var(--text-dim)">${desc}</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;"><div style="font-size:11px;color:var(--gold-bright)">${item.cost}ss</div>${!item.bought&&char.gold>=item.cost?`<button class="btn" style="font-size:10px;padding:3px 8px;letter-spacing:1px" onclick="buyItem('${item.id}')">Buy</button>`:'<div style="font-size:10px;color:var(--text-dim)">'+(item.bought?'Sold':'Need more silver')+'</div>'}</div>`;
+      actWrap.appendChild(si);
+    });
+    const leaveBtn=document.createElement('button');leaveBtn.className='btn btn-w';leaveBtn.style.cssText='font-size:12px;margin-top:4px;';leaveBtn.textContent='Done Shopping';leaveBtn.onclick=leaveShop;
+    actWrap.appendChild(leaveBtn);
+    view.appendChild(actWrap);
+  }
+
+  // ── TAB CARD: Abilities / Spells / Items ──────────────────────────────────
+  if(!char.alive) return;
+  const tabCard=document.createElement('div'); tabCard.className='m-tab-card';
   const tabDefs=[{id:'ab',label:'Abilities'},{id:'sp',label:'Spells'},{id:'it',label:'Items'}];
   const panels={};
-
-  const tabBar=document.createElement('div');
-  tabBar.className='m-tabs';
+  const tabBar=document.createElement('div'); tabBar.className='m-tabs';
   tabDefs.forEach((t,i)=>{
-    const btn=document.createElement('button');
-    btn.className='m-tab'+(i===0?' on':'');
-    btn.textContent=t.label;
-    btn.onclick=()=>{
-      tabBar.querySelectorAll('.m-tab').forEach(b=>b.classList.remove('on'));
-      btn.classList.add('on');
-      Object.values(panels).forEach(p=>p.style.display='none');
-      panels[t.id].style.display='flex';
-    };
+    const btn=document.createElement('button');btn.className='m-tab'+(i===0?' on':'');btn.textContent=t.label;
+    btn.onclick=()=>{tabBar.querySelectorAll('.m-tab').forEach(b=>b.classList.remove('on'));btn.classList.add('on');Object.values(panels).forEach(p=>p.style.display='none');panels[t.id].style.display='flex';};
     tabBar.appendChild(btn);
   });
   tabCard.appendChild(tabBar);
 
-  // Abilities
-  const abPanel=document.createElement('div'); abPanel.className='m-pill-wrap'; panels['ab']=abPanel;
+  const abPanel=document.createElement('div');abPanel.className='m-pill-wrap';panels['ab']=abPanel;
   const talentDefs=[
     {k:'weaponTraining',lbl:'Wpn Training'},{k:'trickery',lbl:'Trickery'},{k:'combatProwess',lbl:'Prowess'},{k:'combatExpertise',lbl:'Expertise'},
     {k:'shieldwall',lbl:'Shieldwall'},{k:'toughness',lbl:'Toughness'},{k:'evasion',lbl:'Evasion'},{k:'quickstrike',lbl:'Quick Strike'},
@@ -2147,7 +2327,6 @@ function mRenderGame(gs,players,me){
     {k:'phantomStrike',lbl:'Phantom Strike'},{k:'bladestorm',lbl:'Bladestorm'},{k:'sweepingBlow',lbl:'Sweep Blow'},
     {k:'shadowstep',lbl:'Shadowstep'},{k:'swiftFeet',lbl:'Swift Feet'},{k:'burningSoul',lbl:'Burning Soul'},
     {k:'darkEvoker',lbl:'Dark Evoker'},{k:'lightningIngrained',lbl:'Lightning ×2.5'},{k:'utilityFocus',lbl:'Utility Focus'},
-    // Active
     {k:'catchBreath',lbl:'Catch Breath',usedKey:'catchBreathUsed'},{k:'nimbleRecovery',lbl:'Nimble Rec.',usedKey:'nimbleUsed'},
     {k:'sharedRecovery',lbl:'Shared Rec.',usedKey:'sharedUsed'},{k:'spellRecovery',lbl:'Spell Rec.',usedKey:'spellRecoveryUsed'},
     {k:'divineSmite',lbl:'Divine Smite',usedKey:'divineSmiteUsed'},{k:'massHeal',lbl:'Mass Heal',usedKey:'massHealUsed'},
@@ -2156,54 +2335,24 @@ function mRenderGame(gs,players,me){
     {k:'catastrophe',lbl:'Catastrophe',usedKey:'catastropheUsed'},{k:'pacedStrikes',lbl:'Paced Strikes',usedKey:'pacedStrikesUsed'},
     {k:'unstoppable',lbl:'Unstoppable',usedKey:'unstoppableUsed'},{k:'bloodOffering',lbl:'Blood Offering'},
   ].filter(t=>char[t.k]);
-
-  if(char.rageBoon){
-    const rp=document.createElement('span');rp.className='m-pill armed';rp.innerHTML='<span class="m-pill-dot"></span>RAGE ARMED';
-    rp.onclick=()=>mTapTalent('rage',char); abPanel.appendChild(rp);
-  }
-  talentDefs.forEach(t=>{
-    const used=t.usedKey?char[t.usedKey]:false;
-    const p=document.createElement('span'); p.className='m-pill'+(used?' used':'');
-    p.innerHTML=`<span class="m-pill-dot"></span>${t.lbl}`;
-    p.onclick=()=>mTapTalent(t.k,char); abPanel.appendChild(p);
-  });
-  if(!talentDefs.length&&!char.rageBoon) abPanel.innerHTML='<span style="font-size:12px;color:var(--text-dim);font-style:italic">No abilities yet</span>';
+  if(char.rageBoon){const rp=document.createElement('span');rp.className='m-pill armed';rp.innerHTML='<span class="m-pill-dot"></span>RAGE ARMED';rp.onclick=()=>mTapTalent('rage',char);abPanel.appendChild(rp);}
+  talentDefs.forEach(t=>{const used=t.usedKey?char[t.usedKey]:false;const p=document.createElement('span');p.className='m-pill'+(used?' used':'');p.innerHTML=`<span class="m-pill-dot"></span>${t.lbl}`;p.onclick=()=>mTapTalent(t.k,char);abPanel.appendChild(p);});
+  if(!talentDefs.length&&!char.rageBoon) abPanel.innerHTML='<span class="dim">No abilities yet</span>';
   tabCard.appendChild(abPanel);
 
-  // Spells
-  const spPanel=document.createElement('div'); spPanel.className='m-pill-wrap'; spPanel.style.display='none'; panels['sp']=spPanel;
+  const spPanel=document.createElement('div');spPanel.className='m-pill-wrap';spPanel.style.display='none';panels['sp']=spPanel;
   const spells=char.knownSpells||[];
-  if(spells.length){
-    spells.forEach(sp=>{
-      const left=castingsLeftC(char,sp.name,sp.rank);
-      const avail=left>0;
-      const p=document.createElement('span'); p.className='m-pill '+(avail?'spell-avail':'spell-out');
-      p.innerHTML=`<span class="m-pill-dot"></span>${sp.name} [${left}/${maxCastingsC(char.power,sp.rank)}]`;
-      p.onclick=()=>mTapSpell(sp.name,char); spPanel.appendChild(p);
-    });
-  } else {
-    spPanel.innerHTML='<span style="font-size:12px;color:var(--text-dim);font-style:italic">No spells known</span>';
-  }
+  if(spells.length){spells.forEach(sp=>{const left=castingsLeftC(char,sp.name,sp.rank),avail=left>0;const p=document.createElement('span');p.className='m-pill '+(avail?'spell-avail':'spell-out');p.innerHTML=`<span class="m-pill-dot"></span>${sp.name} [${left}/${maxCastingsC(char.power,sp.rank)}]`;p.onclick=()=>mTapSpell(sp.name,char);spPanel.appendChild(p);});}
+  else{spPanel.innerHTML='<span class="dim">No spells known</span>';}
   tabCard.appendChild(spPanel);
 
-  // Items
-  const itPanel=document.createElement('div'); itPanel.className='m-pill-wrap'; itPanel.style.display='none'; panels['it']=itPanel;
+  const itPanel=document.createElement('div');itPanel.className='m-pill-wrap';itPanel.style.display='none';panels['it']=itPanel;
   const inv=char.inventory||[];
-  if(inv.length){
-    inv.forEach(item=>{
-      const isWpn=item.type==='weapon', isArm=item.type==='armor';
-      const isEqW=isWpn&&char.equippedWeapon&&item.itemObj&&item.itemObj.id===char.equippedWeapon.id;
-      const isEqA=isArm&&char.equippedArmor&&item.itemObj&&item.itemObj.id===char.equippedArmor.id;
-      const p=document.createElement('span');
-      p.className='m-pill'+(isEqW||isEqA?' armed':'');
-      p.innerHTML=`<span class="m-pill-dot"></span>${item.name}${item.qty>1?' ×'+item.qty:''}${isEqW?' ★W':isEqA?' ★A':''}`;
-      p.onclick=()=>mTapItem(item.name,char,inCombat); itPanel.appendChild(p);
-    });
-  } else {
-    itPanel.innerHTML='<span style="font-size:12px;color:var(--text-dim);font-style:italic">Inventory empty</span>';
-  }
+  if(inv.length){inv.forEach(item=>{const isWpn=item.type==='weapon',isArm=item.type==='armor';const isEqW=isWpn&&char.equippedWeapon&&item.itemObj&&item.itemObj.id===char.equippedWeapon.id;const isEqA=isArm&&char.equippedArmor&&item.itemObj&&item.itemObj.id===char.equippedArmor.id;const p=document.createElement('span');p.className='m-pill'+(isEqW||isEqA?' armed':'');p.innerHTML=`<span class="m-pill-dot"></span>${item.name}${item.qty>1?' ×'+item.qty:''}${isEqW?' ★W':isEqA?' ★A':''}`;p.onclick=()=>mTapItem(item.name,char,inCombat||inMerchant);itPanel.appendChild(p);});}
+  else{itPanel.innerHTML='<span class="dim">Inventory empty</span>';}
   tabCard.appendChild(itPanel);
 
+  if(inMerchant){tabBar.querySelectorAll('.m-tab').forEach((b,i)=>b.classList.toggle('on',i===2));Object.values(panels).forEach((p,i)=>p.style.display=i===2?'flex':'none');}
   view.appendChild(tabCard);
 }
 
