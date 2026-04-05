@@ -510,9 +510,10 @@ body.ui-mobile #screen-connect{padding:8px;}
 </div>
 </div>
 
-<script src="tokens.js"></script>
 <script>
-const TOKEN_DATA={}; // loaded from tokens.js
+let TOKEN_DATA={};
+fetch('tokens.json').then(r=>r.json()).then(d=>{ TOKEN_DATA=d; }).catch(()=>{});
+</script><script>
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const CAREER_LABELS={warrior:'State Soldier',rogue:'Roadwarden',wizard:'Bright Wizard',priest:'Sigmarite Priest'};
