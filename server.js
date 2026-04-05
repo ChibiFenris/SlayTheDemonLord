@@ -2677,13 +2677,6 @@ function handlePlayerAction(room,playerId,payload,ws){
             }
           }
         }
-        if(char._legSunstoneBlade && r.crit){
-          (gs.enemies||[]).filter(e2=>e2&&e2.hp>0&&e2!==targetEnemy).forEach(e2=>{
-            const sp=rd(1,6); e2.hp=Math.max(0,e2.hp-sp);
-            addLog(room,`☀ <strong>Sunstone Splash!</strong> ${e2.name} scorched — <strong class="num-dmg">−${sp}</strong> fire!`,'crit');
-            if(e2.hp<=0) resolveEnemyDeath(room,e2);
-          });
-        }
         if(char._wpnSunder && r.crit && !targetEnemy._sundered){ targetEnemy._sundered=true; targetEnemy.ac=Math.max(1,targetEnemy.ac-2); addLog(room,`🔨 <strong>Sunder!</strong> ${targetEnemy.name}'s armour cracked — AC reduced to ${targetEnemy.ac}!`,'crit'); } // Warhammer
         if(char.flameEdge && r.crit){ applyBurn(targetEnemy,1,room); addLog(room,`🔥 <strong>Flame Edge!</strong> ${player.name}'s crit ignites ${targetEnemy.name}!`,'spell'); }
         if(char.resonance && ((targetEnemy._poisonStacks||0)>0||(targetEnemy.activeDebuffs||[]).some(d=>d.name==='Bleed'||d.name==='Burn'))){ finalDmg+=rd(1,6); addLog(room,`💥 <strong>Resonance!</strong> +1d6 bonus on afflicted target.`,'spell'); }
@@ -2748,7 +2741,7 @@ function handlePlayerAction(room,playerId,payload,ws){
       const rerollBuff=(char.activeBuffs||[]).find(b=>b.rerollMiss);
       if(rerollBuff){
         addLog(room,`${player.name} misses — <strong>Rewrite Moment</strong> triggers, rerolling!`,'spell');
-        const r2=rollAttack(char,targetEnemy,rogueBoon);
+        const r2=rollAttack(char,targetEnemy,extraBoons);
         if(r2.hit){
           targetEnemy.hp=Math.max(0, targetEnemy.hp-r2.dmg);
           const dmgBreak2=r2.dmgParts.length?` [dmg: ${r2.dmgParts.join(' ')} = <strong>${r2.dmg}</strong>]`:'';
