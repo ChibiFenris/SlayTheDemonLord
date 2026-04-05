@@ -1393,6 +1393,7 @@ function getCurrentTurn(gs) {
 function advanceTurn(room) {
   const gs = room.gs;
   if (!gs.turnOrder) return;
+  if (!gs.inCombat || gs.phase === 'victory' || gs.phase === 'gameover' || gs.phase === 'dying') return;
   gs.activeTurnIdx++;
   while (gs.activeTurnIdx < gs.turnOrder.length) {
     const slot = gs.turnOrder[gs.activeTurnIdx];
@@ -1437,6 +1438,7 @@ function advanceTurn(room) {
 
 function endRound(room) {
   const gs = room.gs;
+  if (!gs.inCombat || gs.phase === 'victory' || gs.phase === 'gameover' || gs.phase === 'dying') return;
   room.players.forEach(p => { if (p.char && p.char.alive) tickBuffs(p.char); });
   (gs.enemies || []).filter(en=>en&&en.hp>0).forEach(en => {
     tickDebuffs(en);
@@ -1989,8 +1991,8 @@ function resolveEnemyDeath(room, deadEnemy) {
   }
   gs.inCombat=false; gs.enemy=null; gs.enemies=[]; gs.phase='event';
   gs.playersActedThisRound=[]; gs.enemyHasActed=false; gs.packCooldown=0;
-  if(gs.depth>=30){gs.phase='victory';addLog(room,'🏆 The Saurian Ancient falls! The warband conquers the depths! FOR SIGMAR!','crit');}
-  else if(gs.bossCount>=3){gs.phase='victory';addLog(room,'🏆 The warband conquers the depths! FOR SIGMAR!','crit');}
+  if(gs.depth>=30){gs.phase='victory';addLog(room,'🏆 The Saurian Ancient falls! The warband conquers the depths! FOR SIGMAR!','crit');broadcastState(room.code);return;}
+  else if(gs.bossCount>=3){gs.phase='victory';addLog(room,'🏆 The warband conquers the depths! FOR SIGMAR!','crit');broadcastState(room.code);return;}
 }
 
 // ─── MERCHANT ────────────────────────────────────────────────────────────────
