@@ -500,7 +500,7 @@ const ENEMY_POOLS = {
     {name:'Skaven Clanrat',  type:'Skaven',  threat:'Low', hp:13,ac:11,atk:1,xp:3,gold:[2,8],  tags:['skaven'],
      packInstinct:true},
     {name:'Beastman Gor',    type:'Beastmen',threat:'Low', hp:16,ac:12,atk:2,xp:3,gold:[3,10], tags:['beast'],chaos:true,
-     recklessCharge:true, bloodOnHit:true, bloodgreedHit:true},
+     recklessCharge:true, bloodOnHit:true},
     {name:'Undead Skeleton', type:'Undead',  threat:'Low', hp:18,ac:10,atk:1,xp:3,gold:[0,5],  tags:['undead'],undead:true,
      undying:true, weakToBlunt:true},
     {name:'Mutant Thug',     type:'Cultist', threat:'Low', hp:11,ac:13,atk:2,xp:3,gold:[5,15], tags:['chaos'],chaos:true,
@@ -531,12 +531,6 @@ const ENEMY_POOLS = {
      skavencunning:true, seethingRage:true, packBoss:true},
     {name:'Beastlord Kragthor',       type:'Beastmen Boss',threat:'Boss',hp:72,ac:16,atk:2,xp:15,gold:[25,70], tags:['beast'],chaos:true,
      stampede:true, bloodlust:true, belowRoar:true, bloodlustActive:false},
-    {
-      id:'leg', name:'Warpstone Gauntlet', type:'weapon', dice:'2d6', stat:'str', bonus:4,
-      dmgType:'blunt', legendary:true,
-      special:{key:'warpstoneGauntlet', desc:'Legendary: kills grant +1 STR (stacks to +3, resets between combats).'},
-      desc:"2d6+4 · STR · blunt — Legendary. Kills grant +1 STR (max +3, resets per combat).",
-    },
   ],
   boss2: [
     {name:'Varghulf',            type:'Undead Boss', threat:'Boss',hp:115,ac:15,atk:4,xp:15,gold:[200,200],tags:['undead'],undead:true,lifeLeech:true,
@@ -608,7 +602,7 @@ function buildChar(career) {
     defense:baseDefense, baseAgiDef:attrs.agi,
     perception:attrs.int,
     power:0, maxPower:0, castingPools:{}, castingsUsed:0, // castingsUsed kept for compat
-    insanity:0, corruption:0, conditions:[], activeBuffs:[],
+    insanity:0, corruption:0, conditions:[], activeBuffs:[], _poisonedStacks:0,
     inventory:[
       {name:'Healing Draught',qty:2},
       {itemObj:startWpn,name:startWpn.name,qty:1,type:'weapon'},
@@ -725,7 +719,8 @@ function buildChar(career) {
     _legVenomFang:false, _legVenomFangProc:false, _legBeastlordMaul:false, _legBeastlordMaulUsed:false,
     _legVarghulfTalon:false, _legVarghulfLeech:0, _legChainbreaker:false, _legSunstoneBlade:false, _legPrimordialStaff:false, _legExtinctionAegis:false,
     _legAncientScale:false, _legAncientScaleUsed:false, _legShroud:false, _legShroudUsed:false, _legShroudActive:false, _legBloodDrinker:false,
-    _legRatking:false, _legBerserk:false, _legBerserkUsed:false, _legBerserkBonusActive:false,
+    _legRatking:false, _chainbreakerCritProc:false, _legBerserk:false, _legBerserkUsed:false, _legBerserkBonusActive:false,
+    _legWarpstoneGauntlet:false, _warpstoneKillStr:0, _legPrimordialTalisman:false, _primordialTalismanUsed:false,
     traditions:[], scrollSpells:{}, stimulantBoon:0, sharpeningStone:false, luckyPendant:false,
     alive:true,
     spellcaster:c.spellcaster, tradition:c.tradition||null,
@@ -767,8 +762,10 @@ function rollAttack(char, enemy, extraBoons=0) {
   if (char.rage&&char.rageBoon) { boons++; } // rage boon — dmg applied on hit, flag cleared there
   if (char.stimulantBoon>0) { boons++; char.stimulantBoon--; }
   if (extraBoons) boons+=extraBoons;
+  // activeBuffs: atkBoon bonuses (from Shrine Blessing, Well Rested, etc.)
+  (char.activeBuffs||[]).forEach(b=>{ if(b.atkBoon) boons+=b.atkBoon; if(b.atkBane) banes+=b.atkBane; });
   // holyFervor now adds dmg+heal on hit (handled in ATTACK handler), not a boon
-  if (char._legRatking && enemy && enemy.tags && enemy.tags.includes('skaven')) boons++;
+  if(char._legRatking && enemy && enemy.tags && enemy.tags.includes('skaven')) boons++; // extra boon vs skaven
   if(char.exploitWeakness && enemy && (enemy._poisonStacks||0)>=5) boons++;
   if(char.markHeretic && char._markHereticTarget && enemy===char._markHereticTarget) boons+=2;
   if(char._legRatking) boons+=1; // Ratking Crown: +1 boon on all attacks
@@ -785,7 +782,7 @@ function rollAttack(char, enemy, extraBoons=0) {
   const forceCrit=char.luckyPendant||forceCritDeadAim; if(char.luckyPendant) char.luckyPendant=false;
   const atkBuff=getBuffVal(char,'atkBoon'); boons+=atkBuff;
   const {base,final,boonDie,baneDie}=rollD20boons(boons,banes);
-  char.activeBuffs=(char.activeBuffs||[]).filter(b=>!b.consumeOnAttack||!b.atkBoon);
+  char.activeBuffs=(char.activeBuffs||[]).filter(b=>!b.consumeOnAttack);
   const fumble=base===1&&!forceCrit, crit=forceCrit||base===20;
   const phantomThisHit=char.phantomStrike&&!char._phantomStrikeUsed;
   if(phantomThisHit) char._phantomStrikeUsed=true;
@@ -823,8 +820,7 @@ function rollAttack(char, enemy, extraBoons=0) {
     const battleProwessBuff=(char.activeBuffs||[]).some(b=>b.battleProwess);
     if(battleProwessBuff){const r=rd(1,6);dmg+=r;dmgParts.push(`+${r} prowess`);}
     if(char._legVenomFang){ char._legVenomFangProc=true; } // poison applied in ATTACK handler
-    if(char._legChainbreaker && r.crit && targetEnemy){ addDebuff(targetEnemy,'Prone',{skipTurn:true},1); addLog(room,`🔨 <strong>Chainbreaker Crit!</strong> ${targetEnemy.name} is knocked Prone!`,'crit'); }
-    if(char._legWarpstoneGauntlet&&!char._warpstoneKillStr){ char._warpstoneKillStr=(char._warpstoneKillStr||0)+1; if(char._warpstoneKillStr<=3){ char.attrs.str+=1; addLog(room,`💎 <strong>Warpstone Gauntlet!</strong> ${player.name} gains +1 STR from the kill (${char._warpstoneKillStr}/3)!`,'crit'); } }
+    if(char._legChainbreaker && crit){ char._chainbreakerCritProc=true; } // applied in ATTACK handler
       if(char._legSunstoneBlade){ const fd=Math.max(0,modVal(char.attrs.int)); if(fd>0){dmg+=fd; dmgParts.push(`+${fd} fire`);} }
     if(char._legVarghulfTalon && dmg>0){ char._legVarghulfLeech=Math.max(1,Math.floor(dmg*0.25)); } // applied in ATTACK handler
     const wpnType=(wpn&&wpn.dmgType)||'slashing';
@@ -849,7 +845,7 @@ function rollAttack(char, enemy, extraBoons=0) {
   return {hit,crit,fumble,base,final,total,dmg,dmgParts,atkMod,boonInfo,forceCrit,wpnLabel};
 }
 
-function rollEnemyAttack(enemy, char, hasBoon=false) {
+function rollEnemyAttack(enemy, char, hasBoon=false, room=null) {
   if(enemy._worshipBoon){ enemy._worshipBoon=false; hasBoon=true; }
   if(enemy.skavenDiscipline){ hasBoon=true; }
   if(enemy.plagueFrenzy && char._poisonedStacks && char._poisonedStacks>=5){ hasBoon=true; }
@@ -865,8 +861,11 @@ function rollEnemyAttack(enemy, char, hasBoon=false) {
   const shroudBane=char._legShroudActive?1:0; // Shroud of Undeath: below 25% HP enemies have 1 bane
   const ratkingBane=char._legRatking&&enemy&&enemy.tags&&enemy.tags.includes('skaven')?2:0; // Ratking Crown: 2 banes vs skaven
   const sacredAegisBane=0; // sacredAegis now retaliates damage instead of bane
-  const vanishBane=(char.activeBuffs||[]).some(b=>b.name==='Vanish')?1:0;
+  const vanishBane=(char.activeBuffs||[]).reduce((a,b)=>a+(b.enemyBane||0),0);
   const totalBanes=baneDebuff+evasionBane+packScornBane+shroudBane+ratkingBane+poisonBane+sacredAegisBane+vanishBane;
+  // Revelation: forceReroll — enemy rerolls and takes the worse result
+  const _revDebuff=(enemy.activeDebuffs||[]).find(d=>d.forceReroll&&(d.rerollCount||0)>0);
+  if(_revDebuff){ _revDebuff.rerollCount--; if(_revDebuff.rerollCount<=0) _revDebuff.duration=0; }
   if(enemy._frenzyNextHit){ enemy._frenzyNextHit=false; return {hit:true,crit:false,dmg:rd(enemy.dmgNum,enemy.dmgSides)+enemy.dmgBonus,dmgRoll:0,critRoll:0,total:99,base:20,boonInfo:' (Frenzy — auto-hit)'}; }
   const cwBoon=(enemy&&enemy._chosenBoon>0)?1:0; if(cwBoon&&enemy) enemy._chosenBoon=Math.max(0,(enemy._chosenBoon||0)-1);
   if(enemy.ancientScales && Math.random()<0.10){ return {hit:true,crit:false,dmg:0,dmgRoll:0,critRoll:0,total:0,base:0,boonInfo:' (deflected by Ancient Scales)'}; }
@@ -875,7 +874,8 @@ function rollEnemyAttack(enemy, char, hasBoon=false) {
   const roll1=d(20);
   let boonBonus=effectiveHasBoon?d(6):0;
   if(enemy&&enemy.plagueFrenzy&&targetPoisoned){ boonBonus=Math.max(boonBonus,d(6)); addLog(room,`🐀 <strong>Plague Frenzy!</strong> ${enemy.name} surges — +2 boons on poisoned foe!`,'chaos'); }
-  const rawBase=hasBoon?Math.min(20,roll1+boonBonus):roll1;
+  let rawBase=hasBoon?Math.min(20,roll1+boonBonus):roll1;
+  if(_revDebuff){ const reroll2=d(20); rawBase=Math.min(rawBase,reroll2); if(room) addLog(room,`📖 <strong>Revelation!</strong> ${enemy.name} rerolls — takes ${rawBase} (worse of ${Math.max(rawBase,reroll2)}/${reroll2})!`,'spell'); }
   const baneRoll=totalBanes>0?Math.max(...Array.from({length:Math.min(totalBanes,4)},()=>d(6))):0; // SotDL: highest bane d6 subtracted
   const boonInfo=hasBoon?` (+boon)`:totalBanes>0?` (-${baneRoll} bane)`:''
   const adjBase=totalBanes>0?Math.max(1,rawBase-baneRoll):rawBase;
@@ -891,7 +891,6 @@ function rollEnemyAttack(enemy, char, hasBoon=false) {
     if (crit2) { critRoll=rd(enemy.dmgNum,enemy.dmgSides); dmg+=critRoll; }
     if((enemy.activeDebuffs||[]).some(d=>d.rerollDmgLower)){ const alt=rd(enemy.dmgNum,enemy.dmgSides)+enemy.dmgBonus; dmg=Math.min(dmg,alt); }
     if (char.toughness) dmg=Math.max(0,Math.floor(dmg*0.9));
-    if(char.toughness){dmg=Math.max(0,Math.floor(dmg*0.9));}
     dmg=Math.max(1,dmg);
   }
   if(!hit && enemy && enemy.activeDebuffs){
@@ -913,6 +912,8 @@ function addDebuff(enemy, name, effects, duration=1){
 function tickBuffs(char){
   if(!char.activeBuffs) return;
   char.activeBuffs.filter(b=>b.regenHp&&b.duration>0).forEach(b=>{ char.health=Math.min(char.maxHealth,char.health+(b.regenHp||0)); });
+  // Tick DoT buffs on players (Bleed applied by enemies — fortitude blocks Bleed)
+  char.activeBuffs.filter(b=>b.dotDmg&&b.duration>0&&!(char.fortitude&&b.name==='Bleed')).forEach(b=>{ char.health=Math.max(0,char.health-b.dotDmg); });
   char.activeBuffs=char.activeBuffs.filter(b=>{
     b.duration--;
     if(b.duration<=0){
@@ -928,7 +929,7 @@ const SELF_TICK_DOTS=new Set(['Chilled','Grave Grasp','Acid Splash']); // Bleed/
 function tickDebuffs(enemy){
   if(!enemy.activeDebuffs) return;
   enemy.activeDebuffs=enemy.activeDebuffs.filter(d=>{
-    if(SELF_TICK_DOTS.has(d.name)) return true; // already ticked at DoT fire
+    if(SELF_TICK_DOTS.has(d.name)){ d.duration--; return d.duration>0; } // tick and expire SELF_TICK_DOTS
     d.duration--;
     return d.duration>0;
   });
@@ -1023,7 +1024,7 @@ function applyTalentList(char, talents) {
     else if (t==='+1wil') char.attrs.wil++;
     else char[t]=true;
     if (t==='weaponAptitude') { char.weaponAtkBonus=(char.weaponAtkBonus||0)+2; }
-    if (t==='bulwark')       { char.maxHealth+=5; char.health=Math.min(char.health+5,char.maxHealth); char.defense=(char.defense||0)+2; addLog(room,`🛡 <strong>Bulwark!</strong> ${player.name} gains +5 max HP and +2 Defence!`,'sys'); }
+    if (t==='bulwark')       { char.maxHealth+=5; char.health=Math.min(char.health+5,char.maxHealth); char.defense=(char.defense||0)+2; }
     if (t==='overcast'||t==='burningSoul') { /* no power, just talent */ }
     if (t==='spellsurge'||t==='catastrophe') { char.power+=1; char.maxPower+=1; refreshCastingPools(char); }
     if (t==='holyAura'||t==='miracleHeal')  { char.power+=1; char.maxPower+=1; refreshCastingPools(char); }
@@ -1039,7 +1040,7 @@ function applyNovicePath(char, pathId) {
   char.maxHealth+=np.hpGain; char.health=Math.min(char.health+np.hpGain,char.maxHealth);
   if (np.power) { char.power+=np.power; char.maxPower+=np.power; refreshCastingPools(char); }
   const NOVICE_FLAGS=[
-    'weaponTraining','catchBreath','trickery','nimbleRecovery','spellRecovery','sharedRecovery',
+    'weaponTraining','catchBreath','shieldBash','trickery','nimbleRecovery','spellRecovery','sharedRecovery',
     'toughness','bleedOnCrit','bleedOnHit','evasion','venomOnFirstHit','burningSoul','burnOnSpell',
     'holyFervor','divineFavour','bleedDeep','deepBleed','poisonBlade','curse','_curseUsed','druidFervor','druidsFury','weaponMaster',
   ];
@@ -1485,7 +1486,17 @@ function advanceTurn(room) {
 function endRound(room) {
   const gs = room.gs;
   if (!gs.inCombat || gs.phase === 'victory' || gs.phase === 'gameover' || gs.phase === 'dying') return;
-  room.players.forEach(p => { if (p.char && p.char.alive) tickBuffs(p.char); });
+  room.players.forEach(p => {
+      if (!p.char || !p.char.alive) return;
+      tickBuffs(p.char);
+      if (p.char._poisonedStacks && p.char._poisonedStacks > 0 && !p.char.fortitude) {
+        const _ppd = p.char._poisonedStacks;
+        p.char.health = Math.max(0, p.char.health - _ppd);
+        addLog(room, `☠ <strong>Poison</strong> (${p.char._poisonedStacks} stk) — <strong class="num-dmg">\u2212${_ppd}</strong> to ${p.name} \u2192 ${p.char.health}/${p.char.maxHealth} HP`, 'spell');
+        p.char._poisonedStacks = Math.max(0, p.char._poisonedStacks - 2);
+        if (p.char.health <= 0) checkDeath(room, p);
+      }
+    });
   (gs.enemies || []).filter(en=>en&&en.hp>0).forEach(en => {
     tickDebuffs(en);
     if (en._poisonStacks && en._poisonStacks > 0) {
@@ -1563,9 +1574,15 @@ function fireEnemyTurn(room, ae) {
       if (died !== false) { advanceTurn(room); return; }
     }
   }
-  const newDots = (ae.activeDebuffs||[]).filter(d=>d.bleedDice||d.burnDice);
+  const newDots = (ae.activeDebuffs||[]).filter(d=>d.bleedDice||d.burnDice||d.dotDmg);
   for(const dbt of newDots){
-    if(dbt.name==='Bleed'){
+    if(dbt.dotDmg && dbt.name!=='Bleed' && dbt.name!=='Burn'){
+      if(ae.fortitude && dbt.name==='Bleed'){dbt.duration=0;continue;}
+      const ddmg=dbt.dotDmg; ae.hp=Math.max(0,ae.hp-ddmg);
+      addLog(room,`❄ <strong>${dbt.name}</strong> — <strong class="num-dmg">−${ddmg}</strong> to ${ae.name} → ${ae.hp}/${ae.maxHp} HP`,'spell');
+      dbt.duration--;
+      if(ae.hp<=0){const died=resolveEnemyDeath(room,ae);if(died!==false){advanceTurn(room);return;}}
+    } else if(dbt.name==='Bleed'){
       if(ae.fortitude){dbt.duration=0;continue;} // fortitude: immune to Bleed
       const dmg=Array.from({length:dbt.bleedDice},()=>Math.ceil(Math.random()*4)).reduce((a,b)=>a+b,0);
       ae.hp=Math.max(0,ae.hp-dmg);
@@ -1633,7 +1650,7 @@ function fireEnemyTurn(room, ae) {
     else if(worship===1){ ae._worshipBleed=true; addLog(room,`🔱 <strong>Chaos Worship!</strong> ${ae.name} — next attack applies Bleed!`,'chaos'); }
     else if(worship===2){ ae._worshipBoon=true; addLog(room,`🔱 <strong>Chaos Worship!</strong> ${ae.name} — next attack +1 boon!`,'chaos'); }
     else if(worship===3){ ae._worshipStun=true; addLog(room,`🔱 <strong>Chaos Worship!</strong> ${ae.name} — next attack stuns!`,'chaos'); }
-    else { ae._worshipBane=true; addLog(room,`🔱 <strong>Chaos Worship!</strong> ${ae.name} — all players have 1 bane next round!`,'chaos'); if(alive.length) alive.forEach(p=>addBuff(p.char,'Chaos Bane',{atkBone:1},1)); }
+    else { ae._worshipBane=true; addLog(room,`🔱 <strong>Chaos Worship!</strong> ${ae.name} — all players have 1 bane next round!`,'chaos'); if(alive.length) alive.forEach(p=>addBuff(p.char,'Chaos Bane',{atkBoon:1},1)); }
   }
   if(ae.chaosWorship){ ae._worshipUsed=false; }
   if(ae.chosenOfTheGods && !ae._godsUsed) {
@@ -1642,7 +1659,7 @@ function fireEnemyTurn(room, ae) {
     if(gods===0){ addBuff(ae,'Gods Regen',{regenHp:rd(1,6)},2); addLog(room,`🔴 <strong>Chosen of the Gods!</strong> ${ae.name} — Chaos blesses with regeneration!`,'chaos'); }
     else if(gods===1){ ae._godsNextBoon=true; addLog(room,`🔴 <strong>Chosen of the Gods!</strong> ${ae.name} — Chaos grants +2 boons on next attack!`,'chaos'); }
     else if(gods===2){ addBuff(ae,'Gods Ward',{damageReduction:0.25},2); addLog(room,`🔴 <strong>Chosen of the Gods!</strong> ${ae.name} — Chaos wards 25% damage for 2 rounds!`,'chaos'); }
-    else { alive.forEach(p=>addBuff(p.char,'Chaos Bane',{atkBone:1},1)); addLog(room,`🔴 <strong>Chosen of the Gods!</strong> ${ae.name} — Chaos curses all players with 1 bane!`,'chaos'); }
+    else { alive.forEach(p=>addBuff(p.char,'Chaos Bane',{atkBoon:1},1)); addLog(room,`🔴 <strong>Chosen of the Gods!</strong> ${ae.name} — Chaos curses all players with 1 bane!`,'chaos'); }
   }
   if(ae.chosenOfTheGods){ ae._godsUsed=false; } // refresh each round
   if (ae.warlordCommand && !ae._commandUsed) {
@@ -1770,7 +1787,7 @@ function fireEnemyTurn(room, ae) {
         }
       }
 
-      const r = rollEnemyAttack(aeProxy, {...p.char, defense: defTotal}, hasExtraBoon || recklessBoon);
+      const r = rollEnemyAttack(aeProxy, {...p.char, defense: defTotal}, hasExtraBoon || recklessBoon, room);
 
       if (r.hit) {
         let dmg = r.dmg;
@@ -1791,9 +1808,7 @@ function fireEnemyTurn(room, ae) {
         if(p.char.endure && dmg>0) dmg=Math.max(0,dmg-1);
         if(p.char.fortressStance && dmg>0 && p.char.health<=Math.floor(p.char.maxHealth*0.5)) dmg=Math.max(0,Math.floor(dmg*0.9));
         if(p.char.perfectDefence && !p.char._perfectDefenceUsed && dmg>0){ p.char._perfectDefenceUsed=true; addLog(room,`🛡 <strong>Perfect Defence!</strong> ${p.name} negates the hit entirely!`,'spell'); dmg=0; }
-        p.char.health = Math.max(0, p.char.health - dmg);
-        if(dmg>0) gs._anyPlayerHitThisTurn=true;
-        // Shield Bash is now an active ability (USE_TALENT action), not a crit counter
+        // Endure: if hit would drop below 35% HP, halve it BEFORE applying
         if(p.char.endure && !p.char._endureUsed && dmg>0 && (p.char.health-dmg) < p.char.maxHealth*0.35){
           p.char._endureUsed=true; dmg=Math.ceil(dmg/2);
           addLog(room,`💪 <strong>Endure!</strong> ${p.name} endures — damage halved to ${dmg}!`,'sys');
@@ -1823,6 +1838,10 @@ function fireEnemyTurn(room, ae) {
           room.players.filter(q=>q.char&&q.char.alive).forEach(q=>{ addBuff(q.char,'Bloodscent',{atkBoon:1},1); });
           addLog(room,`🐾 <strong>Bloodscent!</strong> ${p.name}'s wounds ignite the warband — all allies gain 1 boon!`,'chaos');
         }
+        p.char.health = Math.max(0, p.char.health - dmg); // APPLY DAMAGE
+        if(dmg>0) gs._anyPlayerHitThisTurn=true;
+        checkDeath(room, p);
+        if(!p.char.alive && !p.char.pendingRevive){ p.char.pendingRevive=true; }
         const critLabel = r.crit ? ' 💥 CRIT!' : '';
         const dmgBreak  = `${ae.dmgNum}d${ae.dmgSides}(${r.dmgRoll})${ae.dmgBonus?'+'+ae.dmgBonus:''}${r.critRoll?'+'+r.critRoll+' crit':''}`;
         if(p.char.fadePassive) p.char._wasAttackedThisRound=true;
@@ -1835,15 +1854,15 @@ function fireEnemyTurn(room, ae) {
           else { const l = Math.floor(dmg * frac); ae.hp = Math.min(ae.maxHp, ae.hp+l); addLog(room, `🩸 ${ae.name} leeches <strong>${l}</strong> HP.`, 'chaos'); }
         }
         if (ae.insanityAtk && d(6) >= 4) { p.char.insanity++; addLog(room, `${p.name} gains 1 Insanity!`, 'chaos'); }
-        if ((ae.bloodOnHit||ae.bloodgreedHit) && r.hit) { addBuff(p.char,'Bleed',{dotDmg:rd(1,4)},2); addLog(room,`🩸 <strong>Bloodgreed!</strong> ${ae.name} — 1 Bleed!`,'chaos'); }
+        if (ae.bloodOnHit && r.hit) { addBuff(p.char,'Bleed',{dotDmg:rd(1,4)},2); addLog(room,`🩸 <strong>Bloodgreed!</strong> ${ae.name} — 1 Bleed!`,'chaos'); }
         if (ae.frenziedAssault && r.hit && ae.hp > ae.maxHp * 0.5) { p.char.health=Math.max(0,p.char.health-4); addLog(room,`⚔ <strong>Frenzied Assault!</strong> +4 bonus damage!`,'chaos'); checkDeath(room,p); }
         if (ae._worshipLifeLeech && r.hit) { ae._worshipLifeLeech=false; const _ll2=Math.ceil(dmg*0.5); ae.hp=Math.min(ae.maxHp,ae.hp+_ll2); addLog(room,`🔱 <strong>Chaos Worship!</strong> Leeches ${_ll2} HP!`,'chaos'); }
         if (ae._worshipBleed && r.hit) { ae._worshipBleed=false; addBuff(p.char,'Bleed',{dotDmg:rd(1,4)},2); addLog(room,`🔱 <strong>Chaos Worship!</strong> ${p.name} Bleeds!`,'chaos'); }
         if (ae._worshipStun && r.hit) { ae._worshipStun=false; addBuff(p.char,'Stunned',{skipTurn:true},1); addLog(room,`🔱 <strong>Chaos Worship!</strong> ${p.name} STUNNED!`,'chaos'); }
-        if (ae.graveChill) { addBuff(p.char,'Chilled',{bane:1},2); addLog(room, `❄ <strong>Grave Chill!</strong> ${p.name} is Chilled — 1 bane on attacks for 2 rounds!`, 'spell'); }
+        if (ae.graveChill) { addBuff(p.char,'Chilled',{bane:1,dotDmg:rd(1,3)},2); addLog(room, `❄ <strong>Grave Chill!</strong> ${p.name} is Chilled — 1d3 dmg/round + 1 bane for 2 rounds!`, 'spell'); }
         if (ae.corrodingBite && !p.char._corroded) { p.char._corroded=true; addBuff(p.char,'Corroded',{dmgPenalty:1},1); addLog(room, `🟢 <strong>Corroding Bite!</strong> ${p.name} weakened — -1 damage for 1 round!`, 'chaos'); }
-        if (ae.gutterFighting && r.hit) { applyPoison(p.char,2,room); if((p.char._poisonedStacks||0)>0||(p.char.conditions||[]).includes('Poisoned')){ addBuff(p.char,'Gutter Poison',{atkBone:1},1); addLog(room,`🗡 <strong>Gutter Fighting!</strong> Poisoned ${p.name} — 2 stacks + 1 bane while poisoned!`,'chaos'); } else { addLog(room,`🗡 <strong>Gutter Fighting!</strong> ${p.name} poisoned — 2 stacks!`,'chaos'); } }
-        if (ae.virulentBlade && r.hit) { p.char._poisonStacks=(p.char._poisonStacks||0)+3; addBuff(p.char,'Plagued',{bane:1,dotDmg:3},2); addLog(room,`☠ <strong>Virulent Blade!</strong> ${ae.name}'s plague blade applies <strong>3 poison stacks</strong> to ${p.name}!`,'chaos'); }
+        if (ae.gutterFighting && r.hit) { p.char._poisonedStacks=(p.char._poisonedStacks||0)+2; if((p.char._poisonedStacks||0)>2){ addBuff(p.char,'Gutter Poison',{atkBane:1},1); addLog(room,`🗡 <strong>Gutter Fighting!</strong> ${p.name} — 2 poison stacks + 1 bane (already poisoned)!`,'chaos'); } else { addLog(room,`🗡 <strong>Gutter Fighting!</strong> ${p.name} poisoned — 2 stacks!`,'chaos'); } }
+        if (ae.virulentBlade && r.hit) { p.char._poisonedStacks=(p.char._poisonedStacks||0)+3; addBuff(p.char,'Plagued',{bane:1,dotDmg:3},2); addLog(room,`☠ <strong>Virulent Blade!</strong> ${ae.name}'s plague blade applies <strong>3 poison stacks</strong> to ${p.name}!`,'chaos'); }
         if (ae.hypnoticGaze) { addBuff(p.char,'Hypnotised',{bane:1},1); addLog(room, `👁 <strong>Hypnotic Gaze!</strong> ${p.name} entranced — 1 bane on next attack!`, 'chaos'); }
         if (ae.crushingTail && r.hit && Math.random()<0.20) { addBuff(p.char,'Stunned',{skipTurn:true},1); addLog(room,`🦎 <strong>Crushing Tail!</strong> ${p.name} is STUNNED by the Saurian's tail sweep!`,'chaos'); }
         if (ae.crushingTail && false) { addBuff(p.char,'Prone',{bane:1},1); addLog(room, `🦎 <strong>Crushing Tail!</strong> ${p.name} knocked down — 1 bane on next attack!`, 'chaos'); }
@@ -1866,7 +1885,7 @@ function fireEnemyTurn(room, ae) {
         if(ae.daemonicIchor && r.hit && Math.random()<0.25){ const _di=rd(1,6); const _atk=room.players.find(q=>q.char&&q.char.alive); if(_atk){_atk.char.health=Math.max(0,_atk.char.health-_di); addLog(room,`💥 <strong>Daemonic Ichor!</strong> Chaos burns ${_atk.name} — <strong class="num-dmg">-${_di}</strong>!`,'chaos'); checkDeath(room,_atk);} }
         if (ae.critMajorBleed && r.hit) { addBuff(p.char,'Bleed',{dotDmg:rd(1,4)},2); addLog(room, `🩸 <strong>Frenzied Rending!</strong> ${p.name} is Bleeding (1d4/round for 2 rounds)!`, 'chaos'); }
         if (ae.gutterFighting && r.hit) { p.char._poisonedByGutter=(p.char._poisonedByGutter||0)+2; addBuff(p.char,'Gutter Poison',{bane:1,dotDmg:2},2); addLog(room,`🗡 <strong>Gutter Fighting!</strong> ${p.name} poisoned — 2 stacks, 1 bane!`,'chaos'); }
-        if (ae.skavencunning && r.hit) { p.char._poisonedStacks=(p.char._poisonedStacks||0)+2; addBuff(p.char,'Poisoned',{bane:1,dotDmg:2},2); addLog(room,`🐀 <strong>Skaven Cunning!</strong> ${ae.name} poisons ${p.name} — 2 poison stacks!`,'chaos'); }
+        if (ae.skavencunning && r.hit) { p.char._poisonedStacks=(p.char._poisonedStacks||0)+2; addLog(room,`🐀 <strong>Skaven Cunning!</strong> ${ae.name} poisons ${p.name} — 2 poison stacks!`,'chaos'); }
         // chaosWorship buff application
         if (r.hit) {
           if(ae._cw_lifeLeechNext){ ae._cw_lifeLeechNext=false; const lh=Math.ceil(r.dmg/2); ae.hp=Math.min(ae.maxHp,(ae.hp||0)+lh); addLog(room,`💉 <strong>Dark Blessing!</strong> ${ae.name} leeches ${lh} HP!`,'chaos'); }
@@ -2074,9 +2093,16 @@ function resolveEnemyDeath(room, deadEnemy) {
     p.char._foresightUsed=false;
     p.char._revelationUsed=false;
     p.char._shieldBashUsed=false;
+      p.char._smokeScreenUsed=false;
+      p.char._quickstrikeUsed=false;
+      p.char._shadowOpeningUsed=false;
+      p.char._deadAimArmed=false;
       p.char._druidsFuryUsed=false;
       p.char._warpstoneKillStr=0;
+      p.char._poisonedStacks=0;
       p.char._primordialTalismanUsed=false;
+      p.char._chainbreakerCritProc=false;
+      p.char._pacedHitCount=0;
       p.char._endureUsed=false;
     p.char._bodyguardUsed=false;
     p.char._perfectDefenceUsed=false;
@@ -2133,6 +2159,8 @@ function resolveEnemyDeath(room, deadEnemy) {
     room.players.forEach(p=>{if(p.char&&(!p.char.alive||p.char.pendingRevive)){p.char.health=1;p.char.alive=true;p.char.pendingRevive=false;addLog(room,`${p.name} recovers --- 1 HP!`,'heal');}});
     return;
   }
+  // Reset enemy per-combat flags
+  gs._nextCombatHalfHP=false;
   gs.inCombat=false; gs.enemy=null; gs.enemies=[]; gs.phase='event';
   gs.playersActedThisRound=[]; gs.enemyHasActed=false; gs.packCooldown=0;
   if(gs.depth>=30){gs.phase='victory';addLog(room,'🏆 The Saurian Ancient falls! The warband conquers the depths! FOR SIGMAR!','crit');broadcastState(room.code);return;}
@@ -2176,6 +2204,12 @@ const ARMOR_BASES=[
 // ─── LEGENDARY ITEMS ─────────────────────────────────────────────────────────
 const LEGENDARY_ITEMS = {
   boss1: [
+    {
+      id:'leg', name:'Warpstone Gauntlet', type:'weapon', dice:'2d6', stat:'str', bonus:4,
+      dmgType:'blunt', legendary:true,
+      special:{key:'warpstoneGauntlet', desc:'Legendary: kills grant +1 STR (stacks to +3, resets between combats).'},
+      desc:"2d6+4 · STR · blunt — Legendary. Kills grant +1 STR (max +3, resets per combat).",
+    },
     {
       id:'leg', name:"Gnashteeth's Fang", type:'weapon', dice:'2d6', stat:'agi', bonus:4,
       dmgType:'slashing', legendary:true,
@@ -2514,7 +2548,7 @@ _te.hp=Math.max(0,_te.hp-dmg);addLog(room,`${player.name} throws Flask of Oil �
         addLog(room,`${player.name} reads <strong>Shallya's Touch</strong> — all debuffs cleansed from ${htName} and healed <strong>${healAmt} HP</strong>!`,'heal');
         return true;
       }
-      if(spell.sigmarsShield){ room.players.filter(p=>p.char&&p.char.alive).forEach(p=>addBuff(p.char,"Sigmar's Shield",{defBonus:2},2)); addLog(room,`🛡 <strong>Sigmar's Shield!</strong> All allies +2 Defence for 2 rounds!`,'spell'); return; }
+      if(spell.sigmarsShield){ room.players.filter(p=>p.char&&p.char.alive).forEach(p=>{ addBuff(p.char,"Sigmar's Shield",{defBonus:2},2); p.char.defense+=2; }); addLog(room,`🛡 <strong>Sigmar's Shield!</strong> All allies +2 Defence for 2 rounds!`,'spell'); return; }
       if(spell.plagueWind){ (gs.enemies||[]).filter(e=>e&&e.hp>0).forEach(e=>{ e._poisonStacks=(e._poisonStacks||0)+3; addLog(room,`☠ Plague Wind poisons ${e.name} — 3 stacks!`,'spell'); }); addLog(room,`☠ <strong>Plague Wind!</strong> All enemies gain 3 poison stacks!`,'spell'); return; }
       if(spell.battleHymn){ room.players.filter(p=>p.char&&p.char.alive).forEach(p=>addBuff(p.char,'Battle Hymn',{atkBonus:2},2)); addLog(room,`📣 <strong>Battle Hymn!</strong> All allies +2 ATK for 2 rounds!`,'spell'); return; }
       if(spell.veilShadows){
@@ -2785,6 +2819,7 @@ function handlePlayerAction(room,playerId,payload,ws){
     if(r.fumble){
       addLog(room,`${player.name} <em>fumbles!</em> d20 rolled 1 — automatic miss.`,'sys');
     } else if(r.hit){
+        if(char._chainbreakerCritProc && r.crit){ char._chainbreakerCritProc=false; addDebuff(targetEnemy,'Prone',{skipTurn:true},1); addLog(room,`🔨 <strong>Chainbreaker Crit!</strong> ${targetEnemy.name} is knocked Prone!`,'crit'); }
       let finalDmg=r.dmg;
       if(char._wpnCleaveBonus){ char._wpnCleaveBonus=false; finalDmg+=rd(1,6); }
       if(char._devastatingChargeProc){ char._devastatingChargeProc=false; const dc=rd(1,6); finalDmg+=dc; addDebuff(targetEnemy,'Prone',{bane:1},1); addLog(room,`🐎 <strong>Devastating Charge!</strong> +${dc} dmg and ${targetEnemy.name} is Prone!`,'crit'); }
@@ -2937,7 +2972,7 @@ function handlePlayerAction(room,playerId,payload,ws){
             }
           }
         }
-        if(char.vanish){ addBuff(char,'Vanish',{bane:-1},1); addLog(room,`🌑 <strong>Vanish!</strong> ${player.name} disappears into shadow!`,'sys'); }
+        if(char.vanish){ addBuff(char,'Vanish',{enemyBane:2},1); addLog(room,`🌑 <strong>Vanish!</strong> ${player.name} disappears into shadow — enemies have 2 banes vs them next round!`,'sys'); }
         if(char.killingMomentum && !char._killingMomentumUsed){
           const nxt=(gs.enemies||[]).find(e=>e&&e.hp>0&&e!==targetEnemy);
           if(nxt){ char._killingMomentumUsed=true; const rk=rollAttack(char,nxt,0);
@@ -2948,7 +2983,8 @@ function handlePlayerAction(room,playerId,payload,ws){
             }
           }
         }
-        if(char.deadMansHand && char.assassination && targetEnemy && targetEnemy.hp<=0){ const dmhHeal=rd(2,6)+Math.max(0,modVal(char.attrs.agi)); char.health=Math.min(char.maxHealth,char.health+dmhHeal); addLog(room,`☠ <strong>Dead Man's Hand!</strong> ${player.name} kills ${targetEnemy.name} and heals <strong>${dmhHeal}</strong> HP (2d6+AGI)!`,'heal'); }
+        if(char._legWarpstoneGauntlet && targetEnemy && targetEnemy.hp<=0 && (char._warpstoneKillStr||0)<3){ char._warpstoneKillStr=(char._warpstoneKillStr||0)+1; char.attrs.str+=1; addLog(room,`💎 <strong>Warpstone Gauntlet!</strong> ${(player&&player.name)||'Warrior'} gains +1 STR from the kill (${char._warpstoneKillStr}/3)!`,'crit'); }
+      if(char.deadMansHand && targetEnemy && targetEnemy.hp<=0){ const dmhHeal=rd(2,6)+Math.max(0,modVal(char.attrs.agi)); char.health=Math.min(char.maxHealth,char.health+dmhHeal); addLog(room,`☠ <strong>Dead Man's Hand!</strong> ${player.name} kills ${targetEnemy.name} and heals <strong>${dmhHeal}</strong> HP (2d6+AGI)!`,'heal'); }
       }
       if(targetEnemy.hp<=0){resolveEnemyDeath(room,targetEnemy);return;}
     } else {
@@ -2986,7 +3022,7 @@ function handlePlayerAction(room,playerId,payload,ws){
           if(char._wpnHolySmokeProc){ char._wpnHolySmokeProc=false; if(targetEnemy.hp>0) applyPoison(targetEnemy,1,room); }
           if(char._legVenomFangProc){ char._legVenomFangProc=false; if(targetEnemy.hp>0) applyPoison(targetEnemy,2,room); }
           if(char._legVarghulfTalon && targetEnemy.hp<=0){ char.health=char.maxHealth; addLog(room,`🩸 <strong>Varghulf's Talon!</strong> ${player.name} <strong>fully heals</strong> on kill!`,'heal'); }
-          if(char.flurryBleed && rbs.crit && targetEnemy.hp>0){ applyBleed(targetEnemy,room); addLog(room,`🩸 <strong>Flurry Bleed!</strong> Bladestorm crit applies Bleed!`,'spell'); }
+          if(char.flurryBleed && rbs.hit && targetEnemy.hp>0){ applyBleed(targetEnemy,room); addLog(room,`🩸 <strong>Flurry Bleed!</strong> ${player.name}'s bladestorm hit applies Bleed!`,'spell'); }
           if(targetEnemy.hp<=0){resolveEnemyDeath(room,targetEnemy);return;}
         } else {
           addLog(room,`Bladestorm strike misses — d20:${rbs.base}+${rbs.atkMod>=0?'+':''}${rbs.atkMod}=${rbs.total} vs Def${targetEnemy.ac}.`,'sys');
