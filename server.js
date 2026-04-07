@@ -684,7 +684,7 @@ function buildChar(career) {
     transmutedElement:false,
     ballLightning:false, overcharge:false, _overchargeUsed:false,
     // Necro talents
-    lifeDrain:false, undyingHunger:false, chaosTouch:false,
+    lifeDrain:false, undyingHunger:false, chaosTouch:false, _chaosTouchActive:false,
     uncontrolledPower:false, _uncontrolledPowerUsed:false,
     // Protection talents
     counterspell:false, _counterspellUsed:false, ward:false, doubleCharge:false,
@@ -2380,6 +2380,7 @@ _te.hp=Math.max(0,_te.hp-dmg);addLog(room,`${player.name} throws Flask of Oil �
             resolveEnemyDeath(room,_t);
             if(char.surge){ if(char.castingPools&&char.knownSpells){char.knownSpells.filter(sp=>sp.rank<=1).forEach(sp=>{char.castingPools[sp.name]=maxCastings(char.power,sp.rank);});} addLog(room,`⚡ <strong>Surge!</strong> ${player.name} regains all rank-0 and rank-1 castings!`,'spell'); }
             if(char.lifeDrain){ const ld=rd(1,4); char.health=Math.min(char.maxHealth,char.health+ld); addLog(room,`💀 <strong>Life Drain!</strong> ${player.name} absorbs life — +${ld} HP!`,'heal'); }
+            if(char.undyingHunger&&targetEnemy&&targetEnemy._dotKilled){ if(char.castingPools&&char.knownSpells){char.knownSpells.forEach(sp=>{if((char.castingPools[sp.name]||0)<maxCastings(char.power,sp.rank)){char.castingPools[sp.name]=(char.castingPools[sp.name]||0)+1;}});} const uhH=rd(1,6)+Math.max(0,modVal(char.attrs.int)); char.health=Math.min(char.maxHealth,char.health+uhH); addLog(room,`💀 <strong>Undying Hunger!</strong> ${player.name} feasts on the DoT kill — +1 all castings, +<strong>${uhH} HP</strong>!`,'heal'); }
           }
         });
         if(spell.deathWind){
@@ -2843,7 +2844,7 @@ function handlePlayerAction(room,playerId,payload,ws){
   else if(action==='CAST_SPELL'){
     const spell=char.knownSpells.find(s=>s.name===data.spellName); if(!spell)return;
     const freeCast=(char.spellsurge&&!char.spellsurgeUsed&&data.useSurge)||(char.metamagic&&!char.metamagicUsed&&data.useMetamagic);
-    if(freeCast){if(data.useMetamagic&&char.metamagic&&!char.metamagicUsed){char.metamagicUsed=true;addLog(room,`${player.name} uses Metamagic — free cast!`,'spell');}else{char.spellsurgeUsed=true;addLog(room,`${player.name} uses Spell Surge!`,'spell');}}
+    if(freeCast){if(data.useMetamagic&&char.metamagic&&!char.metamagicUsed){char.metamagicUsed=true; if(char.chaosTouch){char._chaosTouchActive=true; setTimeout(()=>{char._chaosTouchActive=false;},100);}addLog(room,`${player.name} uses Metamagic — free cast!`,'spell');}else{char.spellsurgeUsed=true;addLog(room,`${player.name} uses Spell Surge!`,'spell');}}
     else {
       if(!char.castingPools) refreshCastingPools(char);
       const spellboundFree=spell.rank===1&&char._armorSpellbound&&!char._spellboundCastingUsed;
@@ -3311,8 +3312,6 @@ function handlePlayerAction(room,playerId,payload,ws){
       addLog(room,`🎯 <strong>${player.name}</strong> takes Dead Aim — next attack is a guaranteed critical hit!`,'crit');
       acted=true;
     }
-    else if(t==='pacedStrikes'){
-      if(!char.pacedStrikes){addLog(room,`${player.name}: no Paced Strikes.`,'sys');return;}
       addBuff(char,'Paced Strikes',{pacedDmg:true},1);
       addLog(room,`⚡ <strong>${player.name}</strong> readies Paced Strikes — next weapon hit deals +3d6 bonus damage!`,'crit');
       acted=true;
@@ -3323,10 +3322,6 @@ function handlePlayerAction(room,playerId,payload,ws){
       room.players.forEach(p=>{if(p.char&&p.char.alive){const h=rd(mhDice,6);p.char.health=Math.min(p.char.maxHealth,p.char.health+h);addLog(room,`${p.name} healed <strong>${h}</strong> HP.`,'heal');
         if(char.overflowingGrace&&p.char.activeBuffs){const before=p.char.activeBuffs.length;p.char.activeBuffs=p.char.activeBuffs.filter((b,i)=>i!==p.char.activeBuffs.findIndex(x=>x.bane||x.skipTurn||x.dmgPenalty));if(p.char.activeBuffs.length<before)addLog(room,`✨ Grace removes a debuff from ${p.name}!`,'heal');}
       }});if(char.battleMedic){const bmH=rd(1,6);char.health=Math.min(char.maxHealth,char.health+bmH);addLog(room,`💊 <strong>Battle Medic!</strong> ${player.name} heals <strong>${bmH}</strong> HP from treating allies!`,'heal');}addLog(room,`${player.name} uses <strong>Mass Heal</strong>!`,'heal');}
-    else if(t==='huntersMark'){
-      const _te=getTargetEnemy(gs); if(!_te)return;
-      char._huntersMarkTarget=_te; addLog(room,`🏹 <strong>Hunter's Mark!</strong> ${player.name} marks ${_te.name} — all attacks deal +1 dmg!`,'sys');
-    }
     else if(t==='markHeretic'){
       const _te=getTargetEnemy(gs); if(!_te)return;
       char._markHereticTarget=_te; addLog(room,`⚖ <strong>Mark Heretic!</strong> ${player.name} marks ${_te.name} — crits auto-Bleed, cannot flee!`,'sys');
@@ -3361,11 +3356,6 @@ function handlePlayerAction(room,playerId,payload,ws){
       room.players.filter(p=>p.char&&p.char.alive).forEach(p=>{addBuff(p.char,'Triage Regen',{regenPerRound:true,regenDice:'1d6'},2);});
       addLog(room,`💉 <strong>Triage!</strong> ${player.name} channels Shallya — all allies <strong>regen 1d6 HP/round</strong> for 2 turns!`,'heal');
       acted=true;
-    }
-      const dying=room.players.find(p=>p.char&&(!p.char.alive||p.char.health<=0)&&p.id!==playerId);
-      if(!dying){addLog(room,`${player.name}: No ally to triage.`,'sys');return;}
-      dying.char.health=1; dying.char.alive=true; dying.char.pendingRevive=false;
-      addLog(room,`💚 <strong>Triage!</strong> ${player.name} stabilises ${dying.name} at 1 HP!`,'heal');
     }
     else if(t==='sacredGround'){
       if(char._sacredGroundUsed){addLog(room,`${player.name}: Sacred Ground already used.`,'sys');return;}
@@ -3464,7 +3454,7 @@ function handlePlayerAction(room,playerId,payload,ws){
     else if(data.itemName==='Greater Healing Draught'){const h=rd(2,6);tchar.health=Math.min(tchar.maxHealth,tchar.health+h);addLog(room,`${player.name} gives Greater Healing to ${targetPlayer.name} — +<strong>${h}</strong> HP.`,'heal');}
     else{addLog(room,`${player.name}: can't use that on an ally.`,'sys');return;}
     char.inventory[idx].qty--; if(char.inventory[idx].qty<=0) char.inventory.splice(idx,1);
-    acted=true;
+    acted=false;
   }
   else if(action==='FLEE'){
     if(gs.enemy&&gs.enemy.threat==='Boss'){addLog(room,`${player.name}: no escape from a boss!`,'dmg');return;}
