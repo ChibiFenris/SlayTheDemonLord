@@ -927,11 +927,13 @@ function tickBuffs(char){
     return true;
   });
 }
-const SELF_TICK_DOTS=new Set(['Chilled','Grave Grasp','Acid Splash']); // Bleed/Burn now use new scalable system // Poison uses stack-based system, handled separately
+const SELF_TICK_DOTS=new Set(['Grave Grasp','Acid Splash']); // Chilled now handled by fireEnemyTurn dotDmg loop // Bleed/Burn now use new scalable system // Poison uses stack-based system, handled separately
 function tickDebuffs(enemy){
   if(!enemy.activeDebuffs) return;
   enemy.activeDebuffs=enemy.activeDebuffs.filter(d=>{
-    if(SELF_TICK_DOTS.has(d.name)){ d.duration--; return d.duration>0; } // tick and expire SELF_TICK_DOTS
+    // Bleed, Burn, and dotDmg debuffs manage their own expiry in fireEnemyTurn — skip here
+    if(d.name==='Bleed'||d.name==='Burn'||d.dotDmg) return d.duration>0;
+    if(SELF_TICK_DOTS.has(d.name)){ d.duration--; return d.duration>0; }
     d.duration--;
     return d.duration>0;
   });
@@ -948,7 +950,7 @@ function applyBleed(enemy, room) {
   if(existing){
     existing.bleedDice = Math.min((existing.bleedDice||1)+1, 4);
     existing.duration  = 3; // refresh
-    addLog(room,`🩸 <strong>Bleed worsens!</strong> ${enemy.name} — now ${existing.bleedDice}d4/round!`,'spell');
+    addLog(room,`🩸 <strong>Bleed worsens!</strong> ${enemy.name} — now ${existing.bleedDice}d3/round!`,'spell');
   } else {
     enemy.activeDebuffs = enemy.activeDebuffs||[];
     enemy.activeDebuffs.push({id:Math.random(),name:'Bleed',bleedDice:1,duration:3});
@@ -1504,13 +1506,7 @@ function endRound(room) {
     });
   (gs.enemies || []).filter(en=>en&&en.hp>0).forEach(en => {
     tickDebuffs(en);
-    if (en._poisonStacks && en._poisonStacks > 0) {
-      en._poisonStacks = Math.max(0, en._poisonStacks - 2); // decay 2/round
-      if (en._poisonStacks > 0)
-        addLog(room, `☠ Poison fades — ${en._poisonStacks} stack${en._poisonStacks !== 1 ? 's' : ''} on ${en.name}.`, 'sys');
-      else
-        addLog(room, `☠ Poison on ${en.name} cleared.`, 'sys');
-    }
+    // poison damage + decay handled in fireEnemyTurn (during enemy's turn)
   });
   if (gs.packCooldown > 0) {
     gs.packCooldown--;
@@ -1573,7 +1569,7 @@ function fireEnemyTurn(room, ae) {
     if(ae._poisonStacks>=10 && ae.maxHp>1){ ae.maxHp=Math.max(1,ae.maxHp-1); addLog(room,`☠ <strong>Wasting Sickness!</strong> ${ae.name} loses 1 max HP from virulent poison!`,'chaos'); }
     ae.hp = Math.max(0, ae.hp - pdmg);
     addLog(room, `☠ <strong>Poison</strong> (${ae._poisonStacks} stk${ae._poisonStacks>=5?' · <span style="color:#ff9944">bane</span>':''}${ae._poisonStacks>=10?' · <span style="color:#cc4444">wasting</span>':''}) — <strong class="num-dmg">−${pdmg}</strong> to ${ae.name} → ${ae.hp}/${ae.maxHp} HP`, 'spell');
-    ae._poisonStacks = Math.max(0, ae._poisonStacks - 2); // decay 2/round
+    ae._poisonStacks = Math.max(0, ae._poisonStacks - 2); // decay 2 stacks/round
     if(ae._poisonStacks > 0) addLog(room,`☠ Poison fades — ${ae._poisonStacks} stack${ae._poisonStacks!==1?'s':''} remaining.`,'sys');
     else addLog(room,`☠ Poison on ${ae.name} cleared.`,'sys');
     if (ae.hp <= 0) {
@@ -1591,9 +1587,9 @@ function fireEnemyTurn(room, ae) {
       if(ae.hp<=0){const died=resolveEnemyDeath(room,ae);if(died!==false){advanceTurn(room);return;}}
     } else if(dbt.name==='Bleed'){
       if(ae.fortitude){dbt.duration=0;continue;} // fortitude: immune to Bleed
-      const dmg=Array.from({length:dbt.bleedDice},()=>Math.ceil(Math.random()*4)).reduce((a,b)=>a+b,0);
+      const dmg=Array.from({length:dbt.bleedDice},()=>Math.ceil(Math.random()*3)).reduce((a,b)=>a+b,0);
       ae.hp=Math.max(0,ae.hp-dmg);
-      addLog(room,`🩸 <strong>Bleed</strong> (${dbt.bleedDice}d4) — <strong class="num-dmg">−${dmg}</strong> to ${ae.name} → ${ae.hp}/${ae.maxHp} HP`,'spell');
+      addLog(room,`🩸 <strong>Bleed</strong> (${dbt.bleedDice}d3) — <strong class="num-dmg">−${dmg}</strong> to ${ae.name} → ${ae.hp}/${ae.maxHp} HP`,'spell');
       dbt.duration--;
       if(ae.hp<=0){const died=resolveEnemyDeath(room,ae);if(died!==false){advanceTurn(room);return;}}
     } else if(dbt.name==='Burn'){
@@ -1609,16 +1605,7 @@ function fireEnemyTurn(room, ae) {
       if(ae.hp<=0){const died=resolveEnemyDeath(room,ae);if(died!==false){advanceTurn(room);return;}}
     }
   }
-  const dots = (ae.activeDebuffs || []).filter(d => d.dotDmg);
-  for (const dbt of dots) {
-    ae.hp = Math.max(0, ae.hp - dbt.dotDmg);
-    addLog(room, `${dbt.name} burns ${ae.name} — -${dbt.dotDmg} dmg -> ${ae.hp}/${ae.maxHp} HP`, 'spell');
-    if (SELF_TICK_DOTS.has(dbt.name)) dbt.duration--;
-    if (ae.hp <= 0) {
-      const died = resolveEnemyDeath(room, ae);
-      if (died !== false) { advanceTurn(room); return; }
-    }
-  }
+
   ae.activeDebuffs = (ae.activeDebuffs || []).filter(d => !(SELF_TICK_DOTS.has(d.name) && d.duration <= 0) && !(d.name==='Bleed'&&d.duration<=0) && !(d.name==='Burn'&&d.burnDice<=0));
   if (!gs.inCombat) return;
 
@@ -1862,10 +1849,10 @@ function fireEnemyTurn(room, ae) {
           else { const l = Math.floor(dmg * frac); ae.hp = Math.min(ae.maxHp, ae.hp+l); addLog(room, `🩸 ${ae.name} leeches <strong>${l}</strong> HP.`, 'chaos'); }
         }
         if (p.char.alive && ae.insanityAtk && d(6) >= 4) { p.char.insanity++; addLog(room, `${p.name} gains 1 Insanity!`, 'chaos'); }
-        if (p.char.alive && ae.bloodOnHit && r.hit) { addBuff(p.char,'Bleed',{dotDmg:rd(1,4)},2); addLog(room,`🩸 <strong>Bloodgreed!</strong> ${ae.name} — 1 Bleed!`,'chaos'); }
+        if (p.char.alive && ae.bloodOnHit && r.hit) { addBuff(p.char,'Bleed',{dotDmg:rd(1,3)},2); addLog(room,`🩸 <strong>Bloodgreed!</strong> ${ae.name} — 1 Bleed!`,'chaos'); }
         if (ae.frenziedAssault && r.hit && ae.hp > ae.maxHp * 0.5) { p.char.health=Math.max(0,p.char.health-4); addLog(room,`⚔ <strong>Frenzied Assault!</strong> +4 bonus damage!`,'chaos'); checkDeath(room,p); }
         if (ae._worshipLifeLeech && r.hit) { ae._worshipLifeLeech=false; const _ll2=Math.ceil(dmg*0.5); ae.hp=Math.min(ae.maxHp,ae.hp+_ll2); addLog(room,`🔱 <strong>Chaos Worship!</strong> Leeches ${_ll2} HP!`,'chaos'); }
-        if (ae._worshipBleed && r.hit) { ae._worshipBleed=false; addBuff(p.char,'Bleed',{dotDmg:rd(1,4)},2); addLog(room,`🔱 <strong>Chaos Worship!</strong> ${p.name} Bleeds!`,'chaos'); }
+        if (ae._worshipBleed && r.hit) { ae._worshipBleed=false; addBuff(p.char,'Bleed',{dotDmg:rd(1,3)},2); addLog(room,`🔱 <strong>Chaos Worship!</strong> ${p.name} Bleeds!`,'chaos'); }
         if (ae._worshipStun && r.hit) { ae._worshipStun=false; addBuff(p.char,'Stunned',{skipTurn:true},2); addLog(room,`🔱 <strong>Chaos Worship!</strong> ${p.name} STUNNED!`,'chaos'); }
         if (p.char.alive && ae.graveChill) { addBuff(p.char,'Chilled',{bane:1,dotDmg:rd(1,3)},2); addLog(room, `❄ <strong>Grave Chill!</strong> ${p.name} is Chilled — 1d3 dmg/round + 1 bane for 2 rounds!`, 'spell'); }
         if (ae.corrodingBite && !p.char._corroded) { p.char._corroded=true; addBuff(p.char,'Corroded',{dmgPenalty:1},1); addLog(room, `🟢 <strong>Corroding Bite!</strong> ${p.name} weakened — -1 damage for 1 round!`, 'chaos'); }
@@ -1889,9 +1876,9 @@ function fireEnemyTurn(room, ae) {
           }
         }
         const _gw=(ae.activeBuffs||[]).find(b=>b.damageReduction); if(_gw&&dmg>0) dmg=Math.max(1,Math.floor(dmg*(1-_gw.damageReduction)));
-        if (ae.brutalCleave && r.hit && Math.random()<0.25) { addBuff(p.char,'Bleed',{dotDmg:rd(1,4)},2); addBuff(p.char,'Bleed',{dotDmg:rd(1,4)},2); addLog(room,`⚔ <strong>Brutal Cleave!</strong> ${ae.name} gouges ${p.name} — 2 Bleed stacks!`,'chaos'); }
+        if (ae.brutalCleave && r.hit && Math.random()<0.25) { addBuff(p.char,'Bleed',{dotDmg:rd(1,3)},2); addBuff(p.char,'Bleed',{dotDmg:rd(1,3)},2); addLog(room,`⚔ <strong>Brutal Cleave!</strong> ${ae.name} gouges ${p.name} — 2 Bleed stacks!`,'chaos'); }
         if(p.char.alive && ae.daemonicIchor && r.hit && Math.random()<0.25){ const _di=rd(1,6); const _atk=room.players.find(q=>q.char&&q.char.alive); if(_atk){_atk.char.health=Math.max(0,_atk.char.health-_di); addLog(room,`💥 <strong>Daemonic Ichor!</strong> Chaos burns ${_atk.name} — <strong class="num-dmg">-${_di}</strong>!`,'chaos'); checkDeath(room,_atk);} }
-        if (ae.critMajorBleed && r.hit) { addBuff(p.char,'Bleed',{dotDmg:rd(1,4)},2); addLog(room, `🩸 <strong>Frenzied Rending!</strong> ${p.name} is Bleeding (1d4/round for 2 rounds)!`, 'chaos'); }
+        if (ae.critMajorBleed && r.hit) { addBuff(p.char,'Bleed',{dotDmg:rd(1,3)},2); addLog(room, `🩸 <strong>Frenzied Rending!</strong> ${p.name} is Bleeding (1d3/round for 2 rounds)!`, 'chaos'); }
         if (ae.gutterFighting && r.hit) { p.char._poisonedByGutter=(p.char._poisonedByGutter||0)+2; addBuff(p.char,'Gutter Poison',{bane:1,dotDmg:2},2); addLog(room,`🗡 <strong>Gutter Fighting!</strong> ${p.name} poisoned — 2 stacks, 1 bane!`,'chaos'); }
         if (p.char.alive && ae.skavencunning && r.hit) { p.char._poisonedStacks=(p.char._poisonedStacks||0)+2; addLog(room,`🐀 <strong>Skaven Cunning!</strong> ${ae.name} poisons ${p.name} — 2 poison stacks!`,'chaos'); }
         // chaosWorship buff application
