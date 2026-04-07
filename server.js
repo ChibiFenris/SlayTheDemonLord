@@ -583,7 +583,9 @@ function pickEnemy(depth, isElite, isBoss, playerCount, bossCount) {
   else if (depth>20) pool=isElite?ENEMY_POOLS.high:ENEMY_POOLS.high;
   else if (depth>10) pool=isElite?ENEMY_POOLS.mid:ENEMY_POOLS.mid;
   else               pool=isElite?ENEMY_POOLS.low:ENEMY_POOLS.low;
-  return scaleEnemy(pool[Math.floor(Math.random()*pool.length)], playerCount, isElite, bossCount);
+  const validPool = pool.filter(e => e && e.threat && e.name && e.hp); // safety: skip non-enemy items
+  if (!validPool.length) { console.error('pickEnemy: no valid enemies in pool', pool); return scaleEnemy(pool[0], playerCount, isElite, bossCount); }
+  return scaleEnemy(validPool[Math.floor(Math.random()*validPool.length)], playerCount, isElite, bossCount);
 }
 
 // ─── CHARACTER BUILDER ───────────────────────────────────────────────────────
