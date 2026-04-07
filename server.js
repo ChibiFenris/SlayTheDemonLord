@@ -500,25 +500,25 @@ const ENEMY_POOLS = {
     {name:'Skaven Clanrat',  type:'Skaven',  threat:'Low', hp:13,ac:11,atk:1,xp:3,gold:[2,8],  tags:['skaven'],
      packInstinct:true},
     {name:'Beastman Gor',    type:'Beastmen',threat:'Low', hp:16,ac:12,atk:2,xp:3,gold:[3,10], tags:['beast'],chaos:true,
-     recklessCharge:true, bloodgreed:true},
+     recklessCharge:true, bloodOnHit:true, bloodgreedHit:true},
     {name:'Undead Skeleton', type:'Undead',  threat:'Low', hp:18,ac:10,atk:1,xp:3,gold:[0,5],  tags:['undead'],undead:true,
      undying:true, weakToBlunt:true},
     {name:'Mutant Thug',     type:'Cultist', threat:'Low', hp:11,ac:13,atk:2,xp:3,gold:[5,15], tags:['chaos'],chaos:true,
-     corrodingBite:true},
+     corrodingBite:true, mutate:true},
   ],
   mid: [
     {name:'Chaos Marauder',    type:'Chaos',  threat:'Moderate',hp:36,ac:13,atk:3,xp:3,gold:[10,25],tags:['chaos'],chaos:true,
-     frenziedAssault:true, chaosCrit:true},
+     frenziedAssault:true, chaosWorship:true},
     {name:'Skaven Stormvermin',type:'Skaven', threat:'Moderate',hp:29,ac:16,atk:3,xp:3,gold:[8,20], tags:['skaven'],
-     damageReduction:1, gutterFighting:true},
+     skavenDiscipline:true, gutterFighting:true},
     {name:'Wight',             type:'Undead', threat:'Moderate',hp:34,ac:11,atk:3,xp:3,gold:[5,15], tags:['undead'],undead:true,lifeLeech:true,
      graveChill:true},
     {name:'Plague Monk',       type:'Chaos',  threat:'Moderate',hp:27,ac:13,atk:3,xp:3,gold:[5,15], tags:['chaos'],chaos:true,
-     virulentBlade:true, frenzyAtk:{threshold:0.5,newAtk:4}},
+     virulentBlade:true, plagueFrenzy:true},
   ],
   high: [
     {name:'Chaos Warrior',  type:'Chaos',  threat:'High',hp:63,ac:16,atk:4,xp:8,gold:[15,40],tags:['chaos'],chaos:true,
-     damageReduction:2, immuneFire:true, brutalCleave:true},
+     immuneFire:true, brutalCleave:true, chosenOfTheGods:true, _godsUsed:false},
     {name:'Vampire Count', type:'Undead', threat:'High',hp:50,ac:14,atk:4,xp:8,gold:[20,60],tags:['undead'],undead:true,lifeLeech:true,
      lifeLeechFrac:0.5, hypnoticGaze:true, mistForm:true},
     {name:'Bloodletter',   type:'Chaos',  threat:'High',hp:55,ac:15,atk:4,xp:8,gold:[25,50],tags:['chaos'],chaos:true,insanityAtk:true,
@@ -528,35 +528,42 @@ const ENEMY_POOLS = {
   ],
   boss1: [
     {name:'Skaven Warlord Gnashteeth',type:'Skaven Boss', threat:'Boss',hp:80,ac:15,atk:2,xp:15,gold:[30,80], tags:['skaven'],
-     multi:true, skavencunning:true, seethingRage:true, packBoss:true},
+     skavencunning:true, seethingRage:true, packBoss:true},
     {name:'Beastlord Kragthor',       type:'Beastmen Boss',threat:'Boss',hp:72,ac:16,atk:2,xp:15,gold:[25,70], tags:['beast'],chaos:true,
-     stampede:true, bloodlust:true, damageReduction:2, belowRoar:true},
+     stampede:true, bloodlust:true, belowRoar:true, bloodlustActive:false},
+    {
+      id:'leg', name:'Warpstone Gauntlet', type:'weapon', dice:'2d6', stat:'str', bonus:4,
+      dmgType:'blunt', legendary:true,
+      special:{key:'warpstoneGauntlet', desc:'Legendary: kills grant +1 STR (stacks to +3, resets between combats).'},
+      desc:"2d6+4 · STR · blunt — Legendary. Kills grant +1 STR (max +3, resets per combat).",
+    },
   ],
   boss2: [
     {name:'Varghulf',            type:'Undead Boss', threat:'Boss',hp:115,ac:15,atk:4,xp:15,gold:[200,200],tags:['undead'],undead:true,lifeLeech:true,
      lifeLeechFrac:0.25, frenzyMulti:{threshold:0.5}, critMajorBleed:true},
     {name:'Bonebreaker Ratogre', type:'Skaven Boss', threat:'Boss',hp:105,ac:16,atk:3,xp:15,gold:[200,200],tags:['skaven'],insanityAtk:true,
-     damageReduction:3, crushingBlow:true, packLeader:true},
+     crushingBlow:true, packLeader:true, skavenPackTactics:true},
   ],
   boss3: [
     {name:'Saurian Ancient',type:'Ancient Boss',threat:'Boss',hp:145,ac:15,atk:5,xp:15,gold:[60,150],tags:[],
-     regen:true, primordialRoar:true, crushingTail:true, damageReduction:2, extinctionPulse:true},
+     regen:true, primordialRoar:true, crushingTail:true, extinctionPulse:true, ancientScales:true},
   ],
 };
 
 function enemyDmgDice(threat, isElite, bossCount) {
   if (threat === 'Boss') {
-    if (bossCount === 0) return {n:1,s:6,b:4}; // Boss 1: 1d6+4
+    if (bossCount === 0) return {n:1,s:6,b:3}; // Boss 1: 1d6+3
     if (bossCount === 1) return {n:2,s:6,b:3}; // Boss 2: 2d6+3 (avg 10, harder)
     return {n:2,s:6,b:4};                       // Boss 3 (Saurian): 2d6+4 (final boss, hardest)
   }
   if (bossCount === 0) return {n:1,s:6,b:0};
-  return {n:2,s:6,b:0};
+  if (bossCount === 1) return {n:2,s:6,b:0};
+  return {n:2,s:6,b:2}; // zone 3: extra +2 damage for high-tier enemies
 }
 
 function scaleEnemy(tmpl, playerCount, isElite, bossCount) {
   const e = JSON.parse(JSON.stringify(tmpl));
-  const bossHpMult = (bossCount > 0 && e.threat !== 'Boss') ? 1.15 : 1.0;
+  const bossHpMult = bossCount>=2 ? 1.40 : bossCount===1 ? 1.25 : 1.0; // tougher scaling post-boss
   const bossHpFlat = (bossCount > 0 && e.threat !== 'Boss') ? 10 : 0;
   e.hp = e.maxHp = Math.round(e.hp * (1 + (playerCount-1)*0.65) * bossHpMult) + bossHpFlat;
   e.conditions = []; e.activeDebuffs = []; e.isElite = isElite;
@@ -732,7 +739,7 @@ const healingRate = char => Math.max(1, Math.floor(char.maxHealth/4));
 function talentHeal(char) {
   const attrs = char.attrs || {};
   const highestMod = Math.max(0, ...Object.values(attrs).map(v => Math.floor((v-10)/2)));
-  return rd(1,6) + highestMod * 2;
+  return rd(1,6) + highestMod; // nerfed from *2 (Catch Breath, Nimble Recovery, Rallying Cry)
 }
 
 // ─── COMBAT ROLLS ────────────────────────────────────────────────────────────
@@ -764,6 +771,7 @@ function rollAttack(char, enemy, extraBoons=0) {
   if (char._legRatking && enemy && enemy.tags && enemy.tags.includes('skaven')) boons++;
   if(char.exploitWeakness && enemy && (enemy._poisonStacks||0)>=5) boons++;
   if(char.markHeretic && char._markHereticTarget && enemy===char._markHereticTarget) boons+=2;
+  if(char._legRatking) boons+=1; // Ratking Crown: +1 boon on all attacks
   if(char.shadowOpening && !char._shadowOpeningUsed){ char._shadowOpeningUsed=true; boons++; }
   if(char.shadowStep) boons++; // shadowStep: all attacks have +1 boon
   const forceCritDeadAim=char._deadAimArmed; if(forceCritDeadAim){ char._deadAimArmed=false; }
@@ -771,7 +779,7 @@ function rollAttack(char, enemy, extraBoons=0) {
   if (char.warlordAura) boons++; // aura from warlord
   if (char.conditions.includes('Frightened')) banes++;
   if (char.conditions.includes('Stunned'))    banes++;
-  if (enemy && enemy.skavencunning) banes++;
+  // skavencunning now applies poison on hit (handled in enemy attack section)
   const baneBuff = getBuffVal(char, 'bane');
   if (baneBuff) banes += baneBuff;
   const forceCrit=char.luckyPendant||forceCritDeadAim; if(char.luckyPendant) char.luckyPendant=false;
@@ -815,8 +823,9 @@ function rollAttack(char, enemy, extraBoons=0) {
     const battleProwessBuff=(char.activeBuffs||[]).some(b=>b.battleProwess);
     if(battleProwessBuff){const r=rd(1,6);dmg+=r;dmgParts.push(`+${r} prowess`);}
     if(char._legVenomFang){ char._legVenomFangProc=true; } // poison applied in ATTACK handler
-    if(char._legChainbreaker && enemy && enemy.damageReduction){ dmg+=enemy.damageReduction; dmgParts.push(`+${enemy.damageReduction} chain`); }
-    if(char._legSunstoneBlade){ const fd=Math.max(0,modVal(char.attrs.int)); if(fd>0){dmg+=fd; dmgParts.push(`+${fd} fire`);} }
+    if(char._legChainbreaker && r.crit && targetEnemy){ addDebuff(targetEnemy,'Prone',{skipTurn:true},1); addLog(room,`🔨 <strong>Chainbreaker Crit!</strong> ${targetEnemy.name} is knocked Prone!`,'crit'); }
+    if(char._legWarpstoneGauntlet&&!char._warpstoneKillStr){ char._warpstoneKillStr=(char._warpstoneKillStr||0)+1; if(char._warpstoneKillStr<=3){ char.attrs.str+=1; addLog(room,`💎 <strong>Warpstone Gauntlet!</strong> ${player.name} gains +1 STR from the kill (${char._warpstoneKillStr}/3)!`,'crit'); } }
+      if(char._legSunstoneBlade){ const fd=Math.max(0,modVal(char.attrs.int)); if(fd>0){dmg+=fd; dmgParts.push(`+${fd} fire`);} }
     if(char._legVarghulfTalon && dmg>0){ char._legVarghulfLeech=Math.max(1,Math.floor(dmg*0.25)); } // applied in ATTACK handler
     const wpnType=(wpn&&wpn.dmgType)||'slashing';
     if(enemy){
@@ -841,6 +850,11 @@ function rollAttack(char, enemy, extraBoons=0) {
 }
 
 function rollEnemyAttack(enemy, char, hasBoon=false) {
+  if(enemy._worshipBoon){ enemy._worshipBoon=false; hasBoon=true; }
+  if(enemy.skavenDiscipline){ hasBoon=true; }
+  if(enemy.plagueFrenzy && char._poisonedStacks && char._poisonedStacks>=5){ hasBoon=true; }
+  if(enemy._godsNextBoon){ hasBoon=true; } // chosenOfTheGods extra boon // plagueFrenzy: player 5+ poison stacks = +1 boon (SotDL max 1 boon die per roll)
+  const hasSkavenDiscipline=enemy&&enemy.skavenDiscipline;
   const baneDebuff=getDebuffVal(enemy,'bane');
   const skipDebuff=(enemy.activeDebuffs||[]).some(d=>d.skipTurn);
   if(skipDebuff){ enemy.activeDebuffs=enemy.activeDebuffs.filter(d=>!d.skipTurn); return {hit:false,crit:false,dmg:0,dmgRoll:0,critRoll:0,total:0,base:0,skipped:true}; }
@@ -853,16 +867,23 @@ function rollEnemyAttack(enemy, char, hasBoon=false) {
   const sacredAegisBane=0; // sacredAegis now retaliates damage instead of bane
   const vanishBane=(char.activeBuffs||[]).some(b=>b.name==='Vanish')?1:0;
   const totalBanes=baneDebuff+evasionBane+packScornBane+shroudBane+ratkingBane+poisonBane+sacredAegisBane+vanishBane;
+  if(enemy._frenzyNextHit){ enemy._frenzyNextHit=false; return {hit:true,crit:false,dmg:rd(enemy.dmgNum,enemy.dmgSides)+enemy.dmgBonus,dmgRoll:0,critRoll:0,total:99,base:20,boonInfo:' (Frenzy — auto-hit)'}; }
+  const cwBoon=(enemy&&enemy._chosenBoon>0)?1:0; if(cwBoon&&enemy) enemy._chosenBoon=Math.max(0,(enemy._chosenBoon||0)-1);
+  if(enemy.ancientScales && Math.random()<0.10){ return {hit:true,crit:false,dmg:0,dmgRoll:0,critRoll:0,total:0,base:0,boonInfo:' (deflected by Ancient Scales)'}; }
+  const targetPoisoned=char&&(char._poisonStacks||0)>=5;
+  const effectiveHasBoon=hasBoon||hasSkavenDiscipline||(enemy&&enemy.plagueFrenzy&&targetPoisoned)||(cwBoon>0);
   const roll1=d(20);
-  const boonBonus=hasBoon?d(6):0; // SotDL: add highest d6 per boon to d20
+  let boonBonus=effectiveHasBoon?d(6):0;
+  if(enemy&&enemy.plagueFrenzy&&targetPoisoned){ boonBonus=Math.max(boonBonus,d(6)); addLog(room,`🐀 <strong>Plague Frenzy!</strong> ${enemy.name} surges — +2 boons on poisoned foe!`,'chaos'); }
   const rawBase=hasBoon?Math.min(20,roll1+boonBonus):roll1;
   const baneRoll=totalBanes>0?Math.max(...Array.from({length:Math.min(totalBanes,4)},()=>d(6))):0; // SotDL: highest bane d6 subtracted
   const boonInfo=hasBoon?` (+boon)`:totalBanes>0?` (-${baneRoll} bane)`:''
   const adjBase=totalBanes>0?Math.max(1,rawBase-baneRoll):rawBase;
   let finalBase=adjBase;
   if(char._foresightActive){ char._foresightActive=false; const reroll=d(20); finalBase=Math.min(adjBase,reroll); addLog(room,`👁 <strong>Foresight!</strong> Rerolled — takes ${finalBase} (worse of ${adjBase}/${reroll})!`,'spell'); }
+  const _scurryDef=(enemy.scurryAway&&enemy._scurryDefBonus)||0;
   const total2=finalBase+enemy.atk, crit2=finalBase===20;
-  const hit=finalBase!==1&&(crit2||total2>=char.defense);
+  const hit=finalBase!==1&&(crit2||total2>=(char.defense+_scurryDef));
   let dmg=0, dmgRoll=0, critRoll=0;
   if (hit) {
     dmgRoll=rd(enemy.dmgNum,enemy.dmgSides);
@@ -1156,6 +1177,7 @@ function _runNodeContent(room, gs, nodeType, playerCount) {
       const tag=isBoss?'⚠ BOSS — ':isElite?'Elite — ':'';
       addLog(room,`⚔ ${tag}<strong>${e.name}</strong> appears! DMG: ${e.dmgDisplay}`,'dmg');
     }
+    if(gs._nextCombatHalfHP){ gs._nextCombatHalfHP=false; gs.enemies.forEach(e=>{e.hp=Math.ceil(e.hp/2); e.maxHp=e.hp;}); addLog(room,`🔴 Ritual disruption — enemies enter at half HP!`,'chaos'); }
     gs.inCombat=true; gs.phase='combat'; gs.playersActedThisRound=[]; gs.enemyHasActed=false; gs.roundNumber=1;
     room.players.filter(p=>p.char&&p.char.alive&&p.char.preparedSpell).forEach(p=>{
       const r1=p.char.knownSpells&&p.char.knownSpells.find(sp=>sp.rank===1);
@@ -1176,7 +1198,7 @@ function _runNodeContent(room, gs, nodeType, playerCount) {
     addLog(room,'🔥 A campfire. The warband rests.','heal');
     room.players.forEach(p=>{
       if(!p.char||!p.char.alive) return;
-      const amt=Math.ceil(p.char.maxHealth*0.6);
+      const amt=Math.ceil(p.char.maxHealth*0.5);
       p.char.health=Math.min(p.char.maxHealth,p.char.health+amt);
       p.char.catchBreathUsed=false; p.char.nimbleUsed=false; p.char.sharedUsed=false;
       p.char.pacedStrikesUsed=false; p.char.rageBoon=false; p.char.metamagicUsed=false; p.char.overcastUsed=false;
@@ -1194,7 +1216,8 @@ function _runNodeContent(room, gs, nodeType, playerCount) {
       addLog(room,`${p.name} recovers ${amt} HP.`,'heal');
     });
     restorePower(room,'Rest site');
-    addLog(room,'Rest complete. Press onward.','sys');
+    room.players.forEach(p=>{if(p.char&&p.char.alive)addBuff(p.char,'Well Rested',{atkBoon:1,consumeOnAttack:true},99);});
+    addLog(room,'Rest complete — warband ready. First attack next combat has 1 boon.','sys');
     return;
   }
   if(nodeType==='merchant') {
@@ -1205,7 +1228,7 @@ function _runNodeContent(room, gs, nodeType, playerCount) {
   }
   if(nodeType==='loot') {
     gs.phase='loot';
-    const coins=20+Math.floor(Math.random()*21); // 20-40 silver
+    const coins=25+Math.floor(Math.random()*26); // 25-50 silver
     gs.lootRoom={coins}; gs.lootPicked=[];
     room.players.forEach(p=>{if(p.char&&p.char.alive) p.char.lootOptions=buildLootOptions(gs.bossCount);});
     addLog(room,`📦 A cache! ${coins} coins — each warrior finds their own haul.`,'loot');
@@ -1213,7 +1236,7 @@ function _runNodeContent(room, gs, nodeType, playerCount) {
   }
   if(nodeType==='unknown') {
     gs.phase='event';
-    const r=d(10);
+    const r=d(14);
     if(r<=2){ startNodeContent(room,'combat'); return; }
     else if(r<=4){ startNodeContent(room,'loot'); return; }
     else if(r<=5){ startNodeContent(room,'rest'); return; }
@@ -1228,7 +1251,7 @@ function resolveUnknownEvent(room){
   const alive=room.players.filter(p=>p.char&&p.char.alive);
   const roll=d(10);
   if(roll===1){
-    const heal=rd(1,6);
+    const heal=rd(1,6)+3;
     alive.forEach(p=>{p.char.health=Math.min(p.char.maxHealth,p.char.health+heal);addBuff(p.char,'Shrine Blessing',{atkBoon:1,consumeOnAttack:true},99);});
     addLog(room,`⛪ <strong>Shrine of Sigmar!</strong> The warband prays — each warrior heals <strong>${heal} HP</strong> and gains 1 boon on their next attack!`,'heal');
     return;
@@ -1239,7 +1262,7 @@ function resolveUnknownEvent(room){
     return;
   }
   if(roll===3){
-    const pool=['Healing Draught','Flask of Oil','Sharpening Stone'];
+    const pool=['Healing Draught','Incendiary Flask','Sharpening Stone','Antitoxin'];
     alive.forEach(p=>{const item=pool[Math.floor(Math.random()*pool.length)];addToInventory(p.char,item);});
     addLog(room,`⚗ <strong>Alchemist's Cache!</strong> The warband rifles through an abandoned stash — each warrior finds a useful item.`,'loot');
     return;
@@ -1248,9 +1271,10 @@ function resolveUnknownEvent(room){
     const target=alive[Math.floor(Math.random()*alive.length)];
     const attrs=['str','agi','int','wil'];
     const attr=attrs[Math.floor(Math.random()*attrs.length)];
-    target.char.attrs[attr]+=2;
-    addBuff(target.char,'Corrupted',{bane:1},999); // persist until healed at rest
-    addLog(room,`💎 <strong>Warpstone Fragment!</strong> ${target.name} reaches for the glowing stone — +2 ${attr.toUpperCase()}, but gains the Corrupted condition.`,'chaos');
+    target.char.attrs[attr]+=1;
+    addBuff(target.char,'Warpstone Power',{atkBoon:1},99); // boon lasts next combat only (99 rounds clears at combat end)
+    addBuff(target.char,'Corrupted',{bane:1},999);
+    addLog(room,`💎 <strong>Warpstone Fragment!</strong> ${target.name} reaches for the glowing stone — +1 ${attr.toUpperCase()} permanently and 1 boon on all attacks next combat. Corrupted condition gained.`,'chaos');
     return;
   }
   if(roll===5){
@@ -1267,9 +1291,10 @@ function resolveUnknownEvent(room){
     return;
   }
   if(roll===7){
-    const loss=rd(1,6);
-    alive.forEach(p=>{p.char.maxHealth=Math.max(1,p.char.maxHealth-loss);p.char.health=Math.min(p.char.health,p.char.maxHealth);addBuff(p.char,'Corrupted',{bane:1},4);});
-    addLog(room,`🔮 <strong>Ruinous Altar.</strong> Dark ichor drips. All warriors lose <strong>${loss} max HP</strong> permanently and gain 1 bane for 4 rounds. But the future is revealed...`,'chaos');
+    alive.forEach(p=>{p.char.maxHealth=Math.max(1,p.char.maxHealth-3);p.char.health=Math.min(p.char.health,p.char.maxHealth);addBuff(p.char,'Corrupted',{bane:1},2);});
+    const runeTarget=alive[Math.floor(Math.random()*alive.length)];
+    runeTarget.char.attrs.int=(runeTarget.char.attrs.int||10)+1;
+    addLog(room,`🔮 <strong>Ruinous Altar.</strong> All warriors lose 3 max HP until next rest and gain 1 bane for 2 rounds. But ${runeTarget.name} gains <strong>+1 INT</strong> permanently from dark knowledge.`,'chaos');
     return;
   }
   if(roll===8){
@@ -1281,10 +1306,62 @@ function resolveUnknownEvent(room){
     return;
   }
   if(roll===9){
-    const target=alive[Math.floor(Math.random()*alive.length)];
-    target.char.power++;
-    alive.forEach(p=>{addBuff(p.char,'Shaken',{bane:1},1);});
-    addLog(room,`🌊 <strong>The Whispering Well.</strong> ${target.name} gains <strong>+1 Power</strong> from what lurks below. But all warriors are Shaken — 1 bane on their next attack.`,'loot');
+    alive.forEach(p=>{addBuff(p.char,'Shaken',{bane:1},1);if(p.char.spellcaster){p.char.power+=1;if(p.char.castingPools){Object.keys(p.char.castingPools).forEach(k=>{p.char.castingPools[k]=Math.min(p.char.castingPools[k]+1,maxCastings(p.char.power,0));});}addLog(room,`🌊 ${p.name} gains +1 Power from the Well.`,'loot');}else{p.char.gold+=5;addLog(room,`🌊 ${p.name} claims 5 silver from the depths.`,'loot');}});
+    addLog(room,`🌊 <strong>The Whispering Well.</strong> All spellcasters gain +1 Power. Non-spellcasters gain 5 gold. All are Shaken — 1 bane on next attack.`,'loot');
+    return;
+  }
+  if(roll===11){
+    // Chaos Ritual Site
+    addLog(room,`🔴 <strong>Chaos Ritual Site!</strong> An active ritual pulses. Choose: disrupt (each warrior takes 1d6 damage, next enemy starts at half HP) or leave (one ally gains +1 Power).`,'chaos');
+    const disrupt=Math.random()<0.5;
+    if(disrupt){
+      alive.forEach(p=>{const dmg=rd(1,6);p.char.health=Math.max(0,p.char.health-dmg);addLog(room,`${p.name} takes ${dmg} chaos damage disrupting the ritual.`,'chaos');checkDeath(room,p);});
+      gs._nextCombatHalfHP=true;
+      addLog(room,`Ritual disrupted — next enemy enters at half HP!`,'sys');
+    } else {
+      const pw=alive[Math.floor(Math.random()*alive.length)];
+      pw.char.power+=1; addLog(room,`${pw.name} absorbs the ritual energy — +1 Power permanently.`,'loot');
+    }
+    return;
+  }
+  if(roll===12){
+    // Injured Survivor
+    const cost=15;
+    addLog(room,`🧑 <strong>Injured Survivor!</strong> A wounded soldier. Spend ${cost} silver to heal all 1d6 and gain +1 boon next combat.`,'sys');
+    const canAfford=alive.every(p=>p.char.gold>=cost);
+    if(canAfford){
+      alive.forEach(p=>{p.char.gold-=cost; const h=rd(1,6); p.char.health=Math.min(p.char.maxHealth,p.char.health+h); addBuff(p.char,'Aided',{atkBoon:1,consumeOnAttack:true},99); addLog(room,`${p.name} spends ${cost}s — +${h} HP, 1 boon next attack.`,'heal');});
+    } else {
+      addLog(room,`The warband cannot afford to help. The soldier fades.`,'sys');
+    }
+    return;
+  }
+  if(roll===13){
+    // Armourers Workshop
+    const wp=alive[Math.floor(Math.random()*alive.length)];
+    wp.char.weaponDmgBonus=(wp.char.weaponDmgBonus||0)+1;
+    addLog(room,`🔨 <strong>Armourer's Workshop!</strong> ${wp.name} sharpens their weapon on the abandoned grinding wheel — <strong>+1 permanent weapon damage</strong>.`,'loot');
+    return;
+  }
+  if(roll===14){
+    // The Black Market
+    const bm=Math.ceil(Math.random()*3);
+    if(bm===1){
+      if(alive[0]&&alive[0].char.inventory.length){
+        const item=alive[0].char.inventory[Math.floor(Math.random()*alive[0].char.inventory.length)];
+        const val=(item.sellCost||3)*3;
+        alive[0].char.gold+=val; alive[0].char.inventory=alive[0].char.inventory.filter(i=>i!==item);
+        addLog(room,`🕵 <strong>Black Market!</strong> Sold ${item.name} for triple value — ${val} silver.`,'loot');
+      } else { alive.forEach(p=>{p.char.gold+=15;}); addLog(room,`🕵 <strong>Black Market!</strong> Nothing to sell — mysterious benefactor pays 15 silver each.`,'loot'); }
+    } else if(bm===2){
+      const sc=SCROLL_SPELLS_LIST[Math.floor(Math.random()*SCROLL_SPELLS_LIST.length)];
+      const buyer=alive[0]; buyer.char.gold-=15;
+      addToInventory(buyer.char,'Spell Scroll',{id:'sc'+Date.now(),name:`Scroll: ${sc.name}`,spell:sc,type:'scroll',desc:sc.desc});
+      addLog(room,`🕵 <strong>Black Market!</strong> ${buyer.name} buys a Scroll of ${sc.name} for 15 silver.`,'loot');
+    } else {
+      alive.forEach(p=>{p.char.gold+=30;p.char.maxHealth=Math.max(1,p.char.maxHealth-5);p.char.health=Math.min(p.char.health,p.char.maxHealth);});
+      addLog(room,`🕵 <strong>Black Market!</strong> A shadowy deal — each warrior gains 30 silver but loses 5 max HP permanently.`,'chaos');
+    }
     return;
   }
   if(roll===10){
@@ -1311,7 +1388,7 @@ const SCROLL_SPELLS_LIST = [
   {name:'Wall of Faith',     desc:'All allies +3 Defense and 1 boon for 3 rounds',               type:'utility', dmgDice:'0d0', wallFaith:true},
   {name:'Bone Prison',       desc:'One enemy loses their next turn (Stunned)',                    type:'utility', dmgDice:'0d0', bonePrison:true},
 ];
-const LOOT_CONS_LIST=['Healing Draught','Greater Healing Draught','Flask of Oil','Fire Jar','Lucky Pendant','Sharpening Stone'];
+const LOOT_CONS_LIST=['Healing Draught','Greater Healing Draught','Incendiary Flask','Daemon Fire','Lucky Pendant','Sharpening Stone','Antitoxin','Smoke Bomb'];
 function buildLootOptions(bossCount=0) {
   const useScroll=d(6)>=4;
   const consumable=useScroll?'Spell Scroll':LOOT_CONS_LIST[Math.floor(Math.random()*LOOT_CONS_LIST.length)];
@@ -1323,14 +1400,14 @@ function genSpecialWpn(bossCount=0){
   const pool=bossCount===0?specials.filter(b=>b.dice==='1d6'):specials;
   const base=pool[Math.floor(Math.random()*pool.length)];
   const bonus=bossCount===0?d(3):bossCount===1?d(2)+2:d(2)+4;
-  return{id:'w'+uuidv4(),name:base.name,dice:base.dice,stat:base.stat,bonus,dmgType:base.dmgType,special:base.special,cost:0,sellCost:1,bought:false,type:'weapon',desc:`${base.dice}+${bonus} · ${base.stat.toUpperCase()} · ${base.dmgType} — ${base.special.desc}`};
+  return{id:'w'+uuidv4(),name:base.name,dice:base.dice,stat:base.stat,bonus,dmgType:base.dmgType,special:base.special,cost:0,sellCost:3,bought:false,type:'weapon',desc:`${base.dice}+${bonus} · ${base.stat.toUpperCase()} · ${base.dmgType} — ${base.special.desc}`};
 }
 function genSpecialArmor(bossCount=0){
   const specials=ARMOR_BASES.filter(ab=>ab.special);
   const base=specials[Math.floor(Math.random()*specials.length)];
   const bonus=bossCount===0?d(3):bossCount===1?d(2)+1:d(3)+2;
   const totalDef=base.def+bonus;
-  return{id:'a'+uuidv4(),name:base.name,defBonus:totalDef,special:base.special,cost:0,sellCost:1,bought:false,type:'armor',desc:`+${totalDef} Defense — ${base.special.desc}`};
+  return{id:'a'+uuidv4(),name:base.name,defBonus:totalDef,special:base.special,cost:0,sellCost:3,bought:false,type:'armor',desc:`+${totalDef} Defense — ${base.special.desc}`};
 }
 
 // ─── COMBAT FLOW ─────────────────────────────────────────────────────────────
@@ -1466,9 +1543,12 @@ function fireEnemyTurn(room, ae) {
     ae.hp = Math.min(ae.maxHp, ae.hp + h);
     addLog(room, `Undeath! ${ae.name} surges — heals ${h} HP!`, 'chaos');
   }
+  if (ae.mutate) { ae._mutateBonus=(ae._mutateBonus||0)+1; ae.dmgBonus=(ae.dmgBonus||0)+1; addLog(room,`🧬 <strong>Mutate!</strong> ${ae.name} grows stronger — now +${ae._mutateBonus} bonus damage!`,'chaos'); }
   if (ae.regen && ae.hp < ae.maxHp) {
-    const r = rd(1, 6); ae.hp = Math.min(ae.maxHp, ae.hp + r);
-    addLog(room, `${ae.name} regenerates ${r} HP.`, 'chaos');
+    let regenAmt;
+    if(ae._regenOverride && ae._regenOverrideTurns>0){ regenAmt=ae._regenOverride; ae._regenOverrideTurns--; if(ae._regenOverrideTurns<=0) ae._regenOverride=0; } else { regenAmt=rd(1,6); }
+    ae.hp = Math.min(ae.maxHp, ae.hp + regenAmt);
+    addLog(room, `💚 ${ae.name} regenerates <strong>${regenAmt}</strong> HP.`, 'chaos');
   }
   if (ae._poisonStacks && ae._poisonStacks > 0) {
     const pdmg = ae._poisonStacks; // 1 dmg per stack (flat)
@@ -1533,51 +1613,102 @@ function fireEnemyTurn(room, ae) {
   if (ae.stampede && !ae._stampedeUsed && gs.roundNumber === 1) {
     ae._stampedeUsed = true;
     alive.forEach(p => {
-      const dmg = rd(1,6);
-      p.char.health = Math.max(0, p.char.health - dmg);
-      addLog(room, `🐂 <strong>Stampede!</strong> ${ae.name} charges — <strong class="num-dmg">-${dmg}</strong> unavoidable to ${p.name}!`, 'chaos');
-      checkDeath(room, p);
+      p.char.defense = Math.max(1, (p.char.defense||10) - 1);
+      p.char._stampedeDef = true;
+      addLog(room, `🐂 <strong>Stampede!</strong> ${ae.name} crashes through — ${p.name} loses <strong>-1 Defence</strong> for the rest of combat!`, 'chaos');
     });
   }
   if (ae.primordialRoar && !ae._roarUsed && gs.roundNumber === 1) {
     ae._roarUsed = true;
     alive.forEach(p => {
-      const dmg = rd(2,6);
-      p.char.health = Math.max(0, p.char.health - dmg);
-      addLog(room, `🦎 <strong>Primordial Roar!</strong> ${ae.name} — <strong class="num-dmg">-${dmg}</strong> to ${p.name}!`, 'chaos');
-      checkDeath(room, p);
+      addBuff(p.char, 'Primordial Roar', {dmgReductionPct:0.5}, 3);
     });
-    if (!room.players.filter(p=>p.char&&p.char.alive).length) { triggerGameover(room); return; }
+    addLog(room, `🦎 <strong>Primordial Roar!</strong> ${ae.name} bellows — all players deal <strong>half damage</strong> for 3 rounds!`, 'chaos');
   }
+  if (ae.chaosWorship && !ae._worshipUsed) {
+    ae._worshipUsed = true; // reset per-round handled below
+    const worship=Math.floor(Math.random()*5);
+    if(worship===0){ ae._worshipLifeLeech=true; addLog(room,`🔱 <strong>Chaos Worship!</strong> ${ae.name} — next attack leeches life!`,'chaos'); }
+    else if(worship===1){ ae._worshipBleed=true; addLog(room,`🔱 <strong>Chaos Worship!</strong> ${ae.name} — next attack applies Bleed!`,'chaos'); }
+    else if(worship===2){ ae._worshipBoon=true; addLog(room,`🔱 <strong>Chaos Worship!</strong> ${ae.name} — next attack +1 boon!`,'chaos'); }
+    else if(worship===3){ ae._worshipStun=true; addLog(room,`🔱 <strong>Chaos Worship!</strong> ${ae.name} — next attack stuns!`,'chaos'); }
+    else { ae._worshipBane=true; addLog(room,`🔱 <strong>Chaos Worship!</strong> ${ae.name} — all players have 1 bane next round!`,'chaos'); if(alive.length) alive.forEach(p=>addBuff(p.char,'Chaos Bane',{atkBone:1},1)); }
+  }
+  if(ae.chaosWorship){ ae._worshipUsed=false; }
+  if(ae.chosenOfTheGods && !ae._godsUsed) {
+    ae._godsUsed = true;
+    const gods=Math.floor(Math.random()*4);
+    if(gods===0){ addBuff(ae,'Gods Regen',{regenHp:rd(1,6)},2); addLog(room,`🔴 <strong>Chosen of the Gods!</strong> ${ae.name} — Chaos blesses with regeneration!`,'chaos'); }
+    else if(gods===1){ ae._godsNextBoon=true; addLog(room,`🔴 <strong>Chosen of the Gods!</strong> ${ae.name} — Chaos grants +2 boons on next attack!`,'chaos'); }
+    else if(gods===2){ addBuff(ae,'Gods Ward',{damageReduction:0.25},2); addLog(room,`🔴 <strong>Chosen of the Gods!</strong> ${ae.name} — Chaos wards 25% damage for 2 rounds!`,'chaos'); }
+    else { alive.forEach(p=>addBuff(p.char,'Chaos Bane',{atkBone:1},1)); addLog(room,`🔴 <strong>Chosen of the Gods!</strong> ${ae.name} — Chaos curses all players with 1 bane!`,'chaos'); }
+  }
+  if(ae.chosenOfTheGods){ ae._godsUsed=false; } // refresh each round
   if (ae.warlordCommand && !ae._commandUsed) {
-    ae._commandUsed = true;
-    (gs.enemies||[]).forEach(e => { if(e&&e!==ae&&e.tags&&e.tags.includes('skaven')&&e.hp>0){e.atk=(e.atk||0)+1;} });
-    addLog(room, `⚔ <strong>Warlord's Command!</strong> ${ae.name} rallies the skaven — all skaven +1 ATK!`, 'chaos');
+    ae._commandUsed = true; // Spawn 2 clanrats
+    if(ae.warlordPackStart){
+      for(let _wi=0;_wi<2;_wi++){
+        const _wc=scaleEnemy({name:'Skaven Clanrat',type:'Skaven',threat:'Low',hp:13,ac:11,atk:2,xp:0,gold:[0,0],tags:['skaven'],packInstinct:true},
+          room.players.filter(p=>p.connected&&p.char&&p.char.alive).length,false,gs.bossCount);
+        _wc.id='wpack_'+Date.now()+_wi; gs.enemies.push(_wc);
+      }
+      addLog(room,`⚔ <strong>Warlord's Command!</strong> ${ae.name} signals — <strong>2 Skaven Clanrats</strong> pour from the shadows!`,'chaos');
+    } else {
+      (gs.enemies||[]).forEach(e => { if(e&&e!==ae&&e.tags&&e.tags.includes('skaven')&&e.hp>0){e.atk=(e.atk||0)+1;} });
+      addLog(room, `⚔ <strong>Warlord's Command!</strong> ${ae.name} rallies the skaven — all skaven +1 ATK!`, 'chaos');
+    }
   }
   if (ae.packInstinct) {
     const skavenCount = (gs.enemies||[]).filter(e=>e&&e.hp>0&&e.tags&&e.tags.includes('skaven')).length;
     ae._packBonus = skavenCount >= 2 ? 1 : 0;
   }
-  if (ae.seethingRage && !ae._rageActive && ae.hp < ae.maxHp * 0.4) { // bulwark now gives +5 HP on gain, handled in applyPath
+  if (ae.scurryAway) {
+    const clanratsAlive = (gs.enemies||[]).filter(e=>e&&e.hp>0&&e.name==='Skaven Clanrat').length;
+    ae._scurryDefBonus = clanratsAlive>0 ? 3 : 0;
+  }
+  ae._chosenThisRound=false;
+  if (ae.mutate) { ae.dmgBonus=(ae.dmgBonus||0)+1; if(ae.dmgBonus%3===1&&ae.dmgBonus>0) addLog(room,`🧬 <strong>Mutate!</strong> ${ae.name} grows stronger — +1 dmg (total +${ae.dmgBonus})!`,'chaos'); }
+  if (ae.seethingRage && !ae._rageActive && ae.hp < ae.maxHp * 0.4) {
     ae._rageActive = true;
-    addLog(room, `😡 <strong>Seething Rage!</strong> ${ae.name} erupts — +1 boon and +1d6 on all attacks!`, 'chaos');
+    const clanrats=(gs.enemies||[]).filter(e=>e&&e.hp>0&&e.name==='Skaven Clanrat');
+    const defBonus=clanrats.length*2;
+    if(defBonus>0){ ae.ac=(ae.ac||15)+defBonus; addLog(room,`⚔ <strong>Skaven Warlord's Decree!</strong> ${ae.name} — +${defBonus} Defence from ${clanrats.length} clanrats!`,'chaos'); }
+    clanrats.forEach(c=>{ c.dmgBonus=(c.dmgBonus||0)+2; addLog(room,`🐀 Clanrat surges — +2 damage!`,'chaos'); });
+    if(!clanrats.length) addLog(room,`⚔ <strong>Skaven Warlord's Decree!</strong> ${ae.name} — no clanrats to rally.`,'chaos');
   }
   if (ae.extinctionPulse && !ae._pulseUsed && ae.hp < ae.maxHp * 0.3) {
     ae._pulseUsed = true;
-    alive.forEach(p => {
-      const dmg = rd(2,6);
-      p.char.health = Math.max(0, p.char.health - dmg);
-      addBuff(p.char, 'Blinded', {bane:3}, 1);
-      addLog(room, `💥 <strong>Extinction Pulse!</strong> <strong class="num-dmg">-${dmg}</strong> + Blinded to ${p.name}!`, 'chaos');
-      checkDeath(room, p);
-    });
-    addLog(room, `💥 Extinction Pulse fades... (1-round Blind on all warriors)`, 'sys');
+    alive.forEach(p => { addBuff(p.char, 'Blinded', {bane:3}, 2); });
+    ae._regenOverride = 12; // boost regen to 12 HP for 2 turns
+    ae._regenOverrideTurns = 2;
+    addLog(room, `💥 <strong>Extinction Pulse!</strong> All players are <strong>Blinded for 2 rounds</strong>! Saurian regenerates <strong>+12 HP/round</strong> for 2 rounds!`, 'chaos');
   }
   if (ae.mistForm && !ae._mistUsed && ae.hp < ae.maxHp * 0.25) {
     ae._mistUsed = true;
     if(!ae.activeDebuffs) ae.activeDebuffs=[];
     ae.activeDebuffs.push({name:'Mist Form',damageReduction:0.5,duration:1});
     addLog(room, `🌫 <strong>Mist Form!</strong> ${ae.name} — 50% damage reduction for 1 round!`, 'chaos');
+  }
+  if (ae.bloodlust && !ae._bloodlustActive && ae.hp < ae.maxHp * 0.5) {
+    ae._bloodlustActive = true;
+    ae.atk = (ae.atk||0) + 2; // approx +2 boons via ATK bonus
+    ae.ac = Math.max(1, (ae.ac||16) - 2);
+    addLog(room, `🩸 <strong>Bloodlust!</strong> ${ae.name} tastes blood — <strong>+2 boons on attacks, −2 Defence</strong> for the rest of combat!`, 'chaos');
+  }
+  if (ae.chosenOfGods && !ae._chosenThisRound) {
+    ae._chosenThisRound=true;
+    const _cg=Math.floor(Math.random()*4);
+    if(_cg===0){ addBuff(ae,'Regen',{regenHp:rd(1,6)},2); addLog(room,`✨ <strong>Chosen of the Gods!</strong> ${ae.name} regenerates — 1d6 HP for 2 rounds!`,'chaos'); }
+    else if(_cg===1){ ae._chosenBoon=2; addLog(room,`✨ <strong>Chosen of the Gods!</strong> ${ae.name} — +2 boons on next attack!`,'chaos'); }
+    else if(_cg===2){ addBuff(ae,'Blessed Armour',{damageReduction:0.25},2); addLog(room,`✨ <strong>Chosen of the Gods!</strong> ${ae.name} — 25% damage reduction for 2 rounds!`,'chaos'); }
+    else { alive.forEach(p=>addBuff(p.char,'Cursed',{bane:1},2)); addLog(room,`✨ <strong>Chosen of the Gods!</strong> ${ae.name} — all players have 1 bane for 2 rounds!`,'chaos'); }
+  }
+  if (ae.chaosWorship) {
+    const _cw=Math.floor(Math.random()*5);
+    const _cwOpts=['lifeLeechNext','bleedNext','boonNext','stunNext','baneNext'];
+    ae['_cw_'+_cwOpts[_cw]]=true;
+    const _cwLabels=['💉 next attack leeches life','🩸 next attack applies Bleed','⚔ next attack +1 boon','💫 next attack stuns','⬇ next attack gives player 1 bane'];
+    addLog(room,`🌀 <strong>Chaos Worship!</strong> ${ae.name} receives a dark blessing — ${_cwLabels[_cw]}!`,'chaos');
   }
   if (ae.belowRoar && !ae._roarActive && ae.hp < ae.maxHp * 0.5) {
     ae._roarActive = true;
@@ -1591,10 +1722,17 @@ function fireEnemyTurn(room, ae) {
   if (ae._crushCooldown > 0) ae._crushCooldown--;
 
   // ── Determine attack multiplier ───────────────────────────────────────────
-  const frenziedDouble  = ae.frenziedAssault && ae.hp > ae.maxHp * 0.5;
-  const frenzyMultiDouble = ae.frenzyMulti && ae.hp < ae.maxHp * (ae.frenzyMulti.threshold||0.5);
+  const frenziedDouble = false; // frenziedAssault now adds +4 dmg above 50% HP
+  if(ae.frenziedAssault && ae.hp > ae.maxHp * 0.5 && !ae._frenziedBonusSet){ ae._frenziedBonusSet=true; ae.dmgBonus=(ae.dmgBonus||0)+4; }
+  if (ae.frenzyMulti && !ae._frenzyOnceUsed && ae.hp < ae.maxHp * (ae.frenzyMulti.threshold||0.5)) {
+    ae._frenzyOnceUsed = true;
+    ae.lifeLeechFrac = 0.5; // increase leech to 50%
+    ae._frenzyNextHit = true; // next attack auto-hits
+    addLog(room, `😤 <strong>Frenzy!</strong> ${ae.name} — next attack ALWAYS lands, life leech increased to <strong>50%</strong>!`, 'chaos');
+  }
+  const frenzyMultiDouble = false; // frenzy is now a once-per-combat burst
   const baseAttacks = (ae.multi || frenziedDouble || frenzyMultiDouble) ? 2 : 1;
-  const gutterBoon  = ae.gutterFighting && gs.roundNumber === 1;
+  const gutterBoon = false; // gutterFighting is now poison-on-hit
 
   // ── Attack loop ───────────────────────────────────────────────────────────
   if(alive.length>1) alive.sort((a,b)=>(a.char._armorLastTarget?1:0)-(b.char._armorLastTarget?1:0));
@@ -1660,6 +1798,7 @@ function fireEnemyTurn(room, ae) {
           addLog(room,`💪 <strong>Endure!</strong> ${p.name} endures — damage halved to ${dmg}!`,'sys');
         }
         if(p.char.natureBond && dmg>0){ const nbS=rd(1,6); applyPoison(ae,nbS,room); addLog(room,`🌿 <strong>Nature Bond!</strong> ${ae.name} receives <strong>${nbS}</strong> poison stacks (1d6)!`,'spell'); }
+        if(p.char._legPrimordialTalisman&&!p.char._primordialTalismanUsed&&dmg>0){p.char._primordialTalismanUsed=true;const _pth=Math.ceil(dmg*0.5);p.char.health=Math.min(p.char.maxHealth,p.char.health+_pth);addLog(room,`🛡 <strong>Primordial Talisman!</strong> ${p.name} absorbs hit — heals ${_pth} HP!`,'heal');dmg=0;}
         if(p.char.bodyguard&&ehit&&dmg>0){const rbDmg=Math.ceil(dmg/2);ae.hp=Math.max(0,ae.hp-rbDmg);addLog(room,`🔄 <strong>Rebound!</strong> ${p.name} reflects <strong class="num-dmg">-${rbDmg}</strong> damage back at ${ae.name}!`,'crit');if(ae.hp<=0)resolveEnemyDeath(room,ae);}
         if(p.char.sacredAegis&&ehit){const saDmg=rd(1,6);ae.hp=Math.max(0,ae.hp-saDmg);addLog(room,`⚡ <strong>Sacred Aegis!</strong> ${ae.name} takes <strong class="num-dmg">-${saDmg}</strong> holy retribution for striking ${p.name}!`,'spell');if(ae.hp<=0){resolveEnemyDeath(room,ae);}}
         if(p.char.rageTrigger && dmg>=1 && !p.char.rageBoon && !p.char.rageTriggerActive){ p.char.rageTriggerActive=true;
@@ -1695,11 +1834,18 @@ function fireEnemyTurn(room, ae) {
           else { const l = Math.floor(dmg * frac); ae.hp = Math.min(ae.maxHp, ae.hp+l); addLog(room, `🩸 ${ae.name} leeches <strong>${l}</strong> HP.`, 'chaos'); }
         }
         if (ae.insanityAtk && d(6) >= 4) { p.char.insanity++; addLog(room, `${p.name} gains 1 Insanity!`, 'chaos'); }
+        if ((ae.bloodOnHit||ae.bloodgreedHit) && r.hit) { addBuff(p.char,'Bleed',{dotDmg:rd(1,4)},2); addLog(room,`🩸 <strong>Bloodgreed!</strong> ${ae.name} — 1 Bleed!`,'chaos'); }
+        if (ae.frenziedAssault && r.hit && ae.hp > ae.maxHp * 0.5) { p.char.health=Math.max(0,p.char.health-4); addLog(room,`⚔ <strong>Frenzied Assault!</strong> +4 bonus damage!`,'chaos'); checkDeath(room,p); }
+        if (ae._worshipLifeLeech && r.hit) { ae._worshipLifeLeech=false; const _ll2=Math.ceil(dmg*0.5); ae.hp=Math.min(ae.maxHp,ae.hp+_ll2); addLog(room,`🔱 <strong>Chaos Worship!</strong> Leeches ${_ll2} HP!`,'chaos'); }
+        if (ae._worshipBleed && r.hit) { ae._worshipBleed=false; addBuff(p.char,'Bleed',{dotDmg:rd(1,4)},2); addLog(room,`🔱 <strong>Chaos Worship!</strong> ${p.name} Bleeds!`,'chaos'); }
+        if (ae._worshipStun && r.hit) { ae._worshipStun=false; addBuff(p.char,'Stunned',{skipTurn:true},1); addLog(room,`🔱 <strong>Chaos Worship!</strong> ${p.name} STUNNED!`,'chaos'); }
         if (ae.graveChill) { addBuff(p.char,'Chilled',{bane:1},2); addLog(room, `❄ <strong>Grave Chill!</strong> ${p.name} is Chilled — 1 bane on attacks for 2 rounds!`, 'spell'); }
         if (ae.corrodingBite && !p.char._corroded) { p.char._corroded=true; addBuff(p.char,'Corroded',{dmgPenalty:1},1); addLog(room, `🟢 <strong>Corroding Bite!</strong> ${p.name} weakened — -1 damage for 1 round!`, 'chaos'); }
-        if (ae.virulentBlade) { addBuff(p.char,'Infected',{bane:1},2); addLog(room, `☠ <strong>Virulent Blade!</strong> ${p.name} infected — 1 bane on next 2 attacks!`, 'chaos'); applyPoison(ae, 2, room); addLog(room, `☠ Virulent Blade applies 2 poison stacks on ${ae.name}!`, 'spell'); }
+        if (ae.gutterFighting && r.hit) { applyPoison(p.char,2,room); if((p.char._poisonedStacks||0)>0||(p.char.conditions||[]).includes('Poisoned')){ addBuff(p.char,'Gutter Poison',{atkBone:1},1); addLog(room,`🗡 <strong>Gutter Fighting!</strong> Poisoned ${p.name} — 2 stacks + 1 bane while poisoned!`,'chaos'); } else { addLog(room,`🗡 <strong>Gutter Fighting!</strong> ${p.name} poisoned — 2 stacks!`,'chaos'); } }
+        if (ae.virulentBlade && r.hit) { p.char._poisonStacks=(p.char._poisonStacks||0)+3; addBuff(p.char,'Plagued',{bane:1,dotDmg:3},2); addLog(room,`☠ <strong>Virulent Blade!</strong> ${ae.name}'s plague blade applies <strong>3 poison stacks</strong> to ${p.name}!`,'chaos'); }
         if (ae.hypnoticGaze) { addBuff(p.char,'Hypnotised',{bane:1},1); addLog(room, `👁 <strong>Hypnotic Gaze!</strong> ${p.name} entranced — 1 bane on next attack!`, 'chaos'); }
-        if (ae.crushingTail) { addBuff(p.char,'Prone',{bane:1},1); addLog(room, `🦎 <strong>Crushing Tail!</strong> ${p.name} knocked down — 1 bane on next attack!`, 'chaos'); }
+        if (ae.crushingTail && r.hit && Math.random()<0.20) { addBuff(p.char,'Stunned',{skipTurn:true},1); addLog(room,`🦎 <strong>Crushing Tail!</strong> ${p.name} is STUNNED by the Saurian's tail sweep!`,'chaos'); }
+        if (ae.crushingTail && false) { addBuff(p.char,'Prone',{bane:1},1); addLog(room, `🦎 <strong>Crushing Tail!</strong> ${p.name} knocked down — 1 bane on next attack!`, 'chaos'); }
         if (ae.crushingBlow && !ae._crushCooldown) {
           ae._crushCooldown=2;
           if(p.char._legExtinctionAegis||p.char._legAncientScale){
@@ -1714,16 +1860,23 @@ function fireEnemyTurn(room, ae) {
             addLog(room,`💥 <strong>Crushing Blow!</strong> ${p.name} is STUNNED and loses their next action!`,'chaos');
           }
         }
-        if (ae.brutalCleave && r.crit) {
-          const others = alive.filter(o=>o!==p&&o.char&&o.char.alive);
-          if (others.length) { const splash=Math.floor(dmg*0.5); others[0].char.health=Math.max(0,others[0].char.health-splash); addLog(room, `⚔ <strong>Brutal Cleave!</strong> ${others[0].name} takes <strong class="num-dmg">-${splash}</strong> splash!`, 'chaos'); checkDeath(room,others[0]); }
+        const _gw=(ae.activeBuffs||[]).find(b=>b.damageReduction); if(_gw&&dmg>0) dmg=Math.max(1,Math.floor(dmg*(1-_gw.damageReduction)));
+        if (ae.brutalCleave && r.hit && Math.random()<0.25) { addBuff(p.char,'Bleed',{dotDmg:rd(1,4)},2); addBuff(p.char,'Bleed',{dotDmg:rd(1,4)},2); addLog(room,`⚔ <strong>Brutal Cleave!</strong> ${ae.name} gouges ${p.name} — 2 Bleed stacks!`,'chaos'); }
+        if(ae.daemonicIchor && r.hit && Math.random()<0.25){ const _di=rd(1,6); const _atk=room.players.find(q=>q.char&&q.char.alive); if(_atk){_atk.char.health=Math.max(0,_atk.char.health-_di); addLog(room,`💥 <strong>Daemonic Ichor!</strong> Chaos burns ${_atk.name} — <strong class="num-dmg">-${_di}</strong>!`,'chaos'); checkDeath(room,_atk);} }
+        if (ae.critMajorBleed && r.hit) { addBuff(p.char,'Bleed',{dotDmg:rd(1,4)},2); addLog(room, `🩸 <strong>Frenzied Rending!</strong> ${p.name} is Bleeding (1d4/round for 2 rounds)!`, 'chaos'); }
+        if (ae.gutterFighting && r.hit) { p.char._poisonedByGutter=(p.char._poisonedByGutter||0)+2; addBuff(p.char,'Gutter Poison',{bane:1,dotDmg:2},2); addLog(room,`🗡 <strong>Gutter Fighting!</strong> ${p.name} poisoned — 2 stacks, 1 bane!`,'chaos'); }
+        if (ae.skavencunning && r.hit) { p.char._poisonedStacks=(p.char._poisonedStacks||0)+2; addBuff(p.char,'Poisoned',{bane:1,dotDmg:2},2); addLog(room,`🐀 <strong>Skaven Cunning!</strong> ${ae.name} poisons ${p.name} — 2 poison stacks!`,'chaos'); }
+        // chaosWorship buff application
+        if (r.hit) {
+          if(ae._cw_lifeLeechNext){ ae._cw_lifeLeechNext=false; const lh=Math.ceil(r.dmg/2); ae.hp=Math.min(ae.maxHp,(ae.hp||0)+lh); addLog(room,`💉 <strong>Dark Blessing!</strong> ${ae.name} leeches ${lh} HP!`,'chaos'); }
+          if(ae._cw_bleedNext){ ae._cw_bleedNext=false; addBuff(p.char,'Bleed',{dotDmg:rd(1,3)},2); addLog(room,`🩸 <strong>Dark Blessing!</strong> ${p.name} is Bleeding!`,'chaos'); }
+          if(ae._cw_boonNext){ ae._cw_boonNext=false; } // consumed — boon was already factored in atk bonus (retroactive note)
+          if(ae._cw_stunNext){ ae._cw_stunNext=false; addBuff(p.char,'Stunned',{skipTurn:true},1); addLog(room,`💫 <strong>Dark Blessing!</strong> ${p.name} is STUNNED!`,'chaos'); }
+          if(ae._cw_baneNext){ ae._cw_baneNext=false; addBuff(p.char,'Cursed',{bane:1},2); addLog(room,`⬇ <strong>Dark Blessing!</strong> ${p.name} has 1 bane for 2 rounds!`,'chaos'); }
         }
-        if (ae.critMajorBleed && r.crit) { addDebuff(ae,'Major Bleed',{dotDmg:rd(2,6)},2); addLog(room, `🩸🩸 <strong>Frenzied Rending!</strong> Major Bleed on ${p.name}!`, 'chaos'); }
+        if (ae.bloodOnHit && r.hit) { addBuff(p.char,'Bleed',{dotDmg:rd(1,3)},2); addLog(room,`🩸 <strong>Blood Frenzy!</strong> ${ae.name} gores ${p.name} — 1 Bleed stack!`,'chaos'); }
         if (ae.poisonBlade) { addBuff(p.char,'Poisoned',{bane:1},2); applyPoison(ae,ae.poisonBlade,room); addLog(room,`☠ <strong>Poison Blade!</strong> ${p.name} is poisoned — 1 bane on next 2 attacks + ${ae.poisonBlade} poison stacks!`,'chaos'); }
-        if (ae.bloodlust && p.char.health <= 0) {
-          const next = alive.filter(o=>o!==p&&o.char&&o.char.alive);
-          if (next.length) { const r3=rollEnemyAttack(ae,next[0].char); if(r3.hit){next[0].char.health=Math.max(0,next[0].char.health-r3.dmg); addLog(room,`🩸 <strong>Bloodlust!</strong> ${ae.name} charges ${next[0].name} — <strong class="num-dmg">-${r3.dmg}</strong>!`,'chaos'); checkDeath(room,next[0]);} }
-        }
+        // bloodlust handled in pre-attack phase below
         if (p.char.rage && dmg > 0 && !p.char.rageBoon) { p.char.rageBoon=true; addLog(room,`🔥 ${p.name} RAGES — next attack +1 boon +1d6!`,'crit'); }
         checkDeath(room, p);
 
@@ -1740,7 +1893,8 @@ function fireEnemyTurn(room, ae) {
     addLog(room, `🩸 ${ae.name} leeches <strong>${l}</strong> HP.`, 'chaos');
     ae._leechAccum = 0;
   }
-  if (ae.bloodgreed && room.players.some(p=>p.char&&p.char._killedThisTurn)) {
+  // bloodgreed old handler disabled
+  if (false && ae.bloodgreed_OLD) {
     const h=rd(1,6); ae.hp=Math.min(ae.maxHp,ae.hp+h);
     addLog(room, `🩸 <strong>Bloodgreed!</strong> ${ae.name} heals <strong>${h}</strong> HP!`, 'chaos');
   }
@@ -1762,6 +1916,15 @@ function fireEnemyTurn(room, ae) {
     clanrat.id='pack_'+Date.now(); gs.enemies.push(clanrat);
     addLog(room, `🐀 <strong>Call the Pack!</strong> ${ae.name} summons a Skaven Clanrat! (3-round cooldown)`, 'chaos');
   }
+  if (ae.skavenPackTactics && !ae._packTacticsApplied) {
+    ae._packTacticsApplied = true;
+    for(let _pi=0;_pi<2;_pi++){
+      const clanrat=scaleEnemy({name:'Skaven Clanrat',type:'Skaven',threat:'Low',hp:13,ac:11,atk:0,xp:0,gold:[0,0],tags:['skaven'],packInstinct:true},
+        room.players.filter(p=>p.connected&&p.char&&p.char.alive).length,false,gs.bossCount);
+      clanrat.id='pack_'+Date.now()+_pi; gs.enemies.push(clanrat);
+    }
+    addLog(room, `🐀 <strong>Skaven Pack Tactics!</strong> ${ae.name} enters battle with <strong>two Skaven Clanrats</strong>!`, 'chaos');
+  }
   if (ae.packLeader && !ae._packLeaderApplied) {
     ae._packLeaderApplied = true;
     (gs.enemies||[]).forEach(e=>{ if(e&&e!==ae&&e.tags&&e.tags.includes('skaven')&&e.hp>0){ e.atk=(e.atk||0)+2; } });
@@ -1773,7 +1936,7 @@ function fireEnemyTurn(room, ae) {
 
   if(gs._anyPlayerHitThisTurn && room.players.some(p=>p.char&&p.char._legBloodDrinker)){
     room.players.filter(p=>p.char&&p.char.alive&&p.char._legBloodDrinker).forEach(p=>{
-      const h=rd(1,3);
+      const h=rd(1,6);
     p.char.health=Math.min(p.char.maxHealth,p.char.health+h);
       addLog(room,`🩸 <strong>Blood Drinker's Plate!</strong> ${p.name} draws vitality — +${h} HP.`,'heal');
     });
@@ -1822,15 +1985,7 @@ function resolveEnemyDeath(room, deadEnemy) {
   const sanctifyActive=room.players.some(p=>p.char&&p.char.sanctify);
   const isSanctified=sanctifyActive&&e&&(e.chaos||e.undead||(e.tags&&(e.tags.includes('chaos')||e.tags.includes('undead'))));
   if(isSanctified) addLog(room,`✝ <strong>Sanctify!</strong> ${e.name} cannot trigger death abilities!`,'spell');
-  if(e&&e.daemonicIchor&&!isSanctified){
-    room.players.filter(p=>p.char&&p.char.alive).forEach(p=>{
-      if(p.char._armorFireImmune||p.char._legAncientScale){ addLog(room,`🔥 Daemonic Ichor! ${p.name}'s armour absorbs the fire!`,'spell'); return; }
-      const dmg=rd(1,6);
-    p.char.health=Math.max(0,p.char.health-dmg);
-      addLog(room,`💥 <strong>Daemonic Ichor!</strong> ${e.name} explodes — <strong class="num-dmg">-${dmg}</strong> fire dmg to ${p.name}!`,'chaos');
-      checkDeath(room,p);
-    });
-  }
+  // daemonicIchor now triggers on-hit (handled in player attack section)
   if(e&&e.undying&&!e._undyingUsed&&d(6)===6&&!isSanctified){
     e._undyingUsed=true; e.hp=1;
     addLog(room,`💀 <strong>Undying!</strong> ${e.name} refuses to stay dead — rises at 1 HP!`,'chaos');
@@ -1919,6 +2074,8 @@ function resolveEnemyDeath(room, deadEnemy) {
     p.char._revelationUsed=false;
     p.char._shieldBashUsed=false;
       p.char._druidsFuryUsed=false;
+      p.char._warpstoneKillStr=0;
+      p.char._primordialTalismanUsed=false;
       p.char._endureUsed=false;
     p.char._bodyguardUsed=false;
     p.char._perfectDefenceUsed=false;
@@ -2021,7 +2178,7 @@ const LEGENDARY_ITEMS = {
     {
       id:'leg', name:"Gnashteeth's Fang", type:'weapon', dice:'2d6', stat:'agi', bonus:4,
       dmgType:'slashing', legendary:true,
-      special:{key:'venomFang', desc:'Legendary: every hit applies 3 poison stacks. On kill, gain 1 boon on your next attack this round.'},
+      special:{key:'venomFang', desc:'Legendary: every hit applies 2 poison stacks. On kill, gain 1 boon on your next attack this round.'},
       desc:"2d6+4 · AGI · slashing — Legendary. Every hit: 2 poison stacks. Kill: 1 boon next attack.",
     },
     {
@@ -2031,8 +2188,8 @@ const LEGENDARY_ITEMS = {
     },
     {
       id:'leg', name:'Ratking Crown', type:'armor', defBonus:6, legendary:true,
-      special:{key:'ratkingCrown', desc:'Legendary: Skaven enemies have 2 banes on all attacks against you. You gain +1 boon on attacks vs Skaven.'},
-      desc:"+6 Defense — Legendary. Skaven have 2 banes vs you. +1 boon vs Skaven.",
+      special:{key:'ratkingCrown', desc:'Legendary: Skaven enemies have 2 banes on all attacks against you. You gain +1 boon on ALL attacks. Additionally +1 boon vs Skaven.'},
+      desc:"+6 Defense — Legendary. Skaven have 2 banes vs you. +1 boon on all attacks (+1 more vs Skaven).",
     },
     {
       id:'leg', name:'Beastlord Maul', type:'weapon', dice:'3d6', stat:'str', bonus:5,
@@ -2056,13 +2213,13 @@ const LEGENDARY_ITEMS = {
     {
       id:'leg', name:'Ratogre Chainbreaker', type:'weapon', dice:'3d6', stat:'str', bonus:6,
       dmgType:'blunt', legendary:true,
-      special:{key:'chainbreaker', desc:'Legendary: ignore all enemy damage reduction. +1d6 bonus vs enemies with DR > 0.'},
-      desc:"3d6+6 · STR · blunt — Legendary. Ignore enemy DR. +1d6 bonus vs DR > 0 targets.",
+      special:{key:'chainbreaker', desc:'Legendary: ignore all enemy damage reduction. Critical hits knock the target Prone (loses next action).'},
+      desc:"3d6+6 · STR · blunt — Legendary. Ignore enemy DR. Crits knock Prone.",
     },
     {
       id:'leg', name:"Blood Drinker's Plate", type:'armor', defBonus:8, legendary:true,
-      special:{key:'bloodDrinker', desc:'Legendary: after each enemy turn, if any ally was hit this round, you heal 1d3 HP.'},
-      desc:"+8 Defense — Legendary. After each enemy turn where an ally was hit, heal 1d3 HP.",
+      special:{key:'bloodDrinker', desc:'Legendary: after each enemy turn, if any ally was hit this round, you heal 1d6 HP.'},
+      desc:"+8 Defense — Legendary. After each enemy turn where an ally was hit, heal 1d6 HP.",
     },
   ],
   boss3: [
@@ -2088,6 +2245,11 @@ const LEGENDARY_ITEMS = {
       special:{key:'extinctionAegis', desc:'Legendary: all allies within the warband gain +2 Defense while you are alive. You cannot be stunned.'},
       desc:"+8 Defense — Legendary. All allies +2 Defense while you live. Cannot be stunned.",
     },
+    {
+      id:'leg', name:'Primordial Talisman', type:'armor', defBonus:7, legendary:true,
+      special:{key:'primordialTalisman', desc:'Legendary: once per combat, absorb one attack completely and convert 50% of its damage into HP instead.'},
+      desc:"+7 Defense — Legendary. Once per combat: absorb one attack, heal for 50% of its damage.",
+    },
   ],
 };
 
@@ -2104,12 +2266,15 @@ function genLegendaryItem(bossIndex) {
 }
 
 const SHOP_CONSUMABLES=[
-  {name:'Healing Draught',        desc:'Heal 1d6 HP',cost:10},
-  {name:'Greater Healing Draught',desc:'Heal 2d6 HP',cost:20},
-  {name:'Flask of Oil',           desc:'2d6 fire dmg',cost:15},
-  {name:'Fire Jar',               desc:'3d6 fire dmg',cost:25},
+  {name:'Healing Draught',        desc:'Heal 1d6 HP',cost:12},
+  {name:'Greater Healing Draught',desc:'Heal 2d6 HP',cost:22},
+  {name:'Incendiary Flask',       desc:'2d6 fire dmg',cost:17},
+  {name:'Daemon Fire',            desc:'3d6 fire dmg',cost:27},
   {name:'Lucky Pendant',          desc:'Next attack = crit',cost:40},
   {name:'Sharpening Stone',       desc:'+1d6 dmg this combat',cost:40},
+  {name:'Antitoxin',              desc:'Clear all poison stacks from one target',cost:18},
+  {name:'Smoke Bomb',             desc:'All enemies 2 banes next round',cost:20},
+  {name:"Sigmar's Token",         desc:'Heal 1d6+3 HP and remove one debuff',cost:30},
 ];
 const SCROLL_SPELLS_SHOP=[
   {name:'Fireball',          desc:'8d6 fire dmg',                          type:'attack',  dmgDice:'8d6'},
@@ -2122,13 +2287,16 @@ const SCROLL_SPELLS_SHOP=[
   {name:'Wall of Faith',     desc:'All allies +3 Defense, 1 boon 3 rounds',type:'utility', dmgDice:'0d0', wallFaith:true},
   {name:'Bone Prison',       desc:'Stun one enemy (lose next turn)',        type:'utility', dmgDice:'0d0', bonePrison:true},
   {name:'Earthshatter',      desc:'5d6 dmg, Prone 2 rounds, ×1.5 heavy',  type:'attack',  dmgDice:'5d6', earthshatter:true},
+  {name:"Sigmar's Shield",   desc:'All allies +2 Def for 2 rounds',         type:'utility', dmgDice:'0d0', sigmarsShield:true},
+  {name:'Plague Wind',        desc:'All enemies gain 3 poison stacks',        type:'utility', dmgDice:'0d0', plagueWind:true},
+  {name:'Battle Hymn',        desc:'All allies +2 ATK for 2 rounds',          type:'utility', dmgDice:'0d0', battleHymn:true},
 ];
 
 function genWpn(bossCount=0){
   const light=WEAPON_BASES.filter(b=>b.dice==='1d6'), heavy=WEAPON_BASES.filter(b=>b.dice==='2d6');
   const pool=bossCount>0&&d(5)===1?heavy:light;
   const b=pool[Math.floor(Math.random()*pool.length)], bonus=d(6);
-  const specDesc2=b.special?` — ${b.special.desc}`:''; return{id:'w'+uuidv4(),name:b.name,dice:b.dice,stat:b.stat,bonus,dmgType:b.dmgType,special:b.special||null,cost:Math.max(5,(b.dice==='2d6'?20:15)+bonus*8+(b.special?10:0)),sellCost:1,bought:false,type:'weapon',desc:`${b.dice}+${bonus} · ${b.stat.toUpperCase()} · ${b.dmgType}${specDesc2}`};
+  const specDesc2=b.special?` — ${b.special.desc}`:''; return{id:'w'+uuidv4(),name:b.name,dice:b.dice,stat:b.stat,bonus,dmgType:b.dmgType,special:b.special||null,cost:Math.max(5,(b.dice==='2d6'?20:15)+bonus*8+(b.special?10:0)),sellCost:3,bought:false,type:'weapon',desc:`${b.dice}+${bonus} · ${b.stat.toUpperCase()} · ${b.dmgType}${specDesc2}`};
 }
 function genArmor(bossCount=0){
   const basePool=ARMOR_BASES.filter(ab=>!ab.special);
@@ -2140,17 +2308,17 @@ function genArmor(bossCount=0){
   let bonus;
   if(bossCount===0){ bonus=d(4); if(b.def+bonus>6) bonus=Math.max(1,6-b.def); }
   else { bonus=d(5)===1?d(2)+4:d(4); }
-  const specDesc=b.special?` — ${b.special.desc}`:''; return{id:'a'+uuidv4(),name:b.name,defBonus:b.def+bonus,special:b.special||null,cost:Math.max(5,20+bonus*10+(b.special?15:0)),sellCost:1,bought:false,type:'armor',desc:`+${b.def+bonus} Defense${specDesc}`};
+  const specDesc=b.special?` — ${b.special.desc}`:''; return{id:'a'+uuidv4(),name:b.name,defBonus:b.def+bonus,special:b.special||null,cost:Math.max(5,20+bonus*10+(b.special?15:0)),sellCost:3,bought:false,type:'armor',desc:`+${b.def+bonus} Defense${specDesc}`};
 }
 function genShopScroll(){
   const sp=SCROLL_SPELLS_SHOP[Math.floor(Math.random()*SCROLL_SPELLS_SHOP.length)];
-  return{id:'sc'+uuidv4(),name:`Scroll: ${sp.name}`,spell:sp,cost:35,sellCost:1,bought:false,type:'scroll',desc:sp.desc};
+  return{id:'sc'+uuidv4(),name:`Scroll: ${sp.name}`,spell:sp,cost:35,sellCost:3,bought:false,type:'scroll',desc:sp.desc};
 }
 function buildPlayerShop(bossCount=0){
-  const hd1={id:'hd1'+uuidv4(),name:'Healing Draught',cost:10,sellCost:1,desc:'Heal 1d6 HP',bought:false,type:'consumable'};
-  const hd2={id:'hd2'+uuidv4(),name:'Healing Draught',cost:10,sellCost:1,desc:'Heal 1d6 HP',bought:false,type:'consumable'};
+  const hd1={id:'hd1'+uuidv4(),name:'Healing Draught',cost:10,sellCost:3,desc:'Heal 1d6 HP',bought:false,type:'consumable'};
+  const hd2={id:'hd2'+uuidv4(),name:'Healing Draught',cost:10,sellCost:3,desc:'Heal 1d6 HP',bought:false,type:'consumable'};
   const otherPool=SHOP_CONSUMABLES.filter(c=>c.name!=='Healing Draught').sort(()=>Math.random()-0.5);
-  const other=otherPool[0]?{id:'c'+uuidv4(),name:otherPool[0].name,cost:otherPool[0].cost,sellCost:1,desc:otherPool[0].desc,bought:false,type:'consumable'}:hd1;
+  const other=otherPool[0]?{id:'c'+uuidv4(),name:otherPool[0].name,cost:otherPool[0].cost,sellCost:3,desc:otherPool[0].desc,bought:false,type:'consumable'}:hd1;
   return{
     weaponEnhance:{id:'we'+uuidv4(),name:'Weapon Enhancement',desc:'+1 dmg AND +1 to hit on equipped weapon (cap +6)',cost:30,bought:false,type:'enhance'},
     statBoost:    {id:'sb'+uuidv4(),name:'+1 Primary Stat',desc:'Increase highest attribute by 1',cost:35,bought:false,type:'statboost'},
@@ -2161,11 +2329,11 @@ function buildPlayerShop(bossCount=0){
 
 function addToInventory(char,name,itemObj=null){
   if(itemObj&&(itemObj.type==='weapon'||itemObj.type==='armor')){
-    char.inventory.push({name:itemObj.name,qty:1,type:itemObj.type,itemObj,sellCost:1});
+    char.inventory.push({name:itemObj.name,qty:1,type:itemObj.type,itemObj,sellCost:3});
   } else {
     const ex=char.inventory.find(i=>i.name===name&&!i.itemObj);
     if(ex) ex.qty++;
-    else char.inventory.push({name,qty:1,sellCost:1});
+    else char.inventory.push({name,qty:1,sellCost:3});
   }
 }
 
@@ -2213,7 +2381,7 @@ function equipItem(char, inventoryIndex) {
   if(item.type==='weapon'){
     if(char.equippedWeapon){
       applyWpnSpecial(char, char.equippedWeapon.special, false);
-      char.inventory.push({name:char.equippedWeapon.name,qty:1,type:'weapon',itemObj:char.equippedWeapon,sellCost:1});
+      char.inventory.push({name:char.equippedWeapon.name,qty:1,type:'weapon',itemObj:char.equippedWeapon,sellCost:3});
     }
     char.equippedWeapon=item; char.inventory.splice(inventoryIndex,1);
     applyWpnSpecial(char, item.special, true);
@@ -2235,7 +2403,7 @@ function equipItem(char, inventoryIndex) {
         if(olds.key==='bloodscent')          char._armorBloodscent=false;
         if(olds.key==='righteousSuffering')  char._armorRighteous=false;
       }
-      char.inventory.push({name:char.equippedArmor.name,qty:1,type:'armor',itemObj:char.equippedArmor,sellCost:1});
+      char.inventory.push({name:char.equippedArmor.name,qty:1,type:'armor',itemObj:char.equippedArmor,sellCost:3});
     }
     char.equippedArmor=item;
     char.defense=char.baseAgiDef+item.defBonus;
@@ -2317,11 +2485,14 @@ function useItemLogic(room,player,itemName,inCombat=false){
   let consumed=true;
   if(itemName==='Healing Draught'){const h=rd(1,6);char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} drinks Healing Draught — +<strong>${h}</strong> HP.`,'heal');}
   else if(itemName==='Greater Healing Draught'){const h=rd(2,6);char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} drinks Greater Healing — +<strong>${h}</strong> HP.`,'heal');}
-  else if(itemName==='Flask of Oil'){const _te=getTargetEnemy(room.gs);if(inCombat&&_te){if(_te.immuneFire){addLog(room,`🔥 ${_te.name} is immune to fire!`,'spell');}else{let dmg=rd(2,6);if(char._armorFireImmune){dmg+=rd(1,6);}// Dragonscale bonus
+  else if(itemName==='Flask of Oil'||itemName==='Incendiary Flask'){const _te=getTargetEnemy(room.gs);if(inCombat&&_te){if(_te.immuneFire){addLog(room,`🔥 ${_te.name} is immune to fire!`,'spell');}else{let dmg=rd(2,6);if(char._armorFireImmune){dmg+=rd(1,6);}// Dragonscale bonus
 _te.hp=Math.max(0,_te.hp-dmg);addLog(room,`${player.name} throws Flask of Oil — <strong>${dmg}</strong> fire dmg!`,'spell');if(_te.hp<=0){resolveEnemyDeath(room,_te);return true;}}}else{consumed=false;}}
-  else if(itemName==='Fire Jar'){const _te=getTargetEnemy(room.gs);if(inCombat&&_te){if(_te.immuneFire){addLog(room,`🔥 ${_te.name} is immune to fire!`,'spell');}else{const dmg=rd(3,6);_te.hp=Math.max(0,_te.hp-dmg);addLog(room,`${player.name} smashes Fire Jar — <strong>${dmg}</strong> fire dmg!`,'spell');if(_te.hp<=0){resolveEnemyDeath(room,_te);return true;}}}else{consumed=false;}}
+  else if(itemName==='Fire Jar'||itemName==='Daemon Fire'){const _te=getTargetEnemy(room.gs);if(inCombat&&_te){if(_te.immuneFire){addLog(room,`🔥 ${_te.name} is immune to fire!`,'spell');}else{const dmg=rd(3,6);_te.hp=Math.max(0,_te.hp-dmg);addLog(room,`${player.name} smashes Fire Jar — <strong>${dmg}</strong> fire dmg!`,'spell');if(_te.hp<=0){resolveEnemyDeath(room,_te);return true;}}}else{consumed=false;}}
   else if(itemName==='Lucky Pendant'){char.luckyPendant=true;addLog(room,`${player.name} activates Lucky Pendant — next attack is a CRIT!`,'loot');}
   else if(itemName==='Sharpening Stone'){char.sharpeningStone=true;addLog(room,`${player.name} uses Sharpening Stone — +1d6 dmg this combat!`,'loot');}
+  else if(itemName==='Antitoxin'){char._poisonedStacks=0; if(char.activeBuffs) char.activeBuffs=char.activeBuffs.filter(b=>!b.bane||b.name!=='Plagued'); if(char.conditions) char.conditions=char.conditions.filter(c=>c!=='Poisoned'); addLog(room,`🧪 <strong>Antitoxin!</strong> ${player.name} clears all poison!`,'heal');}
+  else if(itemName==='Smoke Bomb'){if(inCombat){(room.gs.enemies||[]).filter(e=>e&&e.hp>0).forEach(e=>{if(!e.activeDebuffs)e.activeDebuffs=[];e.activeDebuffs.push({name:'Smoked',bane:2,duration:1});}); addLog(room,`💨 <strong>Smoke Bomb!</strong> All enemies have 2 banes next round!`,'spell');}else{consumed=false;}}
+  else if(itemName==="Sigmar's Token"){const th=rd(1,6)+3;char.health=Math.min(char.maxHealth,char.health+th);if(char.activeBuffs&&char.activeBuffs.length)char.activeBuffs=char.activeBuffs.filter(b=>b.duration>=500||!b.bane);if(char.conditions&&char.conditions.length)char.conditions.pop();addLog(room,`✝ <strong>Sigmar's Token!</strong> +${th} HP and one debuff removed!`,'heal');}
   else if(itemName.startsWith('Scroll:')){
     const spell=char.scrollSpells[itemName];
     if(!spell){addLog(room,`${player.name}: scroll crumbles.`,'sys');return false;}
@@ -2342,6 +2513,9 @@ _te.hp=Math.max(0,_te.hp-dmg);addLog(room,`${player.name} throws Flask of Oil �
         addLog(room,`${player.name} reads <strong>Shallya's Touch</strong> — all debuffs cleansed from ${htName} and healed <strong>${healAmt} HP</strong>!`,'heal');
         return true;
       }
+      if(spell.sigmarsShield){ room.players.filter(p=>p.char&&p.char.alive).forEach(p=>addBuff(p.char,"Sigmar's Shield",{defBonus:2},2)); addLog(room,`🛡 <strong>Sigmar's Shield!</strong> All allies +2 Defence for 2 rounds!`,'spell'); return; }
+      if(spell.plagueWind){ (gs.enemies||[]).filter(e=>e&&e.hp>0).forEach(e=>{ e._poisonStacks=(e._poisonStacks||0)+3; addLog(room,`☠ Plague Wind poisons ${e.name} — 3 stacks!`,'spell'); }); addLog(room,`☠ <strong>Plague Wind!</strong> All enemies gain 3 poison stacks!`,'spell'); return; }
+      if(spell.battleHymn){ room.players.filter(p=>p.char&&p.char.alive).forEach(p=>addBuff(p.char,'Battle Hymn',{atkBonus:2},2)); addLog(room,`📣 <strong>Battle Hymn!</strong> All allies +2 ATK for 2 rounds!`,'spell'); return; }
       if(spell.veilShadows){
         alive2.forEach(e=>{ addDebuff(e,'Veiled',{bane:2},1); });
         addLog(room,`${player.name} reads <strong>Veil of Shadows</strong> — all enemies have 2 banes on attack rolls this round!`,'spell');
@@ -2624,6 +2798,9 @@ function handlePlayerAction(room,playerId,payload,ws){
         char._wpnRuneStrikeActive=true; // flag checked in rollAttack — nullifies enemy DR flags
         addLog(room,`⚡ <strong>Rune Strike!</strong> ${player.name} cuts through ${targetEnemy.name}'s defences — all DR ignored!`,'crit');
       }
+      // Primordial Roar: halve player damage if buff active
+      const _prBuff=(char.activeBuffs||[]).find(b=>b.dmgReductionPct);
+      if(_prBuff){ finalDmg=Math.max(1,Math.floor(finalDmg*(1-_prBuff.dmgReductionPct))); }
       targetEnemy.hp=Math.max(0, targetEnemy.hp-finalDmg);
       const cl=r.forceCrit?' ⚡ Lucky Pendant CRIT!':r.crit?' 💥 CRITICAL HIT!':'';
       const boonStr=r.boonInfo?(r.final!==r.base?`${r.boonInfo}→<strong>${r.final}</strong>`:`${r.boonInfo}`):'';
@@ -2641,7 +2818,7 @@ function handlePlayerAction(room,playerId,payload,ws){
         if(char._wpnHolySmokeProc){ char._wpnHolySmokeProc=false; applyPoison(targetEnemy,1,room); } // War Censer
         if(char.poisonBlade){ applyPoison(targetEnemy,char.lingeringMagic?4:2,room); }
         if(char._legVenomFangProc){ char._legVenomFangProc=false; applyPoison(targetEnemy,3,room); }
-                if(char.layOnHands&&finalDmg>0&&(char._layOnHandsCount||0)<2){char._layOnHandsCount=(char._layOnHandsCount||0)+1;const lhH=rd(1,6)+Math.max(0,modVal(char.attrs.wil))*2;char.health=Math.min(char.maxHealth,char.health+lhH);addLog(room,`🙏 <strong>Lay on Hands!</strong> ${player.name} heals <strong>${lhH}</strong> HP (1d6+WIL×2) [${char._layOnHandsCount}/2]!`,'heal');}
+                if(char.layOnHands&&finalDmg>0&&(char._layOnHandsCount||0)<2){char._layOnHandsCount=(char._layOnHandsCount||0)+1;const lhH=rd(1,6)+Math.max(0,modVal(char.attrs.wil));char.health=Math.min(char.maxHealth,char.health+lhH);addLog(room,`🙏 <strong>Lay on Hands!</strong> ${player.name} heals <strong>${lhH}</strong> HP (1d6+WIL) [${char._layOnHandsCount}/2]!`,'heal');}
         if(char._wpnSpellblade && !char._wpnSpellbladeUsed && char.knownSpells && char.knownSpells.length){
           char._wpnSpellbladeUsed=true;
           const r0sp=(char.knownSpells.filter(sp=>sp.rank===0&&sp.type==='attack')[0])||char.knownSpells[0];
@@ -2666,6 +2843,13 @@ function handlePlayerAction(room,playerId,payload,ws){
           }
         }
         if(char._wpnSunder && r.crit && !targetEnemy._sundered){ targetEnemy._sundered=true; targetEnemy.ac=Math.max(1,targetEnemy.ac-2); addLog(room,`🔨 <strong>Sunder!</strong> ${targetEnemy.name}'s armour cracked — AC reduced to ${targetEnemy.ac}!`,'crit'); } // Warhammer
+        // Daemonic Ichor: 25% chance attacker takes 1d6 when hitting Bloodletter
+        if(targetEnemy.daemonicIchor && r.hit && Math.random()<0.25){
+          const _diDmg=rd(1,6);
+          char.health=Math.max(0,char.health-_diDmg);
+          addLog(room,`💥 <strong>Daemonic Ichor!</strong> Dark energy lashes back at ${player.name} — <strong class="num-dmg">-${_diDmg}</strong> fire dmg!`,'chaos');
+          checkDeath(room,player);
+        }
         if(char.flameEdge && r.hit){
           // Weapon attack is now fire damage — trigger burningSoul if target already burning
           const _feBonusSoul=(char.burningSoul&&(targetEnemy.activeDebuffs||[]).some(d=>d.name==='Burn'))?rd(1,6):0;
@@ -2696,7 +2880,7 @@ function handlePlayerAction(room,playerId,payload,ws){
           if(char._pacedHitCount%2===0){ applyBleed(targetEnemy,room); applyBleed(targetEnemy,room); addLog(room,`⚔ <strong>Paced Strikes!</strong> Every 2nd hit — <strong>2 Bleed</strong> applied to ${targetEnemy.name}!`,'sys'); }
         }
         if(char.holyFervor && r.hit && targetEnemy){
-          const _wilMod=modVal(char.attrs.wil); const _hfDmg=rd(1,3)+_wilMod; const _hfHeal=rd(1,3)+_wilMod;
+          const _wilMod=modVal(char.attrs.wil); const _hfDmg=rd(1,3)+_wilMod; const _hfHeal=rd(1,3); // heal is flat 1d3 (no WIL scaling)
           targetEnemy.hp=Math.max(0,targetEnemy.hp-_hfDmg);
           char.health=Math.min(char.maxHealth,char.health+_hfHeal);
           addLog(room,`✨ <strong>Holy Fervor!</strong> ${player.name}'s strike channels Sigmar — <strong class="num-dmg">−${_hfDmg}</strong> holy, +<strong>${_hfHeal} HP</strong>!`,'heal');
@@ -3108,6 +3292,9 @@ function handlePlayerAction(room,playerId,payload,ws){
         } else {
           addLog(room,`${player.name} casts <strong>${spell.name}</strong> [${spellElem}] — ${n}d${sd}(${roll})${b?'+'+b:''}+${intMod} INT${burnBonus?'+'+burnBonus+' burn':''} = <strong>${total}</strong> dmg!`,'spell');
         }
+        // Primordial Roar: halve player spell damage
+        {const _prRB=(char.activeBuffs||[]).find(b2=>b2.dmgReductionPct);if(_prRB){const _old=total;total=Math.max(1,Math.floor(total*(1-_prRB.dmgReductionPct)));addLog(room,`🦎 <strong>Primordial Roar!</strong> ${player.name}\'s spell halved — ${_old}→${total}!`,'chaos');}}
+        spellTarget.hp=Math.max(0,spellTarget.hp-total);
         if(spell.doubleHit && spellTarget.hp>0){
           const roll2=rd(n,sd);
           const hit2=roll2+b+intMod;
@@ -3495,10 +3682,10 @@ function rollEnemyDrop(enemy, room){
     if(Math.random()>drop.chance) return;
     let item;
     if(drop.type==='weapon'){
-      item={id:'w'+uuidv4(),name:drop.name,dice:drop.dice,stat:drop.stat,bonus:drop.bonus,dmgType:drop.dmgType,special:drop.special,cost:0,sellCost:1,bought:false,type:'weapon',desc:`${drop.dice}+${drop.bonus} · ${drop.stat.toUpperCase()} · ${drop.dmgType} — ${drop.special.desc}`};
+      item={id:'w'+uuidv4(),name:drop.name,dice:drop.dice,stat:drop.stat,bonus:drop.bonus,dmgType:drop.dmgType,special:drop.special,cost:0,sellCost:3,bought:false,type:'weapon',desc:`${drop.dice}+${drop.bonus} · ${drop.stat.toUpperCase()} · ${drop.dmgType} — ${drop.special.desc}`};
     } else {
       const totalDef=(drop.def||2)+d(2);
-      item={id:'a'+uuidv4(),name:drop.name,defBonus:totalDef,special:drop.special,cost:0,sellCost:1,bought:false,type:'armor',desc:`+${totalDef} Defense — ${drop.special.desc}`};
+      item={id:'a'+uuidv4(),name:drop.name,defBonus:totalDef,special:drop.special,cost:0,sellCost:3,bought:false,type:'armor',desc:`+${totalDef} Defense — ${drop.special.desc}`};
     }
     const living=room.players.filter(p=>p.char&&p.char.alive);
     if(!living.length) return;
