@@ -507,23 +507,23 @@ const ENEMY_POOLS = {
      corrodingBite:true},
   ],
   mid: [
-    {name:'Chaos Marauder',    type:'Chaos',  threat:'Moderate',hp:30,ac:13,atk:3,xp:3,gold:[10,25],tags:['chaos'],chaos:true,
+    {name:'Chaos Marauder',    type:'Chaos',  threat:'Moderate',hp:36,ac:13,atk:3,xp:3,gold:[10,25],tags:['chaos'],chaos:true,
      frenziedAssault:true, chaosCrit:true},
-    {name:'Skaven Stormvermin',type:'Skaven', threat:'Moderate',hp:24,ac:16,atk:3,xp:3,gold:[8,20], tags:['skaven'],
+    {name:'Skaven Stormvermin',type:'Skaven', threat:'Moderate',hp:29,ac:16,atk:3,xp:3,gold:[8,20], tags:['skaven'],
      damageReduction:1, gutterFighting:true},
-    {name:'Wight',             type:'Undead', threat:'Moderate',hp:28,ac:11,atk:3,xp:3,gold:[5,15], tags:['undead'],undead:true,lifeLeech:true,
+    {name:'Wight',             type:'Undead', threat:'Moderate',hp:34,ac:11,atk:3,xp:3,gold:[5,15], tags:['undead'],undead:true,lifeLeech:true,
      graveChill:true},
-    {name:'Plague Monk',       type:'Chaos',  threat:'Moderate',hp:22,ac:13,atk:3,xp:3,gold:[5,15], tags:['chaos'],chaos:true,
+    {name:'Plague Monk',       type:'Chaos',  threat:'Moderate',hp:27,ac:13,atk:3,xp:3,gold:[5,15], tags:['chaos'],chaos:true,
      virulentBlade:true, frenzyAtk:{threshold:0.5,newAtk:4}},
   ],
   high: [
-    {name:'Chaos Warrior',  type:'Chaos',  threat:'High',hp:50,ac:16,atk:4,xp:8,gold:[15,40],tags:['chaos'],chaos:true,
+    {name:'Chaos Warrior',  type:'Chaos',  threat:'High',hp:63,ac:16,atk:4,xp:8,gold:[15,40],tags:['chaos'],chaos:true,
      damageReduction:2, immuneFire:true, brutalCleave:true},
-    {name:'Vampire Count', type:'Undead', threat:'High',hp:40,ac:14,atk:4,xp:8,gold:[20,60],tags:['undead'],undead:true,lifeLeech:true,
+    {name:'Vampire Count', type:'Undead', threat:'High',hp:50,ac:14,atk:4,xp:8,gold:[20,60],tags:['undead'],undead:true,lifeLeech:true,
      lifeLeechFrac:0.5, hypnoticGaze:true, mistForm:true},
-    {name:'Bloodletter',   type:'Chaos',  threat:'High',hp:44,ac:15,atk:4,xp:8,gold:[25,50],tags:['chaos'],chaos:true,insanityAtk:true,
+    {name:'Bloodletter',   type:'Chaos',  threat:'High',hp:55,ac:15,atk:4,xp:8,gold:[25,50],tags:['chaos'],chaos:true,insanityAtk:true,
      ignoresDef:2, frenzyAtk:{threshold:0.5,newAtk:4,boon:true,extraDmg:true}, daemonicIchor:true},
-    {name:'Skaven Warlord',type:'Skaven', threat:'High',hp:42,ac:13,atk:3,xp:8,gold:[10,30],tags:['skaven'],
+    {name:'Skaven Warlord',type:'Skaven', threat:'High',hp:53,ac:13,atk:3,xp:8,gold:[10,30],tags:['skaven'],
      warlordCommand:true, scurryAway:true, poisonBlade:4},
   ],
   boss1: [
@@ -533,13 +533,13 @@ const ENEMY_POOLS = {
      stampede:true, bloodlust:true, damageReduction:2, belowRoar:true},
   ],
   boss2: [
-    {name:'Varghulf',            type:'Undead Boss', threat:'Boss',hp:100,ac:15,atk:4,xp:15,gold:[200,200],tags:['undead'],undead:true,lifeLeech:true,
+    {name:'Varghulf',            type:'Undead Boss', threat:'Boss',hp:115,ac:15,atk:4,xp:15,gold:[200,200],tags:['undead'],undead:true,lifeLeech:true,
      lifeLeechFrac:0.25, frenzyMulti:{threshold:0.5}, critMajorBleed:true},
-    {name:'Bonebreaker Ratogre', type:'Skaven Boss', threat:'Boss',hp:90,ac:16,atk:3,xp:15,gold:[200,200],tags:['skaven'],insanityAtk:true,
+    {name:'Bonebreaker Ratogre', type:'Skaven Boss', threat:'Boss',hp:105,ac:16,atk:3,xp:15,gold:[200,200],tags:['skaven'],insanityAtk:true,
      damageReduction:3, crushingBlow:true, packLeader:true},
   ],
   boss3: [
-    {name:'Saurian Ancient',type:'Ancient Boss',threat:'Boss',hp:115,ac:15,atk:5,xp:15,gold:[60,150],tags:[],
+    {name:'Saurian Ancient',type:'Ancient Boss',threat:'Boss',hp:145,ac:15,atk:5,xp:15,gold:[60,150],tags:[],
      regen:true, primordialRoar:true, crushingTail:true, damageReduction:2, extinctionPulse:true},
   ],
 };
@@ -3311,10 +3311,6 @@ function handlePlayerAction(room,playerId,payload,ws){
       addLog(room,`🎯 <strong>${player.name}</strong> takes Dead Aim — next attack is a guaranteed critical hit!`,'crit');
       acted=true;
     }
-      addBuff(char,'Paced Strikes',{pacedDmg:true},1);
-      addLog(room,`⚡ <strong>${player.name}</strong> readies Paced Strikes — next weapon hit deals +3d6 bonus damage!`,'crit');
-      acted=true;
-    }
     else if(t==='rallyingCry'){if(char.rallyingUsed){addLog(room,`${player.name}: Rallying Cry already used.`,'sys');return;}char.rallyingUsed=true;room.players.forEach(p=>{if(p.char&&p.char.alive){const h=talentHeal(p.char);p.char.health=Math.min(p.char.maxHealth,p.char.health+h);addLog(room,`${p.name} rallies — +<strong>${h}</strong> HP (1d6+attr×2).`,'heal');}});}
     else if(t==='massHeal'){if(char.massHealUsed){addLog(room,`${player.name}: Mass Heal already used.`,'sys');return;}char.massHealUsed=true;
       const mhDice=char.triage?2:1; // Shallya path healer gets enhanced 2d6
@@ -3443,6 +3439,7 @@ function handlePlayerAction(room,playerId,payload,ws){
       gs.playersActedThisRound=gs.playersActedThisRound.filter(id=>id!==ally.id);
       addLog(room,`⚡ <strong>Battle Orders!</strong> ${player.name} commands ${ally.name} — they may act again!`,'crit');
     }
+  }
   else if(action==='USE_ITEM'){const consumed=useItemLogic(room,player,data.itemName,true);acted=consumed;}
   else if(action==='USE_ITEM_ALLY'){
     const targetPlayer=room.players.find(p=>p.id===data.targetId&&p.char&&p.char.alive);
