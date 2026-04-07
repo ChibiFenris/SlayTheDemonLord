@@ -152,64 +152,64 @@ const EXPERT_PATHS = {
 
 const MASTER_PATHS = {
   // ── MARTIAL: TANK ────────────────────────────────────────────────
-  myrmidon:    { label:'Myrmidon',    hpGain:6, power:0,
-    levelGains:{ 7:['shieldwall','shieldBash'], 8:['evasion','bodyguard'], 9:['toughness','fortressStance'], 10:['perfectDefence','+1str'] },
-    desc:'Fortress Guardian. Shieldwall +2 Def. Shield Bash: stun 1 turn. Evasion: bane on attackers. Bodyguard: redirect hit to self. Toughness -1 dmg. Fortress Stance: below 50% extra -1 dmg. Perfect Defence: negate one hit 1x.' },
+  myrmidon:    { label:'Sentinel',    hpGain:6, power:0,
+    levelGains:{ 7:['shieldwall','shieldBash'], 8:['evasion','bodyguard','+1str'], 9:['toughness','fortressStance'], 10:['perfectDefence','+1str'] },
+    desc:'Sentinel — Fortress Guardian. Shieldwall +2 Def. Shield Bash: stun 1 turn. Evasion: bane on attackers. Bodyguard: redirect hit to self. Toughness -1 dmg. Fortress Stance: below 50% extra -1 dmg. Perfect Defence: negate one hit 1x.' },
 
   // ── MARTIAL: DAMAGE ───────────────────────────────────────────────
-  brute:       { label:'Brute',       hpGain:7, power:0,
-    levelGains:{ 7:['relentless','fortitude'], 8:['combatProwess','vengeancePassive'], 9:['rallyingCry','endure'], 10:['combatExpertise','unstoppable','+1str'] },
-    desc:'Relentless Force. Relentless (L7): hits +1 dmg, misses +1 to-hit, stacks to 5. Fortitude: immune to Bleed/Poison. Combat Prowess +1d6/hit. Vengeance: ally falls = free attack. Rallying Cry heals all. Endure: if hit would reduce you below 35% HP, halve it instead (1x/rest). Combat Expertise +1d6/hit. Unstoppable (L10): survive death once.' },
+  brute:       { label:'Berserker',       hpGain:7, power:0,
+    levelGains:{ 7:['relentless','fortitude'], 8:['combatProwess','vengeancePassive','+1str'], 9:['rallyingCry','endure'], 10:['combatExpertise','unstoppable','+1str'] },
+    desc:'Berserker — Relentless Force. Relentless (L7): hits +1 dmg, misses +1 to-hit, stacks to 5. Fortitude: immune to Bleed/Poison. Combat Prowess +1d6/hit. Vengeance: ally falls = free attack. Rallying Cry heals all. Endure: if hit would reduce you below 35% HP, halve it instead (1x/rest). Combat Expertise +1d6/hit. Unstoppable (L10): survive death once.' },
 
   // ── MARTIAL: COMMANDER ────────────────────────────────────────────
   warlord:     { label:'Warlord',     hpGain:6, power:0,
-    levelGains:{ 7:['rallyingCry','battleOrders'], 8:['warlordAura','devastatingCharge'], 9:['sweepingBlow','intercept'], 10:['killingMomentum','+1str'] },
+    levelGains:{ 7:['rallyingCry','battleOrders'], 8:['warlordAura','devastatingCharge','+1str'], 9:['sweepingBlow','intercept'], 10:['killingMomentum','+1wil'] },
     desc:'Battlefield Commander. Rallying Cry heals all. Battle Orders: give ally free action. Warlord Aura (L8): all allies +1 boon. Devastating Charge: +1d6 + Prone. Sweeping Blow: hits all enemies 75% dmg. Intercept (L9): 1x/combat, enemy hits trigger damage die reroll take lower. Killing Momentum: kill = free attack.' },
 
   // ── MARTIAL: LEGEND ───────────────────────────────────────────────
   champion:    { label:'Champion',    hpGain:5, power:0,
-    levelGains:{ 7:['quickstrike','inspire'], 8:['holyFervor','markHeretic'], 9:['unstoppable','warCry'], 10:['weaponMaster','purgeTheWicked','+1str'] },
+    levelGains:{ 7:['quickstrike','inspire'], 8:['holyFervor','markHeretic','+1str'], 9:['unstoppable','warCry'], 10:['weaponMaster','purgeTheWicked','+1agi'] },
     desc:'Living Legend. Quick Strike (L7): round-1 attack hits twice. Inspire: kills give all allies 2 boons. Holy Fervor: hits deal 1d3+WIL holy and heal you. Mark Heretic: hits mark target, attacks vs marked gain +2 boons. Unstoppable. War Cry: all allies +3 ATK and +3 dmg for 2 rounds. Weapon Master (L10): damage rolls can never do less than half max. Purge: marked kill heals all 1d6.' },
 
   // ── MARTIAL: SHADOW ───────────────────────────────────────────────
   shadowblade: { label:'Shadowblade', hpGain:4, power:0,
-    levelGains:{ 7:['phantomStrike','shadowStep'], 8:['evasion','acrobaticRiposte'], 9:['bladestorm','vanish'], 10:['swiftFeet','flicker','+1agi'] },
+    levelGains:{ 7:['phantomStrike','shadowStep'], 8:['evasion','acrobaticRiposte','+1agi'], 9:['bladestorm','vanish'], 10:['swiftFeet','flicker','+1agi'] },
     desc:'Unseen Blade. Phantom Strike: first attack auto-hits. Shadow Step: first attack extra boon. Evasion: attackers subtract bane d6. Acrobatic Riposte: miss = free counter. Bladestorm: 3 attacks. Vanish: kill = enemies bane vs you. Swift Feet: 2 boons on all attacks. Flicker: negate one hit 1x.' },
 
   // ── MARTIAL: ASSASSIN ─────────────────────────────────────────────
   executioner: { label:'Executioner', hpGain:4, power:0,
-    levelGains:{ 7:['deathblow','cleanup'], 8:['poisonBlade','unrelenting'], 9:['phantomStrike','deadAim'], 10:['bladestorm','flurryBleed','+1agi'] },
+    levelGains:{ 7:['deathblow','cleanup'], 8:['poisonBlade','unrelenting','+1agi'], 9:['phantomStrike','deadAim'], 10:['bladestorm','flurryBleed','+1agi'] },
     desc:'No Survivors. Deathblow: crits apply 8 poison. Cleanup: kill = free attack. Poison Blade +2 stacks/hit. Unrelenting: Bladestorm hits gain +1 boon. Phantom Strike: first attack auto-hits. Dead Aim: declare before attack, hit = crit. Bladestorm: 3 attacks. Flurry Bleed: Bladestorm crits apply Bleed.' },
 
   // ── ARCANE: FIRE + STORM ─────────────────────────────────────────
   transmuter:  { label:'Transmuter',  hpGain:2, power:1,
-    levelGains:{ 7:['burningSoul','transmutedElement'], 8:['lightningIngrained','ballLightning'], 9:['overcast','volatileForm'], 10:['catastrophe','overcharge','+1int'] },
+    levelGains:{ 7:['burningSoul','transmutedElement'], 8:['lightningIngrained','ballLightning','+1int'], 9:['overcast','volatileForm'], 10:['catastrophe','overcharge','+1int'] },
     desc:'Alchemist & Storm. Burning Soul +1d6 on burning. Transmuted Element: change spell type. Lightning Ingrained x2.5 vs weakness. Ball Lightning: kills arc 1d6. Overcast +2d6. Volatile Form: transmuted spells may apply DoT. Catastrophe: 10d6 all. Overcharge: free cast 1x.' },
 
   // ── ARCANE: DEATH + CHAOS ────────────────────────────────────────
   necromancer: { label:'Necromancer', hpGain:2, power:1,
-    levelGains:{ 7:['darkEvoker','lifeDrain'], 8:['metamagic','chaosTouch'], 9:['spellsurge','undyingHunger'], 10:['uncontrolledPower','+1int'] },
+    levelGains:{ 7:['darkEvoker','lifeDrain'], 8:['metamagic','chaosTouch','+1int'], 9:['spellsurge','undyingHunger'], 10:['uncontrolledPower','+1int'] },
     desc:'Death & Chaos. Dark Evoker x2.5 dark. Life Drain: kill heals 1d4. Metamagic: free cast 1x. Chaos Touch: Metamagic triggers random bonus. Spell Surge: free cast 1x. Undying Hunger: DoT kill = free rank-0. Uncontrolled Power: double dice, take 1d6 backlash.' },
 
   // ── ARCANE: PROTECTION + BATTLE ──────────────────────────────────
   abjurer:     { label:'Abjurer',     hpGain:2, power:1,
-    levelGains:{ 7:['shieldwall','counterspell'], 8:['overcast','doubleCharge'], 9:['toughness','ward'], 10:['spellsurge','forceOfWill','+1int'] },
+    levelGains:{ 7:['shieldwall','counterspell'], 8:['overcast','doubleCharge','+1int'], 9:['toughness','ward'], 10:['spellsurge','forceOfWill','+1wil'] },
     desc:'Protection & Battle Mage. Shieldwall +2 Def. Counterspell: negate on-hit ability. Overcast +2d6 (twice per combat). Double Charge: Overcast 2x/combat. Toughness -1 dmg. Ward: all allies +1 Def. Spell Surge: free cast. Force of Will: Overcast spells can stun.' },
 
   // ── ARCANE: SCHOLAR + PINNACLE ───────────────────────────────────
   archmage:    { label:'Archmage',    hpGain:3, power:2,
-    levelGains:{ 7:['spellsurge','arcaneMastery'], 8:['utilityFocus','esotericKnowledge'], 9:['catastrophe','spellEcho'], 10:['metamagic','lingeringMagic','+1int'] },
+    levelGains:{ 7:['spellsurge','arcaneMastery'], 8:['utilityFocus','esotericKnowledge','+1int'], 9:['catastrophe','spellEcho'], 10:['metamagic','lingeringMagic','+1int'] },
     desc:'Arcane Pinnacle. +2 Power. Spell Surge: free cast. Arcane Mastery: +1 Power, know all rank-0. Utility Focus: spells last +1 round. Esoteric Knowledge: use scroll without consuming. Catastrophe: 10d6 all. Spell Echo: half-damage echo 1x. Metamagic. Lingering Magic: DoTs doubled.' },
 
   // ── DIVINE: HEALER + HIGH PRIEST ─────────────────────────────────
   healer_m:    { label:'High Healer', hpGain:5, power:2,
-    levelGains:{ 7:['massHeal','overflowingGrace'], 8:['holyFervor','banish'], 9:['miracleHeal','protectiveBlessing'], 10:['resurrection','sanctify','+1wil'] },
+    levelGains:{ 7:['massHeal','overflowingGrace'], 8:['holyFervor','banish','+1wil'], 9:['miracleHeal','protectiveBlessing'], 10:['resurrection','sanctify','+1wil'] },
     desc:'Blessed & Anointed. +2 Power. Mass Heal. Overflowing Grace: Mass Heal removes debuffs. Holy Fervor: hits deal 1d3+WIL holy and heal you. Banish: chaos/undead loses next action 1x. Miracle Heal: full HP restore. Protective Blessing: +2 Def after heal. Resurrection: fatal hit = heal to half HP + 2 boons. Sanctify: killed chaos/undead cannot trigger death abilities.' },
 
   // ── DIVINE: WAR PRIEST + TEMPLAR ─────────────────────────────────
-  chaplain:    { label:'Chaplain',    hpGain:5, power:1,
-    levelGains:{ 7:['rallyingCry','lastRites'], 8:['holyFervor','blessedBlade'], 9:['massHeal','vigil'], 10:['divineSmite','holyFire','combatProwess','+1str'] },
-    desc:'War Priest & Templar. Rallying Cry heals all. Last Rites: ally falls, rest heal 1 HP. Holy Fervor: hits deal 1d3+WIL holy and heal you. Blessed Blade: ignore DR vs undead/chaos. Mass Heal. Vigil: full-HP allies 1 boon next attack. Divine Smite +3d6 (2x). Holy Fire: Smite applies Burn. Combat Prowess +1d6/hit.' },
+  chaplain:    { label:'Templar',    hpGain:5, power:1,
+    levelGains:{ 7:['rallyingCry','lastRites'], 8:['holyFervor','blessedBlade','+1wil'], 9:['massHeal','vigil'], 10:['divineSmite','holyFire','combatProwess','+1wil'] },
+    desc:'Templar — War Priest. Rallying Cry heals all. Last Rites: ally falls, rest heal 1 HP. Holy Fervor: hits deal 1d3+WIL holy and heal you. Blessed Blade: ignore DR vs undead/chaos. Mass Heal. Vigil: full-HP allies 1 boon next attack. Divine Smite +3d6 (2x). Holy Fire: Smite applies Burn. Combat Prowess +1d6/hit.' },
 
 };
 
