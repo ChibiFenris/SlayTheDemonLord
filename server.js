@@ -73,7 +73,7 @@ const NOVICE_PATHS = {
              trickery:true,         // first hit applies 3 poison, subsequent hits 1
              nimbleRecovery:true,   // once/combat: heal 1d6+AGI×2
              evasion:true,          // passive: all attackers subtract highest bane d6 from d20
-             desc:'Trickery: 3 poison on first hit, 1 on each after. Evasion: 1 bane on all attackers. Nimble Recovery: 1d6+AGI heal (1/combat).' },
+             desc:'Trickery: 4 poison on first hit, 2 on each after. Evasion: 1 bane on all attackers. Nimble Recovery: 1d6+AGI heal (1/combat).' },
 
   // ── MAGICIAN (Bright Wizard) ──────────────────────────────────────
   magician:{ hpGain:2, power:1,    // +1 Power (extra castings)
@@ -812,8 +812,8 @@ function rollAttack(char, enemy, extraBoons=0) {
     }
     if (char.sharpeningStone) { const r=rd(1,6); dmg+=r; dmgParts.push(`+${r} sharpened`); }
     if (char.trickery) {
-      if (!char._trickeryFirstHit) { char._trickeryFirstHit=true; char._trickeryPoisonProc=3; }
-      else { char._trickeryPoisonProc=1; }
+      if (!char._trickeryFirstHit) { char._trickeryFirstHit=true; char._trickeryPoisonProc=4; }
+      else { char._trickeryPoisonProc=2; }
     }
     const dmgBuff=getBuffVal(char,'dmgBonus'); if(dmgBuff){dmg+=dmgBuff;dmgParts.push(`+${dmgBuff} buff`);}
     char.activeBuffs=(char.activeBuffs||[]).filter(b=>!b.consumeOnHit);
@@ -1600,7 +1600,8 @@ function fireEnemyTurn(room, ae) {
 
   const stunned = (ae.activeDebuffs || []).find(d => d.skipTurn);
   if (stunned) {
-    addLog(room, `${ae.name} is stunned and loses its next action!`, 'sys');
+    ae.activeDebuffs = ae.activeDebuffs.filter(d => !d.skipTurn); // consume the stun
+    addLog(room, `💫 <strong>${ae.name}</strong> is stunned — loses its action this turn!`, 'sys');
     advanceTurn(room);
     return;
   }

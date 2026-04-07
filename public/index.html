@@ -1667,6 +1667,7 @@ function renderActions(gs,players,me){
       }
     });
     if(char.catchBreath&&!char.catchBreathUsed) addBtn(g,'Catch Breath','1d6+attr×2 HP','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'catchBreath'}}),false,TALENT_DESCS.catchBreath);
+    if(char.shieldBash&&!char._shieldBashUsed) addBtn(g,'🛡 Shield Bash','Stun enemy','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'shieldBash'}}),false,TALENT_DESCS.shieldBash);
     if(char.nimbleRecovery&&!char.nimbleUsed)   addBtn(g,'Nimble Recovery','1d6+attr×2 HP','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'nimbleRecovery'}}),false,TALENT_DESCS.nimbleRecovery);
     if(char.sharedRecovery&&!char.sharedUsed)   addBtn(g,'Shared Recovery','1d6+attr×2 HP','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'sharedRecovery'}}),false,TALENT_DESCS.sharedRecovery);
     if(char.spellRecovery&&!char.spellRecoveryUsed) addBtn(g,'Spell Recovery','Heal+casting','as-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'spellRecovery'}}),false,TALENT_DESCS.spellRecovery);
@@ -2308,11 +2309,11 @@ function mSheet(name,type,desc,rows,sCls,sLabel,btns=''){
 function mTapTalent(key,char){
   const desc=TALENT_DESCS[key]||key;
   const label=key.replace(/([A-Z])/g,' $1').replace(/^./,s=>s.toUpperCase());
-  const usedMap={catchBreath:char.catchBreathUsed,nimbleRecovery:char.nimbleUsed,sharedRecovery:char.sharedUsed,spellRecovery:char.spellRecoveryUsed,divineSmite:char.divineSmiteUsed,massHeal:char.massHealUsed,resurrection:char.resurrectionUsed,rallyingCry:char.rallyingUsed,spellsurge:char.spellsurgeUsed,metamagic:char.metamagicUsed,catastrophe:char.catastropheUsed,pacedStrikes:char.pacedStrikesUsed,unstoppable:char.unstoppableUsed,overcast:char.overcastUsed};
+  const usedMap={catchBreath:char.catchBreathUsed,shieldBash:char._shieldBashUsed,nimbleRecovery:char.nimbleUsed,sharedRecovery:char.sharedUsed,spellRecovery:char.spellRecoveryUsed,divineSmite:char.divineSmiteUsed,massHeal:char.massHealUsed,resurrection:char.resurrectionUsed,rallyingCry:char.rallyingUsed,spellsurge:char.spellsurgeUsed,metamagic:char.metamagicUsed,catastrophe:char.catastropheUsed,pacedStrikes:char.pacedStrikesUsed,unstoppable:char.unstoppableUsed,overcast:char.overcastUsed};
   const isActive=key in usedMap, isUsed=usedMap[key];
   const sCls=isActive?(isUsed?'m-status-off':'m-status-ok'):'m-status-ok';
   const sLabel=isActive?(isUsed?'Used this combat':'Ready'):'Always active';
-  const activateable={catchBreath:1,nimbleRecovery:1,sharedRecovery:1,spellRecovery:1,divineSmite:1,massHeal:1,resurrection:1,rallyingCry:1,spellsurge:1,metamagic:1,catastrophe:1,pacedStrikes:1,bloodOffering:1};
+  const activateable={catchBreath:1,shieldBash:1,nimbleRecovery:1,sharedRecovery:1,spellRecovery:1,divineSmite:1,massHeal:1,resurrection:1,rallyingCry:1,spellsurge:1,metamagic:1,catastrophe:1,pacedStrikes:1,bloodOffering:1};
   const btns=activateable[key]&&!isUsed
     ?`<div class="m-act-btns"><button class="m-btn-use" onclick="mUseTalent('${key}')">Use ${label}</button><button class="m-btn-sec" onclick="mCloseSheet()">Cancel</button></div>`:'';
   mSheet(label,isActive?'Active talent':'Passive talent',desc,[],sCls,sLabel,btns);
@@ -2629,7 +2630,7 @@ function mRenderGame(gs,players,me){
     {k:'phantomStrike',lbl:'Phantom Strike'},{k:'bladestorm',lbl:'Bladestorm'},{k:'sweepingBlow',lbl:'Sweep Blow'},
     {k:'shadowstep',lbl:'Shadowstep'},{k:'swiftFeet',lbl:'Swift Feet'},{k:'burningSoul',lbl:'Burning Soul'},
     {k:'darkEvoker',lbl:'Dark Evoker'},{k:'lightningIngrained',lbl:'Lightning ×2.5'},{k:'utilityFocus',lbl:'Utility Focus'},
-    {k:'catchBreath',lbl:'Catch Breath',usedKey:'catchBreathUsed'},{k:'nimbleRecovery',lbl:'Nimble Rec.',usedKey:'nimbleUsed'},
+    {k:'catchBreath',lbl:'Catch Breath',usedKey:'catchBreathUsed'},{k:'shieldBash',lbl:'Shield Bash',usedKey:'_shieldBashUsed'},{k:'nimbleRecovery',lbl:'Nimble Rec.',usedKey:'nimbleUsed'},
     {k:'sharedRecovery',lbl:'Shared Rec.',usedKey:'sharedUsed'},{k:'spellRecovery',lbl:'Spell Rec.',usedKey:'spellRecoveryUsed'},
     {k:'divineSmite',lbl:'Divine Smite',usedKey:'divineSmiteUsed'},{k:'massHeal',lbl:'Mass Heal',usedKey:'massHealUsed'},
     {k:'resurrection',lbl:'Resurrection',usedKey:'resurrectionUsed'},{k:'rallyingCry',lbl:'Rallying Cry',usedKey:'rallyingUsed'},
