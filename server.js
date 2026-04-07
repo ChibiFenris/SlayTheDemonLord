@@ -855,8 +855,8 @@ function rollEnemyAttack(enemy, char, hasBoon=false, room=null) {
   if(enemy._godsNextBoon){ hasBoon=true; } // chosenOfTheGods extra boon // plagueFrenzy: player 5+ poison stacks = +1 boon (SotDL max 1 boon die per roll)
   const hasSkavenDiscipline=enemy&&enemy.skavenDiscipline;
   const baneDebuff=getDebuffVal(enemy,'bane');
-  const skipDebuff=(enemy.activeDebuffs||[]).some(d=>d.skipTurn);
-  if(skipDebuff){ enemy.activeDebuffs=enemy.activeDebuffs.filter(d=>!d.skipTurn); return {hit:false,crit:false,dmg:0,dmgRoll:0,critRoll:0,total:0,base:0,skipped:true}; }
+  const skipDebuff=(enemy.activeDebuffs||[]).find(d=>d.skipTurn);
+  if(skipDebuff){ skipDebuff.duration--; if(skipDebuff.duration<=0) enemy.activeDebuffs=enemy.activeDebuffs.filter(d=>!d.skipTurn); return {hit:false,crit:false,dmg:0,dmgRoll:0,critRoll:0,total:0,base:0,skipped:true}; }
   if((char.activeBuffs||[]).some(b=>b.immuneThisRound)){ return {hit:false,crit:false,dmg:0,dmgRoll:0,critRoll:0,total:0,base:0,skipped:true,immune:true}; }
   const evasionBane=char.evasion?1:0;
   const poisonBane=(enemy&&enemy._poisonStacks&&enemy._poisonStacks>=5)?1:0; // Poison threshold: 5+ stacks
@@ -932,8 +932,8 @@ const SELF_TICK_DOTS=new Set(['Grave Grasp','Acid Splash']); // Chilled now hand
 function tickDebuffs(enemy){
   if(!enemy.activeDebuffs) return;
   enemy.activeDebuffs=enemy.activeDebuffs.filter(d=>{
-    // Bleed, Burn, and dotDmg debuffs manage their own expiry in fireEnemyTurn — skip here
-    if(d.name==='Bleed'||d.name==='Burn'||d.dotDmg) return d.duration>0;
+    // Bleed, Burn, dotDmg, and skipTurn debuffs manage their own expiry in fireEnemyTurn — skip here
+    if(d.name==='Bleed'||d.name==='Burn'||d.dotDmg||d.skipTurn) return d.duration>0;
     if(SELF_TICK_DOTS.has(d.name)){ d.duration--; return d.duration>0; }
     d.duration--;
     return d.duration>0;
@@ -1612,8 +1612,9 @@ function fireEnemyTurn(room, ae) {
 
   const stunned = (ae.activeDebuffs || []).find(d => d.skipTurn);
   if (stunned) {
-    ae.activeDebuffs = ae.activeDebuffs.filter(d => !d.skipTurn); // consume the stun
-    addLog(room, `💫 <strong>${ae.name}</strong> is stunned — loses its action this turn!`, 'sys');
+    stunned.duration--;
+    if(stunned.duration<=0) ae.activeDebuffs = ae.activeDebuffs.filter(d => !d.skipTurn); // remove when expired
+    addLog(room, `💫 <strong>${ae.name}</strong> is stunned — loses its action this turn! (${stunned.duration>0?stunned.duration+' turn(s) remaining':'last turn'})`, 'sys');
     advanceTurn(room);
     return;
   }
@@ -3451,7 +3452,7 @@ function handlePlayerAction(room,playerId,payload,ws){
       if(!_sbEnemy){addLog(room,'No enemy to bash!','sys');return;}
       char._shieldBashUsed=true;
       addDebuff(_sbEnemy,'Stunned',{skipTurn:true},2);
-      addLog(room,`🛡 <strong>Shield Bash!</strong> ${player.name} slams shield into ${_sbEnemy.name} — <strong>STUNNED</strong> for 1 turn!`,'crit');
+      addLog(room,`🛡 <strong>Shield Bash!</strong> ${player.name} slams shield into ${_sbEnemy.name} — <strong>STUNNED</strong> for 2 turns!`,'crit');
       acted=true;
     }
     else if(t==='curse'&&!char._curseUsed&&char.curse){
