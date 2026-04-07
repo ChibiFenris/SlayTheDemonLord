@@ -70,11 +70,10 @@ const NOVICE_PATHS = {
 
   // ── ROGUE (Roadwarden) ────────────────────────────────────────────
   rogue:   { hpGain:4, power:0,
-             trickery:true,         // first hit applies 5 poison, subsequent hits 2
+             trickery:true,         // first hit applies 3 poison, subsequent hits 1
              nimbleRecovery:true,   // once/combat: heal 1d6+AGI×2
-             evasion:true,          // passive: all attackers have 1 bane
-             venomOnFirstHit:true,  // passive: first attack each combat applies 3 poison stacks
-             desc:'Trickery: 3 poison on first hit, 1 on each after. Evasion: 1 bane on all attackers. Nimble Recovery: 1d6+AGI heal (1/combat). Venom Touch (2 poison) on first strike.' },
+             evasion:true,          // passive: all attackers subtract highest bane d6 from d20
+             desc:'Trickery: 3 poison on first hit, 1 on each after. Evasion: 1 bane on all attackers. Nimble Recovery: 1d6+AGI heal (1/combat).' },
 
   // ── MAGICIAN (Bright Wizard) ──────────────────────────────────────
   magician:{ hpGain:2, power:1,    // +1 Power (extra castings)
@@ -951,7 +950,7 @@ function applyBurn(enemy, startDice, room, caster=null) {
 function getDebuffVal(enemy, key){ return (enemy.activeDebuffs||[]).filter(d=>d[key]).reduce((s,d)=>s+d[key],0); }
 
 // ─── LEVEL UP & PATHS ────────────────────────────────────────────────────────
-const XP_THRESHOLDS = [0,0,10,20,30,34,40,48,58,70,100]; // index 0..10 = levels 0..10
+const XP_THRESHOLDS = [0,0,8,18,26,34,42,52,64,78,95]; // Lv3@boss1(~18xp), Lv7@boss2(~52xp), Lv10@end
 
 function checkLevelUp(char) {
   if (char.level >= 10) return {leveled:false}; // hard cap at level 10
