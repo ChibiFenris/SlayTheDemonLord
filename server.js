@@ -9,19 +9,7 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocketServer({ noServer: true });
-
-// Explicitly handle WebSocket upgrades only on /ws path
-server.on('upgrade', (request, socket, head) => {
-  const url = new URL(request.url, `http://${request.headers.host}`);
-  if (url.pathname === '/ws') {
-    wss.handleUpgrade(request, socket, head, (ws) => {
-      wss.emit('connection', ws, request);
-    });
-  } else {
-    socket.destroy();
-  }
-});
+const wss = new WebSocketServer({ server });
 
 app.get('/health', (req, res) => res.send('OK'));
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));

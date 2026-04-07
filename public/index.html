@@ -577,7 +577,7 @@ const MASTER_INFO={
   transmuter:  {name:'Transmuter',  gains:'+2 HP, +1 Power. Lv7: Burning Soul (fire +1d6). Lv8: +1 INT. Lv9: Overcast (+2d6 next spell). Lv10: +1 WIL.',desc:'Alters reality. Burning Soul and Overcast for amplified arcane destruction.'},
   stormbringer:{name:'Stormbringer',gains:'+2 HP, +1 Power. Lv7: Lightning Ingrained (storm spells ×2.5 vs Skaven). Lv8: +1 INT. Lv9: Catastrophe (10d6 all). Lv10: +1 INT.',desc:'Storm master. Lightning Ingrained for ×2.5 weakness damage. Catastrophe for 10d6 to all.'},
   thaumaturge: {name:'Thaumaturge', gains:'+2 HP, +1 Power. Lv7: Metamagic (free cast per rest). Lv8: +1 WIL. Lv9: Spell Surge. Lv10: +1 INT.',desc:'Master of Chaos magic. Metamagic and Spell Surge for unpredictable power.'},
-  highpriest:  {name:'High Priest', gains:'+5 HP, +2 Power. Lv7: Holy Aura (+2 Def all allies). Lv8: +1 WIL. Lv9: Miracle Heal (full HP). Lv10: +1 WIL.',desc:"Sigmar's chosen. Holy Aura protects all, Miracle Heal restores anyone to full."},
+  highpriest:  {name:'High Priest', gains:'+5 HP, +2 Power. Lv7: Holy Aura (+2 Def all allies). Lv8: +1 WIL. Lv9: Miracle Heal (full HP). Lv10: +1 WIL.',desc:"Sigmar\'s chosen. Holy Aura protects all, Miracle Heal restores anyone to full."},
   chaplain:    {name:'Chaplain',    gains:'+4 HP, +1 Power. Lv7: Rallying Cry (heal all). Lv8: +1 WIL. Lv9: Mass Heal. Lv10: +1 WIL.',desc:'Battlefield spiritual guide. Rallying Cry and Mass Heal keep the warband fighting.'},
   templar:     {name:'Templar',     gains:'+4 HP, +1 Power. Lv7: Holy Fervor (1 boon vs undead/chaos). Lv8: +1 STR. Lv9: Divine Smite (+3d6). Lv10: +1 WIL.',desc:'Holy warrior-priest. Holy Fervor vs evil and Divine Smite for righteous combat.'},
   exorcist:    {name:'Exorcist',    gains:'+4 HP, +1 Power. Lv7: Holy Fervor. Lv8: +1 WIL. Lv9: Resurrection (fully revive ally). Lv10: +1 WIL.',desc:'Banisher of daemons. Holy Fervor vs chaos, Resurrection to revive fallen.'},
@@ -662,7 +662,7 @@ const TALENT_DESCS={
   foresight:'Active (1×/combat) — Bless yourself or an ally: their next 2 attack rolls reroll, take higher.',
   revelation:'Active (1×/combat) — Curse one enemy: their next 2 attack rolls must reroll, take worse.',
   righteousFury:'Passive — When you kill any enemy, all living allies heal 1d6 + WIL HP.',
-  wrathOfSigmar:'Active (1×/combat) — Call down Sigmar's wrath on one target: deal 6d6 holy damage.',
+  wrathOfSigmar:'Active (1×/combat) — Call down Sigmar\'s wrath on one target: deal 6d6 holy damage.',
   warlordAura:'Passive — All allies gain 1 boon on attacks while you are alive.',
   unstoppable:'Once per run — Survive one killing blow at 1 HP. Does not reset between fights.',
   rallyingCry:'Active (1×/combat) — All living allies heal 1d6 + highest attribute modifier × 2 HP.',
@@ -709,7 +709,7 @@ let ws=null,myId=null,lastState=null,selectedCareer='warrior',pathPickPending=fa
 function connect(){
   clearTimeout(reconnectTimer);
   const proto=location.protocol==='https:'?'wss:':'ws:';
-  const url=`${proto}//${location.host}/ws`;
+  const url=`${proto}//${location.host}`;
   el('conn-msg').textContent='Connecting to '+location.host+'...';
   show('screen-connect');
   try{ ws=new WebSocket(url); }catch(e){ sched('Could not open connection.'); return; }
