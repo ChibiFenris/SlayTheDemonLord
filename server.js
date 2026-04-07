@@ -1467,11 +1467,13 @@ function advanceTurn(room) {
       addLog(room, `--- ${ae.name}'s turn ---`, 'sys');
       broadcastState(room.code); // show "enemy attacking" before delay
       setTimeout(() => {
-        if (!gs.inCombat) return;
-        const stillAlive = (gs.enemies || []).find(e => e && (e.id === cur.id || e.name === cur.name) && e.hp > 0);
-        if (stillAlive) fireEnemyTurn(room, stillAlive);
-        else advanceTurn(room);
-        broadcastState(room.code);
+        try {
+          if (!gs.inCombat) return;
+          const stillAlive = (gs.enemies || []).find(e => e && (e.id === cur.id || e.name === cur.name) && e.hp > 0);
+          if (stillAlive) fireEnemyTurn(room, stillAlive);
+          else advanceTurn(room);
+          broadcastState(room.code);
+        } catch(e){ console.error('Enemy turn error:', e); broadcastState(room.code); }
       }, 800);
     } else {
       advanceTurn(room); // skip dead enemy
@@ -1532,11 +1534,13 @@ function endRound(room) {
     addLog(room, `--- ${first.name}'s turn ---`, 'sys');
     broadcastState(room.code); // show "enemy attacking" before delay
     setTimeout(() => {
-      if (!gs.inCombat) return;
-      const ae = (gs.enemies || []).find(e => e && (e.id === first.id || e.name === first.name) && e.hp > 0);
-      if (ae) fireEnemyTurn(room, ae);
-      else advanceTurn(room);
-      broadcastState(room.code);
+      try {
+        if (!gs.inCombat) return;
+        const ae = (gs.enemies || []).find(e => e && (e.id === first.id || e.name === first.name) && e.hp > 0);
+        if (ae) fireEnemyTurn(room, ae);
+        else advanceTurn(room);
+        broadcastState(room.code);
+      } catch(e){ console.error('Enemy turn error:', e); broadcastState(room.code); }
     }, 800);
   } else {
     gs.playersActedThisRound = gs.playersActedThisRound.filter(id => id !== first.id);

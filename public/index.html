@@ -1992,11 +1992,14 @@ function playTrack(key) {
   const src = pickTrackSrc(key);
   if (!src) return;
 
-  if (audioEl) { audioEl.pause(); audioEl.src = ''; }
-  audioEl = new Audio(src);
-  audioEl.loop = true;
-  audioEl.volume = audioMuted ? 0 : audioVolume;
-  audioEl.play().catch(() => {
+  if (audioEl) { audioEl.pause(); audioEl.src = ''; audioEl = null; }
+  const a = new Audio();
+  a.loop = true;
+  a.volume = audioMuted ? 0 : audioVolume;
+  a.onerror = () => { /* audio file missing — fail silently */ };
+  a.src = src; // set src after onerror so 404s don't throw
+  audioEl = a;
+  a.play().catch(() => {
     document.addEventListener('click', () => {
       if (audioEl && audioEl.paused && !audioMuted) audioEl.play().catch(()=>{});
     }, { once: true });
