@@ -1489,6 +1489,7 @@ function endRound(room) {
   room.players.forEach(p => {
       if (!p.char || !p.char.alive) return;
       tickBuffs(p.char);
+      if (p.char.health <= 0 && p.char.alive) { checkDeath(room, p); } // DoT (Bleed/Burn/Chilled) kill check
       if (p.char._poisonedStacks && p.char._poisonedStacks > 0 && !p.char.fortitude) {
         const _ppd = p.char._poisonedStacks;
         p.char.health = Math.max(0, p.char.health - _ppd);
@@ -1847,26 +1848,27 @@ function fireEnemyTurn(room, ae) {
         if(p.char.fadePassive) p.char._wasAttackedThisRound=true;
         addLog(room, `${ae.name} hits <strong>${p.name}</strong> — <strong class="num-dmg">-${dmg} dmg</strong>${critLabel} [d20:<strong>${r.base}</strong>+atk<strong>${aeProxy.atk>=0?'+':''}${aeProxy.atk}</strong>=<strong>${r.total}</strong> vs Def<strong>${defTotal}</strong>] [${dmgBreak}] → ${p.name} <strong>${p.char.health}</strong>/${p.char.maxHealth} HP`, 'dmg-taken');
 
-        // ── On-hit abilities ──────────────────────────────────────────────
-        if (ae.lifeLeech) {
+        // ── On-hit abilities (skip if player already dead) ───────────────
+        if (!p.char.alive) { checkDeath(room, p); }
+        if (p.char.alive && ae.lifeLeech) {
           const frac = ae.lifeLeechFrac || 0.25;
           if (ae.lifeLeechFrac && ae.lifeLeechFrac <= 0.25) { ae._leechAccum = (ae._leechAccum||0) + dmg; } // accumulate leech for sustain-type (Varghulf)
           else { const l = Math.floor(dmg * frac); ae.hp = Math.min(ae.maxHp, ae.hp+l); addLog(room, `🩸 ${ae.name} leeches <strong>${l}</strong> HP.`, 'chaos'); }
         }
-        if (ae.insanityAtk && d(6) >= 4) { p.char.insanity++; addLog(room, `${p.name} gains 1 Insanity!`, 'chaos'); }
-        if (ae.bloodOnHit && r.hit) { addBuff(p.char,'Bleed',{dotDmg:rd(1,4)},2); addLog(room,`🩸 <strong>Bloodgreed!</strong> ${ae.name} — 1 Bleed!`,'chaos'); }
+        if (p.char.alive && ae.insanityAtk && d(6) >= 4) { p.char.insanity++; addLog(room, `${p.name} gains 1 Insanity!`, 'chaos'); }
+        if (p.char.alive && ae.bloodOnHit && r.hit) { addBuff(p.char,'Bleed',{dotDmg:rd(1,4)},2); addLog(room,`🩸 <strong>Bloodgreed!</strong> ${ae.name} — 1 Bleed!`,'chaos'); }
         if (ae.frenziedAssault && r.hit && ae.hp > ae.maxHp * 0.5) { p.char.health=Math.max(0,p.char.health-4); addLog(room,`⚔ <strong>Frenzied Assault!</strong> +4 bonus damage!`,'chaos'); checkDeath(room,p); }
         if (ae._worshipLifeLeech && r.hit) { ae._worshipLifeLeech=false; const _ll2=Math.ceil(dmg*0.5); ae.hp=Math.min(ae.maxHp,ae.hp+_ll2); addLog(room,`🔱 <strong>Chaos Worship!</strong> Leeches ${_ll2} HP!`,'chaos'); }
         if (ae._worshipBleed && r.hit) { ae._worshipBleed=false; addBuff(p.char,'Bleed',{dotDmg:rd(1,4)},2); addLog(room,`🔱 <strong>Chaos Worship!</strong> ${p.name} Bleeds!`,'chaos'); }
-        if (ae._worshipStun && r.hit) { ae._worshipStun=false; addBuff(p.char,'Stunned',{skipTurn:true},1); addLog(room,`🔱 <strong>Chaos Worship!</strong> ${p.name} STUNNED!`,'chaos'); }
-        if (ae.graveChill) { addBuff(p.char,'Chilled',{bane:1,dotDmg:rd(1,3)},2); addLog(room, `❄ <strong>Grave Chill!</strong> ${p.name} is Chilled — 1d3 dmg/round + 1 bane for 2 rounds!`, 'spell'); }
+        if (ae._worshipStun && r.hit) { ae._worshipStun=false; addBuff(p.char,'Stunned',{skipTurn:true},2); addLog(room,`🔱 <strong>Chaos Worship!</strong> ${p.name} STUNNED!`,'chaos'); }
+        if (p.char.alive && ae.graveChill) { addBuff(p.char,'Chilled',{bane:1,dotDmg:rd(1,3)},2); addLog(room, `❄ <strong>Grave Chill!</strong> ${p.name} is Chilled — 1d3 dmg/round + 1 bane for 2 rounds!`, 'spell'); }
         if (ae.corrodingBite && !p.char._corroded) { p.char._corroded=true; addBuff(p.char,'Corroded',{dmgPenalty:1},1); addLog(room, `🟢 <strong>Corroding Bite!</strong> ${p.name} weakened — -1 damage for 1 round!`, 'chaos'); }
-        if (ae.gutterFighting && r.hit) { p.char._poisonedStacks=(p.char._poisonedStacks||0)+2; if((p.char._poisonedStacks||0)>2){ addBuff(p.char,'Gutter Poison',{atkBane:1},1); addLog(room,`🗡 <strong>Gutter Fighting!</strong> ${p.name} — 2 poison stacks + 1 bane (already poisoned)!`,'chaos'); } else { addLog(room,`🗡 <strong>Gutter Fighting!</strong> ${p.name} poisoned — 2 stacks!`,'chaos'); } }
-        if (ae.virulentBlade && r.hit) { p.char._poisonedStacks=(p.char._poisonedStacks||0)+3; addBuff(p.char,'Plagued',{bane:1,dotDmg:3},2); addLog(room,`☠ <strong>Virulent Blade!</strong> ${ae.name}'s plague blade applies <strong>3 poison stacks</strong> to ${p.name}!`,'chaos'); }
+        if (p.char.alive && ae.gutterFighting && r.hit) { p.char._poisonedStacks=(p.char._poisonedStacks||0)+2; if((p.char._poisonedStacks||0)>2){ addBuff(p.char,'Gutter Poison',{atkBane:1},1); addLog(room,`🗡 <strong>Gutter Fighting!</strong> ${p.name} — 2 poison stacks + 1 bane (already poisoned)!`,'chaos'); } else { addLog(room,`🗡 <strong>Gutter Fighting!</strong> ${p.name} poisoned — 2 stacks!`,'chaos'); } }
+        if (p.char.alive && ae.virulentBlade && r.hit) { p.char._poisonedStacks=(p.char._poisonedStacks||0)+3; addBuff(p.char,'Plagued',{bane:1,dotDmg:3},2); addLog(room,`☠ <strong>Virulent Blade!</strong> ${ae.name}'s plague blade applies <strong>3 poison stacks</strong> to ${p.name}!`,'chaos'); }
         if (ae.hypnoticGaze) { addBuff(p.char,'Hypnotised',{bane:1},1); addLog(room, `👁 <strong>Hypnotic Gaze!</strong> ${p.name} entranced — 1 bane on next attack!`, 'chaos'); }
-        if (ae.crushingTail && r.hit && Math.random()<0.20) { addBuff(p.char,'Stunned',{skipTurn:true},1); addLog(room,`🦎 <strong>Crushing Tail!</strong> ${p.name} is STUNNED by the Saurian's tail sweep!`,'chaos'); }
+        if (p.char.alive && ae.crushingTail && r.hit && Math.random()<0.20) { addBuff(p.char,'Stunned',{skipTurn:true},2); addLog(room,`🦎 <strong>Crushing Tail!</strong> ${p.name} is STUNNED by the Saurian's tail sweep!`,'chaos'); }
         if (ae.crushingTail && false) { addBuff(p.char,'Prone',{bane:1},1); addLog(room, `🦎 <strong>Crushing Tail!</strong> ${p.name} knocked down — 1 bane on next attack!`, 'chaos'); }
-        if (ae.crushingBlow && !ae._crushCooldown) {
+        if (p.char.alive && ae.crushingBlow && !ae._crushCooldown) {
           ae._crushCooldown=2;
           if(p.char._legExtinctionAegis||p.char._legAncientScale){
             addLog(room,`🛡 Crushing Blow absorbed by ${p.name}'s legendary armour!`,'sys');
@@ -1876,22 +1878,22 @@ function fireEnemyTurn(room, ae) {
             addLog(room,`🛡 Crushing Blow! ${p.name}'s Gromril Plate absorbs the stun!`,'sys');
           } else {
             if(p.char._armorFlatDR) p.char._dwarfForgedStunUsed=true;
-            addBuff(p.char,'Stunned',{skipTurn:true},1);
+            addBuff(p.char,'Stunned',{skipTurn:true},2);
             addLog(room,`💥 <strong>Crushing Blow!</strong> ${p.name} is STUNNED and loses their next action!`,'chaos');
           }
         }
         const _gw=(ae.activeBuffs||[]).find(b=>b.damageReduction); if(_gw&&dmg>0) dmg=Math.max(1,Math.floor(dmg*(1-_gw.damageReduction)));
         if (ae.brutalCleave && r.hit && Math.random()<0.25) { addBuff(p.char,'Bleed',{dotDmg:rd(1,4)},2); addBuff(p.char,'Bleed',{dotDmg:rd(1,4)},2); addLog(room,`⚔ <strong>Brutal Cleave!</strong> ${ae.name} gouges ${p.name} — 2 Bleed stacks!`,'chaos'); }
-        if(ae.daemonicIchor && r.hit && Math.random()<0.25){ const _di=rd(1,6); const _atk=room.players.find(q=>q.char&&q.char.alive); if(_atk){_atk.char.health=Math.max(0,_atk.char.health-_di); addLog(room,`💥 <strong>Daemonic Ichor!</strong> Chaos burns ${_atk.name} — <strong class="num-dmg">-${_di}</strong>!`,'chaos'); checkDeath(room,_atk);} }
+        if(p.char.alive && ae.daemonicIchor && r.hit && Math.random()<0.25){ const _di=rd(1,6); const _atk=room.players.find(q=>q.char&&q.char.alive); if(_atk){_atk.char.health=Math.max(0,_atk.char.health-_di); addLog(room,`💥 <strong>Daemonic Ichor!</strong> Chaos burns ${_atk.name} — <strong class="num-dmg">-${_di}</strong>!`,'chaos'); checkDeath(room,_atk);} }
         if (ae.critMajorBleed && r.hit) { addBuff(p.char,'Bleed',{dotDmg:rd(1,4)},2); addLog(room, `🩸 <strong>Frenzied Rending!</strong> ${p.name} is Bleeding (1d4/round for 2 rounds)!`, 'chaos'); }
         if (ae.gutterFighting && r.hit) { p.char._poisonedByGutter=(p.char._poisonedByGutter||0)+2; addBuff(p.char,'Gutter Poison',{bane:1,dotDmg:2},2); addLog(room,`🗡 <strong>Gutter Fighting!</strong> ${p.name} poisoned — 2 stacks, 1 bane!`,'chaos'); }
-        if (ae.skavencunning && r.hit) { p.char._poisonedStacks=(p.char._poisonedStacks||0)+2; addLog(room,`🐀 <strong>Skaven Cunning!</strong> ${ae.name} poisons ${p.name} — 2 poison stacks!`,'chaos'); }
+        if (p.char.alive && ae.skavencunning && r.hit) { p.char._poisonedStacks=(p.char._poisonedStacks||0)+2; addLog(room,`🐀 <strong>Skaven Cunning!</strong> ${ae.name} poisons ${p.name} — 2 poison stacks!`,'chaos'); }
         // chaosWorship buff application
         if (r.hit) {
           if(ae._cw_lifeLeechNext){ ae._cw_lifeLeechNext=false; const lh=Math.ceil(r.dmg/2); ae.hp=Math.min(ae.maxHp,(ae.hp||0)+lh); addLog(room,`💉 <strong>Dark Blessing!</strong> ${ae.name} leeches ${lh} HP!`,'chaos'); }
           if(ae._cw_bleedNext){ ae._cw_bleedNext=false; addBuff(p.char,'Bleed',{dotDmg:rd(1,3)},2); addLog(room,`🩸 <strong>Dark Blessing!</strong> ${p.name} is Bleeding!`,'chaos'); }
           if(ae._cw_boonNext){ ae._cw_boonNext=false; } // consumed — boon was already factored in atk bonus (retroactive note)
-          if(ae._cw_stunNext){ ae._cw_stunNext=false; addBuff(p.char,'Stunned',{skipTurn:true},1); addLog(room,`💫 <strong>Dark Blessing!</strong> ${p.name} is STUNNED!`,'chaos'); }
+          if(ae._cw_stunNext){ ae._cw_stunNext=false; addBuff(p.char,'Stunned',{skipTurn:true},2); addLog(room,`💫 <strong>Dark Blessing!</strong> ${p.name} is STUNNED!`,'chaos'); }
           if(ae._cw_baneNext){ ae._cw_baneNext=false; addBuff(p.char,'Cursed',{bane:1},2); addLog(room,`⬇ <strong>Dark Blessing!</strong> ${p.name} has 1 bane for 2 rounds!`,'chaos'); }
         }
         if (ae.bloodOnHit && r.hit) { addBuff(p.char,'Bleed',{dotDmg:rd(1,3)},2); addLog(room,`🩸 <strong>Blood Frenzy!</strong> ${ae.name} gores ${p.name} — 1 Bleed stack!`,'chaos'); }
@@ -2599,7 +2601,7 @@ _te.hp=Math.max(0,_te.hp-dmg);addLog(room,`${player.name} throws Flask of Oil �
             if(ally){const heal=rd(1,6);ally.char.health=Math.min(ally.char.maxHealth,ally.char.health+heal);addLog(room,`💀 Winds of Death restores <strong>${heal}</strong> HP to ${ally.name}!`,'heal');}
           }
         }
-        if(spell.boltStorm){ alive2.filter(e=>e&&e.hp>0).forEach(e=>{ addDebuff(e,'Bolt-Stunned',{skipTurn:true},1); addLog(room,`⚡ Bolt Storm stuns <strong>${e.name}</strong>!`,'spell'); }); }
+        if(spell.boltStorm){ alive2.filter(e=>e&&e.hp>0).forEach(e=>{ addDebuff(e,'Bolt-Stunned',{skipTurn:true},2); addLog(room,`⚡ Bolt Storm stuns <strong>${e.name}</strong>!`,'spell'); }); }
         // chainReaction 25% handled below after spell resolves
           if(char.chainReaction && targets.some(_t=>_t.hp<=0)){
           const adj=(gs.enemies||[]).find(e=>e&&e.hp>0&&!targets.includes(e));
@@ -3404,7 +3406,7 @@ function handlePlayerAction(room,playerId,payload,ws){
       if(spell.stunCheck){
         const stunRoll=d(20);
         addLog(room,`⚡ Stun check: d20=${stunRoll} (need 15+)...`,'spell');
-        if(stunRoll>=15){addDebuff(spellTarget,'Stunned',{skipTurn:true},1);addLog(room,`💥 ${spellTarget.name} is STUNNED — loses next action!`,'crit');}
+        if(stunRoll>=15){addDebuff(spellTarget,'Stunned',{skipTurn:true},2);addLog(room,`💥 ${spellTarget.name} is STUNNED — loses next action!`,'crit');}
       }
       if(spell.lightningDoubleCheck){
         const dblRoll=d(20);
@@ -3454,7 +3456,7 @@ function handlePlayerAction(room,playerId,payload,ws){
       const _sbEnemy=getTargetEnemy(gs);
       if(!_sbEnemy){addLog(room,'No enemy to bash!','sys');return;}
       char._shieldBashUsed=true;
-      addDebuff(_sbEnemy,'Stunned',{skipTurn:true},1);
+      addDebuff(_sbEnemy,'Stunned',{skipTurn:true},2);
       addLog(room,`🛡 <strong>Shield Bash!</strong> ${player.name} slams shield into ${_sbEnemy.name} — <strong>STUNNED</strong> for 1 turn!`,'crit');
       acted=true;
     }
