@@ -3553,4 +3553,4 @@ wss.on('connection',ws=>{
 });
 
 const PORT=process.env.PORT||3000;
-server.listen(PORT,'0.0.0.0',()=>{ console.error(`Shadows Over Reikland on 0.0.0.0:${PORT}`); });
+server.listen(PORT,'0.0.0.0',()=>{ console.log(`Shadows Over Reikland on 0.0.0.0:${PORT}`); });
