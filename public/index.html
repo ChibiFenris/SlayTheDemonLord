@@ -131,6 +131,12 @@ input::placeholder{color:var(--text-dim);font-style:italic;}
 .e-status-box{margin-top:5px;display:flex;flex-wrap:wrap;gap:3px;justify-content:flex-end;}
 .e-status-chip{font-size:11px;font-family:'IM Fell English',serif;padding:3px 7px;border-radius:3px;display:inline-flex;align-items:center;gap:2px;border:1px solid;}
 .e-chip-dot{background:rgba(180,30,30,.25);color:#ff7070;border-color:rgba(200,50,50,.4);}
+.e-chip-clickable{cursor:pointer;position:relative;transition:opacity .12s;}
+.e-chip-clickable:hover{opacity:.8;}
+#debuff-tooltip{display:none;position:fixed;z-index:9999;max-width:240px;background:#1a1310;border:1px solid rgba(200,120,40,.4);border-radius:8px;padding:9px 12px;font-family:'IM Fell English',serif;pointer-events:none;}
+#debuff-tooltip .dtt-name{font-size:13px;font-weight:600;color:var(--gold-bright);margin-bottom:4px;}
+#debuff-tooltip .dtt-desc{font-size:11px;color:#c8b89a;line-height:1.5;}
+#debuff-tooltip .dtt-mech{font-size:10px;color:#a09070;margin-top:4px;font-style:italic;}
 .e-chip-debuff{background:rgba(100,40,160,.25);color:#c080ff;border-color:rgba(130,60,200,.4);}
 .e-chip-weak{background:rgba(160,100,0,.2);color:#ffaa44;border-color:rgba(180,120,0,.3);}
 .e-chip-tag{background:rgba(30,30,80,.2);color:var(--gold);border-color:rgba(50,50,120,.3);}
@@ -394,6 +400,7 @@ body.ui-mobile #screen-connect{padding:8px;}
 <div id="app">
 <button id="ui-toggle" onclick="toggleUI()" title="Switch between mobile and desktop UI">📱 Mobile UI</button>
 <div id="m-death-overlay"><div class="death-title" id="death-title">The Warband Has Fallen</div><div class="death-sub" id="death-sub"></div><div class="death-blow" id="death-blow"></div><div class="death-players" id="death-players"></div></div>
+<div id="debuff-tooltip"><div class="dtt-name" id="dtt-name"></div><div class="dtt-desc" id="dtt-desc"></div><div class="dtt-mech" id="dtt-mech"></div></div>
 <div id="item-popout"><span class="ip-close" onclick="closeItemPopout()">✕</span><div id="ip-content"></div></div>
 <div id="m-overlay" onclick="mCloseSheet()"></div>
 <div id="m-sheet">
@@ -769,6 +776,69 @@ const SPELL_DESCS={
 };
 
 
+
+// ─── DEBUFF TOOLTIPS ──────────────────────────────────────────────────────────
+const DEBUFF_INFO = {
+  // DoTs
+  'Bleed':       {icon:'🩸',desc:'Deals 1d3 damage per round. Stacks fade each round.',mech:'Stacks: each stack = 1d3 damage per tick. Applied by slashing attacks and fighter talents.'},
+  'Burn':        {icon:'🔥',desc:'Deals fire damage per round. Fades over multiple rounds.',mech:'Starts at 1-3d6 fire damage per tick, losing 1 die each round until gone. Re-applying resets duration.'},
+  'Poison':      {icon:'☠',desc:'Deals 1d3 damage per stack per round. 5+ stacks impose 1 bane on attacks.',mech:'Each stack = 1d3 damage per turn. 5+ stacks: attacker subtracts highest bane d6 from d20. Does not fade on its own.'},
+  'Chilled':     {icon:'❄',desc:'Deals 1d3 cold damage per round. Target attacks with 1 bane.',mech:'DoT + bane lasts 2 rounds. Applied by death magic.'},
+  // Control
+  'Stunned':     {icon:'💫',desc:'Cannot act this turn.',mech:'Target loses their next action entirely. Applied by Shield Bash and some spells.'},
+  'Prone':       {icon:'⬇',desc:'Knocked down. Attackers gain 1 boon vs this target.',mech:'Applied by Devastating Charge. Target can stand on their action.'},
+  'Frightened':  {icon:'😱',desc:'Attacks are made with 1 bane.',mech:'Subtract highest bane d6 from d20 on all attacks. Applied by some chaos abilities.'},
+  'Intercepted': {icon:'🛡',desc:'Must reroll damage die, take the lower result.',mech:'Applied by Intercept (Warlord L9). Lasts 1 round, affects all attacks.'},
+  'Rattled':     {icon:'😰',desc:'Temporary debuff — clears when an enemy is slain.',mech:'Applied by some enemy abilities. Removed when any enemy dies.'},
+  // Curse/Mark
+  'Cursed':      {icon:'🌙',desc:'Attacks vs this target gain +1 boon and deal +1 bonus damage.',mech:'Applied by Curse (Warlock L3). Lasts until the target dies.'},
+  'Evil Eye':    {icon:'👁',desc:'This target attacks with 2 banes for 3 rounds.',mech:'Applied by Evil Eye (Warlock L3). Hexed targets take +4 damage.'},
+  'Marked':      {icon:'⚖',desc:'Attacks vs this target gain +2 boons.',mech:'Applied by Mark Heretic (Champion L8). Lasts until death.'},
+  'Revelation':  {icon:'📖',desc:'Next 2 attacks must reroll, take worse result.',mech:'Applied by Revelation (Druid L6). Each attack consumes 1 charge.'},
+  'Vine Snare':  {icon:'🌿',desc:'Rooted — cannot act this round.',mech:'Applied by Entangle (Druid L5). Lasts 1 round.'},
+  // Debuffs
+  'Intercepted': {icon:'🛡',desc:'Reroll damage die, take the lower result for 1 round.',mech:'Applied by Intercept (Warlord). Free action, affects all enemies.'},
+  'Bane':        {icon:'⬇',desc:'Attacks subtract the highest bane d6 from the d20 roll.',mech:'Each bane = roll 1d6, subtract highest from d20.'},
+  'Sundered':    {icon:'💥',desc:'Armour cracked — Defence reduced by 2.',mech:'Applied by Warhammer crits. Permanent for this combat.'},
+  'Insanity':    {icon:'🌀',desc:'Each attack hit applies a stacking penalty.',mech:'Applied by Bloodletter attacks. Stacks reduce ally effectiveness.'},
+};
+
+const BUFF_INFO = {
+  'War Cry ATK': {icon:'📣',desc:'+3 to all attack rolls for 2 rounds.',mech:'Applied by War Cry (Champion L9). Free action, affects whole party.'},
+  'War Cry DMG': {icon:'📣',desc:'+3 bonus damage on all hits for 2 rounds.',mech:'Applied by War Cry (Champion L9). Free action, affects whole party.'},
+  'Triage Regen':{icon:'💉',desc:'Regenerate 1d6 HP at the start of each round.',mech:'Applied by Triage (Healer L3). Lasts 2 rounds.'},
+  'Sacred Ground':{icon:'⛪',desc:'Regenerate 1d6 HP per round.',mech:'Applied by Sacred Ground (Healer L6). Lasts 2 rounds.'},
+  'Inspired':    {icon:'👑',desc:'+2 boons on next action.',mech:'Applied by Inspire (Champion L7) on kills.'},
+  'Overload':    {icon:'💥',desc:'Next attack spell casts twice.',mech:'Applied by Overload (Sorcerer L6). No action cost.'},
+  'Druids Fury': {icon:'🌿',desc:'+1d6 damage and +2 boons on attacks. Hits apply 2 Bleed.',mech:'Applied by Druid\'s Fury (Druid L6). Lasts 2 rounds.'},
+  'Resurrection':{icon:'✝',desc:'Next fatal hit heals to half HP + 2 boons instead.',mech:'Applied by Resurrection (Healer L5). 1×/combat.'},
+  'Perfect Defence':{icon:'🛡',desc:'Immune to all damage this round.',mech:'Applied by Perfect Defence (Sentinel L10). No action cost, 1×/combat.'},
+  'Foresight':   {icon:'👁',desc:'Next 2 attacks add a boon d6, take the higher result.',mech:'Applied by Foresight (Druid L4). 1×/combat.'},
+  'Vigil':       {icon:'🙏',desc:'+1 boon while at full HP.',mech:'Applied by Vigil (Templar L9). Passive aura.'},
+};
+
+function showDebuffTip(name, isEnemy, evt) {
+  const info = DEBUFF_INFO[name] || BUFF_INFO[name];
+  if (!info) return;
+  const tt = document.getElementById('debuff-tooltip');
+  document.getElementById('dtt-name').textContent = info.icon + ' ' + name;
+  document.getElementById('dtt-desc').textContent = info.desc;
+  document.getElementById('dtt-mech').textContent = info.mech;
+  tt.style.display = 'block';
+  positionTooltip(tt, evt);
+}
+function positionTooltip(tt, evt) {
+  const x = evt.clientX, y = evt.clientY;
+  const w = window.innerWidth, h2 = window.innerHeight;
+  tt.style.left = (x + 12 + 240 > w ? x - 252 : x + 12) + 'px';
+  tt.style.top  = (y + 12 + 120 > h2 ? y - 130 : y + 12) + 'px';
+}
+function hideDebuffTip() { document.getElementById('debuff-tooltip').style.display='none'; }
+document.addEventListener('mousemove', function(e) {
+  const tt = document.getElementById('debuff-tooltip');
+  if (tt.style.display==='block') positionTooltip(tt, e);
+});
+
 // ─── WS ───────────────────────────────────────────────────────────────────────
 let ws=null,myId=null,lastState=null,selectedCareer='warrior',pathPickPending=false,reconnectTimer=null;
 
@@ -1073,14 +1143,14 @@ function renderBattle(gs,players,me){
       ?`<button class="btn" style="font-size:9px;padding:2px 6px;margin-top:3px" onclick="send('PLAYER_ACTION',{action:'TARGET_ENEMY',data:{idx:${idx}}})">Target</button>`
       :enemies.length>1?'<div style="font-size:9px;color:var(--gold);margin-top:2px">▶ Targeted</div>':'';
     const dotChips=[];
-    if(e._poisonStacks&&e._poisonStacks>0) dotChips.push(`<span class="e-status-chip e-chip-dot">☠ Poison ×${e._poisonStacks}</span>`);
+    if(e._poisonStacks&&e._poisonStacks>0) dotChips.push(`<span class="e-status-chip e-chip-dot e-chip-clickable" onmouseenter="showDebuffTip('Poison',true,event)" onmouseleave="hideDebuffTip()">☠ Poison ×${e._poisonStacks}</span>`);
     (e.activeDebuffs||[]).forEach(d=>{
-      if(d.dotDmg) dotChips.push(`<span class="e-status-chip e-chip-dot">${d.name} ${d.dotDmg}dmg ×${d.duration}r</span>`);
+      if(d.dotDmg) dotChips.push(`<span class="e-status-chip e-chip-dot e-chip-clickable" onmouseenter="showDebuffTip('${d.name}',true,event)" onmouseleave="hideDebuffTip()">${d.name} ${d.dotDmg}dmg ×${d.duration}r</span>`);
     });
     const debuffChips=(e.activeDebuffs||[]).filter(d=>!d.dotDmg).map(d=>{
       const icons={'Blinded':'👁','Stunned':'💫','Slowed':'❄','Figment':'👻','Glamer (miss)':'✨','Vine Snare':'🌿','Enervated':'💔'};
       const icon=icons[d.name]||'⚠';
-      return `<span class="e-status-chip e-chip-debuff">${icon} ${d.name} ×${d.duration}r</span>`;
+      return `<span class="e-status-chip e-chip-debuff e-chip-clickable" onmouseenter="showDebuffTip('${d.name}',true,event)" onmouseleave="hideDebuffTip()">${icon} ${d.name} ×${d.duration}r</span>`;
     });
     const tagChips=(e.tags||[]).map(t=>{
       const tc={skaven:'🐀 Skaven',chaos:'☠ Chaos',undead:'💀 Undead',beast:'🐗 Beast'};
@@ -1227,7 +1297,7 @@ function buildCard(p,gs,isMe){
       const activeB=c.activeBuffs&&c.activeBuffs.length?c.activeBuffs.map(b=>`<span class="cond" style="color:#80d080">${b.name}(${b.duration}r)</span>`).join(''):'';
       return tags.length?`<div style="display:flex;flex-wrap:wrap;gap:2px;margin-top:3px">${tags.map(t=>`<span style="font-size:9px;background:var(--panel2);border-radius:3px;padding:1px 4px;color:var(--text-dim)">${t}</span>`).join('')}</div>`:'';
     })()}
-    <div class="cond-row">${(c.conditions||[]).map(cd=>`<span class="cond">${cd}</span>`).join('')}${(c.activeBuffs||[]).map(b=>`<span class="cond" style="color:#80d080;font-size:9px">${b.name}(${b.duration}r)</span>`).join('')}${c.luckyPendant?'<span class="cond" style="color:#e8c050">Lucky</span>':''}${c.sharpeningStone?'<span class="cond" style="color:#c0a0e0">Sharp</span>':''}</div>
+    <div class="cond-row">${(c.conditions||[]).map(cd=>`<span class="cond e-chip-clickable" onmouseenter="showDebuffTip('${cd}',false,event)" onmouseleave="hideDebuffTip()">${cd}</span>`).join('')}${(c.activeBuffs||[]).map(b=>`<span class="cond e-chip-clickable" style="color:#80d080;font-size:9px" onmouseenter="showDebuffTip('${b.name}',false,event)" onmouseleave="hideDebuffTip()">${b.name}(${b.duration}r)</span>`).join('')}${c.luckyPendant?'<span class="cond" style="color:#e8c050">Lucky</span>':''}${c.sharpeningStone?'<span class="cond" style="color:#c0a0e0">Sharp</span>':''}</div>
     ${!c.alive?'<div class="dead-label">FALLEN</div>':''}`;
   return div;
 }

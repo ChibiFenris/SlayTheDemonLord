@@ -507,13 +507,13 @@ const ENEMY_POOLS = {
      corrodingBite:true},
   ],
   mid: [
-    {name:'Chaos Marauder',    type:'Chaos',  threat:'Moderate',hp:30,ac:13,atk:3,xp:5,gold:[10,25],tags:['chaos'],chaos:true,
+    {name:'Chaos Marauder',    type:'Chaos',  threat:'Moderate',hp:30,ac:13,atk:3,xp:3,gold:[10,25],tags:['chaos'],chaos:true,
      frenziedAssault:true, chaosCrit:true},
-    {name:'Skaven Stormvermin',type:'Skaven', threat:'Moderate',hp:24,ac:16,atk:3,xp:5,gold:[8,20], tags:['skaven'],
+    {name:'Skaven Stormvermin',type:'Skaven', threat:'Moderate',hp:24,ac:16,atk:3,xp:3,gold:[8,20], tags:['skaven'],
      damageReduction:1, gutterFighting:true},
-    {name:'Wight',             type:'Undead', threat:'Moderate',hp:28,ac:11,atk:3,xp:5,gold:[5,15], tags:['undead'],undead:true,lifeLeech:true,
+    {name:'Wight',             type:'Undead', threat:'Moderate',hp:28,ac:11,atk:3,xp:3,gold:[5,15], tags:['undead'],undead:true,lifeLeech:true,
      graveChill:true},
-    {name:'Plague Monk',       type:'Chaos',  threat:'Moderate',hp:22,ac:13,atk:3,xp:5,gold:[5,15], tags:['chaos'],chaos:true,
+    {name:'Plague Monk',       type:'Chaos',  threat:'Moderate',hp:22,ac:13,atk:3,xp:3,gold:[5,15], tags:['chaos'],chaos:true,
      virulentBlade:true, frenzyAtk:{threshold:0.5,newAtk:4}},
   ],
   high: [
