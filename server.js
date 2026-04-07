@@ -110,7 +110,7 @@ const EXPERT_PATHS = {
   // ── ROGUE: ASSASSIN + THIEF ───────────────────────────────────────
   assassin:    { label:'Assassin',    hpGain:3, power:0,
     levelGains:{ 3:['poisonBlade','shadowOpening'], 4:['venomOnFirstHit','quickHands','+1agi'], 5:['assassination','deadMansHand'], 6:['exploitWeakness','deathblow','+1agi'] },
-    desc:"Shadow Killer. Poison Blade: every hit +2 poison stacks. Shadow Opening: first attack extra boon. Venom on First Hit (L4): first hit applies 5 poison stacks. Quick Hands: free item use. Assassination: enemy below 50% HP = +1d6+3 dmg. Dead Man's Hand: kill heals 2d6+AGI. Exploit Weakness: boon vs 5+ stacks. Deathblow: hits apply 4 poison, crits 8." },
+    desc:"Shadow Killer. Poison Blade: every hit +2 poison stacks. Shadow Opening: first attack extra boon. Venom on First Hit (L4): first hit applies 4 poison stacks. Quick Hands: free item use. Assassination: enemy below 50% HP = +1d6+3 dmg. Dead Man's Hand: kill heals 2d6+AGI. Exploit Weakness: boon vs 5+ stacks. Deathblow: hits apply 2 poison, crits 4." },
 
   // ── ARCANE: ELEMENTALIST + WIZARD ────────────────────────────────
   elementalist:{ label:'Wizard',hpGain:2, power:1,
@@ -497,49 +497,49 @@ function getSpellsForPower(traditionId, power) {
 // ─── ENEMY POOLS ─────────────────────────────────────────────────────────────
 const ENEMY_POOLS = {
   low: [
-    {name:'Skaven Clanrat',  type:'Skaven',  threat:'Low', hp:13,ac:11,atk:1,xp:3,gold:[2,8],  tags:['skaven'],
+    {name:'Skaven Clanrat',  type:'Skaven',  threat:'Low', hp:13,ac:11,atk:1,xp:1,gold:[2,8],  tags:['skaven'],
      packInstinct:true},
-    {name:'Beastman Gor',    type:'Beastmen',threat:'Low', hp:16,ac:12,atk:2,xp:3,gold:[3,10], tags:['beast'],chaos:true,
+    {name:'Beastman Gor',    type:'Beastmen',threat:'Low', hp:16,ac:12,atk:2,xp:1,gold:[3,10], tags:['beast'],chaos:true,
      recklessCharge:true, bloodOnHit:true},
-    {name:'Undead Skeleton', type:'Undead',  threat:'Low', hp:18,ac:10,atk:1,xp:3,gold:[0,5],  tags:['undead'],undead:true,
+    {name:'Undead Skeleton', type:'Undead',  threat:'Low', hp:18,ac:10,atk:1,xp:1,gold:[0,5],  tags:['undead'],undead:true,
      undying:true, weakToBlunt:true},
-    {name:'Mutant Thug',     type:'Cultist', threat:'Low', hp:11,ac:13,atk:2,xp:3,gold:[5,15], tags:['chaos'],chaos:true,
+    {name:'Mutant Thug',     type:'Cultist', threat:'Low', hp:11,ac:13,atk:2,xp:1,gold:[5,15], tags:['chaos'],chaos:true,
      corrodingBite:true, mutate:true},
   ],
   mid: [
-    {name:'Chaos Marauder',    type:'Chaos',  threat:'Moderate',hp:36,ac:13,atk:3,xp:3,gold:[10,25],tags:['chaos'],chaos:true,
+    {name:'Chaos Marauder',    type:'Chaos',  threat:'Moderate',hp:36,ac:13,atk:3,xp:2,gold:[10,25],tags:['chaos'],chaos:true,
      frenziedAssault:true, chaosWorship:true},
-    {name:'Skaven Stormvermin',type:'Skaven', threat:'Moderate',hp:29,ac:16,atk:3,xp:3,gold:[8,20], tags:['skaven'],
+    {name:'Skaven Stormvermin',type:'Skaven', threat:'Moderate',hp:29,ac:16,atk:3,xp:2,gold:[8,20], tags:['skaven'],
      skavenDiscipline:true, gutterFighting:true},
-    {name:'Wight',             type:'Undead', threat:'Moderate',hp:34,ac:11,atk:3,xp:3,gold:[5,15], tags:['undead'],undead:true,lifeLeech:true,
+    {name:'Wight',             type:'Undead', threat:'Moderate',hp:34,ac:11,atk:3,xp:2,gold:[5,15], tags:['undead'],undead:true,lifeLeech:true,
      graveChill:true},
-    {name:'Plague Monk',       type:'Chaos',  threat:'Moderate',hp:27,ac:13,atk:3,xp:3,gold:[5,15], tags:['chaos'],chaos:true,
+    {name:'Plague Monk',       type:'Chaos',  threat:'Moderate',hp:27,ac:13,atk:3,xp:2,gold:[5,15], tags:['chaos'],chaos:true,
      virulentBlade:true, plagueFrenzy:true},
   ],
   high: [
-    {name:'Chaos Warrior',  type:'Chaos',  threat:'High',hp:63,ac:16,atk:4,xp:8,gold:[15,40],tags:['chaos'],chaos:true,
+    {name:'Chaos Warrior',  type:'Chaos',  threat:'High',hp:63,ac:16,atk:4,xp:4,gold:[15,40],tags:['chaos'],chaos:true,
      immuneFire:true, brutalCleave:true, chosenOfTheGods:true, _godsUsed:false},
-    {name:'Vampire Count', type:'Undead', threat:'High',hp:50,ac:14,atk:4,xp:8,gold:[20,60],tags:['undead'],undead:true,lifeLeech:true,
+    {name:'Vampire Count', type:'Undead', threat:'High',hp:50,ac:14,atk:4,xp:4,gold:[20,60],tags:['undead'],undead:true,lifeLeech:true,
      lifeLeechFrac:0.5, hypnoticGaze:true, mistForm:true},
-    {name:'Bloodletter',   type:'Chaos',  threat:'High',hp:55,ac:15,atk:4,xp:8,gold:[25,50],tags:['chaos'],chaos:true,insanityAtk:true,
+    {name:'Bloodletter',   type:'Chaos',  threat:'High',hp:55,ac:15,atk:4,xp:4,gold:[25,50],tags:['chaos'],chaos:true,insanityAtk:true,
      ignoresDef:2, frenzyAtk:{threshold:0.5,newAtk:4,boon:true,extraDmg:true}, daemonicIchor:true},
-    {name:'Skaven Warlord',type:'Skaven', threat:'High',hp:53,ac:13,atk:3,xp:8,gold:[10,30],tags:['skaven'],
+    {name:'Skaven Warlord',type:'Skaven', threat:'High',hp:53,ac:13,atk:3,xp:4,gold:[10,30],tags:['skaven'],
      warlordCommand:true, scurryAway:true, poisonBlade:4},
   ],
   boss1: [
-    {name:'Skaven Warlord Gnashteeth',type:'Skaven Boss', threat:'Boss',hp:80,ac:15,atk:2,xp:15,gold:[30,80], tags:['skaven'],
+    {name:'Skaven Warlord Gnashteeth',type:'Skaven Boss', threat:'Boss',hp:80,ac:15,atk:2,xp:5,gold:[30,80], tags:['skaven'],
      skavencunning:true, seethingRage:true, packBoss:true},
-    {name:'Beastlord Kragthor',       type:'Beastmen Boss',threat:'Boss',hp:72,ac:16,atk:2,xp:15,gold:[25,70], tags:['beast'],chaos:true,
+    {name:'Beastlord Kragthor',       type:'Beastmen Boss',threat:'Boss',hp:72,ac:16,atk:2,xp:5,gold:[25,70], tags:['beast'],chaos:true,
      stampede:true, bloodlust:true, belowRoar:true, bloodlustActive:false},
   ],
   boss2: [
-    {name:'Varghulf',            type:'Undead Boss', threat:'Boss',hp:115,ac:15,atk:4,xp:15,gold:[200,200],tags:['undead'],undead:true,lifeLeech:true,
+    {name:'Varghulf',            type:'Undead Boss', threat:'Boss',hp:115,ac:15,atk:4,xp:5,gold:[200,200],tags:['undead'],undead:true,lifeLeech:true,
      lifeLeechFrac:0.25, frenzyMulti:{threshold:0.5}, critMajorBleed:true},
-    {name:'Bonebreaker Ratogre', type:'Skaven Boss', threat:'Boss',hp:105,ac:16,atk:3,xp:15,gold:[200,200],tags:['skaven'],insanityAtk:true,
+    {name:'Bonebreaker Ratogre', type:'Skaven Boss', threat:'Boss',hp:105,ac:16,atk:3,xp:5,gold:[200,200],tags:['skaven'],insanityAtk:true,
      crushingBlow:true, packLeader:true, skavenPackTactics:true},
   ],
   boss3: [
-    {name:'Saurian Ancient',type:'Ancient Boss',threat:'Boss',hp:145,ac:15,atk:5,xp:15,gold:[60,150],tags:[],
+    {name:'Saurian Ancient',type:'Ancient Boss',threat:'Boss',hp:145,ac:15,atk:5,xp:5,gold:[60,150],tags:[],
      regen:true, primordialRoar:true, crushingTail:true, extinctionPulse:true, ancientScales:true},
   ],
 };
@@ -564,6 +564,7 @@ function scaleEnemy(tmpl, playerCount, isElite, bossCount) {
   const dd = enemyDmgDice(e.threat, isElite, bossCount);
   e.dmgNum=dd.n; e.dmgSides=dd.s; e.dmgBonus=dd.b;
   if (isElite && e.threat!=='Boss') {
+    e.hp = e.maxHp = Math.round(e.hp * 1.5); // 1.5× HP for elites
     e.atk = (e.atk||0) + 2;
     e.dmgBonus = (e.dmgBonus||0) + 3;
     e.threat='Elite';
@@ -976,7 +977,7 @@ function applyBurn(enemy, startDice, room, caster=null) {
 function getDebuffVal(enemy, key){ return (enemy.activeDebuffs||[]).filter(d=>d[key]).reduce((s,d)=>s+d[key],0); }
 
 // ─── LEVEL UP & PATHS ────────────────────────────────────────────────────────
-const XP_THRESHOLDS = [0,0,8,18,26,34,42,52,64,78,95]; // Lv3@boss1(~18xp), Lv7@boss2(~52xp), Lv10@end
+const XP_THRESHOLDS = [0,0,2,10,19,24,29,34,51,68,84]; // Lv3@depth8, Lv4@depth11, Lv7@depth17, Lv10@depth27 // Lv3@boss1(~18xp), Lv7@boss2(~52xp), Lv10@end
 
 function checkLevelUp(char) {
   if (char.level >= 10) return {leveled:false}; // hard cap at level 10
@@ -1169,7 +1170,7 @@ function _runNodeContent(room, gs, nodeType, playerCount) {
     if(isElite && Math.random()<0.5){
       const e1=pickEnemy(gs.depth,false,false,playerCount,gs.bossCount);
       const e2=pickEnemy(gs.depth,false,false,playerCount,gs.bossCount);
-      e1.id='e1'; e2.id='e2';
+      e1.id='e1'; e2.id='e2'; e1.isElite=true; e2.isElite=true; // double XP for elite room
       gs.enemies=[e1,e2];
       gs.enemy=gs.enemies[0];
       addLog(room,`⚔ Elite Encounter — Two enemies appear!`,'dmg');
@@ -2021,7 +2022,7 @@ function resolveEnemyDeath(room, deadEnemy) {
     });
   }
   const survivors=room.players.filter(p=>p.char&&p.char.alive);
-  const xpEach=e.xp||1; // XP awarded directly, no reduction
+  const xpEach=(e.xp||1) * (e.isElite ? 2 : 1); // Elite rooms give double XP
   let goldTotal;
   if (e.threat==='Boss' && gs.bossCount===0) {
     goldTotal = 150 * survivors.length; // 150 per survivor — boss 1
@@ -2839,8 +2840,8 @@ function handlePlayerAction(room,playerId,payload,ws){
       const dmgBreak=r.dmgParts.length?` [dmg: ${r.dmgParts.join(' ')} = <strong>${r.dmg}</strong>]`:'';
       addLog(room,`${player.name} ${r.crit?'<strong>CRITS</strong>':'hits'} ${targetEnemy.name} — <strong class="num-dmg">−${finalDmg} dmg</strong>${cl} [${rollBreak}]${dmgBreak} → ${targetEnemy.name} ${targetEnemy.hp}/${targetEnemy.maxHp} HP`,r.crit?'crit':'dmg');
       if(targetEnemy.hp>0){
-        if(char.deathblow){ const stacks=r.crit?8:4; applyPoison(targetEnemy,stacks,room); }
-        if(char.venomOnFirstHit && !char._venomHitUsed){ char._venomHitUsed=true; applyPoison(targetEnemy,char.lingeringMagic?10:5,room); addLog(room,`💀 <strong>Venom on First Hit!</strong> ${player.name}'s first strike applies 5 poison stacks to ${targetEnemy.name}!`,'spell'); }
+        if(char.deathblow){ const stacks=r.crit?4:2; applyPoison(targetEnemy,stacks,room); }
+        if(char.venomOnFirstHit && !char._venomHitUsed){ char._venomHitUsed=true; applyPoison(targetEnemy,char.lingeringMagic?8:4,room); addLog(room,`💀 <strong>Venom on First Hit!</strong> ${player.name}'s first strike applies 4 poison stacks to ${targetEnemy.name}!`,'spell'); }
         if(char._trickeryPoisonProc && targetEnemy.hp>0){ const ts=char._trickeryPoisonProc; char._trickeryPoisonProc=0; applyPoison(targetEnemy,ts,room); } else { char._trickeryPoisonProc=0; }
         if(char.assassination){
           if(targetEnemy.hp<targetEnemy.maxHp*0.5){ const ab=rd(1,6)+3;targetEnemy.hp=Math.max(0,targetEnemy.hp-ab);addLog(room,`🗡 <strong>Assassination!</strong> Enemy below 50% HP — <strong class="num-dmg">-${ab}</strong> bonus dmg!`,'crit'); }
