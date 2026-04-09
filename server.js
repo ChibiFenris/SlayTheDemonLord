@@ -52,10 +52,10 @@ function publicState(room) {
 
 // ─── CAREERS ─────────────────────────────────────────────────────────────────
 const CAREERS = {
-  warrior: { label:'State Soldier',    startAttrs:{str:30,agi:10,int:10,wil:10}, armorDef:3, weaponDmg:'1d6',   weaponStr:true,  spellcaster:false },
-  rogue:   { label:'Roadwarden',       startAttrs:{str:20,agi:12,int:10,wil:10}, armorDef:0, weaponDmg:'1d6',   weaponStr:false, spellcaster:false },
-  wizard:  { label:'Bright Wizard',    startAttrs:{str:17,agi:10,int:12,wil:10}, armorDef:1, weaponDmg:'1d6',   weaponStr:false, weaponIntBased:true,  spellcaster:true,  tradition:'fire' },
-  priest:  { label:'Sigmarite Priest', startAttrs:{str:25,agi:10,int:10,wil:12}, armorDef:3, weaponDmg:'1d6',   weaponStr:false, weaponWilBased:true,  spellcaster:true,  tradition:'life' },
+  warrior: { label:'State Soldier',    startHp:30, startAttrs:{str:12,agi:10,int:10,wil:10}, armorDef:3, weaponDmg:'1d6',   weaponStr:true,  spellcaster:false },
+  rogue:   { label:'Roadwarden',       startHp:20, startAttrs:{str:10,agi:12,int:10,wil:10}, armorDef:0, weaponDmg:'1d6',   weaponStr:false, spellcaster:false },
+  wizard:  { label:'Bright Wizard',    startHp:17, startAttrs:{str:10,agi:10,int:12,wil:10}, armorDef:1, weaponDmg:'1d6',   weaponStr:false, weaponIntBased:true,  spellcaster:true,  tradition:'fire' },
+  priest:  { label:'Sigmarite Priest', startHp:25, startAttrs:{str:10,agi:10,int:10,wil:12}, armorDef:3, weaponDmg:'1d6',   weaponStr:false, weaponWilBased:true,  spellcaster:true,  tradition:'life' },
 };
 
 // ─── PATHS ───────────────────────────────────────────────────────────────────
@@ -601,7 +601,7 @@ function buildChar(career) {
   const startArmor = c.armorDef>0 ? {id:'a_start_'+uuidv4(),name:'Starting Armour',defBonus:c.armorDef,type:'armor',desc:`+${c.armorDef} Defense`} : null;
   return {
     career, attrs,
-    health:attrs.str, maxHealth:attrs.str,
+    health:c.startHp, maxHealth:c.startHp,
     defense:baseDefense, baseAgiDef:attrs.agi,
     perception:attrs.int,
     power:0, maxPower:0, castingPools:{}, castingsUsed:0, // castingsUsed kept for compat
@@ -2517,7 +2517,7 @@ function useItemLogic(room,player,itemName,inCombat=false){
   let consumed=true;
   if(itemName==='Healing Draught'){const h=rd(1,6);char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} drinks Healing Draught — +<strong>${h}</strong> HP.`,'heal');}
   else if(itemName==='Greater Healing Draught'){const h=rd(2,6);char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} drinks Greater Healing — +<strong>${h}</strong> HP.`,'heal');}
-  else if(itemName==='Flask of Oil'||itemName==='Incendiary Flask'){const _te=getTargetEnemy(room.gs);if(inCombat&&_te){if(_te.immuneFire){addLog(room,`🔥 ${_te.name} is immune to fire!`,'spell');}else{let dmg=rd(2,6);if(char._armorFireImmune){dmg+=rd(1,6);}// Dragonscale bonus
+  else if(itemName==='Flask of Oil'||itemName==='Incendiary Flask'){const _te=getTargetEnemy(room.gs);if(inCombat&&_te){if(false){/*fire immunity removed*/}else{let dmg=rd(2,6);if(char._armorFireImmune){dmg+=rd(1,6);}// Dragonscale bonus
 _te.hp=Math.max(0,_te.hp-dmg);addLog(room,`${player.name} throws Flask of Oil — <strong>${dmg}</strong> fire dmg!`,'spell');if(_te.hp<=0){resolveEnemyDeath(room,_te);return true;}}}else{consumed=false;}}
   else if(itemName==='Fire Jar'||itemName==='Daemon Fire'){const _te=getTargetEnemy(room.gs);if(inCombat&&_te){if(_te.immuneFire){addLog(room,`🔥 ${_te.name} is immune to fire!`,'spell');}else{const dmg=rd(3,6);_te.hp=Math.max(0,_te.hp-dmg);addLog(room,`${player.name} smashes Fire Jar — <strong>${dmg}</strong> fire dmg!`,'spell');if(_te.hp<=0){resolveEnemyDeath(room,_te);return true;}}}else{consumed=false;}}
   else if(itemName==='Lucky Pendant'){char.luckyPendant=true;addLog(room,`${player.name} activates Lucky Pendant — next attack is a CRIT!`,'loot');}
@@ -3424,7 +3424,7 @@ function handlePlayerAction(room,playerId,payload,ws){
       }
 
       addLog(room,`${spellTarget.name}: <strong>${Math.max(0,spellTarget.hp)}</strong>/${spellTarget.maxHp} HP remaining.`,'sys');
-      if(spell.tradition==='fire'&&spellTarget.immuneFire){ addLog(room,`🔥 ${spellTarget.name} is <strong>immune to fire</strong>!`,'spell'); return; }
+      // fire immunity removed — all enemies take fire damage
       if(spellTarget.hp<=0){resolveEnemyDeath(room,spellTarget);return;}
       // Overload: cast twice
       const _overloadBuff=(char.activeBuffs||[]).find(b=>b.overloadReady);
