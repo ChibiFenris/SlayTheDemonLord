@@ -52,10 +52,10 @@ function publicState(room) {
 
 // ─── CAREERS ─────────────────────────────────────────────────────────────────
 const CAREERS = {
-  warrior: { label:'State Soldier',    startAttrs:{str:35,agi:10,int:10,wil:10}, armorDef:3, weaponDmg:'1d6',   weaponStr:true,  spellcaster:false },
-  rogue:   { label:'Roadwarden',       startAttrs:{str:25,agi:12,int:10,wil:10}, armorDef:0, weaponDmg:'1d6',   weaponStr:false, spellcaster:false },
-  wizard:  { label:'Bright Wizard',    startAttrs:{str:20,agi:10,int:12,wil:10}, armorDef:1, weaponDmg:'1d6',   weaponStr:false, weaponIntBased:true,  spellcaster:true,  tradition:'fire' },
-  priest:  { label:'Sigmarite Priest', startAttrs:{str:30,agi:10,int:10,wil:12}, armorDef:3, weaponDmg:'1d6',   weaponStr:false, weaponWilBased:true,  spellcaster:true,  tradition:'life' },
+  warrior: { label:'State Soldier',    startAttrs:{str:30,agi:10,int:10,wil:10}, armorDef:3, weaponDmg:'1d6',   weaponStr:true,  spellcaster:false },
+  rogue:   { label:'Roadwarden',       startAttrs:{str:20,agi:12,int:10,wil:10}, armorDef:0, weaponDmg:'1d6',   weaponStr:false, spellcaster:false },
+  wizard:  { label:'Bright Wizard',    startAttrs:{str:17,agi:10,int:12,wil:10}, armorDef:1, weaponDmg:'1d6',   weaponStr:false, weaponIntBased:true,  spellcaster:true,  tradition:'fire' },
+  priest:  { label:'Sigmarite Priest', startAttrs:{str:25,agi:10,int:10,wil:12}, armorDef:3, weaponDmg:'1d6',   weaponStr:false, weaponWilBased:true,  spellcaster:true,  tradition:'life' },
 };
 
 // ─── PATHS ───────────────────────────────────────────────────────────────────
@@ -105,7 +105,7 @@ const EXPERT_PATHS = {
   // ── DIVINE HYBRID: ZEALOT + PALADIN ──────────────────────────────
   paladin:     { label:'Paladin',     hpGain:4, power:1,
     levelGains:{ 3:['holyFervor','divineSmite'], 4:['layOnHands','+1str'], 5:['righteousFury','combatProwess'], 6:['sacredAegis','wrathOfSigmar','+1wil'] },
-    desc:'Warrior Priest. Holy Fervor: weapon hits deal 1d3+WIL holy and heal you. Divine Smite +3d6 (2x/combat). Lay on Hands: heal 1d6+WIL×2 (2x). Righteous Fury: kills heal all allies 1d6+WIL. Combat Prowess +1d6/hit. Sacred Aegis: attacker takes 1d6 holy. Wrath of Sigmar: 6d6 holy 1x.' },
+    desc:'Warrior Priest. Holy Fervor: weapon hits deal 1d3+WIL holy and heal you. Divine Smite +3d6 (2x/combat). Lay on Hands: heal 1d6+WIL (2x). Righteous Fury: kills heal all allies 1d6+WIL. Combat Prowess +1d6/hit. Sacred Aegis: attacker takes 1d6 holy. Wrath of Sigmar: 6d6 holy 1x.' },
 
   // ── ROGUE: ASSASSIN + THIEF ───────────────────────────────────────
   assassin:    { label:'Assassin',    hpGain:5, power:0,
@@ -287,15 +287,15 @@ const TRADITIONS = {
     label:'Fire',
     spells:[
       {name:'Flame Missile', rank:0, type:'attack', dmg:'1d6', applyBurn:true, burnDiceOverride:1,
-       desc:'Rank 0 · Free cast. Fiery bolt: 1d6 + INT×2. Applies Burn (1d6/round, fading).'},
+       desc:'Rank 0 · Free cast. Fiery bolt: 1d6 + INT. Applies Burn (1d6/round, fading).'},
       {name:'Meteor',        rank:1, type:'attack', dmg:'2d6+2', aoe:true, applyBurn:true, burnDiceOverride:2,
-       desc:'Rank 1. Flaming stone hits ALL enemies: 2d6+2 + INT×2. Half on AGI save. Applies Burn.'},
+       desc:'Rank 1. Flaming stone hits ALL enemies: 2d6+2 + INT. Half on AGI save. Applies Burn.'},
       {name:'Fiery Volley',  rank:1, type:'attack', dmg:'1d6+1', tripleHit:true, applyBurn:true, burnDiceOverride:2,
-       desc:'Rank 1. Three fiery missiles hit the SAME target. Each: 1d6+1 + INT×2. Applies Burn.'},
+       desc:'Rank 1. Three fiery missiles hit the SAME target. Each: 1d6+1 + INT. Applies Burn.'},
       {name:'Fireball',      rank:2, type:'attack', dmg:'5d6', applyBurn:true, aoe:true,
-       desc:'Rank 2. Giant fireball hits ALL enemies: 5d6 + INT×2. Half on AGI save. Applies Burn (2d6, fading).'},
+       desc:'Rank 2. Giant fireball hits ALL enemies: 5d6 + INT. Half on AGI save. Applies Burn (2d6, fading).'},
       {name:'Immolate',      rank:3, type:'attack', dmg:'4d6', applyBurn:true, burnDiceOverride:3,
-       desc:'Rank 3. Consume one target in fire: 4d6 + INT×2. Crit: +2d6. Applies Burn (3d6, fading).'},
+       desc:'Rank 3. Consume one target in fire: 4d6 + INT. Crit: +2d6. Applies Burn (3d6, fading).'},
     ]
   },
   life: {
@@ -303,17 +303,17 @@ const TRADITIONS = {
     label:'Life',
     spells:[
       {name:"Sigmar's Smite",   rank:0, type:'attack', dmg:'1d6',
-       desc:"Rank 0 · Free cast. Channel Sigmar's wrath: 1d6 + WIL×2 holy dmg. ×2 damage vs undead and Chaos. Crit: +1d6."},
+       desc:"Rank 0 · Free cast. Channel Sigmar's wrath: 1d6 + WIL holy dmg. ×2 damage vs undead and Chaos. Crit: +1d6."},
       {name:'Minor Healing',    rank:0, type:'heal', dmg:'1d6_wil2',
-       desc:'Rank 0 · Free cast. Heal self or one ally: 1d6 + WIL×2 HP.'},
+       desc:'Rank 0 · Free cast. Heal self or one ally: 1d6 + WIL HP.'},
       {name:'Cure',             rank:1, type:'utility', dmg:'1d6_wil', cure:true,
        desc:'Rank 1. Cure all debuffs on target, then heal 1d6 + WIL HP.'},
       {name:'Light Healing',    rank:1, type:'heal', dmg:'2d6_wil2',
-       desc:'Rank 1. Touch one ally: heal 2d6 + WIL×2 HP.'},
+       desc:'Rank 1. Touch one ally: heal 2d6 + WIL HP.'},
       {name:'Moderate Healing', rank:2, type:'heal', dmg:'3d6_wil2',
-       desc:'Rank 2. Touch one ally: heal 3d6 + WIL×2 HP.'},
+       desc:'Rank 2. Touch one ally: heal 3d6 + WIL HP.'},
       {name:'Vitality Burst',   rank:2, type:'heal', dmg:'2d6_wil2_multi', multiTarget:true,
-       desc:'Rank 2. ALL living allies each heal 2d6 + WIL×2 simultaneously.'},
+       desc:'Rank 2. ALL living allies each heal 2d6 + WIL simultaneously.'},
       {name:'Major Healing',    rank:3, type:'heal', dmg:'max',
        desc:'Rank 3. Restore one ally to full HP.'},
     ]
@@ -323,13 +323,13 @@ const TRADITIONS = {
     label:'Death (Necromancy)',
     spells:[
       {name:'Spectral Grasp',   rank:0, type:'attack', dmg:'1d3',
-       desc:'Rank 0 · Free cast. Shadowy hand: 1d3 + INT×2. Target attacks with 1 bane (1 round). Crit: +1d6.'},
+       desc:'Rank 0 · Free cast. Shadowy hand: 1d3 + INT. Target attacks with 1 bane (1 round). Crit: +1d6.'},
       {name:'Grave Grasp',      rank:1, type:'attack', dmg:'1d6', applyChilled:true,
-       desc:'Rank 1. Death chill: 1d6 + INT×2. Applies Chilled (1d3/round + 1 bane for 2 rounds).'},
+       desc:'Rank 1. Death chill: 1d6 + INT. Applies Chilled (1d3/round + 1 bane for 2 rounds).'},
       {name:'Bone Splinters',   rank:2, type:'attack', dmg:'3d6', boneSplinters:true,
-       desc:'Rank 2. 3d6 + INT×2. If target ≤25% HP after hit: d20 roll — 10+ = instant death.'},
+       desc:'Rank 2. 3d6 + INT. If target ≤25% HP after hit: d20 roll — 10+ = instant death.'},
       {name:'Cannibalize Magic',rank:3, type:'attack', dmg:'3d6',
-       desc:'Rank 3. Devour magic: 3d6 + INT×2. Hit: regain a rank-1 casting. Crit: +2d6 and regain rank-2 casting.'},
+       desc:'Rank 3. Devour magic: 3d6 + INT. Hit: regain a rank-1 casting. Crit: +2d6 and regain rank-2 casting.'},
     ]
   },
   shadow: {
@@ -339,9 +339,9 @@ const TRADITIONS = {
       {name:'Nightfall Blade',  rank:0, type:'utility', dmg:'0', shadowBlade:true,
        desc:'Rank 0 · Free cast. Nightfall Blade: all weapon attacks deal +1d6 for 5 rounds. Applies to every hit.'},
       {name:'Shadow Dart',      rank:1, type:'attack', dmg:'2d6',
-       desc:'Rank 1. Bolt of darkness: 2d6 + INT×2. Crit: +1d6.'},
+       desc:'Rank 1. Bolt of darkness: 2d6 + INT. Crit: +1d6.'},
       {name:'Shadow Strike',    rank:2, type:'attack', dmg:'2d6', tripleHit:true,
-       desc:'Rank 2. Shadow blades strike the SAME target three times. Each: 2d6 + INT×2.'},
+       desc:'Rank 2. Shadow blades strike the SAME target three times. Each: 2d6 + INT.'},
       {name:'Enervation',       rank:3, type:'attack', dmg:'0', healthPenalty:20,
        desc:'Rank 3. Sap life force: target max HP reduced by 20 for the rest of combat.'},
     ]
@@ -365,13 +365,13 @@ const TRADITIONS = {
     label:'Celestial',
     spells:[
       {name:'Burning Beam',  rank:0, type:'attack', dmg:'1d6', applyBurn:true, burnDiceOverride:1,
-       desc:'Rank 0 · Free cast. Celestial beam: 1d6 + INT×2. Applies Burn (1d6). Crit: also Blinds target.'},
+       desc:'Rank 0 · Free cast. Celestial beam: 1d6 + INT. Applies Burn (1d6). Crit: also Blinds target.'},
       {name:'Flash',         rank:1, type:'attack', dmg:'0', blind:true, applyBlinded:true, aoe:true,
        desc:'Rank 1. Blinding flash at ALL enemies: 3 banes on their next attack. Consumed when they miss.'},
       {name:'Sunrays',       rank:2, type:'attack', dmg:'1d6', tripleHit:true,
-       desc:'Rank 2. Three solar beams hit the SAME target. Each: 1d6 + INT×2.'},
+       desc:'Rank 2. Three solar beams hit the SAME target. Each: 1d6 + INT.'},
       {name:'Radiation',     rank:3, type:'attack', dmg:'3d6', applyBlinded:true,
-       desc:'Rank 3. Radiant burst: 3d6 + INT×2. Also Blinds target (3 banes, 1 round).'},
+       desc:'Rank 3. Radiant burst: 3d6 + INT. Also Blinds target (3 banes, 1 round).'},
     ]
   },
   chaos: {
@@ -379,13 +379,13 @@ const TRADITIONS = {
     label:'Chaos',
     spells:[
       {name:'Erratic Bolt',          rank:0, type:'attack', dmg:'1d6', chaosBolt:true,
-       desc:'Rank 0 · Free cast. Unpredictable bolt: 1d6 + INT×2. On hit: d20 12+ = 2d6 extra chaos damage.'},
+       desc:'Rank 0 · Free cast. Unpredictable bolt: 1d6 + INT. On hit: d20 12+ = 2d6 extra chaos damage.'},
       {name:'Capricious Devastation',rank:1, type:'attack', dmg:'2d6', chaosBolt:true,
-       desc:'Rank 1. Chaos surge: 2d6 + INT×2. On hit: d20 12+ = 2d6 extra chaos damage.'},
+       desc:'Rank 1. Chaos surge: 2d6 + INT. On hit: d20 12+ = 2d6 extra chaos damage.'},
       {name:'Color of Magic',        rank:2, type:'attack', dmg:'1d6+2', chaosBolt:true,
-       desc:'Rank 2. Mutating ray: 1d6+2 + INT×2. On hit: d20 12+ = 2d6 extra chaos damage.'},
+       desc:'Rank 2. Mutating ray: 1d6+2 + INT. On hit: d20 12+ = 2d6 extra chaos damage.'},
       {name:'Chaotic Lance',         rank:3, type:'attack', dmg:'4d6', chaosBolt:true, aoe:true,
-       desc:'Rank 3. Chaos lance through ALL enemies: 4d6 + INT×2 each. On hit: d20 12+ = 2d6 extra per target.'},
+       desc:'Rank 3. Chaos lance through ALL enemies: 4d6 + INT each. On hit: d20 12+ = 2d6 extra per target.'},
     ]
   },
   earth: {
@@ -393,13 +393,13 @@ const TRADITIONS = {
     label:'Earth',
     spells:[
       {name:'Earth Spike',   rank:0, type:'attack', dmg:'1d6', prone:true, applyBleed:true,
-       desc:'Rank 0 · Free cast. Rock spike: 1d6 + INT×2. Target Prone (1 bane). Applies Bleed DoT.'},
+       desc:'Rank 0 · Free cast. Rock spike: 1d6 + INT. Target Prone (1 bane). Applies Bleed DoT.'},
       {name:'Stone Blades',  rank:1, type:'attack', dmg:'2d6', bleed:true, applyBleed:true, aoe:true,
-       desc:'Rank 1. Stone blade cone: 2d6 + INT×2. Applies Bleed DoT.'},
+       desc:'Rank 1. Stone blade cone: 2d6 + INT. Applies Bleed DoT.'},
       {name:'Avalanche',     rank:2, type:'attack', dmg:'4d6', applyMajorBleed:true, aoe:true,
-       desc:'Rank 2. Crushing avalanche hits ALL enemies: 4d6 + INT×2. Applies Major Bleed DoT.'},
+       desc:'Rank 2. Crushing avalanche hits ALL enemies: 4d6 + INT. Applies Major Bleed DoT.'},
       {name:'Eruption',      rank:3, type:'attack', dmg:'5d6', applyMajorBleed:true, aoe:true,
-       desc:'Rank 3. Volcanic eruption: 5d6 + INT×2. Targets thrown back. Applies Major Bleed DoT.'},
+       desc:'Rank 3. Volcanic eruption: 5d6 + INT. Targets thrown back. Applies Major Bleed DoT.'},
     ]
   },
   storm: {
@@ -407,13 +407,13 @@ const TRADITIONS = {
     label:'Storm',
     spells:[
       {name:'Forked Lightning', rank:0, type:'attack', dmg:'1d6+2', tripleHit:false, doubleHit:true,
-       desc:'Rank 0 · Free cast. Fork of lightning hits SAME target TWICE. Each: 1d6+2 + INT×2.'},
+       desc:'Rank 0 · Free cast. Fork of lightning hits SAME target TWICE. Each: 1d6+2 + INT.'},
       {name:'Freezing Fog',    rank:1, type:'attack', dmg:'1d3', slowDebuff:true, applyChilled:true,
-       desc:'Rank 1. Freezing fog: 1d3 + INT×2. Applies Chilled (1d3/round + 1 bane for 2 rounds).'},
+       desc:'Rank 1. Freezing fog: 1d3 + INT. Applies Chilled (1d3/round + 1 bane for 2 rounds).'},
       {name:'Call Lightning',  rank:2, type:'attack', dmg:'3d6+5', stunCheck:true,
-       desc:'Rank 2. Lightning strike: 3d6+5 + INT×2. On hit: d20 15+ = target Stunned (loses next action).'},
+       desc:'Rank 2. Lightning strike: 3d6+5 + INT. On hit: d20 15+ = target Stunned (loses next action).'},
       {name:'Lightning Bolt',  rank:3, type:'attack', dmg:'5d6', lightningDoubleCheck:true,
-       desc:'Rank 3. Massive lightning bolt: 5d6 + INT×2. On hit: d20 15+ = strikes AGAIN for full damage.'},
+       desc:'Rank 3. Massive lightning bolt: 5d6 + INT. On hit: d20 15+ = strikes AGAIN for full damage.'},
     ]
   },
   protection: {
@@ -441,7 +441,7 @@ const TRADITIONS = {
       {name:'Glamer',    rank:2, type:'utility', dmg:'0', glamerNew:true,
        desc:'Rank 2. Glamer: target enemy\'s next attack automatically misses.'},
       {name:'Phantasm',  rank:3, type:'attack', dmg:'4d6',
-       desc:'Rank 3. Phantasm: psychic assault — 4d6 + INT×2 damage.'},
+       desc:'Rank 3. Phantasm: psychic assault — 4d6 + INT damage.'},
     ]
   },
   nature: {
@@ -455,7 +455,7 @@ const TRADITIONS = {
       {name:'Shillelagh',      rank:1, type:'utility', dmg:'0', dmgBuff:true,
        desc:'Rank 1. Shillelagh: +1d6 bonus damage on your next weapon hit. Consumed on hit.'},
       {name:'Wrath of Nature', rank:3, type:'attack', dmg:'3d6', wrathNature:true,
-       desc:'Rank 3. Wrath of Nature: 3d6 + INT×2. Target attacks with 2 banes until it misses. Consumed on miss.'},
+       desc:'Rank 3. Wrath of Nature: 3d6 + INT. Target attacks with 2 banes until it misses. Consumed on miss.'},
     ]
   },
   transformation: {
@@ -469,7 +469,7 @@ const TRADITIONS = {
       {name:'Mist Form',    rank:2, type:'utility', dmg:'0', mistFormNew:true,
        desc:'Rank 2. Mist Form: become vapour — take 50% damage for 3 rounds.'},
       {name:'Speed Healing',rank:3, type:'heal', dmg:'3d6_wil2',
-       desc:'Rank 3. Speed Healing: regenerate rapidly — heal 3d6 + WIL×2.'},
+       desc:'Rank 3. Speed Healing: regenerate rapidly — heal 3d6 + WIL.'},
     ]
   },
   time: {
@@ -518,7 +518,7 @@ const ENEMY_POOLS = {
   ],
   high: [
     {name:'Chaos Warrior',  type:'Chaos',  threat:'High',hp:63,ac:16,atk:4,xp:4,gold:[15,40],tags:['chaos'],chaos:true,
-     immuneFire:true, brutalCleave:true, chosenOfTheGods:true, _godsUsed:false},
+     brutalCleave:true, chosenOfTheGods:true, _godsUsed:false},
     {name:'Vampire Count', type:'Undead', threat:'High',hp:50,ac:14,atk:4,xp:4,gold:[20,60],tags:['undead'],undead:true,lifeLeech:true,
      lifeLeechFrac:0.5, hypnoticGaze:true, mistForm:true},
     {name:'Bloodletter',   type:'Chaos',  threat:'High',hp:55,ac:15,atk:4,xp:4,gold:[25,50],tags:['chaos'],chaos:true,insanityAtk:true,
@@ -1077,7 +1077,7 @@ function applyExpertPath(char, pathId) {
     char.pendingLevelUp=true; char.pendingPathTier='tradition'; char.pendingSpellChoices=1;
   }
   if (pathId==='elementalist' && char.traditions.includes('fire')) {
-    const fw=TRADITIONS.fire?.spells.find(s=>s.name==='Firewall')||{name:'Firewall',rank:1,type:'attack',dmg:'4d6',applyBurn:true,burnDiceOverride:2,desc:'Rank 1. Firewall: lingering fire zone deals 4d6 + INT×2 to all enemies passing through.'};
+    const fw=TRADITIONS.fire?.spells.find(s=>s.name==='Firewall')||{name:'Firewall',rank:1,type:'attack',dmg:'4d6',applyBurn:true,burnDiceOverride:2,desc:'Rank 1. Firewall: lingering fire zone deals 4d6 + INT to all enemies passing through.'};
     if(!char.knownSpells.find(k=>k.name==='Firewall')) char.knownSpells.push({...fw,heal:false});
   }
 }
@@ -3097,28 +3097,28 @@ function handlePlayerAction(room,playerId,payload,ws){
       } else if(dStr==='2d6_wil2_multi'||spell.multiTarget){
         room.players.forEach(p=>{
           if(p.char&&p.char.alive){
-            const roll=rd(2,6); const h=roll+wilMod*2+channelFaithBonus;
+            const roll=rd(2,6); const h=roll+wilMod+channelFaithBonus;
             p.char.health=Math.min(p.char.maxHealth,p.char.health+h);
-            addLog(room,`${p.name} healed <strong>${h}</strong> HP (2d6(${roll})+${wilMod*2}).`,'heal');
+            addLog(room,`${p.name} healed <strong>${h}</strong> HP (2d6(${roll})+${wilMod}).`,'heal');
           }
         });
         addLog(room,`${player.name} casts <strong>${spell.name}</strong> — all allies healed!`,'heal');
       } else if(dStr==='1d6_wil2'){  // Minor Healing
-        const roll=rd(1,6); amt=roll+wilMod*2;
+        const roll=rd(1,6); amt=roll+wilMod;
         target.health=Math.min(target.maxHealth,target.health+amt);
-        addLog(room,`${player.name} casts <strong>${spell.name}</strong> on ${targetName} — 1d6(${roll})+${wilMod*2} WIL×2 = +<strong>${amt}</strong> HP.`,'heal');
+        addLog(room,`${player.name} casts <strong>${spell.name}</strong> on ${targetName} — 1d6(${roll})+${wilMod} WIL = +<strong>${amt}</strong> HP.`,'heal');
       } else if(dStr==='2d6_wil2'){  // Light Healing
-        const roll=rd(2,6); amt=roll+wilMod*2;
+        const roll=rd(2,6); amt=roll+wilMod;
         target.health=Math.min(target.maxHealth,target.health+amt);
-        addLog(room,`${player.name} casts <strong>${spell.name}</strong> on ${targetName} — 2d6(${roll})+${wilMod*2} WIL×2 = +<strong>${amt}</strong> HP.`,'heal');
+        addLog(room,`${player.name} casts <strong>${spell.name}</strong> on ${targetName} — 2d6(${roll})+${wilMod} WIL = +<strong>${amt}</strong> HP.`,'heal');
       } else if(dStr==='3d6_wil2'){  // Moderate Healing
-        const roll=rd(3,6); amt=roll+wilMod*2;
+        const roll=rd(3,6); amt=roll+wilMod;
         target.health=Math.min(target.maxHealth,target.health+amt);
-        addLog(room,`${player.name} casts <strong>${spell.name}</strong> on ${targetName} — 3d6(${roll})+${wilMod*2} WIL×2 = +<strong>${amt}</strong> HP.`,'heal');
+        addLog(room,`${player.name} casts <strong>${spell.name}</strong> on ${targetName} — 3d6(${roll})+${wilMod} WIL = +<strong>${amt}</strong> HP.`,'heal');
       } else if(dStr==='1d6_str2'){  // Close Wounds (Battle)
-        const roll=rd(1,6); amt=roll+strMod*2;
+        const roll=rd(1,6); amt=roll+strMod;
         target.health=Math.min(target.maxHealth,target.health+amt);
-        addLog(room,`${player.name} casts <strong>${spell.name}</strong> on ${targetName} — 1d6(${roll})+${strMod*2} STR×2 = +<strong>${amt}</strong> HP.`,'heal');
+        addLog(room,`${player.name} casts <strong>${spell.name}</strong> on ${targetName} — 1d6(${roll})+${strMod} STR = +<strong>${amt}</strong> HP.`,'heal');
       } else if(dStr==='1d6_wil'){   // Cure heal portion
         const roll=rd(1,6); amt=roll+wilMod;
         target.health=Math.min(target.maxHealth,target.health+amt);
@@ -3271,8 +3271,8 @@ function handlePlayerAction(room,playerId,payload,ws){
         const roll=rd(n,sd);
         const wilSpells=["Sigmar's Smite",'Radiation','Minor Healing','Vitality Burst'];
         const intMod=wilSpells.includes(spell.name)
-          ? Math.max(0,modVal(char.attrs.wil))*2
-          : Math.floor(Math.max(0,modVal(char.attrs.int))*1.5); // INT×1.5 (was ×2)
+          ? Math.max(0,modVal(char.attrs.wil))   // WIL×1
+          : Math.max(0,modVal(char.attrs.int));    // INT×1
         let burnBonus=0;
         const fireNames=['Flame Missile','Meteor','Fiery Volley','Fireball','Immolate','Fire Blast','Burning Hands','Firewall'];
         // burningSoul: +1d6 only if target already burning (rewards Burn synergy)
@@ -3299,7 +3299,7 @@ function handlePlayerAction(room,playerId,payload,ws){
         const eTags=(spellTarget.tags)||[];
         const WEAKNESSES={
           fire:      {tags:['undead','fire-weak'], mult:2},
-          holy:      {tags:['chaos','skaven','undead'], mult:2},
+          holy:      {tags:['chaos'], mult:2},
           lightning: {tags:['skaven'], mult:2},
           dark:      {tags:['beast'], mult:2},
           arcane:    {tags:['skaven','chaos','undead','beast'], mult:1.25},
@@ -3308,9 +3308,7 @@ function handlePlayerAction(room,playerId,payload,ws){
         const isWeak=weakRule&&eTags.some(t=>weakRule.tags.includes(t));
         if(isWeak){
           let mult=weakRule.mult;
-          if(spellElem==='dark'&&char.darkEvoker&&mult===2) mult=2.5;
-          if(spellElem==='lightning'&&char.lightningIngrained&&mult===2) mult=2.5;
-          if(spellElem==='fire'&&char.ignite) mult=Math.max(mult,2.5);
+          // 2.5× weakness talents removed — standard weakness multipliers only
           const label=mult>=2.5?`×${mult} ENHANCED`:mult===2?'×2 WEAKNESS':'×1.25 Arcane';
           total=Math.floor(total*mult);
           addLog(room,`⚡ <strong>Elemental ${label}!</strong> [${spellElem}] vs [${eTags.join('/')}]`,'crit');
