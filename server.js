@@ -527,7 +527,7 @@ const ENEMY_POOLS = {
      warlordCommand:true, scurryAway:true, poisonBlade:4},
   ],
   boss1: [
-    {name:'Skaven Warlord Gnashteeth',type:'Skaven Boss', threat:'Boss',hp:80,ac:15,atk:2,xp:5,gold:[30,80], tags:['skaven'],
+    {name:'Skaven Warlord Gnashteeth',type:'Skaven Boss', threat:'Boss',hp:68,ac:15,atk:2,xp:5,gold:[30,80], tags:['skaven'],
      skavencunning:true, seethingRage:true, packBoss:true},
     {name:'Beastlord Kragthor',       type:'Beastmen Boss',threat:'Boss',hp:72,ac:16,atk:2,xp:5,gold:[25,70], tags:['beast'],chaos:true,
      stampede:true, bloodlust:true, belowRoar:true, bloodlustActive:false},
@@ -539,7 +539,7 @@ const ENEMY_POOLS = {
      crushingBlow:true, packLeader:true, skavenPackTactics:true},
   ],
   boss3: [
-    {name:'Saurian Ancient',type:'Ancient Boss',threat:'Boss',hp:145,ac:15,atk:5,xp:5,gold:[60,150],tags:[],
+    {name:'Saurian Ancient',type:'Ancient Boss',threat:'Boss',hp:200,ac:15,atk:5,xp:5,gold:[60,150],tags:[],
      regen:true, primordialRoar:true, crushingTail:true, extinctionPulse:true, ancientScales:true},
   ],
 };
