@@ -1,11 +1,12 @@
 {
   "name": "shadows-over-reikland",
   "version": "1.0.0",
-  "description": "Shadows Over Reikland — Co-op Warhammer Roguelite",
+  "description": "Shadows Over Reikland — co-op Warhammer roguelite",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "build": "echo 'No build step'"
+    "test": "node tools/test.js",
+    "playtest": "node tools/playtest.js"
   },
   "dependencies": {
     "ws": "^8.16.0",

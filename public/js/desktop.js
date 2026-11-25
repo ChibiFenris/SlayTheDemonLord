@@ -1,0 +1,664 @@
+'use strict';
+// ─── PATH PICK ────────────────────────────────────────────────────────────────
+
+function showPathPick(me){
+  pathPickPending=true; show('screen-pathpick');
+  const tier=me.char.pendingPathTier||'novice';
+
+  if(tier==='tradition'){
+    const knownTraditions=me.char.traditions||[];
+    const choicesLeft=me.char.pendingSpellChoices||1;
+    const grid=el('pp-grid'); grid.innerHTML='';
+    const plural=choicesLeft>1?' ('+choicesLeft+' remaining)':'';
+    el('pp-heading').textContent='Discover a Tradition'+plural;
+    el('pp-sub').textContent='Your path grants a new magical tradition. All spells of rank up to your Power ('+me.char.power+') are granted immediately.';
+    _buildTraditionButtons(grid, knownTraditions);
+    return;
+  }
+
+  const titles={novice:'Choose Your Novice Path (Level 1)',expert:'Choose Your Expert Path (Level 3)',master:'Choose Your Master Path (Level 7)'};
+  el('pp-heading').textContent=titles[tier]||'Choose Your Path';
+  el('pp-sub').textContent=tier==='novice'?'Your career archetype — unlocks talents and abilities.'
+    :tier==='expert'?'Specialise your abilities. All paths available — choose freely.'
+    :'Your pinnacle. All master paths available.';
+  const grid=el('pp-grid'); grid.innerHTML='';
+  const infoMap=tier==='novice'?NOVICE_INFO:tier==='expert'?EXPERT_INFO:MASTER_INFO;
+  Object.entries(infoMap).forEach(([id,info])=>{
+    const btn=document.createElement('button'); btn.className='pp-btn';
+    const hint=info.forCareers?`<span class="pp-hint">Suits: ${info.forCareers.join(', ')}</span>`:'';
+    btn.innerHTML=`<span class="ppn">${info.name}</span><span class="ppd">${info.desc||''}</span><span class="ppb">${hint}${info.gains}</span>`;
+    btn.onclick=()=>confirmPath(id,info.name,`${info.desc||''}<br><br>${info.gains}`);
+    grid.appendChild(btn);
+  });
+}
+
+// Desktop commits on click; on phones a sheet asks first so a stray tap can't pick a path.
+function confirmPath(pathId,name,descHtml){
+  if(!isMobileUI()){ applyPath(pathId); return; }
+  mOpenSheet(`<div class="m-sheet-name">${name}</div><div class="m-sheet-desc">${descHtml}</div><div class="m-act-btns"><button class="m-btn use" onclick="mCloseSheet();applyPath('${esc(pathId)}')">Choose ${name}</button><button class="m-btn sec" onclick="mCloseSheet()">Back</button></div>`);
+}
+function applyPath(pathId){
+  pathPickPending=true;
+  send('PLAYER_ACTION',{action:'APPLY_PATH',data:{pathId}});
+}
+
+// ── Tradition picker helper ────────────────────────────────────────────────────
+function _buildTraditionButtons(grid, knownTraditions){
+  grid.innerHTML='';
+  Object.entries(TRADITION_INFO).forEach(([id,info])=>{
+    const already=knownTraditions.includes(id);
+    const btn=document.createElement('button'); btn.className='pp-btn';
+    btn.disabled=already;
+    btn.innerHTML=`<span class="ppn">${info.label}${already?' ✓':''}</span>
+      <span class="ppd">${info.desc}</span>
+      <span class="ppb">${already?'Already known — pick a different one.':'Unlock rank 0 spell immediately. Higher ranks unlock as Power grows.'}</span>`;
+    if(!already) btn.onclick=()=>confirmPath('tradition:'+id,info.label,info.desc);
+    grid.appendChild(btn);
+  });
+}
+
+// ─── MAIN STATE ───────────────────────────────────────────────────────────────
+function renderMainState(st){
+  const{gs,players}=st;
+  const me=players.find(p=>p.id===myId);
+  if(!me){ updateLobbySlots(players); return; }
+  if(gs.phase==='lobby'){ show('screen-lobby'); updateLobbySlots(players); updateAudio(gs,players); prevLogLen=0; Object.keys(prevHp).forEach(k=>delete prevHp[k]); return; }
+  if(gs.phase==='dying'){
+    show('screen-game');
+    updateAudio(gs,players);
+    renderLog(gs.log);
+    renderSidebars(players,gs,me);
+    mShowDeathScreen(players,gs.depth,gs);
+    return;
+  }
+  if(gs.phase==='gameover'){ show('screen-end'); el('end-title').className='end-title death'; el('end-title').textContent='The Warband Has Fallen'; const deathInfo=gs.deathCause?`<br><span class="end-cause">${gs.deathCause.replace(/<[^>]+>/g,' ').trim()}</span>`:''; el('end-sub').innerHTML=`Depth: <strong>${gs.depth}/30</strong>${deathInfo}`; updateAudio(gs,players); mHideDeathScreen(); return; }
+  if(gs.phase==='victory'){ show('screen-end'); el('end-title').className='end-title victory'; el('end-title').textContent='Victory!'; el('end-sub').innerHTML=`The warband conquers the depths!<br>Depth: ${gs.depth}/30`; updateAudio(gs,players); return; }
+  if(me.char&&me.char.pendingLevelUp&&me.char.pendingPathTier&&!pathPickPending){ showPathPick(me); return; }
+  if(pathPickPending) return;
+
+  show('screen-game');
+  updateAudio(gs,players);
+  el('g-loc').textContent=LOCS[Math.min(gs.depth,LOCS.length-1)];
+  el('g-depth').textContent=gs.depth;
+  const dt=el('g-depth-track'); dt.innerHTML='';
+  for(let i=0;i<30;i++){ const p=document.createElement('div'); p.className='dpip'+(i<gs.depth?' done':i===gs.depth?' cur':''); dt.appendChild(p); }
+  const sb=el('g-state');
+  const phMap={combat:'s-combat',merchant:'s-event',loot:'s-event',path:'s-explore',event:'s-explore'};
+  sb.className='state-badge '+(phMap[gs.phase]||'s-explore');
+  sb.textContent=gs.phase==='combat'?'In Combat':gs.phase==='merchant'?'Merchant':gs.phase==='loot'?'Loot Room':'Travelling';
+
+  renderLog(gs.log);
+  renderBattle(gs,players,me);
+  checkFloats(gs,players);
+  renderSidebars(players,gs,me);
+  renderActions(gs,players,me);
+
+  const showShop=gs.phase==='merchant'&&me.char&&me.char.merchantStock;
+  const showLoot=gs.phase==='loot'&&gs.lootRoom;
+  el('g-shop').hidden=!showShop;
+  el('g-loot-panel').hidden=!showLoot;
+  el('g-actions-panel').hidden=!!(showShop||showLoot);
+  if(showShop){ el('shop-gold').textContent=me.char.gold; renderShop(me.char.merchantStock,me.char.gold); }
+  if(showLoot) renderLoot(gs,me);
+}
+
+let lastLogLen=0;
+function renderLog(log){
+  const box=el('g-narrative');
+  const lastTs=log.length?log[log.length-1].ts:0;
+  if(lastTs===lastLogLen)return; lastLogLen=lastTs;
+  box.innerHTML='';
+  log.forEach(e=>{ const d=document.createElement('div'); d.className='log-line'+(e.type?' '+e.type:''); d.innerHTML=e.msg; box.appendChild(d); });
+  box.scrollTop=box.scrollHeight;
+}
+
+// ─── BATTLE ARENA ─────────────────────────────────────────────────────────────
+const ENEMY_TAG_LABEL={skaven:'🐀 Skaven',chaos:'☠ Chaos',undead:'💀 Undead',beast:'🐗 Beast'};
+const ENEMY_WEAKNESS={skaven:'⚡ Weak: Lightning + Holy',chaos:'✨ Weak: Holy',undead:'🔥 Weak: Fire',beast:'🌑 Weak: Dark'};
+const DEBUFF_ICON={'Blinded':'👁','Stunned':'💫','Slowed':'❄','Figment':'👻','Glamer (miss)':'✨','Vine Snare':'🌿','Enervated':'💔'};
+function threatClass(t){ return t==='Boss'?'tb':t==='Elite'||t==='High'?'th':t==='Moderate'?'tm':'tl'; }
+function tipChip(cls,name,label,isEnemy){
+  return `<span class="e-status-chip ${cls} e-chip-clickable" onmouseenter="showDebuffTip('${esc(name)}',${isEnemy},event)" onmouseleave="hideDebuffTip()">${label}</span>`;
+}
+
+function renderBattle(gs,players,me){
+  const panel=el('g-battle');
+  if(gs.phase!=='combat'||!gs.enemy){ panel.hidden=true; return; }
+  panel.hidden=false;
+  const enemies=gs.enemies&&gs.enemies.length>0?gs.enemies:[gs.enemy].filter(Boolean);
+  const activeIdx=gs.activeEnemyIdx||0;
+  const multi=enemies.filter(e=>e&&e.hp>0).length>1;
+  const eEl=el('ba-enemy'); eEl.innerHTML='';
+  enemies.forEach((e,idx)=>{
+    if(!e||e.hp<=0)return;
+    const eTok=TOKEN_DATA[e.name];
+    const hpPct=Math.max(0,e.hp/e.maxHp*100);
+    const isTarget=idx===activeIdx;
+    const eRow=document.createElement('div'); eRow.className='token-row er'+(multi&&isTarget?' targeted':''); eRow.dataset.eidx=idx;
+    const chips=[];
+    if(e._poisonStacks>0) chips.push(tipChip('e-chip-dot','Poison',`☠ Poison ×${e._poisonStacks}`,true));
+    (e.activeDebuffs||[]).forEach(d=>{
+      chips.push(d.dotDmg
+        ?tipChip('e-chip-dot',d.name,`${d.name} ${d.dotDmg} dmg · ${d.duration}r`,true)
+        :tipChip('e-chip-debuff',d.name,`${DEBUFF_ICON[d.name]||'⚠'} ${d.name} · ${d.duration}r`,true));
+    });
+    (e.tags||[]).forEach(t=>chips.push(`<span class="e-status-chip e-chip-tag">${ENEMY_TAG_LABEL[t]||t}</span>`));
+    if(e.lifeLeech) chips.push('<span class="e-status-chip e-chip-tag">🩸 Leech</span>');
+    if(e.regen) chips.push('<span class="e-status-chip e-chip-tag">💚 Regen</span>');
+    if(e.insanityAtk) chips.push('<span class="e-status-chip e-chip-tag">🌀 Insanity</span>');
+    (e.tags||[]).forEach(t=>{ if(ENEMY_WEAKNESS[t]) chips.push(`<span class="e-status-chip e-chip-weak">${ENEMY_WEAKNESS[t]}</span>`); });
+    const target=!multi?'':isTarget
+      ?'<div class="target-mark">▶ Targeted</div>'
+      :`<button class="mini-btn" onclick="send('PLAYER_ACTION',{action:'TARGET_ENEMY',data:{idx:${idx}}})">Target</button>`;
+    eRow.innerHTML=`
+      <div class="tok-info">
+        <div class="e-name">${e.name}</div>
+        <div class="e-sub"><span class="threat-b ${threatClass(e.threat)}">${e.threat}</span></div>
+        <div class="tok-hp-track"><div class="tok-hp-fill enemy" style="width:${hpPct}%"></div></div>
+        <div class="tok-hp-txt">${Math.max(0,e.hp)}/${e.maxHp} HP</div>
+        <div class="e-stats">Def<span>${e.ac}</span>ATK<span>${(e.atk>=0?'+':'')+e.atk}</span>DMG<span>${e.dmgDisplay||'1d6'}</span></div>
+        ${chips.length?`<div class="e-status-box">${chips.join('')}</div>`:''}${target}
+      </div>
+      ${eTok?`<img class="tok enemy" src="${eTok}" alt="${e.name}">`:'<div class="tok-ph">💀</div>'}`;
+    eEl.appendChild(eRow);
+  });
+  const pEl=el('ba-players'); pEl.innerHTML='';
+  players.forEach(p=>{
+    if(!p.char)return;
+    const c=p.char,isMe=p.id===myId;
+    const acted=hasActedThisRound(gs,p.id);
+    const hp=Math.max(0,c.health/c.maxHealth*100);
+    const src=TOKEN_DATA[p.career];
+    const tokCls=['tok',!c.alive?'fallen':acted?'acted':'',isMe?'mine':''].join(' ').trim();
+    const badge=!c.alive?'<span class="tok-badge tb-f">Fallen</span>':acted?'<span class="tok-badge tb-a">Acted ✓</span>':'';
+    const row=document.createElement('div'); row.className='token-row';
+    row.innerHTML=`
+      ${src?`<img class="${tokCls}" src="${src}" alt="${p.name}">`:'<div class="tok-ph">⚔</div>'}
+      <div class="tok-info">
+        <div class="tok-name">${p.name}${isMe?' <small>(you)</small>':''}</div>
+        <div class="tok-sub">${CAREER_LABELS[p.career]||''}</div>
+        <div class="tok-hp-track"><div class="tok-hp-fill ${hpClass(hp)}" style="width:${hp}%"></div></div>
+        <div class="tok-hp-txt">${c.health}/${c.maxHealth} HP</div>
+        ${badge}
+      </div>`;
+    pEl.appendChild(row);
+  });
+}
+
+// ─── SIDEBARS ─────────────────────────────────────────────────────────────────
+// Left: your character sheet + one tabbed panel (Talents / Spells / Items).
+// Right: compact cards for allies; their talents fold away behind a toggle.
+function modStr(s){ const m=s-10; return(m>=0?'+':'')+m; }
+function hpClass(pct){ return pct>60?'hi':pct>25?'mid':'lo'; }
+function labelFromKey(k){ return k.replace(/([A-Z])/g,' $1').replace(/^./,s=>s.toUpperCase()); }
+function xpProgress(c){
+  const lvl=c.level;
+  const cur=XP_T[Math.min(lvl,XP_T.length-1)]||0;
+  const next=XP_T[Math.min(lvl+1,XP_T.length-1)]||XP_T[XP_T.length-1];
+  const pct=lvl>=10?100:Math.max(0,Math.min(100,Math.round(((c.xp-cur)/Math.max(1,next-cur))*100)));
+  return {next,pct};
+}
+
+let sbTab=null;                 // remembered tab in your panel (null = automatic)
+const openAllyDetails=new Set(); // ally ids whose talent list is expanded
+
+function renderSidebars(players,gs,me){
+  const L=el('sb-left'),R=el('sb-right');
+  L.innerHTML=''; R.innerHTML='';
+  players.forEach(p=>{
+    if(!p.char)return;
+    if(p.id===myId){
+      L.appendChild(buildCard(p,gs));
+      L.appendChild(buildMyTabs(p.char,gs));
+    } else {
+      R.appendChild(buildAllyCard(p,gs));
+    }
+  });
+}
+
+function hasActedThisRound(gs,id){ return gs.phase==='combat'&&gs.playersActedThisRound&&gs.playersActedThisRound.includes(id); }
+
+function statusChips(c){
+  const conds=(c.conditions||[]).map(cd=>`<span class="chip chip-bad e-chip-clickable" onmouseenter="showDebuffTip('${esc(cd)}',false,event)" onmouseleave="hideDebuffTip()">${cd}</span>`);
+  const buffs=(c.activeBuffs||[]).map(b=>`<span class="chip chip-good e-chip-clickable" onmouseenter="showDebuffTip('${esc(b.name)}',false,event)" onmouseleave="hideDebuffTip()">${b.name} · ${b.duration}r</span>`);
+  const all=[...conds,...buffs];
+  return all.length?`<div class="chip-row">${all.join('')}</div>`:'';
+}
+
+function buildCard(p,gs){
+  const c=p.char, div=document.createElement('div');
+  div.className='panel pcard'+(c.alive?'':' is-dead');
+  const hpPct=Math.max(0,c.health/c.maxHealth*100);
+  const {next,pct:xpPct}=xpProgress(c);
+  const paths=[c.novicePath,c.expertPath,c.masterPath].filter(Boolean).map(labelFromKey).join(' › ');
+  const defBuff=(c.activeBuffs||[]).filter(b=>b.defBonus).reduce((s,b)=>s+b.defBonus,0);
+  const w=c.equippedWeapon, a=c.equippedArmor;
+  const attr=(k,lbl)=>`<div class="attr"><span class="attr-l">${lbl}</span><span class="attr-v">${c.attrs[k]}</span><span class="attr-m">${modStr(c.attrs[k])}</span></div>`;
+  div.innerHTML=`
+    <div class="pc-head">
+      <div class="pc-name">${p.name}</div>
+      ${hasActedThisRound(gs,p.id)?'<span class="badge badge-good">Acted</span>':''}
+    </div>
+    <div class="pc-career">${CAREER_LABELS[p.career]||''} · Level ${c.level}${paths?` · ${paths}`:''}</div>
+    <div class="bar-row"><span>Health</span><span>${c.health} / ${c.maxHealth}</span></div>
+    <div class="bar-track"><div class="bar-fill hp ${hpClass(hpPct)}" style="width:${hpPct}%"></div></div>
+    <div class="bar-row"><span>Experience</span><span>${c.level>=10?'Max level':`${c.xp} / ${next}`}</span></div>
+    <div class="bar-track thin"><div class="bar-fill xp" style="width:${xpPct}%"></div></div>
+    <div class="attr-grid">${attr('str','STR')}${attr('agi','AGI')}${attr('int','INT')}${attr('wil','WIL')}</div>
+    <dl class="stat-list">
+      <div><dt>Defence</dt><dd>${c.defense}${defBuff?` <small>(+${defBuff})</small>`:''}</dd></div>
+      <div><dt>Power</dt><dd>${c.power}</dd></div>
+      <div><dt>Silver</dt><dd class="silver">${c.gold} ss</dd></div>
+      <div class="wide"><dt>Weapon</dt><dd>${w?`${w.name} ${w.dice}+${w.bonus||0} ${w.dmgType==='blunt'?'🔨':'⚔'}`:'Unarmed'}</dd></div>
+      <div class="wide"><dt>Armour</dt><dd>${a?`${a.name} +${a.defBonus}`:'None'}</dd></div>
+    </dl>
+    ${statusChips(c)}
+    ${!c.alive?'<div class="dead-label">Fallen</div>':''}`;
+  return div;
+}
+
+function buildAllyCard(p,gs){
+  const c=p.char, div=document.createElement('div');
+  div.className='panel pcard ally'+(c.alive?'':' is-dead');
+  const hpPct=Math.max(0,c.health/c.maxHealth*100);
+  const open=openAllyDetails.has(p.id);
+  div.innerHTML=`
+    <div class="pc-head">
+      <div class="pc-name">${p.name}</div>
+      ${hasActedThisRound(gs,p.id)?'<span class="badge badge-good">Acted</span>':''}
+      ${!p.connected?'<span class="badge">Offline</span>':''}
+    </div>
+    <div class="pc-career">${CAREER_LABELS[p.career]||''} · Level ${c.level}</div>
+    <div class="bar-row"><span>Health</span><span>${c.health} / ${c.maxHealth}</span></div>
+    <div class="bar-track"><div class="bar-fill hp ${hpClass(hpPct)}" style="width:${hpPct}%"></div></div>
+    <div class="ally-stats">Def <b>${c.defense}</b> · STR <b>${c.attrs.str}</b> · AGI <b>${c.attrs.agi}</b> · INT <b>${c.attrs.int}</b> · WIL <b>${c.attrs.wil}</b></div>
+    ${statusChips(c)}
+    ${!c.alive?'<div class="dead-label">Fallen</div>':''}
+    <button class="fold-btn" aria-expanded="${open}">${open?'Hide':'Show'} talents & spells</button>
+    <div class="fold-body"${open?'':' hidden'}>${abilitiesHtml(c)}</div>`;
+  div.querySelector('.fold-btn').onclick=()=>{
+    if(openAllyDetails.has(p.id)) openAllyDetails.delete(p.id); else openAllyDetails.add(p.id);
+    if(lastState) renderSidebars(lastState.players,lastState.gs,null);
+  };
+  return div;
+}
+
+function buildMyTabs(c,gs){
+  const hasSpells=(c.knownSpells||[]).length>0;
+  const tabs=[['talents','Talents'],...(hasSpells?[['spells','Spells']]:[]),['items',`Items (${(c.inventory||[]).length})`]];
+  let tab=sbTab;
+  if(!tab||!tabs.some(t=>t[0]===tab)) tab=gs.phase==='merchant'?'items':'talents';
+  const wrap=document.createElement('div'); wrap.className='panel tab-panel';
+  const bar=document.createElement('div'); bar.className='tab-bar'; bar.setAttribute('role','tablist');
+  tabs.forEach(([id,label])=>{
+    const b=document.createElement('button'); b.className='tab'+(id===tab?' on':''); b.textContent=label;
+    b.setAttribute('role','tab'); b.setAttribute('aria-selected',id===tab);
+    b.onclick=()=>{ sbTab=id; if(lastState) renderSidebars(lastState.players,lastState.gs,null); };
+    bar.appendChild(b);
+  });
+  wrap.appendChild(bar);
+  const body=document.createElement('div'); body.className='tab-body';
+  if(tab==='spells') body.innerHTML=spellsHtml(c);
+  else if(tab==='items') body.innerHTML=`<ul class="inv-list">${inventoryHtml(c,gs.phase==='combat',gs.phase==='merchant')}</ul>`;
+  else body.innerHTML=talentsHtml(c);
+  wrap.appendChild(body);
+  return wrap;
+}
+
+// ─── TALENTS / SPELLS ─────────────────────────────────────────────────────────
+const ACTIVE_TALENTS=[
+  ['catchBreath','Catch Your Breath','catchBreathUsed'],['nimbleRecovery','Nimble Recovery','nimbleUsed'],
+  ['sharedRecovery','Shared Recovery','sharedUsed'],['spellRecovery','Spell Recovery','spellRecoveryUsed'],
+  ['shieldBash','Shield Bash','_shieldBashUsed'],['divineSmite','Divine Smite','divineSmiteUsed'],
+  ['massHeal','Mass Heal','massHealUsed'],['resurrection','Resurrection','resurrectionUsed'],
+  ['rallyingCry','Rallying Cry','rallyingUsed'],['metamagic','Metamagic','metamagicUsed'],
+  ['catastrophe','Catastrophe','catastropheUsed'],['bloodOffering','Blood Offering',null],['overcast','Overcast',null],
+];
+const PASSIVE_TALENTS=[
+  'weaponTraining','trickery','combatProwess','combatExpertise','shieldwall','toughness','quickstrike','evasion',
+  'deathblow','shadowstep','burningSoul','firewall','holyFervor','warlordAura','sweepingBlow','phantomStrike',
+  'bladestorm','holyAura','rage','quickStep','utilityFocus','elementalAttunement','volatileForm','assassination',
+  'swiftFeet','arcaneSurge','spellLeech','pacedStrikes','unstoppable','quickHands','acrobaticRiposte',
+  'protectiveBlessing','forceOfWill',
+];
+const SPELL_ELEMENT_ICON={fire:'🔥',holy:'✨',lightning:'⚡',dark:'🌑',arcane:'🔮'};
+const TRADITION_ELEMENT={fire:'fire',life:'holy',death:'dark',shadow:'dark',battle:'arcane',celestial:'holy',chaos:'arcane',earth:'arcane',storm:'lightning',protection:'arcane',illusion:'arcane',nature:'arcane',transformation:'arcane',time:'arcane'};
+function spellIcon(name){
+  const trad=Object.keys(TRADITION_ELEMENT).find(k=>(TRADITION_SPELLS_CLIENT[k]||[]).some(s=>s.name===name));
+  return trad?SPELL_ELEMENT_ICON[TRADITION_ELEMENT[trad]]||'🔮':'🔮';
+}
+
+function talentRow(name,badgeCls,badge,desc){
+  return `<div class="ab-item tip"><span class="ab-name">${name}</span><span class="badge ${badgeCls}">${badge}</span><span class="tiptext">${desc}</span></div>`;
+}
+function talentsHtml(c){
+  const actives=ACTIVE_TALENTS.filter(([k])=>c[k]).map(([k,label,usedKey])=>{
+    const used=usedKey?!!c[usedKey]:false;
+    return talentRow(label,used?'badge-bad':'badge-good',used?'Used':'Ready',TALENT_DESCS[k]||label);
+  });
+  EXTRA_ACTIVES.forEach(([k,lbl,sub,used])=>{
+    if(!c[k]||ACTIVE_TALENTS.some(t=>t[0]===k)) return;
+    const u=used(c,(lastState&&lastState.gs)||{});
+    actives.push(talentRow(lbl.replace(/^\S+ /,''),u?'badge-bad':'badge-good',u?'Used':'Ready',TALENT_DESCS[k]||sub));
+  });
+  const passives=PASSIVE_TALENTS.filter(k=>c[k]).map(k=>talentRow(labelFromKey(k),'badge-dim','Passive',TALENT_DESCS[k]||labelFromKey(k)));
+  let h='';
+  if(actives.length) h+=`<div class="ab-section"><div class="ab-title">Active</div>${actives.join('')}</div>`;
+  if(passives.length) h+=`<div class="ab-section"><div class="ab-title">Passive</div>${passives.join('')}</div>`;
+  return h||'<div class="empty">No talents yet.</div>';
+}
+function spellsHtml(c){
+  const spells=c.knownSpells||[];
+  if(!spells.length) return '<div class="empty">No spells known.</div>';
+  const ranks=[...new Set(spells.map(sp=>sp.rank))].sort();
+  const pools=ranks.map(r=>`<span class="pool">Rank ${r} <b>${castingsLeftC(c,'',r)}/${maxCastingsC(c.power,r)}</b></span>`).join('');
+  const rows=spells.map(sp=>{
+    const left=castingsLeftC(c,sp.name,sp.rank);
+    const type=sp.type==='heal'?'Heal':sp.type==='utility'?'Utility':'Attack';
+    return `<div class="ab-item tip"><span class="ab-name">${spellIcon(sp.name)} ${sp.name}</span><span class="ab-meta">R${sp.rank} ${type}</span><span class="badge ${left>0?'badge-good':'badge-bad'}">${left}</span><span class="tiptext">${sp.desc||`Rank ${sp.rank} ${type} spell.`}</span></div>`;
+  }).join('');
+  const trads=(c.traditions||[]).map(t=>(TRADITION_INFO[t]&&TRADITION_INFO[t].label)||t).join(', ');
+  return `<div class="pools" title="Spells of the same rank share castings; all refill at the start of each fight.">${pools}</div>${rows}${trads?`<div class="ab-foot">Traditions: ${trads}</div>`:''}`;
+}
+function abilitiesHtml(c){
+  const sp=(c.knownSpells||[]).length?`<div class="ab-section"><div class="ab-title">Spells</div>${spellsHtml(c)}</div>`:'';
+  return talentsHtml(c)+sp;
+}
+
+// ─── INVENTORY ────────────────────────────────────────────────────────────────
+const USABLE_ITEMS=['Healing Draught','Greater Healing Draught','Flask of Oil','Fire Jar','Lucky Pendant','Sharpening Stone'];
+const ALLY_ITEMS=['Healing Draught','Greater Healing Draught'];
+function isUsableItem(name){ return USABLE_ITEMS.includes(name)||name.startsWith('Scroll:'); }
+function inventoryHtml(c,inCombat,atMerchant){
+  let h='';
+  (c.inventory||[]).forEach((item,idx)=>{
+    const o=item.itemObj;
+    const isWpn=item.type==='weapon', isArmor=item.type==='armor';
+    const isEq=(isWpn&&c.equippedWeapon&&o&&o.id===c.equippedWeapon.id)||(isArmor&&c.equippedArmor&&o&&o.id===c.equippedArmor.id);
+    const stat=isWpn&&o?` ${o.dice}+${o.bonus}${o.dmgType==='blunt'?' 🔨':' ⚔'}`:isArmor&&o?` +${o.defBonus} Def`:'';
+    const special=(isWpn||isArmor)&&o&&o.special?'<span class="special-mark" title="Has a special ability">✦</span>':'';
+    let btns='';
+    if((isWpn||isArmor)&&!isEq) btns+=`<button class="mini-btn" onclick="equipItem(${idx})">Equip</button>`;
+    if(isUsableItem(item.name)) btns+=`<button class="mini-btn" onclick="useItem('${esc(item.name)}',${inCombat})">Use</button>`;
+    if(ALLY_ITEMS.includes(item.name)&&inCombat) btns+=`<button class="mini-btn good" onclick="useAlly('${esc(item.name)}')">Ally</button>`;
+    if(atMerchant&&!isEq) btns+=`<button class="mini-btn" onclick="sellItem(${idx})">Sell 1 ss</button>`;
+    const open=(isWpn||isArmor)?` onclick="openItemPopout(${idx},this)" role="button" tabindex="0"`:'';
+    h+=`<li class="${isEq?'equipped':''}"><span class="iname${open?' clickable':''}"${open}>${item.name}${item.qty>1?` ×${item.qty}`:''}<small>${stat}</small>${special}${isEq?'<span class="eq-mark">Equipped</span>':''}</span><span class="inv-btns">${btns}</span></li>`;
+  });
+  return h||'<li class="empty">Your pack is empty.</li>';
+}
+
+function openItemPopout(invIdx, triggerEl){
+  if(!lastState) return;
+  const me=lastState.players.find(p=>p.id===myId); if(!me||!me.char) return;
+  const item=me.char.inventory[invIdx]; if(!item) return;
+  const obj=item.itemObj;
+  const pop=document.getElementById('item-popout');
+  const content=document.getElementById('ip-content');
+  if(!pop||!content) return;
+
+  const isWpn=item.type==='weapon', isArm=item.type==='armor';
+  const statLine=isWpn&&obj?`${obj.dice}+${obj.bonus} · ${(obj.stat||'').toUpperCase()} · ${obj.dmgType||''}`:
+                 isArm&&obj?`+${obj.defBonus} Defense`:'';
+  const isEqWpn=isWpn&&me.char.equippedWeapon&&obj&&obj.id===me.char.equippedWeapon.id;
+  const isEqArm=isArm&&me.char.equippedArmor&&obj&&obj.id===me.char.equippedArmor.id;
+  const inCombat=lastState.gs&&lastState.gs.phase==='combat';
+  const atMerchant=lastState.gs&&lastState.gs.phase==='merchant';
+  const usable=isUsableItem(item.name);
+  const legendary=obj&&obj.legendary;
+
+  let specialHtml='';
+  if(obj&&obj.special){
+    const spName=obj.special.key
+      .replace(/([A-Z])/g,' $1')
+      .replace(/^./,s=>s.toUpperCase())
+      .replace('Bladeguard','Bladeguard — Passive')
+      .replace('Cleave','Cleave — Active')
+      .replace('Reach','Reach — Passive')
+      .replace('Riposte','Riposte — Active')
+      .replace('Silver Edge','Silver Edge — Passive')
+      .replace('Arcane Focus','Arcane Focus — Passive')
+      .replace('Spellblade','Spellblade — Active')
+      .replace('Blessed Strike','Blessed Strike — Passive')
+      .replace('Smite The Fallen','Smite the Fallen — Active')
+      .replace('Sunder','Sunder — Active')
+      .replace('Opening Shot','Opening Shot — Active')
+      .replace('Marksmanship','Marksmanship — Passive')
+      .replace('Unstable Charge','Unstable Charge — Passive')
+      .replace('Rune Strike','Rune Strike — Active')
+      .replace('Channel Faith','Channel Faith — Passive')
+      .replace('Holy Smoke','Holy Smoke — Passive');
+    specialHtml=`<div class="ip-special"><div class="ip-special-name">${spName}${legendary?' <span class="legendary-tag">✦ Legendary</span>':''}</div><div class="ip-special-desc">${obj.special.desc.replace(/^(Passive|Active|Legendary):\s*/,'')}</div></div>`;
+  }
+
+  const descParts=obj&&obj.desc?obj.desc.split(' — '):[];
+  const extraDesc=descParts.slice(1).join(' — ').replace(/^(Passive|Active|Legendary):\s*/,'');
+
+  let btnHtml='<div class="ip-btns">';
+  if(isWpn&&!isEqWpn) btnHtml+=`<button class="mini-btn" onclick="equipItem(${invIdx});closeItemPopout()">Equip</button>`;
+  if(isArm&&!isEqArm) btnHtml+=`<button class="mini-btn" onclick="equipItem(${invIdx});closeItemPopout()">Equip</button>`;
+  if(usable) btnHtml+=`<button class="mini-btn" onclick="useItem('${esc(item.name)}',${inCombat});closeItemPopout()">Use</button>`;
+  if(atMerchant&&!isEqWpn&&!isEqArm) btnHtml+=`<button class="mini-btn" onclick="sellItem(${invIdx});closeItemPopout()">Sell 1ss</button>`;
+  btnHtml+='</div>';
+
+  content.innerHTML=`
+    <div class="ip-name">${item.name}${legendary?' <span class="legendary-tag">Legendary</span>':''}</div>
+    ${statLine?`<div class="ip-stat">${statLine}${isEqWpn||isEqArm?' · <span class="eq-mark">Equipped</span>':''}</div>`:''}
+    ${specialHtml}
+    ${extraDesc&&!specialHtml?`<div class="ip-special"><div class="ip-special-desc">${extraDesc}</div></div>`:''}
+    ${btnHtml}`;
+
+  pop.classList.remove('show');
+  const rect=triggerEl.getBoundingClientRect();
+  const winW=window.innerWidth, winH=window.innerHeight;
+  let left=rect.left, top=rect.bottom+6;
+  if(left+340>winW) left=Math.max(4,winW-344);
+  if(top+200>winH) top=Math.max(4,rect.top-210);
+  pop.style.left=left+'px'; pop.style.top=top+'px';
+  pop.classList.toggle('legendary-popout', !!legendary);
+  pop.classList.add('show');
+
+  setTimeout(()=>{ document.addEventListener('click',_ipOutside,{once:true,capture:true}); },10);
+}
+function _ipOutside(e){
+  const pop=document.getElementById('item-popout');
+  if(pop&&!pop.contains(e.target)) closeItemPopout();
+}
+function closeItemPopout(){
+  const pop=document.getElementById('item-popout');
+  if(pop) pop.classList.remove('show');
+}
+function esc(s){ return s.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"'); }
+function useItem(name,inCombat){ send('PLAYER_ACTION',{action:inCombat?'USE_ITEM':'USE_ITEM_OOC',data:{itemName:name}}); }
+function equipItem(idx){ send('PLAYER_ACTION',{action:'EQUIP_ITEM',data:{inventoryIndex:idx}}); }
+function sellItem(idx){ send('PLAYER_ACTION',{action:'SELL_ITEM',data:{invIndex:idx}}); }
+
+function useAlly(itemName){
+  if(!lastState)return;
+  const allies=lastState.players.filter(p=>p.id!==myId&&p.char&&p.char.alive);
+  if(!allies.length){ useItem(itemName,true); return; }
+  showOverlay(allies,tid=>{ send('PLAYER_ACTION',{action:'USE_ITEM_ALLY',data:{itemName,targetId:tid}}); closeOverlay(); });
+}
+function castAlly(spellName){
+  if(!lastState)return;
+  const options=[...lastState.players.filter(p=>p.id!==myId&&p.char&&p.char.alive),{id:myId,name:'Yourself'}];
+  showOverlay(options,tid=>{ send('PLAYER_ACTION',{action:'CAST_SPELL',data:{spellName,targetId:tid}}); closeOverlay(); });
+}
+function showOverlay(players,onPick){
+  closeOverlay();
+  const ov=document.createElement('div'); ov.className='overlay'; ov.id='ov';
+  const box=document.createElement('div'); box.className='panel overlay-box';
+  box.innerHTML='<div class="ph">Choose Target</div>';
+  players.forEach(p=>{
+    const b=document.createElement('button'); b.className='btn btn-w';
+    b.textContent=p.name; b.onclick=()=>onPick(p.id); box.appendChild(b);
+  });
+  const c=document.createElement('button'); c.className='btn'; c.textContent='Cancel'; c.onclick=closeOverlay; box.appendChild(c);
+  ov.appendChild(box); document.body.appendChild(ov);
+}
+function closeOverlay(){ const o=el('ov'); if(o)o.remove(); }
+
+// ─── ACTIONS ──────────────────────────────────────────────────────────────────
+function renderActions(gs,players,me){
+  const body=el('g-actions-body'), heading=el('actions-heading');
+  body.innerHTML='';
+
+  if(gs.phase==='path'){
+    heading.textContent=gs.bossNode?'The Path Ahead':'Vote Your Path';
+    const myVote=gs.pathVotes&&gs.pathVotes[myId];
+    const icons={combat:'⚔',elite:'💀',rest:'🔥',merchant:'🛒',loot:'📦',unknown:'❓',boss:'💀'};
+    const descs={combat:'An enemy emerges.',elite:'A powerful foe.',rest:'A campfire — rest and recover.',merchant:'A merchant with wares.',loot:'A cache to plunder.',unknown:'Unknown dangers.',boss:'⚠ BOSS — face it!'};
+    const tally={}; if(gs.pathVotes) Object.values(gs.pathVotes).forEach(v=>{tally[v]=(tally[v]||0)+1;});
+    const nodes=document.createElement('div'); nodes.className='path-nodes';
+    (gs.pathChoices||[]).forEach(t=>{
+      const node=document.createElement('div');
+      node.className='path-node'+(t==='boss'?' boss':'')+(myVote===t?' voted':'');
+      const vc=tally[t]||0;
+      node.innerHTML=`<div class="node-icon">${icons[t]}</div><div class="node-name">${t.charAt(0).toUpperCase()+t.slice(1)}</div><div class="node-desc">${descs[t]}</div>${vc?`<div class="vote-tally">${vc} vote${vc>1?'s':''}</div>`:''}`;
+      if(myVote!==t) node.onclick=()=>send('PLAYER_ACTION',{action:'VOTE_PATH',data:{nodeType:t}});
+      nodes.appendChild(node);
+    });
+    body.appendChild(nodes);
+    if(myVote) body.insertAdjacentHTML('beforeend',`<div class="acted-msg">Voted: <strong>${myVote}</strong> — waiting...</div>`);
+    return;
+  }
+
+  if(gs.phase==='event'){
+    heading.textContent='Actions';
+    const g=document.createElement('div'); g.className='action-grid single';
+    addBtn(g,'Press Onward','Advance the journey','amv-',()=>send('PLAYER_ACTION',{action:'PRESS_ONWARD'}));
+    body.appendChild(g); return;
+  }
+
+  if(gs.phase==='combat'){
+    heading.textContent='Combat';
+    const char=me.char;
+    if(!char||!char.alive){ body.innerHTML='<div class="wait-msg">You have fallen...</div>'; return; }
+    const hasActed=gs.playersActedThisRound&&gs.playersActedThisRound.includes(myId);
+    const _curTurn=gs.turnOrder&&gs.turnOrder.length ? gs.turnOrder[gs.activeTurnIdx||0] : null;
+    const _isMyTurn= _curTurn ? (_curTurn.type==='player'&&_curTurn.id===myId) : !hasActed;
+    if(!_isMyTurn){
+      const waitMsg=_curTurn&&_curTurn.type==='enemy'
+        ? `<strong class="foe">${_curTurn.name}</strong> is attacking...`
+        : _curTurn&&_curTurn.type==='player'&&!_isMyTurn
+        ? `Waiting for <strong>${_curTurn.name}</strong>...`
+        : 'Waiting for others...';
+      body.innerHTML=`<div class="acted-msg">${waitMsg}</div>`; return;
+    }
+    const g=document.createElement('div'); g.className='action-grid';
+    const wpnStr=wpnLbl(char);
+    const _wpn=char.equippedWeapon;
+    const _dtype=(_wpn&&_wpn.dmgType)||'slashing';
+    const _dtIcon=_dtype==='blunt'?'🔨':'⚔';
+    const _te=gs.enemies&&gs.enemies.length>0?gs.enemies[gs.activeEnemyIdx||0]:gs.enemy;
+    const _bonus=_dtype==='blunt'&&_te&&_te.ac>=16
+      ? ' [×1.5 vs heavy armour!]'
+      : _dtype==='slashing'&&_te&&_te.ac<=14
+      ? ' [×1.5 vs light armour!]'
+      : '';
+    const _atkLabel=`${_dtIcon} Attack${_bonus}`;
+    const _atkTip=`${_dtIcon} ${_dtype==='blunt'?'Blunt — ×1.5 dmg vs AC ≥ 16 (heavy armour)':'Slashing — ×1.5 dmg vs AC ≤ 14 (light/no armour)'}. ${wpnStr}.`;
+    addBtn(g,_atkLabel,wpnStr,'am-',()=>send('PLAYER_ACTION',{action:'ATTACK'}),false,_atkTip);
+    (char.knownSpells||[]).forEach(sp=>{
+      const avail=castingsLeftC(char,sp.name,sp.rank)>0;
+      const desc=sp.desc||`Rank ${sp.rank} spell.`;
+      const isHeal=(sp.type==='heal'||sp.heal);
+      const isUtil=(sp.type==='utility');
+      if(isHeal){
+        addBtn(g,sp.name,'Heal self','as-',()=>send('PLAYER_ACTION',{action:'CAST_SPELL',data:{spellName:sp.name,targetId:myId}}),!avail,desc);
+        if(lastState&&lastState.players.filter(p=>p.id!==myId&&p.char&&p.char.alive).length>0)
+          addBtn(g,sp.name+' →','Heal ally','as-',()=>castAlly(sp.name),!avail,desc+' (Target an ally.)');
+      } else if(isUtil){
+        addBtn(g,sp.name,`Utility·R${sp.rank}`,'as-',()=>send('PLAYER_ACTION',{action:'CAST_SPELL',data:{spellName:sp.name}}),!avail,desc);
+      } else {
+        const elemIcon=spellIcon(sp.name);
+        addBtn(g,`${elemIcon} ${sp.name}`,`Attack·R${sp.rank}`,'as-',()=>send('PLAYER_ACTION',{action:'CAST_SPELL',data:{spellName:sp.name}}),!avail,desc);
+      }
+    });
+    if(char.catchBreath&&!char.catchBreathUsed) addBtn(g,'Catch Breath','Heal 1d6+best attr','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'catchBreath'}}),false,TALENT_DESCS.catchBreath);
+    if(char.shieldBash&&!char._shieldBashUsed) addBtn(g,'🛡 Shield Bash','Stun enemy','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'shieldBash'}}),false,TALENT_DESCS.shieldBash);
+    if(char.nimbleRecovery&&!char.nimbleUsed)   addBtn(g,'Nimble Recovery','Heal 1d6+best attr','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'nimbleRecovery'}}),false,TALENT_DESCS.nimbleRecovery);
+    if(char.sharedRecovery&&!char.sharedUsed)   addBtn(g,'Shared Recovery','Party heals 1d6+attr','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'sharedRecovery'}}),false,TALENT_DESCS.sharedRecovery);
+    if(char.spellRecovery&&!char.spellRecoveryUsed) addBtn(g,'Spell Recovery','Heal+casting','as-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'spellRecovery'}}),false,TALENT_DESCS.spellRecovery);
+    if(char.divineSmite&&!char.divineSmiteUsed)  addBtn(g,'⚡ Divine Smite','+3d6 holy dmg','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'divineSmite'}}),false,TALENT_DESCS.divineSmite);
+    if(char.massHeal&&!char.massHealUsed)        addBtn(g,'✨ Mass Heal','All allies 1d6','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'massHeal'}}),false,TALENT_DESCS.massHeal||'Heal all living allies 1d6. Once per combat.');
+    if(char.resurrection&&!char.resurrectionUsed)addBtn(g,'✝ Resurrection','Shield weakest ally','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'resurrection'}}),false,TALENT_DESCS.resurrection);
+    if(char.rallyingCry&&!char.rallyingUsed)     addBtn(g,'📯 Rallying Cry','Heal all 1d6+attr','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'rallyingCry'}}),false,TALENT_DESCS.rallyingCry);
+    if(char.bloodOffering)                        addBtn(g,'🩸 Blood Offering','−1d6 HP → castings','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'bloodOffering'}}),false,TALENT_DESCS.bloodOffering);
+    if(char.overcast&&!char.overcastUsed)         addBtn(g,'💥 Overcast','Next spell +2d6','as-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'overcast'}}),false,TALENT_DESCS.overcast);
+    if(char.metamagic&&!char.metamagicUsed)       addBtn(g,'🔮 Metamagic','Next spell free','as-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'metamagic'}}),false,TALENT_DESCS.metamagic);
+    if(char.catastrophe&&!char.catastropheUsed)   addBtn(g,'💥 Catastrophe','10d6 all enemies','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'catastrophe'}}),false,TALENT_DESCS.catastrophe);
+    EXTRA_ACTIVES.forEach(([k,lbl,sub,used])=>{ if(char[k]&&!used(char,gs)) addBtn(g,lbl,sub,'at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:k}}),false,TALENT_DESCS[k]||sub); });
+    const isBoss=gs.enemy&&gs.enemy.threat==='Boss';
+    addBtn(g,'⏭ End Turn','Pass your turn','am-',()=>send('PLAYER_ACTION',{action:'PASS_TURN'}),false,'Skip your action this round.');
+    addBtn(g,'Flee',isBoss?'No escape':'AGI vs DC10','amv-',()=>send('PLAYER_ACTION',{action:'FLEE'}),isBoss,'Attempt to flee combat. Roll d20+AGI vs DC10. Success costs opportunity damage unless you have Shadowstep.');
+    body.appendChild(g);
+    const alive=lastState?lastState.players.filter(p=>p.char&&p.char.alive):[];
+    const acted=gs.playersActedThisRound?gs.playersActedThisRound.length:0;
+    if(gs.turnOrder && gs.turnOrder.length) {
+      const curSlot = gs.turnOrder[gs.activeTurnIdx||0];
+      const isMyTurn = curSlot && curSlot.type==='player' && curSlot.id===myId;
+      const turnLabel = curSlot ? (curSlot.type==='enemy' ? `Enemy turn: ${curSlot.name}` : (isMyTurn ? 'Your turn' : `${curSlot.name}'s turn`)) : '';
+      const turnCls = isMyTurn ? 'mine' : curSlot&&curSlot.type==='enemy' ? 'foe' : '';
+      const pos = (gs.activeTurnIdx||0)+1;
+      body.insertAdjacentHTML('beforeend',`<div class="turn-line ${turnCls}">${turnLabel} (${pos}/${gs.turnOrder.length})</div>`);
+    } else if(alive.length>1) {
+      body.insertAdjacentHTML('beforeend',`<div class="turn-line">${acted}/${alive.length} warriors acted</div>`);
+    }
+  }
+}
+
+function addBtn(parent,label,sub,cls,onClick,disabled=false,tooltip=''){
+  const b=document.createElement('button');
+  b.className=`act-btn ${cls}${tooltip?' tip':''}`;
+  b.disabled=disabled;
+  b.innerHTML=`<span class="abl">${label}</span><span class="abs">${sub}</span>${tooltip?`<span class="tiptext">${tooltip}</span>`:''}`;
+  b.onclick=onClick; parent.appendChild(b);
+}
+function wpnLbl(char){
+  const w=char.equippedWeapon;
+  if(w) return`${w.name} ${w.dice}+${(w.bonus||0)+(char.weaponDmgBonus||0)}${char.weaponTraining?' +boon':''}`;
+  return`Unarmed 1d6${char.weaponTraining?' +boon':''}`;
+}
+
+// ─── LOOT ────────────────────────────────────────────────────────────────────
+function renderLoot(gs,me){
+  const loot=gs.lootRoom; if(!loot)return;
+  const hasPicked=gs.lootPicked&&gs.lootPicked.includes(myId);
+  el('g-loot-desc').textContent='Choose one:';
+  const opts=el('g-loot-opts'); opts.innerHTML='';
+  const pm=el('g-loot-picked-msg');
+  if(hasPicked){ pm.hidden=false; opts.innerHTML='<div class="empty wide">You have chosen.</div>'; return; }
+  pm.hidden=true;
+  const o=me.char&&me.char.lootOptions;
+  if(!o){ opts.innerHTML='<div class="empty wide">Loading…</div>'; return; }
+  const consName=o.consumable==='Spell Scroll'&&o.scrollSpell?`Scroll: ${o.scrollSpell.name}`:o.consumable;
+  const consDesc=o.scrollSpell?o.scrollSpell.desc:ITEM_DESCS[o.consumable]||o.consumable;
+  lootOpt(opts,'💰',`${loot.coins} Silver`,'Coin from the cache.',()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'coins'}}));
+  lootOpt(opts,'🧪',consName,consDesc,()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'consumable'}}));
+  lootOpt(opts,'⚔',o.weapon.name,`${o.weapon.dice}+${o.weapon.bonus} · ${o.weapon.stat.toUpperCase()} — added to inventory`,()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'weapon'}}));
+  lootOpt(opts,'🛡',o.armor.name,`+${o.armor.defBonus} Defense — added to inventory`,()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'armor'}}));
+}
+function lootOpt(parent,icon,name,desc,onClick){
+  const d=document.createElement('div'); d.className='loot-opt';
+  d.innerHTML=`<div class="loot-icon">${icon}</div><div class="loot-name">${name}</div><div class="loot-desc">${desc}</div>`;
+  d.onclick=onClick; parent.appendChild(d);
+}
+
+// ─── MERCHANT ────────────────────────────────────────────────────────────────
+function renderShop(stock,myGold){
+  const grid=el('g-shop-items'); grid.innerHTML='';
+  const L=document.createElement('div'); L.className='shop-col';
+  const R=document.createElement('div'); R.className='shop-col';
+  [stock.weaponEnhance,stock.statBoost,stock.weapon1,stock.weapon2,stock.armor].forEach(it=>{if(it)L.appendChild(shopEl(it,myGold));});
+  [...(stock.consumables||[]),stock.scroll].forEach(it=>{if(it)R.appendChild(shopEl(it,myGold));});
+  grid.appendChild(L); grid.appendChild(R);
+}
+function shopEl(item,gold){
+  const d=document.createElement('div'); d.className='shop-item'+(item.bought?' sold':'');
+  const desc=(item.itemObj&&item.itemObj.desc)||item.desc||ITEM_DESCS[item.name]||'';
+  d.innerHTML=`<span class="si-name tip">${item.name}<span class="tiptext">${desc}</span></span><span class="si-desc">${item.desc||''}</span><div class="si-row"><span class="si-cost">${item.cost} ss</span><button class="buy-btn" onclick="buyItem('${item.id}')" ${item.bought||gold<item.cost?'disabled':''}>${item.bought?'Sold':'Buy'}</button></div>`;
+  return d;
+}
+function buyItem(id){ send('PLAYER_ACTION',{action:'BUY_ITEM',data:{itemId:id}}); }
+function leaveShop(){ send('PLAYER_ACTION',{action:'LEAVE_SHOP'}); }

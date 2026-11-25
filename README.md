@@ -15,16 +15,15 @@
    - Name: `shadows-over-reikland`
    - Leave everything else default → **Create Repository**
 4. Click **Show in Explorer / Finder** to open the repo folder
-5. Copy ALL files from this zip into that folder:
+5. Copy ALL files and folders from this zip into that folder, keeping the layout:
    ```
-   server.js
+   server.js          ← game server and rules
+   game/              ← game data (careers, spells, enemies, items) and dice helpers
+   public/            ← the web client: index.html, css/, js/, tokens.json (+ your audio/ folder)
+   tools/             ← automated playtest (npm test)
    package.json
    railway.json
    nixpacks.toml
-   Procfile
-   start.sh
-   .gitignore
-   public/index.html   ← keep inside a public/ subfolder
    ```
 6. Back in GitHub Desktop, all files appear in the left panel
 7. Type commit message: `initial commit` → click **Commit to main**
@@ -105,3 +104,21 @@ Edit files → commit in GitHub Desktop → push. Railway auto-redeploys in ~60s
 ## Cost
 
 Free tier: $5 credits/month — plenty for a small game server. No card needed.
+
+---
+
+## Checking changes before you deploy
+
+With Node 18+ installed, run this in the project folder:
+
+```
+npm install
+npm test
+```
+
+`npm test` syntax-checks every file, starts the server locally and lets bots play
+four full games (1–4 players). It fails if the server logs an error or a game gets
+stuck. Use `GAMES=10 npm test` for a longer run.
+
+On phones the game switches to the mobile layout automatically; the 📱/🖥 button in
+the header swaps layouts for the current visit.
