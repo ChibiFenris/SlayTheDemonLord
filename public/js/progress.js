@@ -31,11 +31,75 @@ function awardRun(gs,code){
   const after={renown:before.renown+earned,runs:before.runs+1,best:Math.max(before.best,gs.depth)};
   store.set(PROGRESS_KEY,JSON.stringify(after));
   const unlocked=UNLOCKS.filter(u=>before.renown<u.at&&after.renown>=u.at);
+  addRunToHistory(gs,earned);
   return {earned,total:after.renown,unlocked};
+}
+
+// ─── RUN HISTORY ──────────────────────────────────────────────────────────────
+const HISTORY_KEY='sorHistory', HISTORY_MAX=20;
+function getHistory(){ try{ return JSON.parse(store.get(HISTORY_KEY)||'[]'); }catch(e){ return []; } }
+function addRunToHistory(gs,earned){
+  const me=lastState&&lastState.players.find(p=>p.id===myId), c=me&&me.char;
+  const cause=String(gs.deathCause||'').replace(/<[^>]+>/g,'').replace(/\s+/g,' ').trim();
+  const rec={ at:Date.now(), victory:gs.phase==='victory', depth:gs.depth||0, bosses:gs.bossCount||0, difficulty:gs.difficulty||0,
+    daily:!!gs.dailyKey, career:me&&me.career, level:c&&c.level, party:lastState?lastState.players.filter(p=>p.char).length:1,
+    cause:cause.slice(0,90), renown:earned };
+  const h=[rec,...getHistory()].slice(0,HISTORY_MAX);
+  store.set(HISTORY_KEY,JSON.stringify(h));
+}
+function renderHistory(){
+  const box=el('run-history'); if(!box) return;
+  const h=getHistory();
+  if(!h.length){ box.hidden=true; return; }
+  box.hidden=false;
+  const names={warrior:'Warrior',rogue:'Roadwarden',wizard:'Wizard',priest:'Priest'};
+  const diffs=['','Grim','Doom'];
+  const when=t=>{ const d=Math.round((Date.now()-t)/86400000); return d<=0?'today':d===1?'yesterday':`${d} days ago`; };
+  box.innerHTML='<div class="rh-title">Recent runs</div>'+h.slice(0,6).map(r=>`
+    <div class="rh-row ${r.victory?'won':'lost'}">
+      <span class="rh-icon">${r.victory?'🏆':'✝'}</span>
+      <span class="rh-main"><strong>${r.victory?'Victory':'Depth '+r.depth}</strong> · ${names[r.career]||'?'}${r.level?' Lv'+r.level:''}${r.party>1?` · party of ${r.party}`:' · solo'}${diffs[r.difficulty]?' · '+diffs[r.difficulty]:''}${r.daily?' · Daily':''}
+        ${!r.victory&&r.cause?`<span class="rh-cause">${escapeHtml(r.cause)}</span>`:''}</span>
+      <span class="rh-when">${when(r.at)}<br>+${r.renown||0}</span>
+    </div>`).join('');
+}
+function escapeHtml(t){ return String(t).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch])); }
+
+// ─── DAILY RUN ────────────────────────────────────────────────────────────────
+// The server picks one blessing and one hardship per day; the host can turn the
+// Daily on for their room, and everyone's result lands on today's board.
+let dailyInfo=null, dailyFetched=0;
+function loadDaily(){
+  if(Date.now()-dailyFetched<60000) return; dailyFetched=Date.now();
+  fetch('api/daily').then(r=>r.ok?r.json():null).then(d=>{ if(d&&Array.isArray(d.mods)&&Array.isArray(d.board)){ dailyInfo=d; renderDaily(); } }).catch(()=>{});
+}
+function renderDaily(){
+  const board=el('daily-board');
+  if(board&&dailyInfo){
+    const names={warrior:'Warrior',rogue:'Roadwarden',wizard:'Wizard',priest:'Priest'};
+    board.hidden=false;
+    board.innerHTML=`<div class="rh-title">Today's Daily Run</div>
+      <div class="daily-mods">${dailyInfo.mods.map(m=>`<span class="daily-mod"><strong>${m.name}</strong> ${m.desc}</span>`).join('')}</div>
+      ${dailyInfo.board.length?`<ol class="daily-list">${dailyInfo.board.map(e=>`<li><strong>${e.victory?'Victory':'Depth '+e.depth}</strong> — ${escapeHtml(e.names.join(', '))} <small>(${e.careers.map(c=>names[c]||c).join(', ')})</small></li>`).join('')}</ol>`
+        :'<p class="hint">No one has finished today\'s Daily yet.</p>'}`;
+  }
+  const pick=el('daily-pick');
+  if(pick&&lastState){
+    const gs=lastState.gs, isHost=lastState.hostId===myId;
+    if(isHost){
+      pick.hidden=false;
+      pick.innerHTML=`<span>Daily Run</span><button class="mini-btn${gs.daily?' good':''}" onclick="send('SET_DAILY',{on:${!gs.daily}})">${gs.daily?'On':'Off'}</button>`+
+        (gs.daily&&dailyInfo?`<small>${dailyInfo.mods.map(m=>m.name).join(' + ')}</small>`:'');
+    } else {
+      pick.hidden=!gs.daily;
+      pick.innerHTML=`<span>Daily Run</span><strong>On</strong>${dailyInfo?`<small>${dailyInfo.mods.map(m=>m.name).join(' + ')}</small>`:''}`;
+    }
+  }
 }
 
 // Lobby: renown line, starting-charm picker and (for the host) difficulty.
 function renderProgressUI(players){
+  renderHistory(); loadDaily(); renderDaily();
   const p=getProgress(), nu=nextUnlock();
   const line=el('renown-line');
   if(line) line.innerHTML=`Renown <strong>${p.renown}</strong>${p.runs?` · ${p.runs} run${p.runs>1?'s':''}, deepest ${p.best}`:''}${nu?` · next unlock at ${nu.at}: ${nu.label}`:' · everything unlocked'}`;

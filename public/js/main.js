@@ -44,12 +44,31 @@ window.addEventListener('resize', () => {
   _resizeTimer = setTimeout(applyLayout, 150);
 });
 
+// ─── TURN TIMER ───────────────────────────────────────────────────────────────
+// Party games give each player 60 seconds per turn; this shows the countdown.
+let _turnEndsAt=null;
+function turnTimerHtml(gs){
+  const t=gs.turnOrder&&gs.turnOrder[gs.activeTurnIdx];
+  if(gs.turnMsLeft==null||!t||t.type!=='player') { _turnEndsAt=null; return ''; }
+  _turnEndsAt=Date.now()+gs.turnMsLeft;
+  return ' <span class="turn-timer"></span>';
+}
+function tickTurnTimers(){
+  const left=_turnEndsAt?Math.max(0,Math.ceil((_turnEndsAt-Date.now())/1000)):null;
+  document.querySelectorAll('.turn-timer').forEach(n=>{
+    n.textContent=left==null?'':`⏳ ${left}s`;
+    n.classList.toggle('urgent',left!=null&&left<=15);
+  });
+}
+setInterval(tickTurnTimers,500);
+
 // ─── STATE RENDER ENTRY POINT ─────────────────────────────────────────────────
 function renderState(st){
   renderMainState(st);
   renderMobileState(st);
   sfxOnState(st);
   checkTips(st);
+  tickTurnTimers();
 }
 
 // ─── BOOT ─────────────────────────────────────────────────────────────────────

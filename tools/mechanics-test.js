@@ -104,6 +104,7 @@ const logHas=(room,re)=>room.gs.log.some(l=>re.test(l.msg));
   ok(w.ch.loneSurvivor&&w.dHp===6,'solo Warrior gets Lone Survivor (+6 HP)');
   ok(z.ch.loneSurvivor&&z.dHp===5,'solo Wizard gets Lone Survivor (+5 HP)');
   ok(!r.ch.loneSurvivor&&r.dHp===0,'solo Rogue does not get Lone Survivor');
+  const pr2=solo('priest'); ok(pr2.ch.loneSurvivor&&pr2.dHp===5,'solo Priest gets Lone Survivor (+5 HP)');
   const {room:pr}=mkRoom(['warrior','wizard']); ok(!pr.players.some(p=>p.char.loneSurvivor),'party members do not get Lone Survivor'); }
 // 11. Rejoin reclaims a seat
 { const ws1={readyState:1,send(){}}; S.handleMessage(ws1,{type:'CREATE_ROOM',payload:{name:'R'}}); const room=[...S.rooms.values()].pop();
@@ -113,4 +114,47 @@ const logHas=(room,re)=>room.gs.log.some(l=>re.test(l.msg));
   ok(room.players[0].connected&&room.players[0].ws===ws2&&got.includes('ROOM_JOINED'),'REJOIN reclaims the seat');
   const ws3={readyState:1,send(m){got.push(JSON.parse(m).type);}}; S.handleMessage(ws3,{type:'REJOIN',payload:{code:'NOPE',playerId:'x'}});
   ok(got.includes('REJOIN_FAILED'),'unknown seat is refused'); }
+// 12. Daily Run: modifiers apply at the start and to enemies
+{ const ws={readyState:1,send(){}}; S.handleMessage(ws,{type:'CREATE_ROOM',payload:{name:'D'}}); const room=[...S.rooms.values()].pop();
+  S.handleMessage(ws,{type:'SET_DAILY',payload:{on:true}}); ok(room.gs.daily===true,'host can turn the Daily Run on');
+  S.handleMessage(ws,{type:'SELECT_CAREER',payload:{career:'warrior'}}); S.handleMessage(ws,{type:'PLAYER_READY',payload:{}});
+  ok(room.gs.dailyKey===S.runlog.todayKey()&&room.gs.dailyMods.length===2,'daily run records today\'s two modifiers');
+  room.gs.dailyMods=['brittleFoes','bloodMoon']; const e={ac:14,dmgNum:1,dmgSides:6,dmgBonus:0,hp:20,maxHp:20};
+  S.applyDailyToEnemies(room.gs,[e]); ok(e.ac===13&&e.dmgBonus===1,'daily modifiers change enemy Defence and damage');
+  const ws2={readyState:1,send(){}}; S.handleMessage(ws2,{type:'CREATE_ROOM',payload:{name:'D2'}}); const r2=[...S.rooms.values()].pop();
+  r2.players[0].career='rogue'; r2.players[0].char=S.buildChar('rogue'); r2.gs.daily=true;
+  const realMods=S.runlog.dailyMods; S.runlog.dailyMods=()=>[{id:'provisioned',name:'P',desc:''},{id:'ironHide',name:'I',desc:''}];
+  const g0=r2.players[0].char.gold; S.startDailyRun(r2); S.runlog.dailyMods=realMods;
+  const hd=r2.players[0].char.inventory.find(i=>i.name==='Healing Draught');
+  ok(hd&&hd.qty>=2&&r2.players[0].char.gold===g0+20,'Well Provisioned gives draughts and silver'); }
+// 13. Finished runs are logged once and counted in stats
+{ const before=S.runlog.readRuns().length; const {room}=mkRoom(['warrior','priest']); room.gs.depth=7; room.gs.phase='gameover';
+  room.gs.deathCause='<strong>Varghulf</strong> hits P0 — -9 dmg'; S.broadcastState(room.code); S.broadcastState(room.code);
+  const runs=S.runlog.readRuns(); ok(runs.length===before+1,'a finished run is logged exactly once');
+  ok(runs[runs.length-1].killer==='Varghulf'&&runs[runs.length-1].players.length===2,'run log names the killer and the party');
+  ok(S.runlog.stats().runs===runs.length,'stats summarise the log'); }
+// 14. Turn timer passes an idle player's turn in a party, never solo
+{ const {room}=mkRoom(['warrior','rogue']); combat(room,['Skaven Clanrat']);
+  const realST=global.setTimeout; let fired=null; global.setTimeout=(fn,ms)=>{ if(ms===S.TURN_LIMIT_MS){ fired=fn; return {unref(){}}; } return realST(fn,ms); };
+  const pIdx=room.gs.turnOrder.findIndex(t=>t.type==='player'); room.gs.activeTurnIdx=pIdx; const cur=room.gs.turnOrder[pIdx];
+  S.startTurnTimer(room,cur); global.setTimeout=realST;
+  ok(room.gs.turnDeadline>Date.now()&&typeof fired==='function','party turns get a deadline');
+  fired(); ok(room.gs.activeTurnIdx!==pIdx||room.gs.roundNumber>1,'an idle player\'s turn passes when time runs out');
+  ok(logHas(room,/hesitates too long/),'the timeout is announced');
+  const {room:solo}=mkRoom(['warrior']); combat(solo,['Skaven Clanrat']); const sc=solo.gs.turnOrder.find(t=>t.type==='player');
+  S.startTurnTimer(solo,sc); ok(solo.gs.turnDeadline==null,'solo turns have no timer'); }
+// 15. Joining a run in progress takes over a seat that has been empty for a while
+{ const sent=[]; const {room}=mkRoom(['warrior','wizard']); room.gs.phase='event';
+  const seat=room.players[1]; seat.connected=false; seat.disconnectedAt=Date.now();
+  const nw={readyState:1,send(m){sent.push(JSON.parse(m));}};
+  S.handleMessage(nw,{type:'JOIN_ROOM',payload:{code:room.code,name:'Late'}});
+  ok(sent.some(m=>m.type==='ERROR')&&seat.name!=='Late','a seat that only just emptied is not taken');
+  seat.disconnectedAt=Date.now()-60000; sent.length=0;
+  S.handleMessage(nw,{type:'JOIN_ROOM',payload:{code:room.code,name:'Late'}});
+  const j=sent.find(m=>m.type==='ROOM_JOINED');
+  ok(j&&j.payload.playerId===seat.id&&seat.name==='Late'&&seat.connected,'a newcomer takes over the empty seat');
+  const back=[]; S.handleMessage({readyState:1,send(m){back.push(JSON.parse(m).type);}},{type:'REJOIN',payload:{code:room.code,playerId:seat.id}});
+  ok(back.includes('REJOIN_FAILED')&&seat.ws===nw,'the old player cannot snatch the seat back without its new token');
+  const ok2=[]; seat.connected=false; S.handleMessage({readyState:1,send(m){ok2.push(JSON.parse(m).type);}},{type:'REJOIN',payload:{code:room.code,playerId:seat.id,token:j.payload.token}});
+  ok(ok2.includes('ROOM_JOINED'),'the newcomer can rejoin with their token'); }
 console.log(fails?fails+' FAILED':'all passed'); process.exit(fails?1:0);

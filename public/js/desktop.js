@@ -564,7 +564,7 @@ function renderActions(gs,players,me){
   }
 
   if(gs.phase==='combat'){
-    heading.textContent='Combat';
+    heading.innerHTML='Combat'+turnTimerHtml(gs);
     const char=me.char;
     if(!char||!char.alive){ body.innerHTML='<div class="wait-msg">You have fallen...</div>'; return; }
     const hasActed=gs.playersActedThisRound&&gs.playersActedThisRound.includes(myId);

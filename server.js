@@ -12,6 +12,8 @@ const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
 app.get('/health', (req, res) => res.send('OK'));
+app.get('/api/stats', (req, res) => res.json(runlog.stats()));
+app.get('/api/daily', (req, res) => { const key = runlog.todayKey(); res.json({ key, mods: runlog.dailyMods(key), board: runlog.dailyBoard(key) }); });
 // Rules tables the client needs for display (XP bar, castings, spell icons).
 app.get('/api/game-data', (req, res) => {
   const spellElements = {};
@@ -29,6 +31,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const rooms = new Map();
 const persist = require('./game/persist');
+const runlog = require('./game/runlog');
 const clients = new Map();
 
 function makeCode() {
@@ -53,7 +56,7 @@ const DIFFICULTIES = [
 ];
 function initGameState() {
   return {
-    depth:0, inCombat:false, enemy:null, enemies:[], activeEnemyIdx:0, phase:'lobby', difficulty:0,
+    depth:0, inCombat:false, enemy:null, enemies:[], activeEnemyIdx:0, phase:'lobby', difficulty:0, daily:false,
     playersActedThisRound:[], enemyHasActed:false, roundNumber:0, turnOrder:[], activeTurnIdx:0,
     log:[], pathChoices:null, pathVotes:{}, bossNode:false,
     bossCount:0, lootRoom:null, lootPicked:[], _anyPlayerHitThisTurn:false,
@@ -62,7 +65,7 @@ function initGameState() {
 }
 function publicState(room) {
   return {
-    gs: { ...room.gs, spoils: undefined },
+    gs: { ...room.gs, spoils: undefined, turnMsLeft: room.gs.turnDeadline ? Math.max(0, room.gs.turnDeadline - Date.now()) : null },
     players: room.players.map(p => ({
       id:p.id, name:p.name, career:p.career, ready:p.ready,
       char:p.char, isHost:p.id===room.hostId, connected:p.connected,
@@ -197,15 +200,65 @@ enemies.bind({ addLog, addBuff, addDebuff, checkDeath, resolveEnemyDeath, scaleE
 events.bind({ addLog, addBuff, checkDeath, addToInventory, makeCharm: gear.makeCharm, makeCursedItem: gear.makeCursedItem });
 
 // ─── CHARACTER BUILDER ───────────────────────────────────────────────────────
-// Lone Survivor: Warriors and Wizards who start a run alone get a little extra staying power.
-// Warrior: +6 max HP, Wizard: +5 max HP; both +1 HP per level.
-const LONE_SURVIVOR = { warrior:{hp:6, power:0}, wizard:{hp:5, power:0} };
+// Lone Survivor: Warriors, Wizards and Priests who start a run alone get a little extra staying power.
+// Warrior: +6 max HP, Wizard and Priest: +5 max HP; all +1 HP per level.
+const LONE_SURVIVOR = { warrior:{hp:6, power:0}, wizard:{hp:5, power:0}, priest:{hp:5, power:0} };
 function applyLoneSurvivor(room, player){
   const ls=LONE_SURVIVOR[player.career]; if(!ls||!player.char) return;
   const c=player.char; c.loneSurvivor=true;
   c.maxHealth+=ls.hp; c.health+=ls.hp;
   if(ls.power){ c.power+=ls.power; c.maxPower=(c.maxPower||0)+ls.power; refreshCastingPools(c); }
   addLog(room,`🕯 <strong>Lone Survivor</strong> — ${player.name} walks the dark road alone: +${ls.hp} max HP${ls.power?', +1 Power':''}.`,'loot');
+}
+
+// ─── JOINING A RUN IN PROGRESS ────────────────────────────────────────────────
+// A newcomer takes over the character of someone who left (gone for 20s+).
+const SEAT_GRACE_MS = 20 * 1000;
+function takeOverSeat(ws, room, name){
+  const now=Date.now();
+  const free=room.players.filter(p=>!p.connected&&p.char&&now-(p.disconnectedAt||0)>=SEAT_GRACE_MS);
+  const seat=free.find(p=>p.char.alive)||free[0];
+  if(!seat){ sendTo(ws,{type:'ERROR',payload:{msg:'That run is under way and no seat is free. A seat opens when a player has been gone for 20 seconds.'}}); return; }
+  if(seat.ws&&seat.ws!==ws){ clients.delete(seat.ws); }
+  const oldName=seat.name; seat.name=(name||'Player').slice(0,20);
+  seat.ws=ws; seat.connected=true; seat.token=uuidv4(); seat.takenOver=true;
+  clients.set(ws,{roomCode:room.code,playerId:seat.id});
+  sendTo(ws,{type:'ROOM_JOINED',payload:{code:room.code,playerId:seat.id,token:seat.token,rejoined:true}});
+  addLog(room,`🛡 <strong>${seat.name}</strong> takes up ${oldName}'s arms and joins the warband.`,'loot');
+  resumeRoom(room);
+  broadcastState(room.code);
+}
+
+// ─── DAILY RUN ────────────────────────────────────────────────────────────────
+function hasDaily(gs,id){ return !!(gs.dailyMods&&gs.dailyMods.includes(id)); }
+function startDailyRun(room){
+  const gs=room.gs; gs.dailyKey=runlog.todayKey(); const mods=runlog.dailyMods(gs.dailyKey); gs.dailyMods=mods.map(m=>m.id);
+  addLog(room,`📜 <strong>Daily Run</strong> — ${mods.map(m=>`<strong>${m.name}</strong>: ${m.desc}`).join(' · ')}`,'loot');
+  if(hasDaily(gs,'provisioned')) room.players.forEach(p=>{ if(!p.char) return; addToInventory(p.char,'Healing Draught'); addToInventory(p.char,'Healing Draught'); p.char.gold+=20; });
+}
+function applyDailyToEnemies(gs, list){
+  if(!gs.dailyMods) return;
+  list.forEach(e=>{
+    if(hasDaily(gs,'ironHide')){ e.maxHp=Math.round(e.maxHp*1.2); e.hp=e.maxHp; }
+    if(hasDaily(gs,'bloodMoon')){ e.dmgBonus=(e.dmgBonus||0)+1; e.dmgDisplay=`${e.dmgNum}d${e.dmgSides}${e.dmgBonus?'+'+e.dmgBonus:''}`; }
+    if(hasDaily(gs,'brittleFoes')) e.ac=Math.max(5,(e.ac||10)-1);
+    if(hasDaily(gs,'hardened')) e.ac=(e.ac||10)+1;
+  });
+}
+
+// ─── RUN RECORDS ──────────────────────────────────────────────────────────────
+// Every finished run is logged once (for /api/stats); daily runs also go on the board.
+function stripTags(h){ return String(h||'').replace(/<[^>]+>/g,'').trim(); }
+function recordRunEnd(room){
+  const gs=room.gs; if(gs._recorded) return; gs._recorded=true;
+  const victory=gs.phase==='victory';
+  let killer=null;
+  if(!victory){ const m=stripTags(gs.deathCause).match(/^(?:[^\w]*\s*)?(.+?) (?:hits|crits|strikes|slams|mauls)/); killer=m?m[1]:((gs.enemies||[]).find(e=>e)||{}).name||null; }
+  const rec={ ts:new Date().toISOString(), victory, depth:gs.depth||0, bosses:gs.bossCount||0, difficulty:gs.difficulty||0,
+    daily:gs.dailyKey||null, killer,
+    players:room.players.filter(p=>p.char).map(p=>({ name:p.name, career:p.career, level:p.char.level, expert:p.char.expertPath||null, master:p.char.masterPath||null })) };
+  runlog.appendRun(rec);
+  if(gs.dailyKey) runlog.addDailyScore(gs.dailyKey,{ names:rec.players.map(p=>p.name), careers:rec.players.map(p=>p.career), depth:rec.depth, bosses:rec.bosses, victory, rounds:gs.totalRounds||0, ts:rec.ts });
 }
 
 function buildChar(career) {
@@ -502,8 +555,10 @@ function rollEnemyAttack(enemy, char, hasBoon=false, room=null) {
   if(char.glamourVeil&&!char._glamourUsed){ char._glamourUsed=true; if(room) addLog(room,`🪞 <strong>Glamour Veil!</strong> ${enemy.name} strikes an illusion — the attack passes harmlessly through.`,'spell'); return {hit:false,crit:false,dmg:0,dmgRoll:0,critRoll:0,total:0,base:0,boonInfo:' (Glamour Veil)'}; }
   // Evasion: only the first attack against the Roadwarden each round is hampered.
   const _evRound=room&&room.gs?room.gs.roundNumber:null;
-  const evasionBane=char.evasion&&(_evRound===null||char._evadeRound!==_evRound)?1:0;
-  if(evasionBane&&_evRound!==null) char._evadeRound=_evRound;
+  // A Taunting Sentinel keeps full Evasion against every attack.
+  const _sentinelGuard=char.masterPath==='myrmidon'&&(char.activeBuffs||[]).some(b=>b.taunting);
+  const evasionBane=char.evasion&&(_sentinelGuard||_evRound===null||char._evadeRound!==_evRound)?1:0;
+  if(evasionBane&&_evRound!==null&&!_sentinelGuard) char._evadeRound=_evRound;
   const poisonBane=(enemy&&enemy._poisonStacks&&enemy._poisonStacks>=5)?1:0; // Poison threshold: 5+ stacks
   const packScornBane=char._armorPackScorn&&enemy&&enemy.tags&&enemy.tags.includes('skaven')?1:0;
   const shroudBane=char._legShroudActive?1:0; // Shroud of Undeath: below 25% HP enemies have 1 bane
@@ -832,6 +887,7 @@ function _runNodeContent(room, gs, nodeType, playerCount) {
     }
     const diff=DIFFICULTIES[gs.difficulty||0];
     if(diff.id>0) gs.enemies.forEach(e=>{ e.maxHp=Math.round(e.maxHp*diff.hp); e.hp=e.maxHp; e.dmgBonus=(e.dmgBonus||0)+diff.dmg; e.dmgDisplay=`${e.dmgNum}d${e.dmgSides}${e.dmgBonus?'+'+e.dmgBonus:''}`; });
+    applyDailyToEnemies(gs, gs.enemies);
     if(gs._nextCombatHalfHP){ gs._nextCombatHalfHP=false; gs.enemies.forEach(e=>{e.hp=Math.ceil(e.hp/2); e.maxHp=e.hp;}); addLog(room,`🔴 Ritual disruption — enemies enter at half HP!`,'chaos'); }
     gs.inCombat=true; gs.phase='combat'; gs.playersActedThisRound=[]; gs.enemyHasActed=false; gs.roundNumber=1;
     onCombatStart(room);
@@ -1148,13 +1204,41 @@ function advanceTurn(room) {
     gs.playersActedThisRound = gs.playersActedThisRound.filter(id => id !== cur.id);
     addLog(room, `--- ${cur.name}'s turn ---`, 'sys');
     if (autoSkipStunnedPlayer(room, cur.id)) return;
+    startTurnTimer(room, cur);
     broadcastState(room.code);
   }
+}
+
+// ─── TURN TIMER ───────────────────────────────────────────────────────────────
+// In a party, a player who doesn't act within the limit loses their turn, so one
+// idle player can't stall everyone. Solo games have no timer.
+const TURN_LIMIT_MS = 60 * 1000;
+function startTurnTimer(room, cur){
+  const gs = room.gs;
+  if (room._turnTimer) { clearTimeout(room._turnTimer); room._turnTimer = null; }
+  const present = room.players.filter(p => p.connected && p.char && p.char.alive);
+  if (present.length < 2 || process.env.NO_TURN_TIMER) { gs.turnDeadline = null; return; } // simulations turn it off
+  gs.turnDeadline = Date.now() + TURN_LIMIT_MS;
+  const idx = gs.activeTurnIdx, round = gs.roundNumber;
+  const t = setTimeout(() => {
+    room._turnTimer = null;
+    try {
+      const now = gs.turnOrder && gs.turnOrder[gs.activeTurnIdx];
+      if (!gs.inCombat || gs.phase !== 'combat' || gs.activeTurnIdx !== idx || gs.roundNumber !== round || !now || now.id !== cur.id) return;
+      gs.turnDeadline = null;
+      addLog(room, `⌛ ${cur.name} hesitates too long — the moment passes.`, 'sys');
+      advanceTurn(room);
+      broadcastState(room.code);
+    } catch (e) { console.error('Turn timer error:', e); }
+  }, TURN_LIMIT_MS);
+  if (t.unref) t.unref();
+  room._turnTimer = t;
 }
 
 function endRound(room) {
   const gs = room.gs;
   if (!gs.inCombat || gs.phase === 'victory' || gs.phase === 'gameover' || gs.phase === 'dying') return;
+  gs.totalRounds = (gs.totalRounds || 0) + 1;
   room.players.forEach(p => {
       if (!p.char || !p.char.alive) return;
       tickBuffs(p.char);
@@ -1373,9 +1457,9 @@ function fireEnemyTurn(room, ae) {
   // ── Determine attack multiplier ───────────────────────────────────────────
   if (ae.frenzyMulti && !ae._frenzyOnceUsed && ae.hp < ae.maxHp * (ae.frenzyMulti.threshold||0.5)) {
     ae._frenzyOnceUsed = true;
-    ae.lifeLeechFrac = 0.5; // increase leech to 50%
+    ae.lifeLeechFrac = 0.35; // increase leech to 35%
     ae._frenzyNextHit = true; // next attack auto-hits
-    addLog(room, `😤 <strong>Frenzy!</strong> ${ae.name} — next attack ALWAYS lands, life leech increased to <strong>50%</strong>!`, 'chaos');
+    addLog(room, `😤 <strong>Frenzy!</strong> ${ae.name} — next attack ALWAYS lands, life leech increased to <strong>35%</strong>!`, 'chaos');
   }
   const baseAttacks = plan.attacks || ae.attacks || (ae.multi ? 2 : 1);
 
@@ -1635,7 +1719,7 @@ function finishCombat(room, outcome){
   const rewards={};
   room.players.forEach(p=>{
     if(!p.char) return;
-    const mult=DIFFICULTIES[gs.difficulty||0].reward;
+    const mult=DIFFICULTIES[gs.difficulty||0].reward*(hasDaily(gs,'richVeins')?1.5:1);
     const xp=Math.round((sp.xp[p.id]||0)*mult), silver=Math.round((sp.silver[p.id]||0)*mult);
     p.char.xp+=xp; p.char.gold+=silver;
     const before=sp.inv[p.id]||{}, now=invCounts(p.char), items=[];
@@ -1879,8 +1963,8 @@ function genShopScroll(){
   return{id:'sc'+uuidv4(),name:`Scroll: ${sp.name}`,spell:sp,cost:35,sellCost:3,bought:false,type:'scroll',desc:sp.desc};
 }
 function buildPlayerShop(bossCount=0){
-  const hd1={id:'hd1'+uuidv4(),name:'Healing Draught',cost:10,sellCost:3,desc:'Heal 1d6 HP',bought:false,type:'consumable'};
-  const hd2={id:'hd2'+uuidv4(),name:'Healing Draught',cost:10,sellCost:3,desc:'Heal 1d6 HP',bought:false,type:'consumable'};
+  const hd1={id:'hd1'+uuidv4(),name:'Healing Draught',cost:10,sellCost:3,desc:'Heal 1d6 + your level HP',bought:false,type:'consumable'};
+  const hd2={id:'hd2'+uuidv4(),name:'Healing Draught',cost:10,sellCost:3,desc:'Heal 1d6 + your level HP',bought:false,type:'consumable'};
   const otherPool=SHOP_CONSUMABLES.filter(c=>c.name!=='Healing Draught').sort(()=>Math.random()-0.5);
   const other=otherPool[0]?{id:'c'+uuidv4(),name:otherPool[0].name,cost:otherPool[0].cost,sellCost:3,desc:otherPool[0].desc,bought:false,type:'consumable'}:hd1;
   return{
@@ -2076,8 +2160,8 @@ function useItemLogic(room,player,itemName,inCombat=false){
   if(idx===-1) return false;
   let consumed=true;
   const _morr=charmKey(char)==='morrFeather'?2:0; // Morr's Raven Feather: draughts heal 2 less
-  if(itemName==='Healing Draught'){const h=Math.max(1,rd(1,6)-_morr);char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} drinks Healing Draught — +<strong>${h}</strong> HP.`,'heal');}
-  else if(itemName==='Greater Healing Draught'){const h=Math.max(1,rd(2,6)-_morr);char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} drinks Greater Healing — +<strong>${h}</strong> HP.`,'heal');}
+  if(itemName==='Healing Draught'){const h=Math.max(1,rd(1,6)+(char.level||1)-_morr);char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} drinks Healing Draught — +<strong>${h}</strong> HP.`,'heal');}
+  else if(itemName==='Greater Healing Draught'){const h=Math.max(1,rd(2,6)+2*(char.level||1)-_morr);char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} drinks Greater Healing — +<strong>${h}</strong> HP.`,'heal');}
   else if(itemName==='Flask of Oil'||itemName==='Incendiary Flask'){const _te=getTargetEnemy(room.gs);if(inCombat&&_te){let dmg=rd(2,6);if(char._armorFireImmune){dmg+=rd(1,6);}// Dragonscale bonus
 _te._burnedThisRound=true;_te.hp=Math.max(0,_te.hp-dmg);addLog(room,`${player.name} throws Flask of Oil — <strong>${dmg}</strong> fire dmg!`,'spell');if(_te.hp<=0){resolveEnemyDeath(room,_te);return true;}}else{consumed=false;}}
   else if(itemName==='Fire Jar'||itemName==='Daemon Fire'){const _te=getTargetEnemy(room.gs);if(inCombat&&_te){if(_te.immuneFire){addLog(room,`🔥 ${_te.name} is immune to fire!`,'spell');}else{const dmg=rd(3,6);_te._burnedThisRound=true;_te.hp=Math.max(0,_te.hp-dmg);addLog(room,`${player.name} smashes Fire Jar — <strong>${dmg}</strong> fire dmg!`,'spell');if(_te.hp<=0){resolveEnemyDeath(room,_te);return true;}}}else{consumed=false;}}
@@ -2222,27 +2306,29 @@ function handleMessage(ws,msg){
     const code=makeCode(),playerId=uuidv4();
     const room={code,hostId:playerId,players:[],gs:initGameState()};
     rooms.set(code,room); clients.set(ws,{roomCode:code,playerId});
-    room.players.push({id:playerId,ws,name:payload.name||'Host',career:null,char:null,ready:false,connected:true});
-    sendTo(ws,{type:'ROOM_CREATED',payload:{code,playerId}});
+    const token=uuidv4();
+    room.players.push({id:playerId,token,ws,name:payload.name||'Host',career:null,char:null,ready:false,connected:true});
+    sendTo(ws,{type:'ROOM_CREATED',payload:{code,playerId,token}});
     broadcastState(code); return;
   }
   if(type==='JOIN_ROOM'){
     const code=payload.code.toUpperCase(),room=rooms.get(code);
     if(!room){sendTo(ws,{type:'ERROR',payload:{msg:'Room not found.'}});return;}
     if(room.players.filter(p=>p.connected).length>=4){sendTo(ws,{type:'ERROR',payload:{msg:'Room full.'}});return;}
-    if(room.gs.phase!=='lobby'){sendTo(ws,{type:'ERROR',payload:{msg:'Game in progress.'}});return;}
-    const playerId=uuidv4(); clients.set(ws,{roomCode:code,playerId});
-    room.players.push({id:playerId,ws,name:payload.name||'Player',career:null,char:null,ready:false,connected:true});
-    sendTo(ws,{type:'ROOM_JOINED',payload:{code,playerId}});
+    if(room.gs.phase!=='lobby'){ takeOverSeat(ws,room,payload.name); return; }
+    const playerId=uuidv4(), token=uuidv4(); clients.set(ws,{roomCode:code,playerId});
+    room.players.push({id:playerId,token,ws,name:payload.name||'Player',career:null,char:null,ready:false,connected:true});
+    sendTo(ws,{type:'ROOM_JOINED',payload:{code,playerId,token}});
     broadcastState(code); return;
   }
   if(type==='REJOIN'){
     const code=String((payload&&payload.code)||'').toUpperCase(), room=rooms.get(code);
     const player=room&&room.players.find(p=>p.id===(payload&&payload.playerId));
-    if(!player){ sendTo(ws,{type:'REJOIN_FAILED'}); return; }
+    // A seat someone else has taken over only answers to its new token.
+    if(!player||(player.token&&payload.token!==player.token&&player.takenOver)){ sendTo(ws,{type:'REJOIN_FAILED'}); return; }
     if(player.ws&&player.ws!==ws){ clients.delete(player.ws); try{ player.ws.close(); }catch(e){} }
     player.ws=ws; player.connected=true; clients.set(ws,{roomCode:code,playerId:player.id});
-    sendTo(ws,{type:'ROOM_JOINED',payload:{code,playerId:player.id,rejoined:true}});
+    sendTo(ws,{type:'ROOM_JOINED',payload:{code,playerId:player.id,token:player.token,rejoined:true}});
     if(room.gs.phase!=='lobby') addLog(room,`${player.name} rejoins the warband.`,'sys');
     resumeRoom(room);
     broadcastState(code); return;
@@ -2266,6 +2352,10 @@ function handleMessage(ws,msg){
     const lvl=Number(payload&&payload.level); if(!DIFFICULTIES[lvl])return;
     room.gs.difficulty=lvl; broadcastState(ctx.roomCode); return;
   }
+  if(type==='SET_DAILY'){
+    if(!ctx)return; const room=rooms.get(ctx.roomCode); if(!room||room.hostId!==ctx.playerId||room.gs.phase!=='lobby')return;
+    room.gs.daily=!!(payload&&payload.on); broadcastState(ctx.roomCode); return;
+  }
   if(type==='PLAYER_READY'){
     if(!ctx)return; const room=rooms.get(ctx.roomCode); if(!room)return;
     const player=room.players.find(p=>p.id===ctx.playerId); if(!player||!player.career)return;
@@ -2275,6 +2365,7 @@ function handleMessage(ws,msg){
       room.gs.phase='path';
       addLog(room,'⚔ The warband descends into Reikland\'s darkness.');
       if(connected.length===1) applyLoneSurvivor(room,connected[0]);
+      if(room.gs.daily) startDailyRun(room);
       showPathChoices(room);
     }
     broadcastState(ctx.roomCode); return;
@@ -2452,8 +2543,8 @@ function handlePlayerAction(room,playerId,payload,ws){
     if(!targetPlayer){addLog(room,`${player.name}: target not found.`,'sys');return;}
     const tchar=targetPlayer.char;
     const idx=char.inventory.findIndex(i=>i.name===data.itemName); if(idx===-1)return;
-    if(data.itemName==='Healing Draught'){const h=rd(1,6);tchar.health=Math.min(tchar.maxHealth,tchar.health+h);addLog(room,`${player.name} gives Healing Draught to ${targetPlayer.name} — +<strong>${h}</strong> HP.`,'heal');}
-    else if(data.itemName==='Greater Healing Draught'){const h=rd(2,6);tchar.health=Math.min(tchar.maxHealth,tchar.health+h);addLog(room,`${player.name} gives Greater Healing to ${targetPlayer.name} — +<strong>${h}</strong> HP.`,'heal');}
+    if(data.itemName==='Healing Draught'){const h=rd(1,6)+(tchar.level||1);tchar.health=Math.min(tchar.maxHealth,tchar.health+h);addLog(room,`${player.name} gives Healing Draught to ${targetPlayer.name} — +<strong>${h}</strong> HP.`,'heal');}
+    else if(data.itemName==='Greater Healing Draught'){const h=rd(2,6)+2*(tchar.level||1);tchar.health=Math.min(tchar.maxHealth,tchar.health+h);addLog(room,`${player.name} gives Greater Healing to ${targetPlayer.name} — +<strong>${h}</strong> HP.`,'heal');}
     else{addLog(room,`${player.name}: can't use that on an ally.`,'sys');return;}
     char.inventory[idx].qty--; if(char.inventory[idx].qty<=0) char.inventory.splice(idx,1);
     acted=false;
@@ -3455,7 +3546,7 @@ function triggerGameover(room){
   },3500);
 }
 
-function broadcastState(roomCode){const room=rooms.get(roomCode);if(!room)return;room.touchedAt=Date.now();persist.scheduleSave(rooms);const data=JSON.stringify({type:'STATE_UPDATE',payload:publicState(room)});room.players.forEach(p=>{if(p.ws&&p.ws.readyState===1)p.ws.send(data);});}
+function broadcastState(roomCode){const room=rooms.get(roomCode);if(!room)return;if((room.gs.phase==='gameover'||room.gs.phase==='victory')&&!room.gs._recorded)recordRunEnd(room);room.touchedAt=Date.now();persist.scheduleSave(rooms);const data=JSON.stringify({type:'STATE_UPDATE',payload:publicState(room)});room.players.forEach(p=>{if(p.ws&&p.ws.readyState===1)p.ws.send(data);});}
 
 // When someone drops, re-check anything that was waiting on them
 function unblockAfterDisconnect(room, player){
@@ -3476,7 +3567,7 @@ function unblockAfterDisconnect(room, player){
 function restoreRooms(){
   persist.loadRooms().forEach(r=>{
     const room={code:r.code,hostId:r.hostId,touchedAt:r.touchedAt,gs:r.gs,_needsResume:true,
-      players:r.players.map(p=>({...p,ws:null,connected:false}))};
+      players:r.players.map(p=>({...p,ws:null,connected:false,disconnectedAt:Date.now()}))};
     if(room.gs.phase==='dying') room.gs.phase='gameover';
     rooms.set(room.code,room);
   });
@@ -3504,7 +3595,7 @@ wss.on('connection',ws=>{
   ws.on('close',()=>{
     const ctx=clients.get(ws);if(!ctx)return;
     const room=rooms.get(ctx.roomCode);
-    if(room){const player=room.players.find(p=>p.id===ctx.playerId);if(player){player.connected=false;addLog(room,`${player.name} disconnected.`,'sys');try{unblockAfterDisconnect(room,player);}catch(e){console.error('Disconnect unblock error:',e);}broadcastState(ctx.roomCode);}
+    if(room){const player=room.players.find(p=>p.id===ctx.playerId);if(player){player.connected=false;player.disconnectedAt=Date.now();addLog(room,`${player.name} disconnected.`,'sys');try{unblockAfterDisconnect(room,player);}catch(e){console.error('Disconnect unblock error:',e);}broadcastState(ctx.roomCode);}
     room.touchedAt=Date.now(); persist.scheduleSave(rooms);}
     clients.delete(ws);
   });
@@ -3521,5 +3612,6 @@ if (require.main === module) {
   server.listen(PORT, '0.0.0.0', () => { console.log(`Shadows Over Reikland on 0.0.0.0:${PORT}`); });
 }
 
-module.exports = { app, server, rooms, clients, enemies, gear, events,
+module.exports = { app, server, rooms, clients, enemies, gear, events, runlog,
+  startTurnTimer, recordRunEnd, takeOverSeat, applyDailyToEnemies, startDailyRun, TURN_LIMIT_MS,
   _runNodeContent, actAttack, actCastSpell, actUseTalent, addBuff, addDebuff, addLog, addToInventory, advanceTurn, aftermathReady, applyBleed, applyBurn, applyExpertPath, applyLegendaryArmourPassive, applyLevelGains, applyMasterPath, applyNovicePath, applyPoison, applyTalentList, applyWpnSpecial, autoSkipStunnedPlayer, broadcastState, buildChar, buildLootOptions, buildPlayerShop, buildTurnOrder, castingsLeft, checkDeath, checkLevelUp, endRound, enemyDmgDice, enterNode, equipItem, finishCombat, finishEnemyTurn, fireEnemyTurn, genArmor, genLegendaryItem, genShopScroll, genSpecialArmor, genSpecialWpn, genWpn, getBuffVal, getCurrentTurn, getDebuffVal, getPathHpGain, getSpellsForPower, getTargetEnemy, grantTradition, handleBuy, handleMessage, handlePlayerAction, handleSell, initGameState, invCounts, makeCode, maxCastings, pickEnemy, pickThreeNodes, publicState, refreshCastingPools, regainCasting, resetCombatState, resolveEnemyDeath, resolvePath, resolveUnknownEvent, restoreCastingPools, restorePower, restoreRooms, resumeRoom, rollAttack, rollD20boons, rollEnemyAttack, rollEnemyDrop, scaleEnemy, sendTo, showPathChoices, spendCasting, startNodeContent, startSpoils, sweepRooms, talentHeal, tickBuffs, tickDebuffs, triggerGameover, unblockAfterDisconnect, uniqRanks, useItemLogic };

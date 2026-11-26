@@ -71,9 +71,9 @@ function show(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.r
 
 // The room and seat we're in, so a refresh or reconnect drops us back into the game.
 const SESSION_KEY='sorSession', SESSION_MAX_AGE=12*60*60*1000;
-function saveSession(code,playerId){ store.set(SESSION_KEY,JSON.stringify({code,playerId,at:Date.now()})); }
+function saveSession(code,playerId,token){ store.set(SESSION_KEY,JSON.stringify({code,playerId,token,at:Date.now()})); }
 function loadSession(){
-  try{ const s=JSON.parse(store.get(SESSION_KEY)||'null'); return s&&Date.now()-s.at<SESSION_MAX_AGE?{code:s.code,playerId:s.playerId}:null; }
+  try{ const s=JSON.parse(store.get(SESSION_KEY)||'null'); return s&&Date.now()-s.at<SESSION_MAX_AGE?{code:s.code,playerId:s.playerId,token:s.token}:null; }
   catch(e){ return null; }
 }
 function clearSession(){ store.set(SESSION_KEY,''); }
@@ -83,7 +83,7 @@ function onMsg(msg){
   if(msg.type==='REJOIN_FAILED'){ clearSession(); show('screen-lobby'); return; }
   if(msg.type==='ROOM_CREATED'||msg.type==='ROOM_JOINED'){
     myId=msg.payload.playerId;
-    saveSession(msg.payload.code,myId);
+    saveSession(msg.payload.code,myId,msg.payload.token);
     el('disp-code').textContent=msg.payload.code;
     el('join-panel').hidden=true;
     el('room-panel').hidden=false;

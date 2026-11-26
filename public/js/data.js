@@ -19,10 +19,10 @@ const CAREER_DETAILS={
     name:'Roadwarden',
     stats:'STR 10 · AGI 12 · INT 10 · WIL 10',
     armor:'No armour (Defence = AGI)',
-    hp:'25 HP',
+    hp:'24 HP',
     defence:'12 Defence',
     weapon:'1d6+2 slashing (AGI)',
-    role:'Evasive poisoner. Hardest to hit. Opens with venom, forces banes on all attackers.',
+    role:'Evasive poisoner. Hardest to hit. Opens with venom and blunts the first attack each round.',
     level1:'Trickery (3 poison first hit, 2 all hits) · Evasion (1 bane on the first attack each round) · Nimble Recovery (heal 1d6+AGI, 1/combat)'
   },
   wizard:{
@@ -69,7 +69,7 @@ const EXPERT_INFO={
 };
 
 const MASTER_INFO={
-  myrmidon:   {name:'Sentinel',      gains:'+5 HP. Lv7: Shieldwall (+2 Def), Shield Bash (stun, no action, 1×). Lv8: Evasion (bane on first attack each round), Rebound (reflect half dmg to attacker), +1 STR. Lv9: Toughness (10% dmg reduction), Fortress Stance (below 50% HP = extra 10% reduction). Lv10: Perfect Defence (first damaging hit deals 0, 1×), +1 STR.',desc:'Fortress Guardian. Toughness and Fortress Stance stack for up to 20% damage reduction. Perfect Defence makes you completely untouchable for one round.'},
+  myrmidon:   {name:'Sentinel',      gains:'+5 HP. Lv7: Shieldwall (+2 Def), Shield Bash (stun, no action, 1×). Lv8: Evasion (bane on first attack each round; every attack while Taunting), Rebound (reflect half dmg to attacker), +1 STR. Lv9: Toughness (10% dmg reduction), Fortress Stance (below 50% HP = extra 10% reduction). Lv10: Perfect Defence (first damaging hit deals 0, 1×), +1 STR.',desc:'Fortress Guardian. Toughness and Fortress Stance stack for up to 20% damage reduction. Perfect Defence makes you completely untouchable for one round.'},
   brute:      {name:'Berserker',     gains:'+5 HP. Lv7: Relentless (hits +1 dmg stack, misses +1 to-hit stack, max 5), Fortitude (immune to Bleed/Poison). Lv8: Combat Prowess (+1d6/hit), Vengeance (ally falls = free attack), +1 STR. Lv9: Rallying Cry (all allies heal), Endure (if hit would drop you below 35% HP, halve it, 1×/combat). Lv10: Combat Expertise (+1d6 vs stunned targets), Unstoppable (survive death once/run), +1 STR.',desc:'Relentless Force. Relentless builds damage and accuracy stacks separately. Endure prevents burst kills. Unstoppable at L10 is the last resort.'},
   warlord:    {name:'Warlord',       gains:'+5 HP. Lv7: Rallying Cry (all allies heal), Battle Orders (ally free action, 1×). Lv8: Warlord Aura (all allies +1 boon), Devastating Charge (+1d6 + Prone first hit), +1 STR. Lv9: Sweeping Blow (hits deal 75% dmg to all others), Intercept (all enemies reroll dmg take lower, no action, 1×). Lv10: Killing Momentum (kill = free attack), +1 WIL.',desc:'Battlefield Commander. Warlord Aura buffs the whole party passively. Intercept protects everyone by weakening all enemy hits at once.'},
   champion:   {name:'Champion',      gains:'+5 HP. Lv7: Quick Strike (round-1 attack hits twice), Inspire (kills give all allies 2 boons). Lv8: Holy Fervor (hits deal 1d3+WIL holy and heal you 1d3), Mark Heretic (hits mark target, +2 boons vs marked), +1 STR. Lv9: Unstoppable (survive death once/run), War Cry (all allies +3 ATK +3 dmg 2 rounds, no action, 1×). Lv10: Weapon Master (dmg rolls never below half max), Purge the Wicked (marked kill heals all 1d6), +1 AGI.',desc:'Living Legend. Quick Strike hits twice on round 1. Inspire turns every kill into boons for the whole party. War Cry is a free-action group buff.'},
@@ -93,7 +93,7 @@ const TALENT_DESCS={
   bleedOnHit:'Passive — Every weapon hit applies 1 Bleed stack (DoT: 1d3 dmg/round, fades after 2 rounds).',
   bleedOnCrit:'Passive — Critical hits apply 1 Bleed stack.',
   trickery:'Passive — First hit each combat applies 3 poison stacks. Every later hit applies 2.',
-  loneSurvivor:'Passive — You started this run alone. Warrior: +6 max HP. Wizard: +5 max HP. Both gain +1 extra HP every level.',
+  loneSurvivor:'Passive — You started this run alone. Warrior: +6 max HP. Wizard and Priest: +5 max HP. All gain +1 extra HP every level.',
   nimbleRecovery:'Active (1×/combat) — Heal 1d6 + AGI HP.',
   spellRecovery:'Active (1×/combat) — Restore all rank-0 casting slots.',
   sharedRecovery:'Active (1×/combat) — All living allies heal 1d6 + their highest attribute modifier.',
@@ -227,8 +227,8 @@ const TALENT_DESCS={
 };
 
 const ITEM_DESCS={
-  'Healing Draught':'Drink to heal 1d6 HP. Can also be given to an ally.',
-  'Greater Healing Draught':'Drink to heal 2d6 HP. Can also be given to an ally.',
+  'Healing Draught':'Drink to heal 1d6 + your level HP. Can also be given to an ally (heals by their level).',
+  'Greater Healing Draught':'Drink to heal 2d6 + twice your level HP. Can also be given to an ally (heals by their level).',
   'Flask of Oil':'Throw in combat to deal 2d6 fire damage to the enemy.',
   'Fire Jar':'Smash in combat to deal 3d6 fire damage to the enemy.',
   'Lucky Pendant':'Activate before attacking — your next attack is automatically a critical hit.',
@@ -446,7 +446,7 @@ const ENEMY_ABILITY_INFO=[
   ['stampede','Stampede','Round 1: every warrior loses 1 Defence for the fight.'],
   ['belowRoar','Bellowing Roar','Below 50% HP: every warrior has 1 bane on their next attack.'],
   ['bloodlust','Bloodlust','Below 50% HP: +2 to hit, −2 Defence.'],
-  ['frenzyMulti','Blood Frenzy','Once, below 50% HP: its next attack always hits and its life leech rises to 50%.'],
+  ['frenzyMulti','Blood Frenzy','Once, below 50% HP: its next attack always hits and its life leech rises to 35%.'],
   ['critMajorBleed','Frenzied Rending','Its hits make you Bleed.'],
   ['insanityAtk','Terror','On hit: 50% chance you gain 1 Insanity.'],
   ['packLeader','Pack Leader','Its Skaven allies gain +2 to hit.'],

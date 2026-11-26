@@ -156,7 +156,7 @@ function mRenderGame(gs,players,me){
     const t=currentTurn(gs);
     const mine=t&&t.type==='player'&&t.id===myId;
     const text=mine?'Your turn':t&&t.type==='enemy'?`${t.name} is attacking…`:t?`Waiting for ${t.name}…`:'Waiting…';
-    view.appendChild(mEl('div','m-turn '+(mine?'mine':t&&t.type==='enemy'?'foe':''),`<span>${text}</span><span class="m-round">Round ${gs.roundNumber||1}</span>`));
+    view.appendChild(mEl('div','m-turn '+(mine?'mine':t&&t.type==='enemy'?'foe':''),`<span>${text}${turnTimerHtml(gs)}</span><span class="m-round">Round ${gs.roundNumber||1}</span>`));
   }
 
   // Enemies

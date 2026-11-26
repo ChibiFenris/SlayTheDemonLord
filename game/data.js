@@ -105,7 +105,7 @@ const MASTER_PATHS = {
   // ── MARTIAL: TANK ────────────────────────────────────────────────
   myrmidon:    { label:'Sentinel',    hpGain:5, power:0,
     levelGains:{ 7:['shieldwall','shieldBash'], 8:['evasion','bodyguard','+1str'], 9:['toughness','fortressStance'], 10:['perfectDefence','+1str'] },
-    desc:'Sentinel — Fortress Guardian. Shieldwall +2 Def. Shield Bash: stun 1 turn. Evasion: bane on the first attack each round. Bodyguard: redirect hit to self. Toughness -1 dmg. Fortress Stance: below 50% extra -1 dmg. Perfect Defence: negate one hit 1x.' },
+    desc:'Sentinel — Fortress Guardian. Shieldwall +2 Def. Shield Bash: stun 1 turn. Evasion: bane on the first attack each round, or every attack while Taunting. Bodyguard: redirect hit to self. Toughness -1 dmg. Fortress Stance: below 50% extra -1 dmg. Perfect Defence: negate one hit 1x.' },
 
   // ── MARTIAL: DAMAGE ───────────────────────────────────────────────
   brute:       { label:'Berserker',       hpGain:5, power:0,
@@ -622,8 +622,8 @@ const LEGENDARY_ITEMS = {
 };
 
 const SHOP_CONSUMABLES=[
-  {name:'Healing Draught',        desc:'Heal 1d6 HP',cost:12},
-  {name:'Greater Healing Draught',desc:'Heal 2d6 HP',cost:22},
+  {name:'Healing Draught',        desc:'Heal 1d6 + your level HP',cost:12},
+  {name:'Greater Healing Draught',desc:'Heal 2d6 + twice your level HP',cost:22},
   {name:'Incendiary Flask',       desc:'2d6 fire dmg',cost:17},
   {name:'Daemon Fire',            desc:'3d6 fire dmg',cost:27},
   {name:'Lucky Pendant',          desc:'Next attack = crit',cost:40},

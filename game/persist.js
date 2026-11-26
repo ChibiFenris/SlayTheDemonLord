@@ -12,7 +12,7 @@ const MAX_AGE_MS = 12 * 60 * 60 * 1000; // forget rooms nobody has touched for 1
 function serialize(rooms) {
   return JSON.stringify([...rooms.values()].map(r => ({
     code: r.code, hostId: r.hostId, touchedAt: r.touchedAt || Date.now(), gs: r.gs,
-    players: r.players.map(p => ({ id: p.id, name: p.name, career: p.career, char: p.char, ready: p.ready })),
+    players: r.players.map(p => ({ id: p.id, token: p.token, takenOver: p.takenOver, name: p.name, career: p.career, char: p.char, ready: p.ready })),
   })));
 }
 

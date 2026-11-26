@@ -145,3 +145,17 @@ redeploy attach a **Volume**:
 3. In the service's **Variables**, add `DATA_DIR` = `/data`
 
 Without the volume, games still survive a crash-restart, but not a new deploy.
+
+## Real-game stats
+
+Every finished run adds one line to `runs.jsonl` in the data folder: party, classes, levels, paths, depth, difficulty and what killed the warband. Open `https://<your-app>.up.railway.app/api/stats` for a summary by class, party size and difficulty, plus the enemies that end the most runs. Use it to balance from real play rather than the simulator. With a Railway Volume attached (see above) the log survives redeploys.
+
+## Daily Run, turn timer and late joining
+
+- **Daily Run:** the host can turn it on in the room. Each day has one blessing and one hardship (e.g. Well Provisioned + Hardened Foes) shared by everyone; results go on today's board in the lobby (`/api/daily`).
+- **Turn timer:** with two or more players, each turn has 60 seconds; when it runs out the turn passes. Solo play has no timer.
+- **Joining late:** entering the code of a run in progress takes over the character of a player who has been gone for 20+ seconds.
+
+## Automatic checks
+
+`.github/workflows/test.yml` runs `npm test` on every push to GitHub (see the Actions tab). Railway waits for `/health` to answer before switching players over to a new deploy, so a deploy that fails to start never replaces a working one.

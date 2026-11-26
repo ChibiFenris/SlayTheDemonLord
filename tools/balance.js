@@ -3,10 +3,12 @@
 // sensible bot (heals when low, focuses the weakest enemy, upgrades gear, picks
 // paths that fit its career). Prints win rates, depth reached and gear/charm stats.
 //   node tools/balance.js [runsPerSetup=40]
+process.env.NO_TURN_TIMER = '1'; // party sims would otherwise hit the 60-second turn limit
 process.env.DATA_DIR = require('path').join(require('os').tmpdir(), 'sor-balance');
 const realTimeout = global.setTimeout;
 global.setTimeout = (fn, ms, ...a) => realTimeout(fn, 0, ...a); // no dramatic pauses
 require('../game/persist').scheduleSave = () => {}; // simulations don't need saves
+{ const rl = require('../game/runlog'); rl.appendRun = () => {}; rl.addDailyScore = () => {}; } // or record simulated runs
 const S = require('../server.js');
 const D = require('../game/data.js');
 
@@ -89,7 +91,11 @@ function runGame(careers, opts = {}) {
       }
       if (gs.phase === 'merchant' && c.merchantStock) {
         const stock = c.merchantStock; const all = [stock.armor, stock.weapon1, stock.weapon2, ...(stock.consumables || [])].filter(Boolean);
-        const buy = all.find(it => !it.bought && it.cost <= c.gold && ((it.itemObj && it.itemObj.type === 'armor' && armScore(it.itemObj) > armScore(c.equippedArmor)) || /Healing/.test(it.name)));
+        const lockW = c._curseLock && c._curseLock.weapon, lockA = c._curseLock && c._curseLock.armor;
+        const buy = all.find(it => !it.bought && it.cost <= c.gold && (
+          (it.type === 'weapon' && !lockW && it.stat === (c.equippedWeapon && c.equippedWeapon.stat || it.stat) && wpnScore(it) > wpnScore(c.equippedWeapon) + 1) ||
+          (it.type === 'armor' && !lockA && armScore(it) > armScore(c.equippedArmor)) ||
+          (/Healing/.test(it.name) && c.gold - it.cost >= 15)));
         if (buy) return send(sk, 'BUY_ITEM', { itemId: buy.id });
         return send(sk, 'LEAVE_SHOP');
       }
