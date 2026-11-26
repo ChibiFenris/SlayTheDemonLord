@@ -14,6 +14,7 @@ function spawnFloat(anchorEl, text, type='dmg'){
   float.style.top=(rect.top+window.scrollY-10)+'px';
   document.body.appendChild(float);
   float.addEventListener('animationend',()=>float.remove());
+  if(type==='dmg'||type==='crit') flashEl(anchorEl,'hit-flash');
 }
 
 // Float anchors: the battle tokens on desktop, the cards in the mobile layout.
@@ -33,7 +34,32 @@ function getActiveEnemyTok(){
   return row?row.querySelector('.tok,.tok-ph'):null;
 }
 
+// ─── JUICE ────────────────────────────────────────────────────────────────────
+// Screen shake on critical hits, a flash on whoever is hit, a pulse when an
+// enemy dies, and a banner when a boss speaks. All of it respects reduced motion.
+const reduceMotion=()=>window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function flashEl(n,cls){ if(!n) return; n.classList.remove(cls); void n.offsetWidth; n.classList.add(cls); setTimeout(()=>n.classList.remove(cls),450); }
+function shakeScreen(strong){
+  if(reduceMotion()) return;
+  const root=document.getElementById(isMobileUI()?'m-game-view':'screen-game')||document.body;
+  flashEl(root,strong?'shake-strong':'shake');
+}
+let _bannerTs=0;
+function showBossBanner(gs){
+  const b=gs.bossBanner; if(!b||b.ts<=_bannerTs) return; _bannerTs=b.ts;
+  if(Date.now()-b.ts>15000) return; // stale (rejoined later)
+  const n=document.createElement('div'); n.className='boss-banner'+(b.dying?' dying':''); n.setAttribute('role','status');
+  n.innerHTML=`<div class="bb-name">${escapeHtml(b.name)}</div><div class="bb-text">“${escapeHtml(b.text)}”</div>`;
+  document.body.appendChild(n); setTimeout(()=>n.classList.add('out'),4200); setTimeout(()=>n.remove(),5000);
+  n.onclick=()=>n.remove();
+}
+function juiceOnEntry(plain,type){
+  if(type==='crit'&&/critical|CRIT|crits/i.test(plain)) shakeScreen(/boss|BOSS/.test(plain));
+  if(/ is slain!/.test(plain)){ const t=getActiveEnemyTok(); flashEl(t,'kill-pulse'); shakeScreen(false); }
+}
+
 function checkFloats(gs,players){
+  showBossBanner(gs);
   // ── HP-change floats (damage & healing) ──────────────────────────────────
   const enemies=gs.enemies&&gs.enemies.length>0?gs.enemies:[gs.enemy].filter(Boolean);
   enemies.forEach((e,idx)=>{
@@ -70,6 +96,7 @@ function checkFloats(gs,players){
   newEntries.forEach(entry=>{
     const msg=entry.msg||'';
     const plain=msg.replace(/<[^>]*>/g,'');
+    juiceOnEntry(plain,entry.type);
 
     const playerMissMatch=plain.match(/^(\S+)\s+misses\s+—/);
     if(playerMissMatch){

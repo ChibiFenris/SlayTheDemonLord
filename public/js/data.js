@@ -110,6 +110,8 @@ const MASTER_INFO={
 };
 
 const TALENT_DESCS={
+  revive:'Uses your turn. Brings a fallen ally back into the fight at a quarter of their max HP. Only shows when someone has fallen.',
+  block:'Active (free action, cooldown 5 rounds) — Every career can Block: all damage you take is halved until your next turn.',
   condemn:'Active (free action, cooldown 6 rounds; 3 with Judgement) — Name your target a heretic: your attacks on it get +1 boon and your hits deal +1d6. When it dies, the mark passes to the next enemy you attack.',
   silverShot:'Passive — +2 damage on hits against undead, daemons and servants of Chaos.',
   firstVolley:'Passive — Your first attack each combat gets +1 boon.',
@@ -384,6 +386,18 @@ function castingsLeftC(char, spellName, rank) {
 // [key, button label, short subtitle, used(char, gs)]
 // Ability cooldowns (rounds), filled in from the server's rules on load.
 let COOLDOWNS_C={};
+// What an enemy will do on its next turn, worked out from what the client can see.
+function enemyIntent(e,gs,players){
+  if((e.activeDebuffs||[]).some(d=>d.skipTurn)) return {cls:'calm',text:'💫 Stunned — loses its next turn'};
+  if(e._windup) return {cls:'alert',text:`⚠ Next: ${(typeof TELEGRAPH_NAMES!=='undefined'&&TELEGRAPH_NAMES[e._windup])||'a big attack'}`};
+  const alive=(players||[]).filter(p=>p.char&&p.char.alive);
+  const taunter=alive.find(p=>(p.char.activeBuffs||[]).some(b=>b.taunting));
+  const n=e.attacks||(e.multi?2:1), dmg=`${e.dmgDisplay||'1d6'}${n>1?' ×'+n:''}`;
+  if(taunter) return {cls:'',text:`⚔ Next: attacks ${taunter.name} (taunted) · ${dmg}`};
+  const front=alive.filter(p=>p.char.row!=='back');
+  const who=alive.length<=1?(alive[0]?alive[0].name:'you'):(e.ranged||!front.length)?'everyone':front.length===1?front[0].name:'the front row';
+  return {cls:'',text:`${e.ranged?'🏹':'⚔'} Next: attacks ${who} · ${dmg}`};
+}
 // How many rounds until a used ability is ready; null if it isn't recharging.
 function cooldownLeft(c,k){
   const d=COOLDOWNS_C[k]; if(!d) return null;
@@ -394,6 +408,8 @@ function cooldownLeft(c,k){
 function cooldownText(c,k){ const n=cooldownLeft(c,k); return n==null?'Used':`Ready in ${n} round${n===1?'':'s'}`; }
 const EXTRA_ACTIVES=[
   ['taunt','📯 Taunt','Enemies attack only you',(c,gs)=>(c._tauntReadyRound||0)>(gs.roundNumber||0)],
+  ['block','🛡 Block','Free: halve damage until your turn',c=>!!c._blockUsed],
+  ['revive','🙏 Revive','Raise a fallen ally at 25% HP',c=>!!c._reviveUsed,(gs,players)=>(players||[]).some(p=>p.char&&!p.char.alive&&p.id!==myId)],
   ['condemn','⚖ Condemn','Free: +1 boon, +1d6 on target',c=>!!c._condemnUsed],
   ['entangle','🌿 Entangle','Enemy loses next action',c=>c._entangleUsed],
   ['miracleHeal','🌟 Miracle Heal','Ally to full HP',c=>c.miracleUsed],
@@ -508,3 +524,13 @@ const ENEMY_ABILITY_INFO=[
   ['telegraph','Big Attack','Every few rounds it warns of a big attack, then strikes on its next turn. Stun it to cancel; Taunt redirects most of them.'],
 ];
 function enemyAbilities(enemy){ return ENEMY_ABILITY_INFO.filter(([k])=>enemy[k]).map(([,n,d])=>[n,d]); }
+
+// ─── PATHS AND RELICS ────────────────────────────────────────────────────────
+const PATH_ICONS={combat:'⚔',elite:'💀',rest:'🔥',merchant:'🛒',loot:'📦',unknown:'❓',boss:'👑',cursed:'☠'};
+const PATH_NAMES={combat:'Combat',elite:'Elite',rest:'Rest',merchant:'Merchant',loot:'Loot',unknown:'Unknown',boss:'Boss',cursed:'Cursed Path'};
+const PATH_DESCS={combat:'An enemy emerges.',elite:'A powerful foe. Winning earns a relic.',rest:'A campfire — rest and recover.',merchant:'A merchant with wares.',loot:'A cache to plunder.',unknown:'Unknown dangers.',boss:'⚠ BOSS — face it!',cursed:'A relic now; tougher foes until the next boss.'};
+let RELICS_C={};
+function relicChipsHtml(c){
+  if(!c.relics||!c.relics.length) return '';
+  return `<div class="wide"><dt>Relics</dt><dd class="relic-chips">${c.relics.map(k=>{const r=RELICS_C[k]||{name:k,icon:'✨',desc:''};return `<span class="relic-chip" tabindex="0" title="${r.name}: ${r.desc}">${r.icon} ${r.name}</span>`;}).join('')}</dd></div>`;
+}

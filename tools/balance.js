@@ -68,6 +68,11 @@ function runGame(careers, opts = {}) {
       }
       if (c.pendingStatBoost) return send(sk, 'CHOOSE_STAT', { attr: { warrior: 'str', rogue: 'agi', wizard: 'int', priest: 'wil' }[sk.career] });
       if (gs.phase === 'aftermath' && gs.aftermath && !gs.aftermath.ready.includes(myId)) return send(sk, 'CONTINUE_AFTERMATH');
+      if (c.alive && gs.phase === 'relic' && gs.relic) {
+        if (!gs.relic.picked.includes(myId) && c.relicOptions && c.relicOptions.length) return send(sk, 'PICK_RELIC', { key: c.relicOptions[0] });
+        if (gs.relic.prize && !gs.relic.prize.votes[myId]) return send(sk, 'VOTE_PRIZE', { choice: 'need' });
+        return;
+      }
       if (gs.phase === 'choice' && gs.choice && !gs.choice.votes[myId]) return send(sk, 'CHOOSE_EVENT', { option: pick(gs.choice.options).id });
       if (!c.alive) return;
       const inv = c.inventory || [];
@@ -84,6 +89,7 @@ function runGame(careers, opts = {}) {
         const hpPct = c.health / c.maxHealth, ch = gs.pathChoices;
         const pref = hpPct < 0.5 ? ['rest', 'merchant', 'loot', 'unknown', 'combat', 'boss', 'elite']
           : c.gold > 60 ? ['merchant', 'loot', 'combat', 'unknown', 'elite', 'rest', 'boss'] : ['loot', 'combat', 'unknown', 'elite', 'merchant', 'rest', 'boss'];
+        if (ch.includes('cursed') && hpPct > 0.7 && Math.random() < 0.3) return send(sk, 'VOTE_PATH', { nodeType: 'cursed' });
         return send(sk, 'VOTE_PATH', { nodeType: pref.find(p => ch.includes(p)) || ch[0] });
       }
       if (gs.phase === 'loot' && gs.lootRoom && !(gs.lootPicked || []).includes(myId)) {
@@ -121,6 +127,8 @@ function runGame(careers, opts = {}) {
         if (pot) return send(sk, 'USE_ITEM', { itemName: pot.name });
       }
       const boss = (gs.enemies || []).find(e => e && e.hp > 0 && e._windup);
+      if (boss && c.block && !c._blockUsed) return send(sk, 'USE_TALENT', { talent: 'block' });
+      if (c.revive && !c._reviveUsed && st.players.some(p => p.char && !p.char.alive && p.id !== myId)) return send(sk, 'USE_TALENT', { talent: 'revive' });
       if (boss && c.shieldBash && !c._shieldBashUsed) return send(sk, 'USE_TALENT', { talent: 'shieldBash' });
       if (c.taunt && hurtAlly && hurtAlly.id !== myId && !((c._tauntReadyRound || 0) > gs.roundNumber)) return send(sk, 'USE_TALENT', { talent: 'taunt' });
       if (c.condemn && !c._condemnUsed && !c._condemnTargetId) return send(sk, 'USE_TALENT', { talent: 'condemn' });

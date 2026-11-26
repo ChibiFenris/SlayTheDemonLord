@@ -57,13 +57,14 @@ function accountLogin(){
   const name=(el('acct-name').value||'').trim(), pin=(el('acct-pin').value||'').trim();
   el('acct-err').textContent='';
   if(!name||!/^\d{4,8}$/.test(pin)){ el('acct-err').textContent='Enter a name and a 4–8 digit PIN.'; return; }
-  send('ACCOUNT_LOGIN',{name,pin,local:{progress:getProgress(),history:getHistory()}});
+  send('ACCOUNT_LOGIN',{name,pin,local:{progress:getProgress(),history:getHistory(),achievements:getAch()}});
 }
 function accountLogout(){ const a=getAccount(); if(a) send('ACCOUNT_LOGOUT',{token:a.token}); setAccount(null); renderAccount(); }
 function onAccountMsg(msg){
   if(msg.type==='ACCOUNT_OK'){
     const p=msg.payload; setAccount({name:p.name,token:p.token});
     store.set(PROGRESS_KEY,JSON.stringify(p.progress)); store.set(HISTORY_KEY,JSON.stringify(p.history||[]));
+    mergeAch(p.achievements); if(Object.keys(getAch()).length>Object.keys(p.achievements||{}).length) accountSyncAch();
     renderAccount(p.created?'Account created. Your Renown is saved.':''); renderProgressUI(); return true;
   }
   if(msg.type==='ACCOUNT_ERROR'){ const e=el('acct-err'); if(e) e.textContent=msg.payload.msg; return true; }
@@ -79,7 +80,8 @@ function renderAccount(note){
     <div class="acct-row"><input id="acct-name" maxlength="20" placeholder="Account name" autocomplete="username"><input id="acct-pin" maxlength="8" inputmode="numeric" placeholder="PIN" autocomplete="current-password" type="password"></div>
     <button class="btn btn-w" onclick="accountLogin()">Sign in or create</button><div class="err" id="acct-err" role="alert"></div></details>`;
 }
-function accountRecordRun(rec,earned){ const a=getAccount(); if(a) send('ACCOUNT_RUN',{token:a.token,rec,earned}); }
+function accountRecordRun(rec,earned){ const a=getAccount(); if(a) send('ACCOUNT_RUN',{token:a.token,rec,earned,achievements:getAch()}); }
+function accountSyncAch(){ const a=getAccount(); if(a) send('ACCOUNT_ACH',{token:a.token,achievements:getAch()}); }
 
 // ─── PRACTICE FIGHT ───────────────────────────────────────────────────────────
 function openPractice(){
@@ -107,7 +109,7 @@ async function makeRunImage(){
   const won=gs.phase==='victory';
   g.fillStyle=tok('--blood-bright'); g.font='700 64px "Grenze Gotisch", serif'; g.fillText('Shadows Over Reikland',60,110);
   g.fillStyle=won?tok('--brass-bright'):tok('--bone'); g.font='700 48px "Alegreya", serif';
-  g.fillText(won?'Victory — the depths are conquered':`Fell at depth ${gs.depth} of 30`,60,180);
+  g.fillText(won?'Victory — the depths are conquered':(gs.endless?`Endless: fell at depth ${gs.depth}`:`Fell at depth ${gs.depth} of 30`),60,180);
   const diff=['Standard','Grim','Doom'][gs.difficulty||0];
   g.fillStyle=tok('--ash'); g.font='28px "Alegreya", serif';
   g.fillText(`${gs.bossCount||0} boss${(gs.bossCount||0)===1?'':'es'} slain · ${diff}${gs.dailyKey?' · Daily Run '+gs.dailyKey:''}`,60,226);
@@ -119,7 +121,11 @@ async function makeRunImage(){
     g.fillStyle=tok('--ash'); g.font='24px "Alegreya", serif';
     g.fillText(`${CAREER_LABELS[p.career]||''} · Lv ${p.char.level}`,x,y+222);
   });
-  if(!won&&gs.deathCause){
+  if(gs.chronicle){
+    g.fillStyle=tok('--bone'); g.font='italic 24px "Alegreya", serif';
+    const words=String(gs.chronicle).split(' '); let line='', y=H-95;
+    words.forEach(w=>{ if(g.measureText(line+w).width>W-120){ g.fillText(line.trim(),60,y); line=''; y+=30; } line+=w+' '; }); g.fillText(line.trim(),60,y);
+  } else if(!won&&gs.deathCause){
     const cause=String(gs.deathCause).replace(/<[^>]+>/g,'').replace(/\s+/g,' ').trim().slice(0,80);
     g.fillStyle=tok('--ember'); g.font='italic 26px "Alegreya", serif'; g.fillText(cause,60,H-60);
   }

@@ -13,6 +13,7 @@ fetch('api/game-data').then(r=>r.json()).then(g=>{
   if(g.charms) GAME_CHARMS=g.charms;
   if(g.difficulties) GAME_DIFFICULTIES=g.difficulties;
   if(g.cooldowns) COOLDOWNS_C=g.cooldowns;
+  if(g.relics) RELICS_C=g.relics;
   renderProgressUI();
   if(lastState) renderState(lastState);
 }).catch(()=>{});
@@ -176,9 +177,9 @@ function joinRoom(){
 function selCareer(btn){
   document.querySelectorAll('.cbtn').forEach(b=>b.classList.remove('sel'));
   btn.classList.add('sel'); selectedCareer=btn.dataset.career;
-  send('SELECT_CAREER',{career:selectedCareer,startingCharm:selectedCharm});
+  send('SELECT_CAREER',Object.assign({career:selectedCareer,startingCharm:selectedCharm},lobbyCosmetics()));
 }
-function setReady(){ send('SELECT_CAREER',{career:selectedCareer,startingCharm:selectedCharm}); setTimeout(()=>send('PLAYER_READY'),50); }
+function setReady(){ send('SELECT_CAREER',Object.assign({career:selectedCareer,startingCharm:selectedCharm},lobbyCosmetics())); setTimeout(()=>send('PLAYER_READY'),50); }
 function updateLobbySlots(players){
   renderProgressUI(players);
   const el2=el('player-slots'); if(!el2)return;

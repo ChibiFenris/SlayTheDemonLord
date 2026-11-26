@@ -314,4 +314,92 @@ const logHas=(room,re)=>room.gs.log.some(l=>re.test(l.msg));
   ok(used===5,'all five new consumables work'); }
 // 27. Unknown rooms that are events are always choices
 { let allChoice=true; for(let i=0;i<20;i++){ const {room}=mkRoom(['warrior']); S.resolveUnknownEvent(room); if(room.gs.phase!=='choice') allChoice=false; } ok(allChoice,'every unknown-room event is a choice'); }
+// 28. Rows: melee enemies only reach the front row
+{ const {room}=mkRoom(['warrior','wizard']); combat(room,['Skaven Clanrat']);
+  ok(room.players[0].char.row==='front'&&room.players[1].char.row==='back','warriors start in front, wizards at the back');
+  const wi=room.gs.turnOrder.findIndex(t=>t.id===room.players[0].id); room.gs.activeTurnIdx=wi;
+  S.handlePlayerAction(room,room.players[0].id,{action:'SET_ROW',data:{row:'back'}}); ok(room.players[0].char.row==='back','you can change row on your turn');
+  S.handlePlayerAction(room,room.players[1].id,{action:'SET_ROW',data:{row:'front'}}); ok(room.players[1].char.row==='back','but not on someone else\'s turn');
+  ok(S.gear.hasRangedWeapon({equippedWeapon:{name:'Hunting Bow'}})&&!S.gear.hasRangedWeapon({equippedWeapon:{name:'Hand Weapon'}}),'bows count as ranged, swords do not'); }
+// 29. Block halves damage and goes on cooldown
+{ const {room}=mkRoom(['warrior','priest']); combat(room,['Skaven Clanrat']); const c=room.players[0].char;
+  const wi=room.gs.turnOrder.findIndex(t=>t.id===room.players[0].id); room.gs.activeTurnIdx=wi;
+  S.handlePlayerAction(room,room.players[0].id,{action:'USE_TALENT',data:{talent:'block'}});
+  ok(S.isBlocking(c)&&c._blockUsed,'Block raises your guard and starts its cooldown');
+  ok(room.gs.activeTurnIdx===wi,'Block is a free action');
+  S.tickCooldowns(room); ok(c._cd.block===5,'Block recharges in 5 rounds'); }
+// 30. Relics
+{ const {room}=mkRoom(['warrior','priest']); const c=room.players[0].char, hp=c.maxHealth;
+  S.relics.grantRelic(c,'ironHeart'); ok(c.maxHealth===hp+6&&S.relics.hasRelic(c,'ironHeart'),'Iron Heart adds 6 max HP');
+  ok(!S.relics.grantRelic(c,'ironHeart'),'the same relic cannot be taken twice');
+  room.gs.phase='event'; ok(S.relics.offerRelics(room,'path',true)&&room.gs.phase==='relic'&&room.gs.relic.prize,'a boss fight offers relics and a Champion\'s Prize');
+  room.players.forEach(p=>ok((p.char.relicOptions||[]).length===3,p.career+' gets three relic choices'));
+  room.players.forEach(p=>S.handlePlayerAction(room,p.id,{action:'PICK_RELIC',data:{key:p.char.relicOptions[0]}}));
+  ok(room.gs.phase==='relic','the room waits for the prize vote');
+  S.handlePlayerAction(room,room.players[0].id,{action:'VOTE_PRIZE',data:{choice:'need'}});
+  S.handlePlayerAction(room,room.players[1].id,{action:'VOTE_PRIZE',data:{choice:'pass'}});
+  ok(room.gs.phase==='path'&&!room.gs.relic,'once everyone decides, the road goes on');
+  ok(logHas(room,/Champion's Prize — P0/),'the only player who needed it wins the roll');
+  const w=room.players[1].char; w.relics=['phoenixFeather']; w.health=0; S.checkDeath(room,room.players[1]);
+  ok(w.alive&&w.health===1&&w._phoenixUsed,'Phoenix Feather saves you once');
+  w.health=0; S.checkDeath(room,room.players[1]); ok(!w.alive||w.health>1||w.resurrection,'but only once'); }
+// 31. Relics after elite fights; cursed paths; road ahead
+{ const {room}=mkRoom(['warrior']); combat(room,['Skaven Clanrat']); room.gs.enemies[0].isElite=true;
+  room.gs.enemies[0].hp=0; S.resolveEnemyDeath(room,room.gs.enemies[0]);
+  if(room.gs.phase==='aftermath') S.handlePlayerAction(room,room.players[0].id,{action:'CONTINUE_AFTERMATH',data:{}});
+  ok(room.gs.phase==='relic','winning an elite fight offers a relic');
+  const {room:r2}=mkRoom(['warrior']); r2.gs.depth=4; r2.gs.phase='path';
+  S.enterNode(r2,'cursed'); ok(r2.gs.curseStacks===1&&r2.gs.cursedTaken===1&&r2.gs.phase==='relic','a Cursed Path gives a relic and a curse');
+  S.relics.pickRelic(r2,r2.players[0].id,r2.players[0].char.relicOptions[0]);
+  r2.gs.phase='event'; S._runNodeContent(r2,r2.gs,'combat',1); const e=r2.gs.enemies[0];
+  ok(e.dmgBonus>=1,'cursed foes hit harder');
+  e.threat='Boss'; e.hp=0; S.resolveEnemyDeath(r2,e); ok(!r2.gs.curseStacks,'killing a boss lifts the curse');
+  const {room:r3}=mkRoom(['warrior']); r3.gs.depth=3; S.showPathChoices(r3);
+  ok(Array.isArray(r3.gs.road)&&r3.gs.road.length===2&&r3.gs.road[0].depth===5,'the crossroads shows the next two stops of the road');
+  const planned=r3.gs.road[0].choices.join(); r3.gs.depth=4; S.showPathChoices(r3);
+  ok(r3.gs.pathChoices.join()===planned||planned==='boss','what the road showed is what you get');
+  let bossAt10=true; const {room:r4}=mkRoom(['warrior']); r4.gs.depth=8; S.showPathChoices(r4); if(!r4.gs.road.some(r=>r.depth===10&&r.choices[0]==='boss')) bossAt10=false; ok(bossAt10,'the road shows the boss coming'); }
+// 32. Revive and recurring characters
+{ const {room}=mkRoom(['warrior','priest']); combat(room,['Skaven Clanrat']); const pr=room.players[1].char; pr.alive=false; pr.health=0;
+  const wi=room.gs.turnOrder.findIndex(t=>t.id===room.players[0].id); room.gs.activeTurnIdx=wi;
+  S.handlePlayerAction(room,room.players[0].id,{action:'USE_TALENT',data:{talent:'revive'}});
+  ok(pr.alive&&pr.health===Math.ceil(pr.maxHealth*0.25),'Revive brings a fallen ally back at 25% HP');
+  ok(room.players[0].char._reviveUsed,'and goes on cooldown');
+  const {room:r2}=mkRoom(['warrior','rogue']); r2.gs.depth=3; S.events.startChoiceEvent(r2,'ravens1'); S.events.voteChoice(r2,r2.players[0].id,'pay'); S.events.voteChoice(r2,r2.players[1].id,'pay');
+  ok(r2.gs.flags&&r2.gs.flags.ravens==='paid','the Black Ravens remember how you met them');
+  r2.gs.depth=10; S.events.startChoiceEvent(r2,'ravens2'); S.events.voteChoice(r2,r2.players[0].id,'parley'); S.events.voteChoice(r2,r2.players[1].id,'parley');
+  ok(logHas(r2,/favourite customers/),'and the second meeting follows from the first');
+  const ok3=S.events.CHOICE_EVENTS.ravens3.requires(r2.gs,r2); ok(ok3,'the third meeting becomes possible');
+  ok(!S.events.CHOICE_EVENTS.ravens1.requires(r2.gs,r2),'and the first never repeats');
+  ok(S.lore.intro("Daemon Prince Vhar'kul")&&S.lore.last('Varghulf'),'bosses have opening and last words');
+  const {room:r3}=mkRoom(['warrior']); S._runNodeContent(r3,r3.gs,'merchant',1); S._runNodeContent(r3,r3.gs,'merchant',1); ok(logHas(r3,/You again/),'Old Grete remembers you');
+  r3.gs.bossCount=1; r3.gs.cursedTaken=1; r3.players[0].char.relics=['ironHeart']; const line=S.chronicleLine(r3,false,'Varghulf');
+  ok(/slew 1 boss, walked 1 cursed path and carried 1 relic, before falling at depth/.test(line),'the run gets a one-line chronicle'); }
+// 33. Achievements sync, start relic, hall of fame
+{ S.accounts._reset(); const r=S.accounts.login('Achiever','1234',{achievements:{blooded:5}}); ok(r.ok.achievements.blooded===5,'new accounts keep achievements from this browser');
+  const r2=S.accounts.syncAchievements(r.ok.token,{beastbane:7,'<bad>':1}); ok(r2.ok.achievements.beastbane===7&&!r2.ok.achievements['<bad>'],'achievements merge onto the account, junk keys are ignored');
+  const ws={readyState:1,send(){}}; S.handleMessage(ws,{type:'CREATE_ROOM',payload:{name:'R'}}); const room=[...S.rooms.values()].pop();
+  S.handleMessage(ws,{type:'SELECT_CAREER',payload:{career:'warrior',startRelic:true,frame:'gold',title:'Beastbane<script>'}});
+  const p=room.players[0]; ok(p.char.relics.length===1,'the Renown unlock starts you with a relic');
+  ok(p.frame==='gold'&&p.title==='Beastbanescript','frames and titles are shown, with markup stripped');
+  S.runlog._resetHof(); const hof=S.runlog.hallOfFame(5); ok(Array.isArray(hof),'the hall of fame lists the best runs'); }
+// 34. Endless mode
+{ const ws={readyState:1,send(){}}; S.handleMessage(ws,{type:'CREATE_ROOM',payload:{name:'E'}}); const room=[...S.rooms.values()].pop();
+  S.handleMessage(ws,{type:'SET_DAILY',payload:{on:true}}); S.handleMessage(ws,{type:'SET_ENDLESS',payload:{on:true}});
+  ok(room.gs.endless&&!room.gs.daily,'the host can turn on Endless (and it turns off the Daily)');
+  room.gs.depth=30; room.gs.bossCount=3; ok(!S.runWon(room.gs),'beating the third boss does not end an Endless run');
+  ok(S.runWon({depth:30,bossCount:3}),'it still ends a normal run');
+  S.handleMessage(ws,{type:'SELECT_CAREER',payload:{career:'warrior'}}); S.handleMessage(ws,{type:'PLAYER_READY',payload:{}});
+  room.gs.depth=30; room.gs.bossCount=3; room.gs.phase='event'; room.gs.road=[]; S.showPathChoices(room);
+  ok(room.gs.phase==='path'&&room.gs.road.some(r=>r.depth===32),'the road goes on past depth 30');
+  room.gs.depth=39; S.showPathChoices(room); ok(room.gs.pathChoices.join()==='boss','a boss waits at depth 40');
+  const b=S.pickEnemy(40,false,true,1,3); ok(b.threat==='Boss','the bosses come round again');
+  const t0=S.pickEnemy(25,false,false,1,2), t2=S.pickEnemy(45,false,false,1,4);
+  ok(t2.endlessTier===2&&!t0.endlessTier,'each boss past the third is a tier');
+  const base=D.ENEMY_POOLS.high[0]; const a=S.scaleEnemy(JSON.parse(JSON.stringify(base)),1,false,2), z=S.scaleEnemy(JSON.parse(JSON.stringify(base)),1,false,4);
+  ok(z.maxHp>a.maxHp*1.5&&z.dmgBonus===a.dmgBonus+3&&z.atk===(a.atk||0)+2,'foes get more HP, damage and accuracy every tier');
+  let wHi=0,wLo=0; for(let i=0;i<200;i++){ wLo+=S.genWpn(2).bonus; wHi+=S.genWpn(5).bonus; } ok(wHi-wLo>=200*2.5,'gear keeps scaling too (+1 per tier)');
+  const {room:rr}=mkRoom(['warrior']); rr.players[0].char.relics=Object.keys(S.relics.RELICS); rr.gs.phase='event';
+  ok(!S.relics.offerRelics(rr,'path',false)&&rr.gs.phase==='event','with every relic taken, the relic screen is skipped');
+  const leg=S.genLegendaryItem(4); ok(/\+2$/.test(leg.name),'legendaries from later loops are stronger'); }
 console.log(fails?fails+' FAILED':'all passed'); process.exit(fails?1:0);

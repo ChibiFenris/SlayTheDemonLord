@@ -2,9 +2,9 @@
 // Combat flow: turn order, the party turn timer, enemy turns, rounds and deaths.
 // Moved out of server.js unchanged. The server hands this module the helpers it
 // uses through bind() once everything is defined (see the bottom of server.js).
-let SELF_TICK_DOTS, addBuff, addDebuff, addLog, aliveEnemies, applyPoison, broadcastState, charmKey, d, enemyAfterHit, enemyDamageMods, enemyPostTurn, enemyPreTurn, gearRoundTick, immuneToPoison, rd, resistsInsanity, resolveEnemyDeath, rollAttack, rollEnemyAttack, scaleEnemy, sortTurnOrder, tickBuffs, tickCooldowns, tickDebuffs, triggerGameover;
+let SELF_TICK_DOTS, addBuff, addDebuff, addLog, aliveEnemies, applyPoison, broadcastState, charmKey, d, enemyAfterHit, enemyDamageMods, enemyPostTurn, enemyPreTurn, gearRoundTick, hasRelic, immuneToPoison, rd, resistsInsanity, resolveEnemyDeath, rollAttack, rollEnemyAttack, scaleEnemy, sortTurnOrder, tickBuffs, tickCooldowns, tickDebuffs, triggerGameover;
 function bind(api) {
-  ({ SELF_TICK_DOTS, addBuff, addDebuff, addLog, aliveEnemies, applyPoison, broadcastState, charmKey, d, enemyAfterHit, enemyDamageMods, enemyPostTurn, enemyPreTurn, gearRoundTick, immuneToPoison, rd, resistsInsanity, resolveEnemyDeath, rollAttack, rollEnemyAttack, scaleEnemy, sortTurnOrder, tickBuffs, tickCooldowns, tickDebuffs, triggerGameover } = api);
+  ({ SELF_TICK_DOTS, addBuff, addDebuff, addLog, aliveEnemies, applyPoison, broadcastState, charmKey, d, enemyAfterHit, enemyDamageMods, enemyPostTurn, enemyPreTurn, gearRoundTick, hasRelic, immuneToPoison, rd, resistsInsanity, resolveEnemyDeath, rollAttack, rollEnemyAttack, scaleEnemy, sortTurnOrder, tickBuffs, tickCooldowns, tickDebuffs, triggerGameover } = api);
 }
 // ─── COMBAT FLOW: TURN ORDER ───────────────────────────────────────────────────────
 
@@ -99,6 +99,8 @@ function advanceTurn(room) {
   } else {
     gs.playersActedThisRound = gs.playersActedThisRound.filter(id => id !== cur.id);
     addLog(room, `--- ${cur.name}'s turn ---`, 'sys');
+    const _cp = room.players.find(pl => pl.id === cur.id);
+    if (_cp && _cp.char && _cp.char.activeBuffs) _cp.char.activeBuffs = _cp.char.activeBuffs.filter(b => !b.blocking); // Block lasts until your next turn
     if (autoSkipStunnedPlayer(room, cur.id)) return;
     startTurnTimer(room, cur);
     broadcastState(room.code);
@@ -365,7 +367,12 @@ function fireEnemyTurn(room, ae) {
   const _targets = plan.targets ? plan.targets.filter(p => p && p.char && p.char.alive) : alive.slice();
   const _taunter = alive.find(p => (p.char.activeBuffs||[]).some(b => b.taunting));
   alive.length = 0;
-  if (_taunter && !plan.ignoreTaunt) alive.push(_taunter); else alive.push(..._targets);
+  if (_taunter && !plan.ignoreTaunt) alive.push(_taunter);
+  else {
+    // Rows: melee attackers can only reach the front row while anyone stands in it.
+    const front = _targets.filter(p => p.char.row !== 'back');
+    alive.push(...((!ae.ranged && !plan.targets && front.length) ? front : _targets));
+  }
   // ── Attack loop ───────────────────────────────────────────────────────────
   if(alive.length>1) alive.sort((a,b)=>(a.char._armorLastTarget?1:0)-(b.char._armorLastTarget?1:0));
   if(alive.length>1) alive.sort((a,b)=>((b.char.bodyguard)?1:0)-((a.char.bodyguard)?1:0));
@@ -561,6 +568,11 @@ function finishEnemyTurn(room, ae){
 
 function checkDeath(room, player) {
   if(player.char.health<=0&&player.char.alive){
+    if(hasRelic(player.char,'phoenixFeather')&&!player.char._phoenixUsed){
+      player.char._phoenixUsed=true; player.char.health=1;
+      addLog(room,`🪶 <strong>Phoenix Feather!</strong> The feather burns away — ${player.name} rises with 1 HP!`,'heal');
+      return;
+    }
     if(charmKey(player.char)==='boneRosary'&&!player.char._rosaryUsed&&room.gs.inCombat){
       player.char._rosaryUsed=true; player.char.health=1;
       addLog(room,`📿 <strong>Bone Rosary!</strong> The beads crack — ${player.name} clings on at 1 HP!`,'heal');

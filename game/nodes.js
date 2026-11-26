@@ -2,9 +2,9 @@
 // The road: path votes, room contents, unknown-room encounters and loot rooms.
 // Moved out of server.js unchanged. The server hands this module the helpers it
 // uses through bind() once everything is defined (see the bottom of server.js).
-let ARMOR_BASES, CHARM_SHOP_KEYS, DIFFICULTIES, LOOT_CONS_LIST, NODE_TYPES, SCROLL_SPELLS_LIST, WEAPON_BASES, addBuff, addLog, advanceTurn, applyDailyToEnemies, buildPlayerShop, buildTurnOrder, cleanseCurses, d, events, makeCharm, maxCastings, onCombatStart, pickEnemy, pickRandom, refreshCastingPools, restoreCastingPools, rollTraits, startSpoils, uniqRanks, uuidv4;
+let ARMOR_BASES, CHARM_SHOP_KEYS, DIFFICULTIES, LOOT_CONS_LIST, NODE_TYPES, SCROLL_SPELLS_LIST, WEAPON_BASES, addBuff, addDebuff, addLog, advanceTurn, applyDailyToEnemies, buildPlayerShop, buildTurnOrder, cleanseCurses, d, events, hasRelic, lore, makeCharm, maxCastings, onCombatStart, pickEnemy, pickRandom, refreshCastingPools, relics, restoreCastingPools, rollTraits, startSpoils, uniqRanks, uuidv4;
 function bind(api) {
-  ({ ARMOR_BASES, CHARM_SHOP_KEYS, DIFFICULTIES, LOOT_CONS_LIST, NODE_TYPES, SCROLL_SPELLS_LIST, WEAPON_BASES, addBuff, addLog, advanceTurn, applyDailyToEnemies, buildPlayerShop, buildTurnOrder, cleanseCurses, d, events, makeCharm, maxCastings, onCombatStart, pickEnemy, pickRandom, refreshCastingPools, restoreCastingPools, rollTraits, startSpoils, uniqRanks, uuidv4 } = api);
+  ({ ARMOR_BASES, CHARM_SHOP_KEYS, DIFFICULTIES, LOOT_CONS_LIST, NODE_TYPES, SCROLL_SPELLS_LIST, WEAPON_BASES, addBuff, addDebuff, addLog, advanceTurn, applyDailyToEnemies, buildPlayerShop, buildTurnOrder, cleanseCurses, d, events, hasRelic, lore, makeCharm, maxCastings, onCombatStart, pickEnemy, pickRandom, refreshCastingPools, relics, restoreCastingPools, rollTraits, startSpoils, uniqRanks, uuidv4 } = api);
 }
 // ─── PATH/NODE LOGIC ─────────────────────────────────────────────────────────
 function pickThreeNodes() {
@@ -23,20 +23,34 @@ function restorePower(room, reason) {
   if(restored) addLog(room,`✨ ${reason} — all spellcasters regain power.`,'spell');
 }
 
+// The choices offered when entering `depth`. Boss depths are fixed; from depth 3
+// one choice is sometimes a Cursed Path.
+function crossroadsFor(depth, endless){
+  if(depth%10===0&&(depth<=30||endless)) return ['boss'];
+  const c=pickThreeNodes();
+  if(depth>=3&&Math.random()<0.22) c[Math.floor(Math.random()*3)]='cursed';
+  return c;
+}
 function showPathChoices(room) {
   const gs=room.gs; gs.pathVotes={};
-  const isBossDepth = gs.depth>0 && gs.depth%10===9 && gs.bossCount<3;
-  const isFinalBoss = gs.depth>=29 && gs.bossCount<3; // only trigger if haven't beaten boss 3 yet
+  const nextDepth=gs.depth+1;
+  gs.road=(gs.road||[]).filter(r=>r.depth>gs.depth);
+  const planned=gs.road[0]&&gs.road[0].depth===nextDepth?gs.road.shift():null;
+  const isBossDepth = gs.depth>0 && gs.depth%10===9 && (gs.endless || gs.bossCount<3);
+  const isFinalBoss = !gs.endless && gs.depth>=29 && gs.bossCount<3; // only trigger if haven't beaten boss 3 yet
   if (isBossDepth || isFinalBoss) {
     gs.phase='path'; gs.bossNode=true; gs.pathChoices=['boss'];
     const msg = isFinalBoss
-      ? '💀 The Saurian Ancient stirs. The Final Darkness awaits — there is no retreat.'
+      ? '💀 The Final Darkness awaits — there is no retreat.'
       : '💀 A monstrous power bars your path. Face it or fall.';
     addLog(room,msg,'chaos');
   } else {
-    gs.phase='path'; gs.bossNode=false; gs.pathChoices=pickThreeNodes();
+    gs.phase='path'; gs.bossNode=false; gs.pathChoices=planned&&planned.choices[0]!=='boss'?planned.choices:crossroadsFor(nextDepth,gs.endless).filter(t=>t!=='boss');
+    if(!gs.pathChoices.length) gs.pathChoices=pickThreeNodes();
     addLog(room,'The warband reaches a crossroads. Each warrior votes for their path.','sys');
   }
+  // Keep two crossroads of the road ahead visible.
+  while(gs.road.length<2){ const dd=nextDepth+1+gs.road.length; if(dd>30&&!gs.endless) break; gs.road.push({depth:dd,choices:crossroadsFor(dd,gs.endless)}); }
 }
 
 function resolvePath(room) {
@@ -84,10 +98,19 @@ function _runNodeContent(room, gs, nodeType, playerCount) {
       gs.enemy=e;
       const tag=isBoss?'⚠ BOSS — ':isElite?'Elite — ':'';
       addLog(room,`⚔ ${tag}<strong>${e.name}</strong> appears! DMG: ${e.dmgDisplay}`,'dmg');
+      const line=isBoss&&lore.intro(e.name);
+      if(line){ addLog(room,`🗣 <strong>${e.name}:</strong> <em>“${line}”</em>`,'boss'); gs.bossBanner={name:e.name,text:line,ts:Date.now()}; }
     }
     const diff=DIFFICULTIES[gs.difficulty||0];
     if(diff.id>0) gs.enemies.forEach(e=>{ e.maxHp=Math.round(e.maxHp*diff.hp); e.hp=e.maxHp; e.dmgBonus=(e.dmgBonus||0)+diff.dmg; e.dmgDisplay=`${e.dmgNum}d${e.dmgSides}${e.dmgBonus?'+'+e.dmgBonus:''}`; });
     applyDailyToEnemies(gs, gs.enemies);
+    // Cursed Path: tougher foes until the next boss falls.
+    if(gs.curseStacks){ gs.enemies.forEach(e=>{ e.maxHp=Math.round(e.maxHp*(1+0.15*gs.curseStacks)); e.hp=e.maxHp; e.dmgBonus=(e.dmgBonus||0)+gs.curseStacks; e.dmgDisplay=`${e.dmgNum}d${e.dmgSides}${e.dmgBonus?'+'+e.dmgBonus:''}`; }); }
+    // Relics that act when a fight begins.
+    room.players.forEach(p=>{ const c=p.char; if(!c||!c.alive) return;
+      if(hasRelic(c,'pilgrimBoots')) c.health=Math.min(c.maxHealth,c.health+4);
+    });
+    if(room.players.some(p=>p.char&&p.char.alive&&hasRelic(p.char,'tollingBell'))) gs.enemies.forEach(e=>addDebuff(e,'Shaken',{bane:1,consumeOnAttack:true},2));
     if(gs._nextCombatHalfHP){ gs._nextCombatHalfHP=false; gs.enemies.forEach(e=>{e.hp=Math.ceil(e.hp/2); e.maxHp=e.hp;}); addLog(room,`🔴 Ritual disruption — enemies enter at half HP!`,'chaos'); }
     gs.inCombat=true; gs.phase='combat'; gs.playersActedThisRound=[]; gs.enemyHasActed=false; gs.roundNumber=1;
     onCombatStart(room);
@@ -98,6 +121,7 @@ function _runNodeContent(room, gs, nodeType, playerCount) {
       const r1=p.char.knownSpells&&p.char.knownSpells.find(sp=>sp.rank===1);
       if(r1){ if(!p.char.castingPools) refreshCastingPools(p.char); p.char.castingPools['R'+r1.rank]=(p.char.castingPools['R'+r1.rank]||0)+1; addLog(room,`📚 <strong>Prepared Spell!</strong> ${p.name} has ${r1.name} ready — one free cast this combat.`,'spell'); }
     });
+    room.players.filter(p=>p.char&&p.char.alive&&hasRelic(p.char,'quicksilver')&&p.char.castingPools).forEach(p=>{ Object.keys(p.char.castingPools).forEach(k=>{ p.char.castingPools[k]++; }); });
     room.players.filter(p=>p.char&&p.char.alive&&p.char._legPrimordialStaff).forEach(p=>{
       if(!p.char.castingPools) refreshCastingPools(p.char);
       uniqRanks((p.char.knownSpells||[]).filter(sp=>sp.rank===1)).forEach(sp=>{ p.char.castingPools['R'+sp.rank]=(p.char.castingPools['R'+sp.rank]||0)+3; });
@@ -141,7 +165,8 @@ function _runNodeContent(room, gs, nodeType, playerCount) {
   if(nodeType==='merchant') {
     gs.phase='merchant';
     room.players.forEach(p=>{if(p.char&&p.char.alive) p.char.merchantStock=buildPlayerShop(gs.bossCount);});
-    addLog(room,'🛒 A merchant appears. Each warrior browses their own wares.','sys');
+    gs.merchantVisits=(gs.merchantVisits||0)+1;
+    addLog(room,`🛒 ${lore.merchantGreeting(gs.merchantVisits)}`,'sys');
     return;
   }
   if(nodeType==='loot') {
@@ -150,6 +175,12 @@ function _runNodeContent(room, gs, nodeType, playerCount) {
     gs.lootRoom={coins}; gs.lootPicked=[];
     room.players.forEach(p=>{if(p.char&&p.char.alive) p.char.lootOptions=buildLootOptions(gs.bossCount);});
     addLog(room,`📦 A cache! ${coins} coins — each warrior finds their own haul.`,'loot');
+    return;
+  }
+  if(nodeType==='cursed') {
+    gs.curseStacks=Math.min(2,(gs.curseStacks||0)+1); gs.cursedTaken=(gs.cursedTaken||0)+1;
+    addLog(room,`☠ <strong>The Cursed Path.</strong> Dark power seeps into the road — enemies are stronger until the next boss falls (${gs.curseStacks===2?'doubly cursed':'cursed'}). But the dead leave gifts behind.`,'chaos');
+    if(!relics.offerRelics(room,'event')) gs.phase='event';
     return;
   }
   if(nodeType==='unknown') {
@@ -192,4 +223,4 @@ function genSpecialArmor(bossCount=0){
   return rollTraits({id:'a'+uuidv4(),name:base.name,defBonus:totalDef,special:base.special,cost:0,sellCost:3,bought:false,type:'armor',desc:`+${totalDef} Defense — ${base.special.desc}`},'armor');
 }
 
-module.exports = { bind, pickThreeNodes, restorePower, showPathChoices, resolvePath, startNodeContent, enterNode, _runNodeContent, resolveUnknownEvent, buildLootOptions, genSpecialWpn, genSpecialArmor };
+module.exports = { bind, pickThreeNodes, restorePower, crossroadsFor, showPathChoices, resolvePath, startNodeContent, enterNode, _runNodeContent, resolveUnknownEvent, buildLootOptions, genSpecialWpn, genSpecialArmor };

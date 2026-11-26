@@ -2,9 +2,9 @@
 // Player combat actions: attacking, casting spells and using talents.
 // Moved out of server.js unchanged. The server hands this module the helpers it
 // uses through bind() once everything is defined (see the bottom of server.js).
-let TRADITIONS, addBuff, addDebuff, addLog, advanceTurn, applyBleed, applyBurn, applyPoison, castingsLeft, charmKey, checkDeath, d, enemyOnWeaponHit, getTargetEnemy, maxCastings, modVal, rd, refreshCastingPools, regainCasting, resolveEnemyDeath, rollAttack, spendCasting, talentHeal, uniqRanks;
+let TRADITIONS, addBuff, addDebuff, addLog, advanceTurn, applyBleed, applyBurn, applyPoison, castingsLeft, charmKey, checkDeath, d, enemyOnWeaponHit, getTargetEnemy, hasRelic, maxCastings, modVal, rd, refreshCastingPools, regainCasting, resolveEnemyDeath, rollAttack, spendCasting, talentHeal, uniqRanks;
 function bind(api) {
-  ({ TRADITIONS, addBuff, addDebuff, addLog, advanceTurn, applyBleed, applyBurn, applyPoison, castingsLeft, charmKey, checkDeath, d, enemyOnWeaponHit, getTargetEnemy, maxCastings, modVal, rd, refreshCastingPools, regainCasting, resolveEnemyDeath, rollAttack, spendCasting, talentHeal, uniqRanks } = api);
+  ({ TRADITIONS, addBuff, addDebuff, addLog, advanceTurn, applyBleed, applyBurn, applyPoison, castingsLeft, charmKey, checkDeath, d, enemyOnWeaponHit, getTargetEnemy, hasRelic, maxCastings, modVal, rd, refreshCastingPools, regainCasting, resolveEnemyDeath, rollAttack, spendCasting, talentHeal, uniqRanks } = api);
 }
 // ─── COMBAT ACTIONS ──────────────────────────────────────────────────────────
 // Weapon attack against the current target. Returns true when the action used the turn; undefined aborts with no turn spent.
@@ -125,6 +125,15 @@ function actAttack({room,playerId,data,ws,player,gs,char}){
         if(char.silverShot && isUnholy(targetEnemy)){ finalDmg+=2; }
         if(char.slayerOath && (targetEnemy.threat==='Boss'||targetEnemy.isElite)){ const so=rd(1,6); finalDmg+=so; addLog(room,`🪓 <strong>Slayer's Oath!</strong> +${so} dmg against a worthy foe.`,'crit'); }
         if(char.deathWish && char.health < char.maxHealth/2){ finalDmg+=2; }
+        // Relics on a hit
+        if(hasRelic(char,'vampireFang')) char.health=Math.min(char.maxHealth,char.health+1);
+        if(r.crit&&hasRelic(char,'stormstone')){ const ss=rd(1,6); finalDmg+=ss; addLog(room,`⚡ <strong>Stormstone!</strong> +${ss} on the critical hit.`,'crit'); }
+        if(hasRelic(char,'hunterTrophy')&&(targetEnemy.threat==='Boss'||targetEnemy.isElite)) finalDmg+=rd(1,6);
+        // Combos: setting up a foe for the rest of the warband pays off.
+        const _deb=targetEnemy.activeDebuffs||[];
+        if(_deb.some(d=>d.skipTurn)){ const ex=rd(1,6); finalDmg+=ex; addLog(room,`💥 <strong>Exploit!</strong> ${targetEnemy.name} is helpless — +${ex} dmg.`,'crit'); }
+        if(_deb.some(d=>d.condemned)&&_deb.some(d=>d.name==='Burn')){ const pg=rd(1,6); finalDmg+=pg; addLog(room,`🔥 <strong>Purge!</strong> The condemned burns — +${pg} holy dmg.`,'crit'); }
+        if((targetEnemy._poisonStacks||0)>0&&_deb.some(d=>d.name==='Bleed')){ finalDmg+=2; addLog(room,`🩸 <strong>Festering!</strong> Poison in an open wound — +2 dmg.`,'chaos'); }
       }
       if(char.markHeretic && r.hit && !char._markHereticTarget){ char._markHereticTarget=targetEnemy; addLog(room,`⚖ <strong>Mark Heretic!</strong> ${targetEnemy.name} is marked — attacks gain +2 boons!`,'sys'); }
       if(char.markHeretic && char._markHereticTarget && targetEnemy!==char._markHereticTarget && r.hit){ char._markHereticTarget=targetEnemy; }
@@ -697,6 +706,24 @@ function isUnholy(e){
 function actUseTalent({room,playerId,data,ws,player,gs,char}){
   let acted=false;
   const t=data.talent;
+  // Block: a free action every career has. Halves the damage you take until your next turn.
+  if(t==='block'){
+    if(char._blockUsed){ addLog(room,`${player.name}: Block is recharging.`,'sys'); return; }
+    char._blockUsed=true; addBuff(char,'Blocking',{blocking:true},3);
+    addLog(room,`🛡 <strong>Block!</strong> ${player.name} raises their guard — damage taken is halved until their next turn.`,'spell');
+    return false;
+  }
+  // Revive: every career can drag a fallen ally back into the fight. Uses your turn; long cooldown.
+  if(t==='revive'){
+    if(char._reviveUsed){ addLog(room,`${player.name}: Revive is recharging.`,'sys'); return; }
+    const fallen=room.players.filter(p=>p.char&&!p.char.alive&&p.id!==playerId);
+    const tgt=(data.targetId&&fallen.find(p=>p.id===data.targetId))||fallen[0];
+    if(!tgt){ addLog(room,`${player.name}: nobody has fallen.`,'sys'); return; }
+    char._reviveUsed=true;
+    tgt.char.alive=true; tgt.char.pendingRevive=false; tgt.char.health=Math.max(1,Math.ceil(tgt.char.maxHealth*0.25));
+    addLog(room,`🙏 <strong>Revive!</strong> ${player.name} hauls ${tgt.name} back to their feet — <strong class="num-heal">${tgt.char.health} HP</strong>.`,'heal');
+    return true;
+  }
   // Condemn is a free action: marking a target doesn't use your turn.
   if(t==='condemn'){
     if(!char.condemn){ addLog(room,`${player.name} cannot Condemn.`,'sys'); return; }

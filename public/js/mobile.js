@@ -145,11 +145,11 @@ function mRenderGame(gs,players,me){
   const inLoot=gs.phase==='loot';
 
   // Status bar
-  const phaseLabel=inCombat?'In combat':gs.phase==='aftermath'?'Victory':gs.phase==='choice'?'Encounter':inMerchant?'Merchant':inLoot?'Loot room':gs.phase==='path'?'Crossroads':'Travelling';
+  const phaseLabel=inCombat?'In combat':gs.phase==='aftermath'?'Victory':gs.phase==='choice'?'Encounter':inMerchant?'Merchant':inLoot?'Loot room':gs.phase==='path'?'Crossroads':gs.phase==='relic'?'Relics':'Travelling';
   const phaseCls=inCombat?'s-combat':inMerchant||inLoot?'s-event':'s-explore';
   view.appendChild(mEl('div','m-status',`
     <div class="m-status-top"><div class="m-loc">${LOCS[Math.min(gs.depth,LOCS.length-1)]}</div><span class="state-badge ${phaseCls}">${phaseLabel}</span></div>
-    <div class="m-depth"><span>Depth ${gs.depth} / 30</span>${mBar(gs.depth/30*100,'depth')}</div>`));
+    <div class="m-depth"><span>Depth ${gs.depth}${gs.endless?' · Endless':' / 30'}</span>${mBar(gs.endless?(gs.depth%10)/10*100:gs.depth/30*100,'depth')}</div>`));
 
   // Turn banner
   if(inCombat){
@@ -182,6 +182,7 @@ function mRenderGame(gs,players,me){
           <span class="m-enemy-head"><span class="m-enemy-name">${enemy.name}</span><span class="threat-b ${threatClass(enemy.threat)}">${enemy.threat}</span></span>
           <span class="m-hp-row">${mBar(pct,'enemy')}<span class="m-hp-val">${enemy.hp}/${enemy.maxHp}</span></span>
           <span class="m-enemy-stats">Def <b>${enemy.ac}</b> · Atk <b>+${enemy.atk||0}</b> · Dmg <b>${enemy.dmgDisplay||'1d6'}</b>${multi&&isTarget?' · <b class="tgt">Target</b>':''}</span>
+          ${(()=>{ const it=enemyIntent(enemy,gs,players); return `<span class="intent ${it.cls}">${it.text}</span>`; })()}
           ${chips.length?`<span class="chip-row">${chips.join('')}</span>`:''}
         </span>`);
       card.dataset.eidx=idx;
@@ -199,13 +200,14 @@ function mRenderGame(gs,players,me){
     const chips=[...(c.conditions||[]).map(cd=>`<span class="chip chip-bad">${cd}</span>`),...(c.activeBuffs||[]).map(b=>`<span class="chip chip-good">${b.name} ${b.duration}r</span>`)];
     const card=mEl('div','m-me'+(c.alive?'':' is-dead'),`
       <div class="m-me-head">
-        ${tok?`<img class="m-tok mine" src="${tok}" alt="">`:''}
-        <div class="m-me-id"><div class="m-pname">${me.name}</div><div class="m-psub">${CAREER_LABELS[me.career]||''} · Level ${c.level}${acted?' · <span class="ok">Acted</span>':''}</div></div>
+        ${tok?`<img class="m-tok mine${me.frame?' frame-'+me.frame:''}" src="${tok}" alt="">`:''}
+        <div class="m-me-id"><div class="m-pname">${me.name}</div><div class="m-psub">${me.title?`<em>${escapeHtml(me.title)}</em> · `:''}${CAREER_LABELS[me.career]||''} · Level ${c.level}${acted?' · <span class="ok">Acted</span>':''}</div></div>
         <div class="m-silver">${c.gold} ss</div>
       </div>
       <div class="m-hp-row"><span class="m-hp-label">HP</span>${mBar(pct,'hp '+hpClass(pct))}<span class="m-hp-val">${c.health}/${c.maxHealth}</span></div>
       <div class="m-hp-row"><span class="m-hp-label">XP</span>${mBar(xp.pct,'xp')}<span class="m-hp-val">${c.level>=10?'Max':`${c.xp}/${xp.next}`}</span></div>
       ${c.equippedCharm?`<div class="m-stats">📿 ${c.equippedCharm.name} <button class="mini-btn" onclick="unequipCharm()">Remove</button></div>`:''}
+      <div class="m-stats">${c.row==='back'?'🏹 Back row':'🛡 Front row'} <button class="mini-btn" onclick="setRow('${c.row==='back'?'front':'back'}')">Move ${c.row==='back'?'forward':'back'}</button></div>${c.relics&&c.relics.length?`<div class="m-stats relic-chips">${c.relics.map(k=>{const r=RELICS_C[k]||{name:k,icon:'✨',desc:''};return `<span class="relic-chip" title="${r.name}: ${r.desc}">${r.icon} ${r.name}</span>`;}).join('')}</div>`:''}
       <div class="m-stats">Def <b>${c.defense}</b>${c.power>0?` · Power <b>${c.power}</b>`:''} · STR <b>${c.attrs.str}</b> · AGI <b>${c.attrs.agi}</b> · INT <b>${c.attrs.int}</b> · WIL <b>${c.attrs.wil}</b></div>
       ${chips.length?`<div class="chip-row">${chips.join('')}</div>`:''}
       ${c.alive?'':'<div class="dead-label">Fallen</div>'}`);
@@ -239,6 +241,9 @@ function mRenderGame(gs,players,me){
     const btn=mEl('button','btn gold btn-w','Press onward');
     btn.onclick=()=>send('PLAYER_ACTION',{action:'PRESS_ONWARD'});
     act.appendChild(btn);
+  } else if(gs.phase==='relic'&&gs.relic){
+    heading('Choose a relic');
+    act.appendChild(buildRelicPanel(gs,players,me));
   } else if(gs.phase==='path'){
     heading(gs.bossNode?'The path ahead':'Vote your path');
     renderActions(gs,players,me);

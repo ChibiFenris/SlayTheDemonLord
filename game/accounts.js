@@ -40,7 +40,7 @@ const validName = n => typeof n === 'string' && /^[\p{L}\p{N} _.-]{2,20}$/u.test
 const validPin = p => typeof p === 'string' && /^\d{4,8}$/.test(p);
 
 function publicView(a, token) {
-  return { name: a.name, token, progress: a.progress, history: a.history };
+  return { name: a.name, token, progress: a.progress, history: a.history, achievements: a.achievements || {} };
 }
 function issueToken(a) {
   const t = crypto.randomBytes(24).toString('hex');
@@ -62,7 +62,8 @@ function login(name, pin, local) {
     const prog = local && local.progress ? local.progress : {};
     a = all[k] = { name: name.trim(), salt, hash: hashPin(pin, salt), created: now,
       progress: { renown: +prog.renown || 0, runs: +prog.runs || 0, best: +prog.best || 0 },
-      history: Array.isArray(local && local.history) ? local.history.slice(0, HISTORY_MAX) : [], tokens: {}, fails: 0 };
+      history: Array.isArray(local && local.history) ? local.history.slice(0, HISTORY_MAX) : [], tokens: {}, fails: 0, achievements: {} };
+    mergeAch(a, local && local.achievements);
     const token = issueToken(a); save();
     return { ok: publicView(a, token), created: true };
   }
@@ -88,20 +89,31 @@ function resume(token) { const a = byToken(token); return a ? { ok: publicView(a
 function logout(token) { const a = byToken(token); if (a) { delete a.tokens[token]; save(); } }
 
 // A finished run: add its Renown and put it at the top of the history.
-function recordRun(token, rec, earned) {
+function recordRun(token, rec, earned, ach) {
   const a = byToken(token); if (!a) return { error: 'Signed out.' };
+  mergeAch(a, ach);
   const e = Math.max(0, Math.min(500, Math.round(+earned || 0)));
-  const depth = Math.max(0, Math.min(30, Math.round(+(rec && rec.depth) || 0)));
+  const depth = Math.max(0, Math.min(999, Math.round(+(rec && rec.depth) || 0))); // Endless runs go past 30
   a.progress.renown += e; a.progress.runs += 1; a.progress.best = Math.max(a.progress.best, depth);
   if (rec && typeof rec === 'object') {
     const clean = { at: +rec.at || Date.now(), victory: !!rec.victory, depth, bosses: +rec.bosses || 0, difficulty: +rec.difficulty || 0,
-      daily: !!rec.daily, career: String(rec.career || '').slice(0, 20), level: +rec.level || 0, party: +rec.party || 1,
-      cause: String(rec.cause || '').slice(0, 90), renown: e };
+      daily: !!rec.daily, endless: !!rec.endless, career: String(rec.career || '').slice(0, 20), level: +rec.level || 0, party: +rec.party || 1,
+      cause: String(rec.cause || '').slice(0, 90), chronicle: String(rec.chronicle || '').slice(0, 200), renown: e };
     a.history = [clean, ...(a.history || [])].slice(0, HISTORY_MAX);
   }
   save();
   return { ok: publicView(a, token) };
 }
 
+// Achievements are a set of keys with the time they were earned; merging only adds.
+function mergeAch(a, incoming) {
+  a.achievements = a.achievements || {};
+  if (!incoming || typeof incoming !== 'object') return;
+  Object.entries(incoming).slice(0, 50).forEach(([k, t]) => { if (/^[a-zA-Z]{2,20}$/.test(k) && !a.achievements[k]) a.achievements[k] = +t || Date.now(); });
+}
+function syncAchievements(token, incoming) {
+  const a = byToken(token); if (!a) return { error: 'Signed out.' };
+  mergeAch(a, incoming); save(); return { ok: publicView(a, token) };
+}
 function _reset() { accounts = {}; }
-module.exports = { login, resume, logout, recordRun, validName, validPin, _reset };
+module.exports = { syncAchievements, login, resume, logout, recordRun, validName, validPin, _reset };

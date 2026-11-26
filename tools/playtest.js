@@ -8,7 +8,7 @@ const CAREERS=['warrior','rogue','wizard','priest','witchhunter','slayer'];
 const EXPERT=['defender','ranger','paladin','assassin','elementalist','sorcerer','warlock','wizard','spellbinder','healer','druid','inquisitor','giantSlayer'];
 const MASTER=['myrmidon','brute','warlord','champion','shadowblade','executioner','transmuter','necromancer','abjurer','archmage','healer_m','chaplain','witchfinder','daemonSlayer'];
 const TRAD=['fire','life','death','shadow','battle','celestial','chaos','earth','storm','protection','illusion','nature','transformation','time'];
-const TALENTS=['taunt','taunt','warCry','battleOrders','metamagic','spellsurge','miracleHeal','resurrection','entangle','shieldBash','catchBreath','nimbleRecovery','spellRecovery','sharedRecovery','divineFavour','bloodOffering','catastrophe','divineSmite','massHeal','metamagic','overcast','pacedStrikes','rallyingCry','resurrection','battleOrders','vanish','curse','triage','darkPact','druidsFury','revelation','intercept','markHeretic','deadAim','smokeScreen','quickstrike','layOnHands','warCry','entangle','foresight','bladestorm','shadowStep','unstoppable'];
+const TALENTS=['taunt','taunt','block','block','revive','condemn','deathWish','warCry','battleOrders','metamagic','spellsurge','miracleHeal','resurrection','entangle','shieldBash','catchBreath','nimbleRecovery','spellRecovery','sharedRecovery','divineFavour','bloodOffering','catastrophe','divineSmite','massHeal','metamagic','overcast','pacedStrikes','rallyingCry','resurrection','battleOrders','vanish','curse','triage','darkPact','druidsFury','revelation','intercept','markHeretic','deadAim','smokeScreen','quickstrike','layOnHands','warCry','entangle','foresight','bladestorm','shadowStep','unstoppable'];
 const pick=a=>a[Math.floor(Math.random()*a.length)];
 function run(nPlayers, comp, seedLabel){ return new Promise(res=>{
   const bots=[]; let code=null; let done=false; let last=Date.now(); let lastSig=''; let maxDepth=0; let outcome='?'; let states=0;
@@ -16,7 +16,7 @@ function run(nPlayers, comp, seedLabel){ return new Promise(res=>{
   let lastPhase=''; let stallDump=null;
   let lastState=null;
   const iv=setInterval(()=>{ const idle=Date.now()-last; if(idle>600){ bots.forEach(b=>{b.acted='';b.poke&&b.poke();}); } if(idle>8000){ stallDump=lastState; finish('STALL@'+lastPhase); } },300);
-  const hard=setTimeout(()=>finish('TIMEOUT@'+lastPhase),90000);
+  const hard=setTimeout(()=>finish('TIMEOUT@'+lastPhase),240000); // long 4-player runs with relics can go deep
   for(let i=0;i<nPlayers;i++){
     const ws=new WebSocket('ws://localhost:'+PORT); const b={ws,id:null,i,career:comp[i],acted:''}; bots.push(b);
     const send=(type,payload)=>{ if(ws.readyState===1) ws.send(JSON.stringify({type,payload})); };
@@ -50,6 +50,7 @@ function run(nPlayers, comp, seedLabel){ return new Promise(res=>{
         if(!c.alive) return;
         if(gs.phase==='choice'&&gs.choice&&!gs.choice.votes[b.id]) return act('CHOOSE_EVENT',{option:pick(gs.choice.options).id});
         if(gs.phase==='aftermath'&&gs.aftermath&&!gs.aftermath.ready.includes(b.id)) return act('CONTINUE_AFTERMATH');
+        if(gs.phase==='relic'&&gs.relic){ if(!gs.relic.picked.includes(b.id)&&c.relicOptions&&c.relicOptions.length) return act('PICK_RELIC',{key:pick(c.relicOptions)}); if(gs.relic.prize&&!gs.relic.prize.votes[b.id]) return act('VOTE_PRIZE',{choice:pick(['need','pass'])}); }
         if(gs.phase==='path'&&gs.pathChoices&&!(gs.pathVotes||{})[b.id]) return act('VOTE_PATH',{nodeType:pick(gs.pathChoices)});
         if(gs.phase==='loot') return act('PICK_LOOT',{pick:pick(['coins','consumable','weapon','armor','charm'])});
         if(gs.phase==='merchant'){ if(c.merchantStock&&Math.random()<0.5&&c.merchantStock.length){ const it=pick(c.merchantStock); return act('BUY_ITEM',{itemId:it.id}); }
@@ -68,6 +69,7 @@ function run(nPlayers, comp, seedLabel){ return new Promise(res=>{
             return act('CAST_SPELL',{spellName:sp.name,targetId:ally.id}); }
           if(r<0.85) return act('USE_TALENT',{talent:pick(TALENTS)});
           if(r<0.95&&c.inventory&&c.inventory.length){ const it=pick(c.inventory); if(Math.random()<0.3){ const ally=pick(players.filter(p=>p.char&&p.char.alive)); return act('USE_ITEM_ALLY',{itemName:it.name,targetId:ally.id}); } return act('USE_ITEM',{itemName:it.name}); }
+          if(r<0.96) return act('SET_ROW',{row:pick(['front','back'])});
           if(r<0.97) return act('FLEE');
           return act('PASS_TURN');
         }

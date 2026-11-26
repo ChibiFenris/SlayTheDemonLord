@@ -2,9 +2,9 @@
 // Attack and damage rolls, buffs and debuffs, damage over time.
 // Moved out of server.js unchanged. The server hands this module the helpers it
 // uses through bind() once everything is defined (see the bottom of server.js).
-let CAREERS, CHARMS, POISON_CAP, addLog, armorTraits, charmKey, d, enemyDefence, gearVsEnemyAttack, modVal, rd, weaponTraits;
+let CAREERS, CHARMS, POISON_CAP, addLog, armorTraits, charmKey, d, enemyDefence, gearVsEnemyAttack, hasRangedWeapon, modVal, rd, weaponTraits;
 function bind(api) {
-  ({ CAREERS, CHARMS, POISON_CAP, addLog, armorTraits, charmKey, d, enemyDefence, gearVsEnemyAttack, modVal, rd, weaponTraits } = api);
+  ({ CAREERS, CHARMS, POISON_CAP, addLog, armorTraits, charmKey, d, enemyDefence, gearVsEnemyAttack, hasRangedWeapon, modVal, rd, weaponTraits } = api);
 }
 // ─── COMBAT ROLLS ────────────────────────────────────────────────────────────
 function rollD20boons(boons, banes) {
@@ -29,6 +29,7 @@ function rollAttack(char, enemy, extraBoons=0) {
   const atkMod=modVal(char.attrs[wpnStat])+char.weaponAtkBonus+warCryBonus+traitAtk;
   let boons=0, banes=0;
   if(_wt.includes('unwieldy')&&!char._unwieldyUsed){ char._unwieldyUsed=true; banes++; }
+  if(char.row==='back'&&!hasRangedWeapon(char)) banes++; // swinging a melee weapon from the back row
   const _isChaos=enemy&&(enemy.chaos||(enemy.tags&&enemy.tags.includes('chaos')));
   if(_ch==='witchSeal'){ if(_isChaos) boons++; else banes++; }
   if(char._armorWitchCoat&&_isChaos) boons++;

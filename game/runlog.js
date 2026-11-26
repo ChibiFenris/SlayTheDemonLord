@@ -81,4 +81,20 @@ function dailyBoard(key = todayKey()) {
     .slice(0, 10);
 }
 
-module.exports = { appendRun, readRuns, stats, todayKey, dailyMods, addDailyScore, dailyBoard, DAILY_BLESSINGS, DAILY_HARDSHIPS };
+// Hall of fame: the best runs ever. Victories first, then harder difficulty,
+// deeper, more bosses, fewer rounds. Cached for a minute.
+let hofCache = null, hofAt = 0;
+function hallOfFame(n = 10) {
+  if (hofCache && Date.now() - hofAt < 60000) return hofCache;
+  const score = r => [r.victory || (r.endless && r.depth > 30) ? 1 : 0, r.difficulty || 0, r.depth || 0, r.bosses || 0, -(r.rounds || 9999)];
+  const cmp = (a, b) => { const x = score(a), y = score(b); for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return y[i] - x[i]; return 0; };
+  hofCache = readRuns().filter(r => (r.depth || 0) > 0 && Array.isArray(r.players)).sort(cmp).slice(0, n).map(r => ({
+    ts: r.ts, victory: !!r.victory, endless: !!r.endless, depth: r.depth, bosses: r.bosses, difficulty: r.difficulty || 0, rounds: r.rounds || null, daily: !!r.daily,
+    chronicle: r.chronicle || null, players: r.players.map(p => ({ name: String(p.name || '').slice(0, 20), career: p.career, level: p.level, title: p.title || null })),
+  }));
+  hofAt = Date.now();
+  return hofCache;
+}
+function _resetHof() { hofCache = null; }
+
+module.exports = { hallOfFame, _resetHof, appendRun, readRuns, stats, todayKey, dailyMods, addDailyScore, dailyBoard, DAILY_BLESSINGS, DAILY_HARDSHIPS };

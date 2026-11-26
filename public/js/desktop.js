@@ -71,7 +71,7 @@ function renderMainState(st){
     mShowDeathScreen(players,gs.depth,gs);
     return;
   }
-  if(gs.phase==='gameover'){ show('screen-end'); el('end-title').className='end-title death'; el('end-title').textContent='The Warband Has Fallen'; const deathInfo=gs.deathCause?`<br><span class="end-cause">${gs.deathCause.replace(/<[^>]+>/g,' ').trim()}</span>`:''; el('end-sub').innerHTML=`Depth: <strong>${gs.depth}/30</strong>${deathInfo}`; updateAudio(gs,players); el('share-run').hidden=false; mHideDeathScreen(); showRenown(gs); return; }
+  if(gs.phase==='gameover'){ show('screen-end'); el('end-title').className='end-title death'; el('end-title').textContent='The Warband Has Fallen'; const deathInfo=gs.deathCause?`<br><span class="end-cause">${gs.deathCause.replace(/<[^>]+>/g,' ').trim()}</span>`:''; el('end-sub').innerHTML=`Depth: <strong>${gs.depth}${gs.endless?' (Endless)':'/30'}</strong>${deathInfo}`; updateAudio(gs,players); el('share-run').hidden=false; mHideDeathScreen(); showRenown(gs); return; }
   if(gs.phase==='victory'){ show('screen-end'); el('end-title').className='end-title victory'; el('end-title').textContent='Victory!'; el('end-sub').innerHTML=`The warband conquers the depths!<br>Depth: ${gs.depth}/30`; el('share-run').hidden=false; updateAudio(gs,players); showRenown(gs); return; }
   if(gs.phase==='practiceDone'){ show('screen-end'); el('end-title').className='end-title victory'; el('end-title').textContent='Practice Complete'; el('end-sub').innerHTML='You know the basics: attacks, boons and banes, your talents and the warning signs.<br>Return to Altdorf and gather a warband.'; el('end-renown').innerHTML=''; el('share-run').hidden=true; mHideDeathScreen(); updateAudio(gs,players); return; }
   if(me.char&&me.char.pendingLevelUp&&me.char.pendingPathTier&&!pathPickPending&&gs.phase!=='aftermath'&&!gs.practice){ showPathPick(me); return; }
@@ -82,8 +82,11 @@ function renderMainState(st){
   if(me.char&&me.char.pendingStatBoost&&!el('stat-choice-modal')) showStatChoiceModal(me.char.attrs);
   el('g-loc').textContent=LOCS[Math.min(gs.depth,LOCS.length-1)];
   el('g-depth').textContent=gs.depth;
+  const dm=el('g-depth-max'); if(dm) dm.textContent=gs.endless?' · Endless':'/30';
   const dt=el('g-depth-track'); dt.innerHTML='';
-  for(let i=0;i<30;i++){ const p=document.createElement('div'); p.className='dpip'+(i<gs.depth?' done':i===gs.depth?' cur':''); dt.appendChild(p); }
+  // Endless: the track slides along so it always shows the 30 depths around you.
+  const start=gs.endless?Math.max(0,Math.floor(gs.depth/10)*10-20):0;
+  for(let i=start;i<start+30;i++){ const p=document.createElement('div'); p.className='dpip'+(i<gs.depth?' done':i===gs.depth?' cur':'')+(i%10===9?' boss':''); dt.appendChild(p); }
   const sb=el('g-state');
   const phMap={combat:'s-combat',merchant:'s-event',loot:'s-event',aftermath:'s-event',choice:'s-event',path:'s-explore',event:'s-explore'};
   sb.className='state-badge '+(phMap[gs.phase]||'s-explore');
@@ -170,6 +173,7 @@ function renderBattle(gs,players,me){
         <div class="tok-hp-track"><div class="tok-hp-fill enemy" style="width:${hpPct}%"></div></div>
         <div class="tok-hp-txt">${Math.max(0,e.hp)}/${e.maxHp} HP</div>
         <div class="e-stats">Def<span>${e.ac}</span>ATK<span>${(e.atk>=0?'+':'')+e.atk}</span>DMG<span>${e.dmgDisplay||'1d6'}</span></div>
+        ${(()=>{ const it=enemyIntent(e,gs,lastState?lastState.players:[]); return `<div class="intent ${it.cls}">${it.text}</div>`; })()}
         ${chips.length?`<div class="e-status-box">${chips.join('')}</div>`:''}${target}
       </div>
       ${eTok?`<img class="tok enemy" src="${eTok}" alt="${e.name}">`:'<div class="tok-ph">💀</div>'}`;
@@ -182,14 +186,14 @@ function renderBattle(gs,players,me){
     const acted=hasActedThisRound(gs,p.id);
     const hp=Math.max(0,c.health/c.maxHealth*100);
     const src=tokenSrc(p.career);
-    const tokCls=['tok',!c.alive?'fallen':acted?'acted':'',isMe?'mine':''].join(' ').trim();
+    const tokCls=['tok',!c.alive?'fallen':acted?'acted':'',isMe?'mine':'',p.frame?'frame-'+p.frame:''].join(' ').trim();
     const badge=!c.alive?'<span class="tok-badge tb-f">Fallen</span>':acted?'<span class="tok-badge tb-a">Acted ✓</span>':'';
     const row=document.createElement('div'); row.className='token-row';
     row.innerHTML=`
       ${src?`<img class="${tokCls}" src="${src}" alt="${p.name}">`:'<div class="tok-ph">⚔</div>'}
       <div class="tok-info">
         <div class="tok-name">${p.name}${isMe?' <small>(you)</small>':''}</div>
-        <div class="tok-sub">${CAREER_LABELS[p.career]||''}</div>
+        <div class="tok-sub">${CAREER_LABELS[p.career]||''}${p.title?` · <em>${escapeHtml(p.title)}</em>`:''}</div>
         <div class="tok-hp-track"><div class="tok-hp-fill ${hpClass(hp)}" style="width:${hp}%"></div></div>
         <div class="tok-hp-txt">${c.health}/${c.maxHealth} HP</div>
         ${badge}
@@ -252,7 +256,7 @@ function buildCard(p,gs){
       <div class="pc-name">${p.name}</div>
       ${hasActedThisRound(gs,p.id)?'<span class="badge badge-good">Acted</span>':''}
     </div>
-    <div class="pc-career">${CAREER_LABELS[p.career]||''} · Level ${c.level}${paths?` · ${paths}`:''}</div>
+    ${p.title?`<div class="pc-title">${escapeHtml(p.title)}</div>`:''}<div class="pc-career">${CAREER_LABELS[p.career]||''} · Level ${c.level}${paths?` · ${paths}`:''}</div>
     <div class="bar-row"><span>Health</span><span>${c.health} / ${c.maxHealth}</span></div>
     <div class="bar-track"><div class="bar-fill hp ${hpClass(hpPct)}" style="width:${hpPct}%"></div></div>
     <div class="bar-row"><span>Experience</span><span>${c.level>=10?'Max level':`${c.xp} / ${next}`}</span></div>
@@ -264,6 +268,7 @@ function buildCard(p,gs){
       <div><dt>Silver</dt><dd class="silver">${c.gold} ss</dd></div>
       <div class="wide"><dt>Weapon</dt><dd>${w?`${w.name} ${w.dice}+${w.bonus||0} ${w.dmgType==='blunt'?'🔨':'⚔'}`:'Unarmed'}</dd></div>
       <div class="wide"><dt>Armour</dt><dd>${a?`${a.name} +${a.defBonus}`:'None'}</dd></div>
+      <div class="wide"><dt>Row</dt><dd>${c.row==='back'?'Back':'Front'}${p.id===myId&&c.alive?` <button class="mini-btn" onclick="setRow('${c.row==='back'?'front':'back'}')" title="Front: melee enemies can reach you. Back: only ranged enemies reach you, but melee weapons get 1 bane.">Move ${c.row==='back'?'forward':'back'}</button>`:''}</dd></div>${relicChipsHtml(c)}
       <div class="wide"><dt>Charm</dt><dd${c.equippedCharm?` title="${c.equippedCharm.desc.replace(/"/g,'&quot;')}"`:''}>${c.equippedCharm?c.equippedCharm.name:'None'}${c.equippedCharm&&p.id===myId?` <button class="mini-btn" onclick="unequipCharm()" title="Take the charm off and put it in your pack">Remove</button>`:''}</dd></div>
     </dl>
     ${statusChips(c)}
@@ -495,6 +500,7 @@ function esc(s){ return s.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g
 function useItem(name,inCombat){ send('PLAYER_ACTION',{action:inCombat?'USE_ITEM':'USE_ITEM_OOC',data:{itemName:name}}); }
 function equipItem(idx){ send('PLAYER_ACTION',{action:'EQUIP_ITEM',data:{inventoryIndex:idx}}); }
 function sellItem(idx){ send('PLAYER_ACTION',{action:'SELL_ITEM',data:{invIndex:idx}}); }
+function setRow(r){ send('PLAYER_ACTION',{action:'SET_ROW',data:{row:r}}); }
 function unequipCharm(){ send('PLAYER_ACTION',{action:'UNEQUIP_CHARM',data:{}}); }
 
 function useAlly(itemName){
@@ -522,6 +528,36 @@ function showOverlay(players,onPick){
 }
 function closeOverlay(){ const o=el('ov'); if(o)o.remove(); }
 
+// ─── RELICS ───────────────────────────────────────────────────────────────────
+function buildRelicPanel(gs,players,me){
+  const box=document.createElement('div'); box.className='relic-panel';
+  const rel=gs.relic, char=me.char, picked=(rel.picked||[]).includes(myId);
+  if(!picked&&char.relicOptions&&char.relicOptions.length){
+    const grid=document.createElement('div'); grid.className='relic-grid';
+    char.relicOptions.forEach(k=>{ const r=RELICS_C[k]||{name:k,icon:'✨',desc:''};
+      const b=document.createElement('button'); b.className='relic-opt';
+      b.innerHTML=`<span class="relic-icon">${r.icon}</span><span class="relic-name">${r.name}</span><span class="relic-desc">${r.desc}</span>`;
+      b.onclick=()=>send('PLAYER_ACTION',{action:'PICK_RELIC',data:{key:k}}); grid.appendChild(b); });
+    box.appendChild(grid);
+  } else box.insertAdjacentHTML('beforeend','<div class="acted-msg">Relic taken. Waiting for the others…</div>');
+  if(rel.prize){
+    const it=rel.prize.item, mine=rel.prize.votes&&rel.prize.votes[myId];
+    const voted=Object.keys(rel.prize.votes||{}).length, here=players.filter(p=>p.char&&p.char.alive&&p.connected).length;
+    const pz=document.createElement('div'); pz.className='prize';
+    pz.innerHTML=`<div class="prize-h">🏆 Champion's Prize: <strong>${escapeHtml(it.name)}</strong></div><div class="hint">${escapeHtml(it.desc||it.effect||'')} Choose Need to roll a d20 for it, or Pass. If nobody needs it, the warband sells it. ${voted}/${here} decided.</div>`;
+    if(!mine){ const row=document.createElement('div'); row.className='prize-row';
+      [['need','🎲 Need'],['pass','Pass']].forEach(([c,t])=>{ const b=document.createElement('button'); b.className='btn'+(c==='need'?' btn-gold':''); b.textContent=t; b.onclick=()=>send('PLAYER_ACTION',{action:'VOTE_PRIZE',data:{choice:c}}); row.appendChild(b); });
+      pz.appendChild(row);
+    } else pz.insertAdjacentHTML('beforeend',`<div class="acted-msg">You chose <strong>${mine==='need'?'Need':'Pass'}</strong>.</div>`);
+    box.appendChild(pz);
+  }
+  return box;
+}
+function roadAheadHtml(gs){
+  const road=(gs.road||[]).filter(r=>r.depth>gs.depth+1); if(!road.length) return '';
+  return `<div class="road-ahead" aria-label="The road ahead"><div class="road-h">The road ahead</div>${road.map(r=>`<div class="road-step"><span class="road-d">Depth ${r.depth}</span>${r.choices.map(t=>`<span class="road-n${t==='cursed'?' cursed':''}${t==='boss'?' boss':''}" title="${PATH_NAMES[t]||t}">${PATH_ICONS[t]||'?'}</span>`).join('')}</div>`).join('')}</div>`;
+}
+
 // ─── ACTIONS ──────────────────────────────────────────────────────────────────
 function renderActions(gs,players,me){
   const body=el('g-actions-body'), heading=el('actions-heading');
@@ -530,20 +566,27 @@ function renderActions(gs,players,me){
   if(gs.phase==='path'){
     heading.textContent=gs.bossNode?'The Path Ahead':'Vote Your Path';
     const myVote=gs.pathVotes&&gs.pathVotes[myId];
-    const icons={combat:'⚔',elite:'💀',rest:'🔥',merchant:'🛒',loot:'📦',unknown:'❓',boss:'💀'};
-    const descs={combat:'An enemy emerges.',elite:'A powerful foe.',rest:'A campfire — rest and recover.',merchant:'A merchant with wares.',loot:'A cache to plunder.',unknown:'Unknown dangers.',boss:'⚠ BOSS — face it!'};
+    const icons=PATH_ICONS, descs=PATH_DESCS;
     const tally={}; if(gs.pathVotes) Object.values(gs.pathVotes).forEach(v=>{tally[v]=(tally[v]||0)+1;});
     const nodes=document.createElement('div'); nodes.className='path-nodes';
     (gs.pathChoices||[]).forEach(t=>{
       const node=document.createElement('div');
       node.className='path-node'+(t==='boss'?' boss':'')+(myVote===t?' voted':'');
       const vc=tally[t]||0;
-      node.innerHTML=`<div class="node-icon">${icons[t]}</div><div class="node-name">${t.charAt(0).toUpperCase()+t.slice(1)}</div><div class="node-desc">${descs[t]}</div>${vc?`<div class="vote-tally">${vc} vote${vc>1?'s':''}</div>`:''}`;
+      node.className+=t==='cursed'?' cursed':'';
+      node.innerHTML=`<div class="node-icon">${icons[t]}</div><div class="node-name">${PATH_NAMES[t]||t}</div><div class="node-desc">${descs[t]}</div>${vc?`<div class="vote-tally">${vc} vote${vc>1?'s':''}</div>`:''}`;
       if(myVote!==t) node.onclick=()=>send('PLAYER_ACTION',{action:'VOTE_PATH',data:{nodeType:t}});
       nodes.appendChild(node);
     });
     body.appendChild(nodes);
-    if(myVote) body.insertAdjacentHTML('beforeend',`<div class="acted-msg">Voted: <strong>${myVote}</strong> — waiting...</div>`);
+    if(myVote) body.insertAdjacentHTML('beforeend',`<div class="acted-msg">Voted: <strong>${PATH_NAMES[myVote]||myVote}</strong> — waiting...</div>`);
+    body.insertAdjacentHTML('beforeend',roadAheadHtml(gs));
+    return;
+  }
+
+  if(gs.phase==='relic'&&gs.relic){
+    heading.textContent='Choose a relic';
+    body.appendChild(buildRelicPanel(gs,players,me));
     return;
   }
 
@@ -626,10 +669,10 @@ function renderActions(gs,players,me){
     if(char.overcast&&!char.overcastUsed)         addBtn(g,'💥 Overcast','Next spell +2d6','as-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'overcast'}}),false,TALENT_DESCS.overcast);
     if(char.metamagic&&!char.metamagicUsed)       addBtn(g,'🔮 Metamagic','Next spell free','as-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'metamagic'}}),false,TALENT_DESCS.metamagic);
     if(char.catastrophe&&!char.catastropheUsed)   addBtn(g,'💥 Catastrophe','10d6 all enemies','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'catastrophe'}}),false,TALENT_DESCS.catastrophe);
-    EXTRA_ACTIVES.forEach(([k,lbl,sub,used])=>{ if(char[k]&&!used(char,gs)) addBtn(g,lbl,sub,'at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:k}}),false,TALENT_DESCS[k]||sub); });
+    EXTRA_ACTIVES.forEach(([k,lbl,sub,used,show])=>{ if(show&&!show(gs,players)) return; if(char[k]&&!used(char,gs)) addBtn(g,lbl,sub,'at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:k}}),false,TALENT_DESCS[k]||sub); });
     // Recharging abilities stay visible, greyed out, with the rounds left.
     ACTIVE_TALENTS.forEach(([k,label,usedKey])=>{ if(char[k]&&usedKey&&char[usedKey]&&COOLDOWNS_C[k]) addBtn(g,'⏳ '+label,cooldownText(char,k),'at-',null,true,TALENT_DESCS[k]||label); });
-    EXTRA_ACTIVES.forEach(([k,lbl,sub,used])=>{ if(char[k]&&used(char,gs)&&COOLDOWNS_C[k]) addBtn(g,'⏳ '+lbl.replace(/^\S+ /,''),cooldownText(char,k),'at-',null,true,TALENT_DESCS[k]||sub); });
+    EXTRA_ACTIVES.forEach(([k,lbl,sub,used,show])=>{ if(show&&!show(gs,players)) return; if(char[k]&&used(char,gs)&&COOLDOWNS_C[k]) addBtn(g,'⏳ '+lbl.replace(/^\S+ /,''),cooldownText(char,k),'at-',null,true,TALENT_DESCS[k]||sub); });
     const isBoss=gs.enemy&&gs.enemy.threat==='Boss';
     addBtn(g,'⏭ End Turn','Pass your turn','am-',()=>send('PLAYER_ACTION',{action:'PASS_TURN'}),false,'Skip your action this round.');
     addBtn(g,'Flee',isBoss?'No escape':'AGI vs DC10','amv-',()=>send('PLAYER_ACTION',{action:'FLEE'}),isBoss,'Attempt to flee combat. Roll d20+AGI vs DC10. Success costs opportunity damage unless you have Shadowstep.');
@@ -766,6 +809,7 @@ function showRenown(gs){
   const r=awardRun(gs,code);
   if(r) _renownShown=r;
   const x=_renownShown; if(!x){ box.innerHTML=''; return; }
-  box.innerHTML=`<div class="er-earned">+${x.earned} Renown <small>(total ${x.total})</small></div>`+
-    x.unlocked.map(u=>`<div class="er-unlock">🔓 Unlocked: ${u.label}</div>`).join('');
+  box.innerHTML=(gs.chronicle?`<div class="er-chron">${escapeHtml(gs.chronicle)}</div>`:'')+`<div class="er-earned">+${x.earned} Renown <small>(total ${x.total})</small></div>`+
+    x.unlocked.map(u=>`<div class="er-unlock">🔓 Unlocked: ${u.label}</div>`).join('')+
+    (x.newAch||[]).map(a=>`<div class="er-unlock">🏅 Achievement: <strong>${a.title}</strong> — ${a.desc}</div>`).join('');
 }

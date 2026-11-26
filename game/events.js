@@ -558,12 +558,119 @@ const CHOICE_EVENTS = {
       S.addLog(room, `🔴 ${p.name} drinks in the ritual's power — <strong>+1 Power</strong>, and Corruption.`, 'chaos');
     },
   },
+
+  // ── Recurring characters ────────────────────────────────────────────────
+  // The Black Ravens: a rival warband met three times. What you do the first
+  // time decides how the later meetings go (gs.flags.ravens).
+  ravens1: {
+    title: 'The Black Ravens', icon: '🐦‍⬛', minDepth: 2, requires: gs => !flag(gs, 'ravens'),
+    text: 'A rival warband blocks the bridge — black feathers in their caps. Their captain, Ulla Kranz, smiles: "Toll\'s twenty silver a head. Or turn back."',
+    options: [
+      { id: 'pay', label: 'Pay the toll', desc: '−20 silver each. Ulla will remember you as easy marks.' },
+      { id: 'fight', label: 'Draw steel', desc: 'Fight her sellswords (an elite fight). Ulla will remember the insult.' },
+      { id: 'bluff', label: 'Talk your way past', desc: 'A 50/50 chance: cross for free and earn respect, or pay double.' },
+    ],
+    resolve(room, opt) {
+      const gs = room.gs, ps = alive(room);
+      if (opt === 'pay') { ps.forEach(p => { p.char.gold = Math.max(0, p.char.gold - 20); }); setFlag(gs, 'ravens', 'paid'); return S.addLog(room, '🐦‍⬛ You pay. Ulla tips her hat. "Pleasure doing business."', 'sys'); }
+      if (opt === 'fight') { setFlag(gs, 'ravens', 'fought'); S.addLog(room, '🐦‍⬛ "Your funeral." Ulla steps back and whistles up her hired blades.', 'dmg'); return S.startFight(room, 'elite'); }
+      if (Math.random() < 0.5) { setFlag(gs, 'ravens', 'respect'); return S.addLog(room, '🐦‍⬛ Ulla laughs until she cries. "Bold. I like bold. Go on through."', 'heal'); }
+      ps.forEach(p => { p.char.gold = Math.max(0, p.char.gold - 40); }); setFlag(gs, 'ravens', 'paid');
+      S.addLog(room, '🐦‍⬛ Ulla is not amused. "Forty, then. Each." (−40 silver each.)', 'chaos');
+    },
+  },
+  ravens2: {
+    title: 'The Ravens Return', icon: '🐦‍⬛', minDepth: 9, requires: gs => flag(gs, 'ravens') && !flag(gs, 'ravens2'),
+    text: 'Black feathers again. Ulla Kranz and her Ravens are camped at a ruined chapel — and they have seen you.',
+    options: [
+      { id: 'parley', label: 'Parley', desc: 'How it goes depends on your last meeting.' },
+      { id: 'ambush', label: 'Strike first', desc: 'Ambush them: an elite fight, but you start with 1 boon on every attack.' },
+      { id: 'avoid', label: 'Slip around them', desc: 'Lose an hour in the brambles: everyone takes 1d4 damage.' },
+    ],
+    resolve(room, opt) {
+      const gs = room.gs, ps = alive(room), past = flag(gs, 'ravens');
+      setFlag(gs, 'ravens2', opt);
+      if (opt === 'ambush') { ps.forEach(p => nextFight(p.char, 'Ambush', { atkBoon: 1 })); S.addLog(room, '🐦‍⬛ You fall on the Ravens\' camp before they can form up!', 'dmg'); return S.startFight(room, 'elite'); }
+      if (opt === 'avoid') { ps.forEach(p => hurt(room, p, rd(1, 4))); return S.addLog(room, '🌿 You creep around the chapel through thorn and nettle.', 'sys'); }
+      if (past === 'respect') { ps.forEach(p => { p.char.gold += 25; heal(p.char, 8); }); return S.addLog(room, '🐦‍⬛ "The bold ones!" Ulla shares her fire, her wine and a purse — +25 silver and 8 HP each.', 'heal'); }
+      if (past === 'paid') { ps.forEach(p => { p.char.gold = Math.max(0, p.char.gold - 15); }); return S.addLog(room, '🐦‍⬛ "My favourite customers." The toll went up: −15 silver each.', 'chaos'); }
+      S.addLog(room, '🐦‍⬛ "You!" Ulla remembers the bridge. Her Ravens draw steel.', 'dmg'); return S.startFight(room, 'elite');
+    },
+  },
+  ravens3: {
+    title: 'The Last of the Ravens', icon: '🐦‍⬛', minDepth: 17, requires: gs => flag(gs, 'ravens2') && !flag(gs, 'ravens3'),
+    text: 'Ulla Kranz sits alone on a broken wall, her warband gone. "The thing down there took them all. You\'re going after it anyway. Take me with you — or take what\'s left of our stash."',
+    options: [
+      { id: 'recruit', label: 'Let her fight with you', desc: 'Ulla fights at your side: everyone gets +2 damage on their next hit.' },
+      { id: 'stash', label: 'Take the stash', desc: 'One of you gets a legendary-quality weapon.' },
+      { id: 'mercy', label: 'Send her home', desc: 'She presses her lucky charm on you: everyone heals to full.' },
+    ],
+    resolve(room, opt) {
+      const gs = room.gs, ps = alive(room); setFlag(gs, 'ravens3', opt);
+      if (opt === 'recruit') { ps.forEach(p => S.addBuff(p.char, "Ulla's Blade", { dmgBonus: 2, consumeOnHit: true }, 99)); return S.addLog(room, '🐦‍⬛ "One last job, then." Ulla falls in beside you — +2 damage on your next hit.', 'heal'); }
+      if (opt === 'stash') { const p = pickRandom(ps); const w = S.genWpn(Math.max(1, gs.bossCount || 1) + 1); S.addToInventory(p.char, w.name, w); return S.addLog(room, `🐦‍⬛ The Ravens' stash: ${p.name} takes <strong>${w.name}</strong>.`, 'loot'); }
+      ps.forEach(p => { p.char.health = p.char.maxHealth; });
+      S.addLog(room, '🐦‍⬛ Ulla goes, lighter for it. Her charm glows once in your hands — everyone is <strong>fully healed</strong>.', 'heal');
+    },
+  },
+  // Brother Aldric, a witch hunter who keeps finding the warband.
+  aldric1: {
+    title: 'Brother Aldric', icon: '🔥', minDepth: 4, requires: gs => !flag(gs, 'aldric'),
+    text: 'A witch hunter in a wide hat stops you, pistol drawn. "Brother Aldric, of the Order. One of you smells of the warp. Hand over anything cursed."',
+    options: [
+      { id: 'hand', label: 'Hand over cursed items', desc: 'Give up every cursed item; he pays 15 silver for each.' },
+      { id: 'refuse', label: 'Refuse', desc: 'He lets you go — but he will be watching.' },
+      { id: 'help', label: 'Offer to help his hunt', desc: 'Everyone takes 1d6 damage in the hunt; everyone gets 1 boon in the next 2 fights.' },
+    ],
+    resolve(room, opt) {
+      const gs = room.gs, ps = alive(room); setFlag(gs, 'aldric', opt);
+      if (opt === 'hand') { let n = 0; ps.forEach(p => { const c = cursedInPack(p.char); n += c.length; p.char.inventory = p.char.inventory.filter(i => !c.includes(i)); p.char.gold += 15 * c.length; }); return S.addLog(room, n ? `🔥 Aldric burns ${n} cursed item${n > 1 ? 's' : ''} and pays you for them.` : '🔥 Aldric searches you and finds nothing. "Hm. Clean. For now."', 'sys'); }
+      if (opt === 'refuse') return S.addLog(room, '🔥 "Then I will see you again," says Aldric. It is not a promise.', 'chaos');
+      ps.forEach(p => { hurt(room, p, rd(1, 6)); S.addBuff(p.char, "Aldric's Blessing", { atkBoon: 1 }, 99); });
+      S.addLog(room, '🔥 You help Aldric burn a nest of cultists. He blesses your weapons.', 'heal');
+    },
+  },
+  aldric2: {
+    title: 'Aldric Again', icon: '🔥', minDepth: 12, requires: gs => flag(gs, 'aldric') && !flag(gs, 'aldric2'),
+    text: 'Brother Aldric is waiting at the crossroads, as if he knew you would come. "We meet again."',
+    options: [
+      { id: 'talk', label: 'Hear him out', desc: 'What he offers depends on how you treated him.' },
+      { id: 'leave', label: 'Walk on', desc: 'Nothing happens. Probably.' },
+    ],
+    resolve(room, opt) {
+      const gs = room.gs, ps = alive(room), past = flag(gs, 'aldric'); setFlag(gs, 'aldric2', opt);
+      if (opt === 'leave') return S.addLog(room, '🔥 Aldric watches you go.', 'sys');
+      if (past === 'refuse') { ps.forEach(p => S.addBuff(p.char, 'Under Suspicion', { bane: 1, consumeOnAttack: true }, 99)); return S.addLog(room, '🔥 "Still hiding something." He has spread word of you — 1 bane on your next attack.', 'chaos'); }
+      ps.forEach(p => { heal(p.char, 10); S.addToInventory(p.char, 'Holy Water'); });
+      S.addLog(room, '🔥 "Sigmar walks with honest folk." Aldric gives each of you Holy Water and tends your wounds (+10 HP).', 'heal');
+    },
+  },
+  // ── Party decisions ──────────────────────────────────────────────────────
+  forkInTheRoad: {
+    title: 'The Fork in the Road', icon: '🔀', minDepth: 3, requires: (gs, room) => alive(room).length >= 2,
+    text: 'The road splits around a burned village. Scouting both sides would be quicker — but splitting the warband is a risk.',
+    options: [
+      { id: 'split', label: 'Split up and scout', desc: 'Each of you rolls: on 11+ you find 30 silver, on 10 or less you are ambushed for 2d6.' },
+      { id: 'together', label: 'Stay together', desc: 'Safe and slow: everyone heals 1d6.' },
+    ],
+    resolve(room, opt) {
+      const ps = alive(room);
+      if (opt === 'together') { const h = rd(1, 6); ps.forEach(p => heal(p.char, h)); return S.addLog(room, `🔀 The warband sticks together and rests as it walks (+${h} HP each).`, 'heal'); }
+      ps.forEach(p => { const r = d(20); if (r >= 11) { p.char.gold += 30; S.addLog(room, `🔀 ${p.name} (d20: ${r}) finds a hidden cache — <strong>+30 silver</strong>.`, 'loot'); } else { const dmg = rd(2, 6); S.addLog(room, `🔀 ${p.name} (d20: ${r}) walks into an ambush — <strong class="num-dmg">−${dmg} HP</strong>.`, 'dmg'); hurt(room, p, dmg); } });
+    },
+  },
 };
+function flag(gs, k) { return gs.flags && gs.flags[k]; }
+function setFlag(gs, k, v) { gs.flags = gs.flags || {}; gs.flags[k] = v; }
 
 // Start a choice event: the room waits in phase 'choice' until everyone votes.
 function startChoiceEvent(room, key) {
   const depth = room.gs.depth || 0;
-  const pool = Object.keys(CHOICE_EVENTS).filter(x => (CHOICE_EVENTS[x].minDepth || 0) <= depth);
+  const ok = x => (CHOICE_EVENTS[x].minDepth || 0) <= depth && (!CHOICE_EVENTS[x].requires || CHOICE_EVENTS[x].requires(room.gs, room));
+  const pool = Object.keys(CHOICE_EVENTS).filter(ok);
+  // A recurring character whose next meeting is due shows up more often than a random event.
+  const story = pool.filter(x => /^(ravens|aldric)[23]$/.test(x));
+  if (!key && story.length && Math.random() < 0.5) key = pickRandom(story);
   const k = key || pickRandom(pool);
   const ev = CHOICE_EVENTS[k];
   // Career options only show when that career is in the warband.

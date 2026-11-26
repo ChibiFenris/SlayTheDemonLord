@@ -9,6 +9,13 @@ const { CHARMS, WEAPON_TRAITS, ARMOR_TRAITS, CURSED_GEAR } = require('./data');
 // ITEM TRAITS, CHARMS AND CURSED GEAR
 // ═════════════════════════════════════════════════════════════════════════════
 const RANGED_KEYS=['openingShot','marksmanship','longbow'];
+// Bows, guns and the Witch Hunter's crossbow work from the back row without penalty.
+function hasRangedWeapon(c){
+  const w=c.equippedWeapon; if(!w) return false;
+  if(w.special&&RANGED_KEYS.includes(w.special.key)) return true;
+  if(w.dmgType==='piercing') return true;
+  return /bow|pistol|gun|sling|javelin|blunderbuss|handgun/i.test(w.name||'');
+}
 function weaponTraits(c){ return (c.equippedWeapon&&c.equippedWeapon.traits)||[]; }
 function armorTraits(c){ return (c.equippedArmor&&c.equippedArmor.traits)||[]; }
 function charmKey(c){ return c&&c.equippedCharm?c.equippedCharm.key:null; }
@@ -99,4 +106,4 @@ function gearVsEnemyAttack(enemy, c, room){
   return {atk,banes};
 }
 
-module.exports = { RANGED_KEYS, applyCharm, armorTraits, charmKey, cleanseCurses, gearRoundTick, gearVsEnemyAttack, immuneToPoison, isCursed, makeCharm, makeCursedGear, makeCursedItem, resetGearCombatState, resistsInsanity, rollTraits, weaponIsHoly, weaponTraits };
+module.exports = { RANGED_KEYS, hasRangedWeapon, applyCharm, armorTraits, charmKey, cleanseCurses, gearRoundTick, gearVsEnemyAttack, immuneToPoison, isCursed, makeCharm, makeCursedGear, makeCursedItem, resetGearCombatState, resistsInsanity, rollTraits, weaponIsHoly, weaponTraits };

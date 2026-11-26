@@ -693,6 +693,8 @@ const COOLDOWNS = {
   overload:{flag:'_overloadUsed',rounds:8},           overcharge:{flag:'_overchargeUsed',rounds:8},
   uncontrolledPower:{flag:'_uncontrolledPowerUsed',rounds:8}, esotericKnowledge:{flag:'_esotericKnowledgeUsed',rounds:8},
   doubleCharge:{flag:'_doubleChargeUsed',rounds:4},
+  block:{flag:'_blockUsed',rounds:5},
+  revive:{flag:'_reviveUsed',rounds:12},
 };
 function cooldownFor(c, key){ const d=COOLDOWNS[key]; if(!d) return 0; return (key==='condemn'&&c.judgement&&d.judgement)?d.judgement:d.rounds; }
 

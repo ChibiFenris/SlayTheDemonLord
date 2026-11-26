@@ -107,6 +107,8 @@ const TELEGRAPHS={
   stomp:     {name:'Primordial Stomp',warn:n=>`⚠ <strong>${n}</strong> rears up on its hind legs — next turn it stomps the whole warband and knocks everyone Prone! Stun it to stop it.`},
 };
 
+const isBlocking = c => (c.activeBuffs||[]).some(b=>b.blocking);
+
 // Returns 'done' when the enemy's special replaced its normal attack.
 // Otherwise may return {targets, ignoreTaunt, mult, extraBoon} to shape the attack.
 function enemyPreTurn(room, ae, alive){
@@ -216,7 +218,8 @@ function enemyPreTurn(room, ae, alive){
     const aoeScale=alive.length>=3?1:alive.length===2?0.8:0.6;
     const aoeHit=(base,extra)=>{
       alive.forEach(p=>{
-        const dmg=Math.max(1,Math.round((base()+(gs.bossCount||0)*2)*aoeScale)-(charmKey(p.char)==='ironTooth'?1:0));
+        let dmg=Math.max(1,Math.round((base()+(gs.bossCount||0)*2)*aoeScale)-(charmKey(p.char)==='ironTooth'?1:0));
+        if(isBlocking(p.char)) dmg=Math.ceil(dmg/2);
         p.char.health=Math.max(0,p.char.health-dmg);
         S.addLog(room,`&nbsp;↳ ${p.name} <strong class="num-dmg">−${dmg}</strong> → ${p.char.health}/${p.char.maxHealth} HP`,'dmg-taken');
         if(extra&&p.char.health>0) extra(p);
@@ -277,6 +280,9 @@ function enemyPostTurn(room, ae){
 function enemyDamageMods(room, ae, p, dmg, r, plan){
   const gs=room.gs, c=p.char;
   if(plan&&plan.mult) dmg=Math.round(dmg*plan.mult);
+  if(isBlocking(c)) dmg=Math.ceil(dmg/2);
+  if(S.hasRelic(c,'wardingSigil')) dmg=Math.max(1,dmg-1);
+  if(S.hasRelic(c,'mirrorShard')&&dmg>1&&Math.random()<0.15){ const back=Math.floor(dmg/2); ae.hp=Math.max(1,ae.hp-back); S.addLog(room,`🪞 <strong>Mirror Shard!</strong> Half the blow rebounds — ${ae.name} takes <strong class="num-dmg">−${back}</strong>.`,'crit'); }
   if(ae.gore&&(c.activeBuffs||[]).some(b=>b.name==='Bleed')) dmg+=3;
   if(ae.carrionFeast&&c.health<c.maxHealth*0.5) dmg+=2;
   if(ae.bullCharge&&gs.roundNumber===1){ const bc=rd(2,6); dmg+=bc; S.addLog(room,`🐂 <strong>Bull Charge!</strong> ${ae.name} thunders into ${p.name} — +${bc} damage and knocked Prone.`,'chaos'); }
@@ -352,4 +358,4 @@ function onEnemyDeath(room, e){
   }
 }
 
-module.exports = { bind, MUTATIONS, TELEGRAPHS, enemyAfterHit, enemyDamageMods, enemyDefence, enemyOnWeaponHit, enemyPostTurn, enemyPreTurn, isEnemyHidden, newEnemyId, onCombatStart, onEnemyDeath, prepareEnemy, refreshEnemyAuras, sortTurnOrder, summonEnemy };
+module.exports = { isBlocking, bind, MUTATIONS, TELEGRAPHS, enemyAfterHit, enemyDamageMods, enemyDefence, enemyOnWeaponHit, enemyPostTurn, enemyPreTurn, isEnemyHidden, newEnemyId, onCombatStart, onEnemyDeath, prepareEnemy, refreshEnemyAuras, sortTurnOrder, summonEnemy };

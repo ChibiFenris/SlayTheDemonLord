@@ -731,3 +731,62 @@ body.ui-mobile .path-node{min-height:var(--tap);}
 .leave-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:14px;}
 .leave-actions .btn{flex:1 1 140px;margin:0;white-space:normal;}
 .leave-actions .btn+.btn{margin-top:0;}
+
+/* Enemy intent line */
+.intent{display:block;margin-top:4px;font-size:13px;font-style:italic;color:var(--ash);}
+.intent.alert{color:var(--amber);font-style:normal;font-weight:500;}
+.intent.calm{color:var(--verdigris-bright);}
+
+/* Relics, cursed paths and the road ahead */
+.path-node.cursed{border-color:var(--blood-bright);background:linear-gradient(180deg,rgba(120,20,20,.35),transparent)}
+.relic-panel{display:flex;flex-direction:column;gap:12px}
+.relic-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.relic-opt{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;padding:10px;border:1px solid var(--brass);background:rgba(0,0,0,.25);color:var(--bone);border-radius:6px;cursor:pointer;font:inherit}
+.relic-opt:hover,.relic-opt:focus-visible{border-color:var(--brass-bright);background:rgba(201,162,39,.12)}
+.relic-icon{font-size:1.6em}.relic-name{font-weight:700}.relic-desc{font-size:.85em;color:var(--ash)}
+.prize{border:1px solid var(--brass-bright);border-radius:6px;padding:10px;background:rgba(201,162,39,.08)}
+.prize-h{margin-bottom:4px}.prize-row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.relic-chips{display:flex;flex-wrap:wrap;gap:4px}
+.relic-chip{font-size:.78em;padding:1px 6px;border:1px solid var(--brass);border-radius:10px;white-space:nowrap}
+.road-ahead{margin-top:12px;padding-top:8px;border-top:1px dashed rgba(255,255,255,.15);font-size:.9em}
+.road-h{color:var(--ash);margin-bottom:4px}
+.road-step{display:flex;align-items:center;gap:6px;margin:2px 0}
+.road-d{color:var(--ash);min-width:70px;font-size:.85em}
+.road-n{display:inline-flex;width:26px;height:26px;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.2);border-radius:50%}
+.road-n.cursed{border-color:var(--blood-bright)}.road-n.boss{border-color:var(--brass-bright)}
+
+/* Achievements, titles, frames, hall of fame */
+.ach-box{margin-top:8px}
+.ach summary{cursor:pointer;color:var(--brass-bright)}
+.ach-list{list-style:none;padding:0;margin:6px 0;display:flex;flex-direction:column;gap:4px;font-size:.88em}
+.ach-list li{display:flex;gap:6px;align-items:center;color:var(--ash)}
+.ach-list li.got{color:var(--bone)}
+.ach-list li span:nth-child(2){flex:1}
+.ach-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px;font-size:.9em}
+.pc-title{font-style:italic;color:var(--brass-bright);font-size:.85em}
+.er-chron{font-style:italic;margin-bottom:8px;color:var(--bone)}
+.tok.frame-bronze,.m-tok.frame-bronze{box-shadow:0 0 0 3px #a8703a}
+.tok.frame-silver,.m-tok.frame-silver{box-shadow:0 0 0 3px #c9ccd3,0 0 8px rgba(201,204,211,.6)}
+.tok.frame-gold,.m-tok.frame-gold{box-shadow:0 0 0 3px #e3b341,0 0 12px rgba(227,179,65,.7)}
+
+.log-line.boss{color:var(--brass-bright);font-style:italic}
+
+/* Juice */
+@keyframes shake{0%,100%{transform:translate(0,0)}20%{transform:translate(-4px,2px)}40%{transform:translate(4px,-2px)}60%{transform:translate(-3px,-1px)}80%{transform:translate(2px,1px)}}
+@keyframes shakeStrong{0%,100%{transform:translate(0,0)}15%{transform:translate(-8px,3px)}30%{transform:translate(7px,-4px)}45%{transform:translate(-6px,-2px)}60%{transform:translate(5px,3px)}80%{transform:translate(-2px,1px)}}
+.shake{animation:shake .3s ease-out}
+.shake-strong{animation:shakeStrong .42s ease-out}
+@keyframes hitFlash{0%{filter:brightness(2.2) saturate(.2)}100%{filter:none}}
+.hit-flash{animation:hitFlash .35s ease-out}
+@keyframes killPulse{0%{transform:scale(1);filter:none}40%{transform:scale(1.15);filter:brightness(2) sepia(1) hue-rotate(-30deg)}100%{transform:scale(.9);opacity:.4}}
+.kill-pulse{animation:killPulse .45s ease-out}
+.boss-banner{position:fixed;left:50%;top:18%;transform:translateX(-50%);z-index:60;max-width:min(560px,calc(100vw - 32px));padding:14px 20px;text-align:center;background:rgba(12,9,7,.92);border:2px solid var(--blood-bright);border-radius:6px;box-shadow:0 8px 30px rgba(0,0,0,.6);animation:bbIn .4s ease-out;transition:opacity .7s;cursor:pointer}
+.boss-banner.dying{border-color:var(--brass)}
+.boss-banner.out{opacity:0}
+.bb-name{font-family:"Grenze Gotisch",serif;font-size:1.6em;color:var(--blood-bright)}
+.boss-banner.dying .bb-name{color:var(--brass-bright)}
+.bb-text{font-style:italic;color:var(--bone);margin-top:4px}
+@keyframes bbIn{from{opacity:0;transform:translate(-50%,-12px)}to{opacity:1;transform:translate(-50%,0)}}
+@media (prefers-reduced-motion: reduce){.shake,.shake-strong,.hit-flash,.kill-pulse,.boss-banner{animation:none}}
+.ach-list li:not(.got) strong{color:var(--ash);font-weight:600}
+.dpip.boss:not(.done):not(.cur){border-color:var(--blood-bright)}

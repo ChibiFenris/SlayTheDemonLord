@@ -13,6 +13,7 @@ const wss = new WebSocketServer({ server, maxPayload: 16 * 1024 }); // no client
 
 app.get('/health', (req, res) => res.send('OK'));
 app.get('/api/stats', (req, res) => res.json(runlog.stats()));
+app.get('/api/halloffame', (req, res) => res.json({ runs: runlog.hallOfFame(10) }));
 app.get('/api/daily', (req, res) => { const key = runlog.todayKey(); res.json({ key, mods: runlog.dailyMods(key), board: runlog.dailyBoard(key) }); });
 // Rules tables the client needs for display (XP bar, castings, spell icons).
 app.get('/api/game-data', (req, res) => {
@@ -20,7 +21,7 @@ app.get('/api/game-data', (req, res) => {
   const cooldowns = Object.fromEntries(Object.entries(COOLDOWNS).map(([k, d]) => [k, { rounds: d.rounds, judgement: d.judgement || null }]));
   Object.values(TRADITIONS).forEach(t => (t.spells || []).forEach(s => { spellElements[s.name] = t.elemType || 'arcane'; }));
   const charms = {}; CHARM_SHOP_KEYS.forEach(k => { charms[k] = { name: CHARMS[k].name, desc: CHARMS[k].desc }; });
-  res.json({ xpThresholds: XP_THRESHOLDS, castingsTable: CASTINGS_TABLE, spellElements, charms, cooldowns,
+  res.json({ xpThresholds: XP_THRESHOLDS, castingsTable: CASTINGS_TABLE, spellElements, charms, cooldowns, relics: relics.RELICS,
     difficulties: DIFFICULTIES.map(x => ({ id: x.id, name: x.name, hp: x.hp, dmg: x.dmg, reward: x.reward })) });
 });
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
@@ -41,6 +42,9 @@ const runlog = require('./game/runlog');
 const rng = require('./game/rng');
 const statesync = require('./game/statesync');
 const accounts = require('./game/accounts');
+const relics = require('./game/relics');
+const lore = require('./game/lore');
+const { hasRelic } = relics;
 rng.install(); // Math.random follows the room being handled (see game/rng.js)
 const clients = new Map();
 
@@ -64,7 +68,7 @@ const { rollD20boons, rollAttack, rollEnemyAttack, addBuff, addDebuff, tickBuffs
 const pathsMod = require('./game/paths');
 const { checkLevelUp, getPathHpGain, applyLevelGains, applyTalentList, applyNovicePath, grantTradition, applyExpertPath, applyMasterPath, getTargetEnemy } = pathsMod;
 const nodesMod = require('./game/nodes');
-const { pickThreeNodes, restorePower, showPathChoices, resolvePath, startNodeContent, enterNode, _runNodeContent, resolveUnknownEvent, buildLootOptions, genSpecialWpn, genSpecialArmor } = nodesMod;
+const { pickThreeNodes, restorePower, crossroadsFor, showPathChoices, resolvePath, startNodeContent, enterNode, _runNodeContent, resolveUnknownEvent, buildLootOptions, genSpecialWpn, genSpecialArmor } = nodesMod;
 const turnsMod = require('./game/turns');
 const { buildTurnOrder, getCurrentTurn, autoSkipStunnedPlayer, advanceTurn, TURN_LIMIT_MS, startTurnTimer, endRound, fireEnemyTurn, finishEnemyTurn, checkDeath } = turnsMod;
 const itemsMod = require('./game/items');
@@ -80,7 +84,7 @@ const DIFFICULTIES = [
 ];
 function initGameState() {
   return {
-    depth:0, inCombat:false, enemy:null, enemies:[], activeEnemyIdx:0, phase:'lobby', difficulty:0, daily:false, rng:rng.makeRng(),
+    depth:0, inCombat:false, enemy:null, enemies:[], activeEnemyIdx:0, phase:'lobby', difficulty:0, daily:false, endless:false, rng:rng.makeRng(),
     playersActedThisRound:[], enemyHasActed:false, roundNumber:0, turnOrder:[], activeTurnIdx:0,
     log:[], pathChoices:null, pathVotes:{}, bossNode:false,
     bossCount:0, lootRoom:null, lootPicked:[], _anyPlayerHitThisTurn:false,
@@ -92,7 +96,7 @@ function publicState(room) {
     gs: { ...room.gs, spoils: undefined, rng: undefined, turnMsLeft: room.gs.turnDeadline ? Math.max(0, room.gs.turnDeadline - Date.now()) : null },
     players: room.players.map(p => ({
       id:p.id, name:p.name, career:p.career, ready:p.ready,
-      char:p.char, isHost:p.id===room.hostId, connected:p.connected,
+      char:p.char, isHost:p.id===room.hostId, connected:p.connected, frame:p.frame||null, title:p.title||null,
     })),
     hostId: room.hostId,
   };
@@ -177,15 +181,28 @@ function enemyDmgDice(threat, isElite, bossCount) {
   return {n:2,s:6,b:2}; // zone 3: extra +2 damage for high-tier enemies
 }
 
+// Archers, gunners and spellcasters can reach the back row.
+const RANGED_ENEMIES = new Set(['Ungor Skirmisher','Ratling Gun Team','Warlock Engineer','Blue Horror','Brimstone Horror','Banshee','Grey Seer Skrittar','Bray-Shaman Ghorros',"Daemon Prince Vhar'kul",'Skaldrak the Elder Wyrm','Nurgle Cultist']);
+// Endless Mode keeps counting bosses past three; each one beyond the third is a tier.
+const endlessTier = bossCount => Math.max(0, (bossCount||0) - 2);
+const runWon = gs => !gs.endless && (gs.depth >= 30 || gs.bossCount >= 3);
 function scaleEnemy(tmpl, playerCount, isElite, bossCount) {
   const e = JSON.parse(JSON.stringify(tmpl));
+  if (RANGED_ENEMIES.has(e.name)) e.ranged = true;
   const bossHpMult = bossCount>=2 ? 1.40 : bossCount===1 ? 1.25 : 1.0; // tougher scaling post-boss
   const bossHpFlat = bossCount >= 2 ? 30 : bossCount === 1 ? 15 : 0; // +15 post-boss1, +30 post-boss2
-  e.hp = e.maxHp = Math.round(e.hp * (1 + (playerCount-1)*0.9) * bossHpMult) + bossHpFlat;
-  if (e.threat === 'Boss' && playerCount === 1) e.hp = e.maxHp = Math.round(e.hp * (bossCount >= 1 ? 0.7 : 0.8)); // a lone warrior faces smaller bosses, especially later on
+  const tier = endlessTier(bossCount); // 0 in a normal run; +1 for every boss past the third in Endless
+  e.hp = e.maxHp = Math.round(e.hp * (1 + (playerCount-1)*0.9) * bossHpMult * (1 + 0.4*tier + 0.05*tier*tier)) + bossHpFlat + 20*tier;
+  if (e.threat === 'Boss' && playerCount === 1) e.hp = e.maxHp = Math.round(e.hp * (bossCount >= 1 ? 0.78 : 0.88)); // a lone warrior faces smaller bosses, especially later on
+  if (playerCount === 1 && e.threat !== 'Boss') e.hp = e.maxHp = Math.round(e.hp * 1.08); // solo foes are a little tougher than before
   e.conditions = []; e.activeDebuffs = []; e.isElite = isElite;
   const dd = enemyDmgDice(e.threat, isElite, bossCount);
   e.dmgNum=dd.n; e.dmgSides=dd.s; e.dmgBonus=dd.b;
+  if (tier) {
+    e.dmgBonus += Math.round(tier*1.5); e.atk = (e.atk||0) + tier; e.ac = (e.ac||10) + Math.floor(tier/2);
+    if (Array.isArray(e.gold)) e.gold = e.gold.map(g => Math.round(g * (1 + 0.25*tier)));
+    e.endlessTier = tier;
+  }
   if (isElite && e.threat!=='Boss') {
     e.hp = e.maxHp = Math.round(e.hp * 1.5); // 1.5× HP for elites
     e.atk = (e.atk||0) + 2;
@@ -200,7 +217,8 @@ function scaleEnemy(tmpl, playerCount, isElite, bossCount) {
 function pickEnemy(depth, isElite, isBoss, playerCount, bossCount) {
   let pool;
   if (isBoss) {
-    if (depth >= 30)         pool=ENEMY_POOLS.boss3;
+    if (bossCount >= 3)      pool=[ENEMY_POOLS.boss1,ENEMY_POOLS.boss2,ENEMY_POOLS.boss3][bossCount%3]; // Endless: the bosses come round again, stronger
+    else if (depth >= 30)    pool=ENEMY_POOLS.boss3;
     else if (bossCount===0)  pool=ENEMY_POOLS.boss1;
     else if (bossCount===1)  pool=ENEMY_POOLS.boss2;
     else                     pool=ENEMY_POOLS.boss3;
@@ -216,12 +234,13 @@ function pickEnemy(depth, isElite, isBoss, playerCount, bossCount) {
 // Enemy mechanics, gear rules and shared helpers live in game/.
 const { pickRandom, aliveEnemies } = require('./game/util');
 const gear = require('./game/gear');
-const { applyCharm, armorTraits, charmKey, cleanseCurses, gearRoundTick, gearVsEnemyAttack, immuneToPoison, isCursed, makeCharm, makeCursedItem, resetGearCombatState, resistsInsanity, rollTraits, weaponTraits } = gear;
+const { applyCharm, hasRangedWeapon, armorTraits, charmKey, cleanseCurses, gearRoundTick, gearVsEnemyAttack, immuneToPoison, isCursed, makeCharm, makeCursedItem, resetGearCombatState, resistsInsanity, rollTraits, weaponTraits } = gear;
 const events = require('./game/events');
 const enemies = require('./game/enemies');
 const { enemyAfterHit, enemyDamageMods, enemyDefence, enemyOnWeaponHit, enemyPostTurn, enemyPreTurn, isEnemyHidden, onCombatStart, onEnemyDeath, prepareEnemy, refreshEnemyAuras, sortTurnOrder } = enemies;
-enemies.bind({ addLog, addBuff, addDebuff, checkDeath, resolveEnemyDeath, scaleEnemy });
-events.bind({ addLog, addBuff, checkDeath, addToInventory, genArmor, genWpn, refreshCastingPools, SCROLL_SPELLS_LIST, makeCharm: gear.makeCharm, makeCursedItem: gear.makeCursedItem });
+enemies.bind({ addLog, addBuff, addDebuff, checkDeath, resolveEnemyDeath, scaleEnemy, hasRelic });
+relics.bind({ addLog, refreshCastingPools, genLegendaryItem, addToInventory, showPathChoices });
+events.bind({ startFight:(room,kind)=>startNodeContent(room,kind), addLog, addBuff, checkDeath, addToInventory, genArmor, genWpn, refreshCastingPools, SCROLL_SPELLS_LIST, makeCharm: gear.makeCharm, makeCursedItem: gear.makeCursedItem });
 
 // ─── CHARACTER BUILDER ───────────────────────────────────────────────────────
 // Lone Survivor: Warriors, Wizards, Priests and Witch Hunters who start a run alone get a little extra staying power.
@@ -329,15 +348,28 @@ function applyDailyToEnemies(gs, list){
 // ─── RUN RECORDS ──────────────────────────────────────────────────────────────
 // Every finished run is logged once (for /api/stats); daily runs also go on the board.
 function stripTags(h){ return String(h||'').replace(/<[^>]+>/g,'').trim(); }
+// One line for the end screen, history and share card.
+function chronicleLine(room,victory,killer){
+  const gs=room.gs, party=room.players.filter(p=>p.char);
+  const who=party.length===1?`${party[0].name} the ${CAREERS[party[0].career]?CAREERS[party[0].career].label:party[0].career}`:`A warband of ${party.length}`;
+  const relicN=party.reduce((a,p)=>a+((p.char.relics||[]).length),0);
+  const bits=[];
+  if(gs.bossCount) bits.push(`slew ${gs.bossCount} boss${gs.bossCount>1?'es':''}`);
+  if(gs.cursedTaken) bits.push(`walked ${gs.cursedTaken} cursed path${gs.cursedTaken>1?'s':''}`);
+  if(relicN) bits.push(`carried ${relicN} relic${relicN>1?'s':''}`);
+  const did=bits.length?bits.join(', ').replace(/, ([^,]*)$/,' and $1'):'fought on';
+  return victory?`${who} ${did}, and conquered the depths in ${gs.totalRounds||'?'} rounds.`:`${who} ${did}, before falling at depth ${gs.depth}${gs.endless?' in Endless Mode':''}${killer?' to '+killer:''}.`;
+}
 function recordRunEnd(room){
   const gs=room.gs; if(gs._recorded) return; gs._recorded=true;
   if(gs.practice) return; // practice fights don't count
   const victory=gs.phase==='victory';
   let killer=null;
   if(!victory){ const m=stripTags(gs.deathCause).match(/^(?:[^\w]*\s*)?(.+?) (?:hits|crits|strikes|slams|mauls)/); killer=m?m[1]:((gs.enemies||[]).find(e=>e)||{}).name||null; }
+  gs.chronicle=chronicleLine(room,victory,killer);
   const rec={ ts:new Date().toISOString(), victory, depth:gs.depth||0, bosses:gs.bossCount||0, difficulty:gs.difficulty||0,
-    daily:gs.dailyKey||null, killer,
-    players:room.players.filter(p=>p.char).map(p=>({ name:p.name, career:p.career, level:p.char.level, expert:p.char.expertPath||null, master:p.char.masterPath||null })) };
+    daily:gs.dailyKey||null, endless:!!gs.endless, killer, rounds:gs.totalRounds||0, cursed:gs.cursedTaken||0, chronicle:gs.chronicle,
+    players:room.players.filter(p=>p.char).map(p=>({ name:p.name, career:p.career, level:p.char.level, expert:p.char.expertPath||null, master:p.char.masterPath||null, title:p.title||null, relics:(p.char.relics||[]).length })) };
   runlog.appendRun(rec);
   if(gs.dailyKey) runlog.addDailyScore(gs.dailyKey,{ names:rec.players.map(p=>p.name), careers:rec.players.map(p=>p.career), depth:rec.depth, bosses:rec.bosses, victory, rounds:gs.totalRounds||0, ts:rec.ts });
 }
@@ -366,6 +398,7 @@ function buildChar(career) {
     gold:15,
     level:1, xp:0,
     novicePath:null, expertPath:null, masterPath:null,
+    block:true, _blockUsed:false, revive:true, _reviveUsed:false, row:(career==='wizard'||career==='witchhunter')?'back':'front', relics:[],
     pendingLevelUp:false, pendingPathTier:null,  // 'novice'|'expert'|'master'
     weaponTraining:false, catchBreath:false, catchBreathUsed:false,
     combatProwess:false, combatExpertise:false,
@@ -522,7 +555,7 @@ function finishCombat(room, outcome){
   });
   const totalXp=Object.values(rewards).reduce((a,r)=>Math.max(a,r.xp),0);
   if(totalXp>0||outcome==='won') addLog(room,`⚔ Battle ${outcome==='won'?'won':'escaped'} — spoils divided.`,'loot');
-  if(gs.depth>=30||gs.bossCount>=3) return; // the end screen takes over
+  if(runWon(gs)) return; // the end screen takes over
   gs.aftermath={ outcome, enemies:sp.enemies, rewards, ready:[] };
   gs.phase='aftermath';
 }
@@ -532,11 +565,14 @@ function aftermathReady(room){
   if(!here.every(p=>gs.aftermath.ready.includes(p.id))) return;
   gs.aftermath=null; gs.phase='event';
   if(gs.practice){ gs.phase='practiceDone'; addLog(room,'🎓 Practice complete. You are ready for the road.','loot'); return; }
-  if(gs.depth>=30){ gs.phase='victory'; addLog(room,'🏆 The warband conquers the depths! FOR SIGMAR!','crit'); return; }
+  if(runWon(gs)){ gs.phase='victory'; addLog(room,'🏆 The warband conquers the depths! FOR SIGMAR!','crit'); return; }
+  // Elites and bosses reward a relic choice (and a boss in a party, a Champion's Prize to roll for).
+  if(gs._relicAfterFight){ const prize=gs._prizeAfterFight; gs._relicAfterFight=false; gs._prizeAfterFight=false; if(relics.offerRelics(room,'path',prize)) return; }
   showPathChoices(room);
 }
 
 function resolveEnemyDeath(room, deadEnemy) {
+  room.players.forEach(p=>{ if(p.char&&p.char.alive&&hasRelic(p.char,'bloodChalice')&&(deadEnemy||room.gs.enemy)){ p.char.health=Math.min(p.char.maxHealth,p.char.health+2); } });
   room.players.forEach(p=>{ if(p.char&&p.char.activeBuffs){ const had=p.char.activeBuffs.some(b=>b.name==='Rattled');
     p.char.activeBuffs=p.char.activeBuffs.filter(b=>b.name!=='Rattled'); if(had) addLog(room,`${p.name} steels their nerve.`,'sys'); } });
   const gs=room.gs;
@@ -581,6 +617,10 @@ function resolveEnemyDeath(room, deadEnemy) {
   }
   const goldEach=Math.floor(goldTotal/Math.max(1,survivors.length));
 
+  if(e&&(e.isElite||e.threat==='Boss')){ gs._relicAfterFight=true; if(e.threat==='Boss') gs._prizeAfterFight=true; }
+  const lastWords=e.threat==='Boss'&&lore.last(e.name);
+  if(lastWords){ addLog(room,`🗣 <strong>${e.name}:</strong> <em>“${lastWords}”</em>`,'boss'); gs.bossBanner={name:e.name,text:lastWords,ts:Date.now(),dying:true}; }
+  if(e.threat==='Boss'&&gs.curseStacks){ gs.curseStacks=0; addLog(room,'🕯 With the boss slain, the curse on the road lifts.','heal'); }
   if(e.threat==='Boss'){
     const bossIdx=gs.bossCount; // 0 = boss1 just killed, 1 = boss2, 2 = boss3
     gs.bossCount++;
@@ -589,6 +629,7 @@ function resolveEnemyDeath(room, deadEnemy) {
       addToInventory(p.char, leg.name, leg);
       addLog(room,`🏆 <strong>${p.name}</strong> claims <em style="color:#e8c050">${leg.name}</em> — ${leg.desc}`,'loot');
     });
+    if(gs.endless&&gs.bossCount>=3) addLog(room,`♾ <strong>Endless.</strong> The road goes deeper. From here every foe is stronger (tier ${endlessTier(gs.bossCount)}), and so is the gear you find.`,'chaos');
   }
   // XP and silver are banked in the battle's spoils and paid out when the fight ends.
   const sp=gs.spoils||startSpoils(room);
@@ -612,8 +653,7 @@ function resolveEnemyDeath(room, deadEnemy) {
   gs.inCombat=false; gs.enemy=null; gs.enemies=[]; gs.phase='event';
   gs.playersActedThisRound=[]; gs.enemyHasActed=false; gs.packCooldown=0;
   finishCombat(room,'won');
-  if(gs.depth>=30){gs.phase='victory';addLog(room,'🏆 The Saurian Ancient falls! The warband conquers the depths! FOR SIGMAR!','crit');broadcastState(room.code);return;}
-  else if(gs.bossCount>=3){gs.phase='victory';addLog(room,'🏆 The warband conquers the depths! FOR SIGMAR!','crit');broadcastState(room.code);return;}
+  if(runWon(gs)){gs.phase='victory';addLog(room,'🏆 The warband conquers the depths! FOR SIGMAR!','crit');broadcastState(room.code);return;}
 }
 
 // Everything that lasts "one combat" is cleared here (called when combat ends by victory or by fleeing)
@@ -700,7 +740,7 @@ function resetCombatState(p){
     p.char._fadedLastRound=false;
     p.char.rageTriggerActive=false;
     p.char._huntersMarkTarget=null; p.char._condemnTargetId=null; p.char._condemnUsed=false; p.char._doubleChargeUsed=false; p.char._firstVolleyUsed=false;
-    p.char._cd={}; // every ability is ready when a fight begins
+    p.char._cd={}; p.char._blockUsed=false; p.char._reviveUsed=false; // every ability is ready when a fight begins
     p.char._markHereticTarget=null;
     p.char._sacredGroundUsed=false;
     p.char._divineFavourUsed=false;
@@ -791,6 +831,9 @@ function handleMessageInner(ws,msg){
     applyNovicePath(player.char, _noviceId);
     player.char.pendingLevelUp=false; // novice already applied
     const sc=payload.startingCharm;
+    player.frame=['bronze','silver','gold'].includes(payload.frame)?payload.frame:null;
+    player.title=typeof payload.title==='string'?payload.title.replace(/[<>&"]/g,'').slice(0,30):null;
+    if(payload.startRelic) relics.grantStartRelic(player.char);
     if(sc&&CHARM_SHOP_KEYS.includes(sc)){ const ch=gear.makeCharm(sc); player.char.inventory.push({name:ch.name,qty:1,type:'charm',itemObj:ch,sellCost:3}); equipItem(player.char,player.char.inventory.length-1); }
     broadcastState(ctx.roomCode); return;
   }
@@ -801,7 +844,11 @@ function handleMessageInner(ws,msg){
   }
   if(type==='SET_DAILY'){
     if(!ctx)return; const room=rooms.get(ctx.roomCode); if(!room||room.hostId!==ctx.playerId||room.gs.phase!=='lobby')return;
-    room.gs.daily=!!(payload&&payload.on); broadcastState(ctx.roomCode); return;
+    room.gs.daily=!!(payload&&payload.on); if(room.gs.daily) room.gs.endless=false; broadcastState(ctx.roomCode); return;
+  }
+  if(type==='SET_ENDLESS'){
+    if(!ctx)return; const room=rooms.get(ctx.roomCode); if(!room||room.hostId!==ctx.playerId||room.gs.phase!=='lobby')return;
+    room.gs.endless=!!(payload&&payload.on); if(room.gs.endless) room.gs.daily=false; broadcastState(ctx.roomCode); return;
   }
   if(type==='PLAYER_READY'){
     if(!ctx)return; const room=rooms.get(ctx.roomCode); if(!room)return;
@@ -837,7 +884,8 @@ function handleMessageInner(ws,msg){
   }
   if(type==='ACCOUNT_RESUME'){ const r=accounts.resume(payload.token); sendTo(ws,r.ok?{type:'ACCOUNT_OK',payload:r.ok}:{type:'ACCOUNT_SIGNED_OUT'}); return; }
   if(type==='ACCOUNT_LOGOUT'){ accounts.logout(payload.token); return; }
-  if(type==='ACCOUNT_RUN'){ const r=accounts.recordRun(payload.token,payload.rec,payload.earned); if(r.ok) sendTo(ws,{type:'ACCOUNT_OK',payload:r.ok}); return; }
+  if(type==='ACCOUNT_ACH'){ const r=accounts.syncAchievements(payload&&payload.token,payload&&payload.achievements); if(r.ok) sendTo(ws,{type:'ACCOUNT_OK',payload:r.ok}); return; }
+  if(type==='ACCOUNT_RUN'){ const r=accounts.recordRun(payload.token,payload.rec,payload.earned,payload.achievements); if(r.ok) sendTo(ws,{type:'ACCOUNT_OK',payload:r.ok}); return; }
   // ── Practice fight: a solo room with one easy fight and a coach ──
   if(type==='START_PRACTICE'){
     if(!CAREERS[payload.career]){ sendTo(ws,{type:'ERROR',payload:{msg:'Unknown career.'}}); return; }
@@ -948,6 +996,11 @@ function handlePlayerAction(room,playerId,payload,ws){
     if(alive.every(p=>gs.lootPicked.includes(p.id))){gs.phase='event';gs.lootRoom=null;addLog(room,'Loot divided. Press onward.','sys');}
     return;
   }
+  if(action==='PICK_RELIC'){ relics.pickRelic(room,playerId,data&&data.key); return; }
+  if(action==='VOTE_PRIZE'){ relics.votePrize(room,playerId,data&&data.choice); return; }
+  if(action==='SET_ROW'){ const r=data&&data.row; if(r!=='front'&&r!=='back') return;
+    if(gs.phase==='combat'){ const cur=getCurrentTurn(gs); if(!cur||cur.id!==playerId){ sendTo(ws,{type:'ERROR',payload:{msg:'Change rows on your own turn.'}}); return; } }
+    char.row=r; addLog(room,`${player.name} moves to the <strong>${r} row</strong>.`,'sys'); return; }
   if(action==='UNEQUIP_CHARM'){ const r=unequipCharm(char); if(r) addLog(room,`${player.name}: ${r}.`,'loot'); return; }
   if(action==='EQUIP_ITEM'){
     const idx=data.inventoryIndex;
@@ -964,7 +1017,7 @@ function handlePlayerAction(room,playerId,payload,ws){
   }
   if(action==='PRESS_ONWARD'){
     if(gs.phase!=='event') return;
-    if(gs.depth>=30){gs.phase='victory';addLog(room,'🏆 The warband conquers the depths! FOR SIGMAR!','crit');return;}
+    if(runWon(gs)){gs.phase='victory';addLog(room,'🏆 The warband conquers the depths! FOR SIGMAR!','crit');return;}
     showPathChoices(room); return;
   }
   if(action==='USE_ITEM_OOC'){useItemLogic(room,player,data.itemName,false);return;}
@@ -1124,6 +1177,7 @@ function unblockAfterDisconnect(room, player){
   const here=room.players.filter(p=>p.char&&p.char.alive&&p.connected);
   if(!here.length) return;
   if(gs.phase==='aftermath') aftermathReady(room);
+  else if(gs.phase==='relic'&&gs.relic) relics.maybeFinish(room);
   else if(gs.phase==='choice'&&gs.choice&&here.every(p=>gs.choice.votes[p.id])) events.resolveChoice(room);
   else if(gs.phase==='path'&&gs.pathChoices&&here.every(p=>gs.pathVotes[p.id])) resolvePath(room);
   else if(gs.phase==='loot'&&gs.lootRoom&&here.every(p=>gs.lootPicked.includes(p.id))){ gs.phase='event'; gs.lootRoom=null; addLog(room,'Loot divided. Press onward.','sys'); }
@@ -1133,7 +1187,7 @@ function unblockAfterDisconnect(room, player){
 
 // Hand every split-out module the helpers it uses. Runs once all of server.js
 // has been evaluated, so constants defined anywhere in this file are ready.
-const MODULE_API = { ARMOR_BASES, CAREERS, CHARMS, CHARM_SHOP_KEYS, DIFFICULTIES, ENEMY_DROPS, EXPERT_PATHS, LEGENDARY_ITEMS, LOOT_CONS_LIST, MASTER_PATHS, NODE_TYPES, NOVICE_PATHS, POISON_CAP, SCROLL_SPELLS_LIST, SCROLL_SPELLS_SHOP, SELF_TICK_DOTS, SHOP_CONSUMABLES, TRADITIONS, WEAPON_BASES, XP_THRESHOLDS, addBuff, addDebuff, addLog, advanceTurn, aliveEnemies, applyBleed, applyBurn, applyCharm, applyDailyToEnemies, applyPoison, armorTraits, broadcastState, buildPlayerShop, buildTurnOrder, castingsLeft, charmKey, checkDeath, cleanseCurses, d, enemyAfterHit, enemyDamageMods, enemyDefence, enemyOnWeaponHit, enemyPostTurn, enemyPreTurn, events, gearRoundTick, gearVsEnemyAttack, getSpellsForPower, getTargetEnemy, immuneToPoison, isCursed, isEnemyHidden, makeCharm, makeCursedItem, maxCastings, modVal, onCombatStart, pickEnemy, pickRandom, rd, refreshCastingPools, regainCasting, resistsInsanity, resolveEnemyDeath, restoreCastingPools, rollAttack, rollEnemyAttack, rollTraits, scaleEnemy, sendTo, sortTurnOrder, spendCasting, startSpoils, talentHeal, tickBuffs, tickCooldowns, tickDebuffs, triggerGameover, uniqRanks, uuidv4, weaponTraits };
+const MODULE_API = { ARMOR_BASES, CAREERS, CHARMS, CHARM_SHOP_KEYS, DIFFICULTIES, ENEMY_DROPS, EXPERT_PATHS, LEGENDARY_ITEMS, LOOT_CONS_LIST, MASTER_PATHS, NODE_TYPES, NOVICE_PATHS, POISON_CAP, SCROLL_SPELLS_LIST, SCROLL_SPELLS_SHOP, SELF_TICK_DOTS, SHOP_CONSUMABLES, TRADITIONS, WEAPON_BASES, XP_THRESHOLDS, addBuff, addDebuff, addLog, advanceTurn, aliveEnemies, applyBleed, applyBurn, applyCharm, applyDailyToEnemies, applyPoison, armorTraits, broadcastState, buildPlayerShop, buildTurnOrder, castingsLeft, charmKey, checkDeath, cleanseCurses, d, enemyAfterHit, enemyDamageMods, enemyDefence, enemyOnWeaponHit, enemyPostTurn, enemyPreTurn, events, gearRoundTick, gearVsEnemyAttack, getSpellsForPower, getTargetEnemy, hasRangedWeapon, hasRelic, immuneToPoison, isCursed, isEnemyHidden, lore, makeCharm, makeCursedItem, maxCastings, modVal, onCombatStart, pickEnemy, pickRandom, rd, refreshCastingPools, regainCasting, relics, resistsInsanity, resolveEnemyDeath, restoreCastingPools, rollAttack, rollEnemyAttack, rollTraits, scaleEnemy, sendTo, sortTurnOrder, spendCasting, startSpoils, talentHeal, tickBuffs, tickCooldowns, tickDebuffs, triggerGameover, uniqRanks, uuidv4, weaponTraits };
 [combatMod, pathsMod, nodesMod, turnsMod, itemsMod, actionsMod].forEach(m => m.bind(MODULE_API));
 
 // Start the server when run directly (node server.js). Tests require() this file
@@ -1147,6 +1201,6 @@ if (require.main === module) {
   server.listen(PORT, '0.0.0.0', () => { console.log(`Shadows Over Reikland on 0.0.0.0:${PORT}`); });
 }
 
-module.exports = { app, server, rooms, clients, enemies, gear, events, runlog, cleanName, leaveRoom, tickCooldowns, unequipCharm, sellPrice, allowMessage, RATE,
+module.exports = { app, server, rooms, clients, enemies, gear, events, runlog, relics, lore, accounts, chronicleLine, endlessTier, runWon, cleanName, leaveRoom, tickCooldowns, unequipCharm, sellPrice, allowMessage, RATE,
   startTurnTimer, recordRunEnd, takeOverSeat, applyDailyToEnemies, startDailyRun, TURN_LIMIT_MS,
   _runNodeContent, actAttack, actCastSpell, actUseTalent, addBuff, addDebuff, addLog, addToInventory, advanceTurn, aftermathReady, applyBleed, applyBurn, applyExpertPath, applyLegendaryArmourPassive, applyLevelGains, applyMasterPath, applyNovicePath, applyPoison, applyTalentList, applyWpnSpecial, autoSkipStunnedPlayer, broadcastState, buildChar, buildLootOptions, buildPlayerShop, buildTurnOrder, castingsLeft, checkDeath, checkLevelUp, endRound, enemyDmgDice, enterNode, equipItem, finishCombat, finishEnemyTurn, fireEnemyTurn, genArmor, genLegendaryItem, genShopScroll, genSpecialArmor, genSpecialWpn, genWpn, getBuffVal, getCurrentTurn, getDebuffVal, getPathHpGain, getSpellsForPower, getTargetEnemy, grantTradition, handleBuy, handleMessage, handlePlayerAction, handleSell, initGameState, invCounts, makeCode, maxCastings, pickEnemy, pickThreeNodes, publicState, refreshCastingPools, regainCasting, resetCombatState, resolveEnemyDeath, resolvePath, resolveUnknownEvent, restoreCastingPools, restorePower, restoreRooms, resumeRoom, rollAttack, rollD20boons, rollEnemyAttack, rollEnemyDrop, scaleEnemy, sendTo, showPathChoices, spendCasting, startNodeContent, startSpoils, sweepRooms, talentHeal, tickBuffs, tickDebuffs, triggerGameover, unblockAfterDisconnect, uniqRanks, useItemLogic };

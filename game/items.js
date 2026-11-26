@@ -12,6 +12,14 @@ function genLegendaryItem(bossIndex) {
   const pool = LEGENDARY_ITEMS[key];
   const tmpl = pool[Math.floor(Math.random()*pool.length)];
   const item = JSON.parse(JSON.stringify(tmpl));
+  // Endless: legendaries from later loops are stronger.
+  const tier = Math.max(0, bossIndex - 2);
+  if (tier) {
+    item.name = `${item.name} +${tier}`;
+    if (item.type === 'weapon') item.bonus = (item.bonus || 0) + tier;
+    if (item.type === 'armor') item.defBonus = (item.defBonus || 0) + tier;
+    item.desc = `${item.desc || ''} (Endless +${tier})`.trim();
+  }
   item.id = (item.type==='weapon'?'lw':'la') + uuidv4();
   item.sellCost = 5; // legendaries can be sold for more
   item.cost = 0; // not purchasable
@@ -22,7 +30,7 @@ function genLegendaryItem(bossIndex) {
 function genWpn(bossCount=0){
   const light=WEAPON_BASES.filter(b=>['1d6','1d8','2d4'].includes(b.dice)), heavy=WEAPON_BASES.filter(b=>!['1d6','1d8','2d4'].includes(b.dice));
   const pool=bossCount>0&&d(5)===1?heavy:light;
-  const b=pool[Math.floor(Math.random()*pool.length)], bonus=d(6);
+  const b=pool[Math.floor(Math.random()*pool.length)], bonus=d(6)+Math.max(0,bossCount-2); // Endless: +1 per tier
   const specDesc2=b.special?` — ${b.special.desc}`:''; return rollTraits({id:'w'+uuidv4(),name:b.name,dice:b.dice,stat:b.stat,bonus,dmgType:b.dmgType,special:b.special||null,cost:Math.max(5,(heavy.includes(b)?20:15)+bonus*8+(b.special?10:0)),sellCost:3,bought:false,type:'weapon',desc:`${b.dice}+${bonus} · ${b.stat.toUpperCase()} · ${b.dmgType}${specDesc2}`},'weapon');
 }
 function genArmor(bossCount=0){
@@ -35,6 +43,7 @@ function genArmor(bossCount=0){
   let bonus;
   if(bossCount===0){ bonus=d(4); if(b.def+bonus>6) bonus=Math.max(1,6-b.def); }
   else { bonus=d(5)===1?d(2)+4:d(4); }
+  bonus+=Math.ceil(Math.max(0,bossCount-2)/2); // Endless: +1 every other tier
   const specDesc=b.special?` — ${b.special.desc}`:''; return rollTraits({id:'a'+uuidv4(),name:b.name,defBonus:b.def+bonus,special:b.special||null,cost:Math.max(5,20+bonus*10+(b.special?15:0)),sellCost:3,bought:false,type:'armor',desc:`+${b.def+bonus} Defense${specDesc}`},'armor');
 }
 function genShopScroll(){
@@ -196,9 +205,10 @@ function handleBuy(room,player,itemId){
     if(char.equippedWeapon){
       const w=char.equippedWeapon;
       const currentBonus=w.bonus||0;
-      if(currentBonus>=6){
+      const cap=6+Math.max(0,(room.gs.bossCount||0)-2); // Endless raises the cap
+      if(currentBonus>=cap){
         char.weaponAtkBonus++;
-        addLog(room,`${player.name}: Weapon Enhancement — ${w.name} damage capped at +6. +1 to hit granted instead.`,'loot');
+        addLog(room,`${player.name}: Weapon Enhancement — ${w.name} damage capped at +${cap}. +1 to hit granted instead.`,'loot');
       } else {
         w.bonus=currentBonus+1;
         char.weaponAtkBonus++;
