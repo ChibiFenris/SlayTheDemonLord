@@ -6,6 +6,7 @@ let prevLogLen = 0; // track log length to detect new entries
 function spawnFloat(anchorEl, text, type='dmg'){
   if(!anchorEl) return;
   const rect=anchorEl.getBoundingClientRect();
+  playSfx(type);
   const float=document.createElement('div');
   float.className='float-num '+type;
   float.textContent=text;

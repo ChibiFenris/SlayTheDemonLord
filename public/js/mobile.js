@@ -145,7 +145,7 @@ function mRenderGame(gs,players,me){
   const inLoot=gs.phase==='loot';
 
   // Status bar
-  const phaseLabel=inCombat?'In combat':inMerchant?'Merchant':inLoot?'Loot room':gs.phase==='path'?'Crossroads':'Travelling';
+  const phaseLabel=inCombat?'In combat':gs.phase==='aftermath'?'Victory':gs.phase==='choice'?'Encounter':inMerchant?'Merchant':inLoot?'Loot room':gs.phase==='path'?'Crossroads':'Travelling';
   const phaseCls=inCombat?'s-combat':inMerchant||inLoot?'s-event':'s-explore';
   view.appendChild(mEl('div','m-status',`
     <div class="m-status-top"><div class="m-loc">${LOCS[Math.min(gs.depth,LOCS.length-1)]}</div><span class="state-badge ${phaseCls}">${phaseLabel}</span></div>
@@ -228,7 +228,13 @@ function mRenderGame(gs,players,me){
   // Actions
   const act=mEl('div','m-card m-actions');
   const heading=t=>act.appendChild(mEl('div','m-card-title',t));
-  if(gs.phase==='event'){
+  if(gs.phase==='choice'&&gs.choice){
+    heading(gs.choice.title);
+    act.appendChild(buildChoice(gs,players));
+  } else if(gs.phase==='aftermath'&&gs.aftermath){
+    heading(gs.aftermath.outcome==='fled'?'You escaped':'Battle won');
+    act.appendChild(buildAftermath(gs,players));
+  } else if(gs.phase==='event'){
     const btn=mEl('button','btn gold btn-w','Press onward');
     btn.onclick=()=>send('PLAYER_ACTION',{action:'PRESS_ONWARD'});
     act.appendChild(btn);
@@ -321,7 +327,7 @@ function mBuildKit(char,gs){
   card.appendChild(bar);
   const wrap=mEl('div','m-pill-wrap');
   if(tab==='ab'){
-    const keys=[...ACTIVE_TALENTS.map(a=>a[0]),...EXTRA_ACTIVES.map(e=>e[0]).filter(k=>!ACTIVE_TALENTS.some(a=>a[0]===k)),...PASSIVE_TALENTS].filter(k=>char[k]);
+    const keys=[...ACTIVE_TALENTS.map(a=>a[0]),...EXTRA_ACTIVES.map(e=>e[0]).filter(k=>!ACTIVE_TALENTS.some(a=>a[0]===k))].filter(k=>char[k]).concat(passiveKeys(char));
     if(char.rageBoon){ const r=mEl('button','m-pill armed','Rage armed'); r.onclick=()=>mTapTalent('rage',char); wrap.appendChild(r); }
     keys.forEach(k=>{
       const used=talentUsed(k,char);

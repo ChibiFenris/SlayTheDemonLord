@@ -21,8 +21,15 @@ if (failed) process.exit(1);
 console.log(`✓ syntax ok (${sources.length} files)`);
 
 const port = 4100 + Math.floor(Math.random() * 500);
+// Rule checks first (in-process), then a live server for the bot games.
+const mech = require('child_process').spawnSync(process.execPath, ['tools/mechanics-test.js'], { cwd: root, encoding: 'utf8' });
+process.stdout.write(mech.stdout.split('\n').filter(l => l.startsWith('FAIL')).join('\n'));
+if (mech.status !== 0) { console.error(`✗ mechanics tests failed\n${mech.stdout}${mech.stderr}`); process.exit(1); }
+console.log('✓ mechanics tests ok');
+
+const dataDir = require('path').join(require('os').tmpdir(), 'sor-test-data');
 const server = spawn(process.execPath, ['-r', './tools/fast-timers.js', 'server.js'], {
-  cwd: root, env: { ...process.env, PORT: String(port) },
+  cwd: root, env: { ...process.env, PORT: String(port), DATA_DIR: dataDir },
 });
 let serverErrors = 0, serverOut = '';
 const onData = buf => { const s = buf.toString(); serverOut += s; serverErrors += (s.match(/@@ERR/g) || []).length; };

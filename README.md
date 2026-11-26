@@ -19,7 +19,7 @@
    ```
    server.js          ← game server and rules
    game/              ← game data (careers, spells, enemies, items) and dice helpers
-   public/            ← the web client: index.html, css/, js/, tokens.json (+ your audio/ folder)
+   public/            ← the web client: index.html, css/, js/, tokens/ (portraits), music/ (MP3s)
    tools/             ← automated playtest (npm test)
    package.json
    railway.json
@@ -116,9 +116,32 @@ npm install
 npm test
 ```
 
-`npm test` syntax-checks every file, starts the server locally and lets bots play
-four full games (1–4 players). It fails if the server logs an error or a game gets
-stuck. Use `GAMES=10 npm test` for a longer run.
+`npm test` syntax-checks every file, runs the rules tests (tools/mechanics-test.js),
+starts the server locally and lets bots play four full games (1–4 players). It fails
+if a rule test fails, the server logs an error or a game gets stuck. Use
+`GAMES=10 npm test` for a longer run.
+
+`node tools/balance.js 40` plays 40 runs per class (and a full party) with a sensible
+bot and prints win rates, depth reached and how each charm and weapon performed.
 
 On phones the game switches to the mobile layout automatically; the 📱/🖥 button in
 the header swaps layouts for the current visit.
+
+
+---
+
+## Keeping games alive through redeploys
+
+The server saves every room to `data/rooms.json` once a second and when Railway
+stops it, then restores the rooms on start. Players who refresh or lose connection
+drop straight back into their seat.
+
+Railway wipes the container's disk on every deploy, so for saves to survive a
+redeploy attach a **Volume**:
+
+1. In your Railway project, add a Volume and attach it to the game service
+   (see Railway's docs on Volumes for the current menu path)
+2. Set its mount path to `/data`
+3. In the service's **Variables**, add `DATA_DIR` = `/data`
+
+Without the volume, games still survive a crash-restart, but not a new deploy.

@@ -48,6 +48,8 @@ window.addEventListener('resize', () => {
 function renderState(st){
   renderMainState(st);
   renderMobileState(st);
+  sfxOnState(st);
+  checkTips(st);
 }
 
 // ─── BOOT ─────────────────────────────────────────────────────────────────────

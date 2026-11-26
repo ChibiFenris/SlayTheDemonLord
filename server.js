@@ -12,11 +12,23 @@ const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
 app.get('/health', (req, res) => res.send('OK'));
+// Rules tables the client needs for display (XP bar, castings, spell icons).
+app.get('/api/game-data', (req, res) => {
+  const spellElements = {};
+  Object.values(TRADITIONS).forEach(t => (t.spells || []).forEach(s => { spellElements[s.name] = t.elemType || 'arcane'; }));
+  const charms = {}; CHARM_SHOP_KEYS.forEach(k => { charms[k] = { name: CHARMS[k].name, desc: CHARMS[k].desc }; });
+  res.json({ xpThresholds: XP_THRESHOLDS, castingsTable: CASTINGS_TABLE, spellElements, charms,
+    difficulties: DIFFICULTIES.map(x => ({ id: x.id, name: x.name, hp: x.hp, dmg: x.dmg, reward: x.reward })) });
+});
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.set('trust proxy', 1);
+// Music and portraits rarely change: let browsers cache them for a week.
+app.use('/music', express.static(path.join(__dirname, 'public', 'music'), { maxAge: '7d' }));
+app.use('/tokens', express.static(path.join(__dirname, 'public', 'tokens'), { maxAge: '7d' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 const rooms = new Map();
+const persist = require('./game/persist');
 const clients = new Map();
 
 function makeCode() {
@@ -25,18 +37,23 @@ function makeCode() {
   for (let i = 0; i < 4; i++) c += chars[Math.floor(Math.random() * chars.length)];
   return rooms.has(c) ? makeCode() : c;
 }
-function sendTo(ws, msg) { if (ws.readyState === 1) ws.send(JSON.stringify(msg)); }
+function sendTo(ws, msg) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(msg)); }
 const { d, rd, modVal } = require('./game/dice');
 const {
   CAREERS, NOVICE_PATHS, EXPERT_PATHS, MASTER_PATHS, CASTINGS_TABLE, TRADITIONS,
   ENEMY_POOLS, XP_THRESHOLDS, POISON_CAP, NODE_TYPES, SCROLL_SPELLS_LIST, LOOT_CONS_LIST,
   WEAPON_BASES, ARMOR_BASES, LEGENDARY_ITEMS, SHOP_CONSUMABLES, SCROLL_SPELLS_SHOP, ENEMY_DROPS,
-  SUMMONS, WEAPON_TRAITS, ARMOR_TRAITS, CHARMS, CHARM_SHOP_KEYS, CURSED_GEAR,
-} = require('./game/data');
+  CHARMS, CHARM_SHOP_KEYS, } = require('./game/data');
 
+// Difficulty levels unlocked with Renown (tracked per player in their browser).
+const DIFFICULTIES = [
+  { id:0, name:'Standard', hp:1,    dmg:0, reward:1 },
+  { id:1, name:'Grim',     hp:1.25, dmg:1, reward:1.5 },
+  { id:2, name:'Doom',     hp:1.5,  dmg:2, reward:2 },
+];
 function initGameState() {
   return {
-    depth:0, inCombat:false, enemy:null, enemies:[], activeEnemyIdx:0, phase:'lobby',
+    depth:0, inCombat:false, enemy:null, enemies:[], activeEnemyIdx:0, phase:'lobby', difficulty:0,
     playersActedThisRound:[], enemyHasActed:false, roundNumber:0, turnOrder:[], activeTurnIdx:0,
     log:[], pathChoices:null, pathVotes:{}, bossNode:false,
     bossCount:0, lootRoom:null, lootPicked:[], _anyPlayerHitThisTurn:false,
@@ -45,7 +62,7 @@ function initGameState() {
 }
 function publicState(room) {
   return {
-    gs: room.gs,
+    gs: { ...room.gs, spoils: undefined },
     players: room.players.map(p => ({
       id:p.id, name:p.name, career:p.career, ready:p.ready,
       char:p.char, isHost:p.id===room.hostId, connected:p.connected,
@@ -138,6 +155,7 @@ function scaleEnemy(tmpl, playerCount, isElite, bossCount) {
   const bossHpMult = bossCount>=2 ? 1.40 : bossCount===1 ? 1.25 : 1.0; // tougher scaling post-boss
   const bossHpFlat = bossCount >= 2 ? 30 : bossCount === 1 ? 15 : 0; // +15 post-boss1, +30 post-boss2
   e.hp = e.maxHp = Math.round(e.hp * (1 + (playerCount-1)*0.9) * bossHpMult) + bossHpFlat;
+  if (e.threat === 'Boss' && playerCount === 1) e.hp = e.maxHp = Math.round(e.hp * (bossCount >= 1 ? 0.7 : 0.8)); // a lone warrior faces smaller bosses, especially later on
   e.conditions = []; e.activeDebuffs = []; e.isElite = isElite;
   const dd = enemyDmgDice(e.threat, isElite, bossCount);
   e.dmgNum=dd.n; e.dmgSides=dd.s; e.dmgBonus=dd.b;
@@ -168,394 +186,15 @@ function pickEnemy(depth, isElite, isBoss, playerCount, bossCount) {
   return scaleEnemy(validPool[Math.floor(Math.random()*validPool.length)], playerCount, isElite, bossCount);
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
-// ENEMY SIGNATURE MECHANICS
-// Each enemy has one mechanic you play around. They plug into the combat flow
-// through the hooks below (combat start, enemy turn, targeting, hits, death).
-// ═════════════════════════════════════════════════════════════════════════════
-let _enemySeq=0;
-function newEnemyId(){ return 'en'+(++_enemySeq); }
-function aliveEnemies(gs){ return (gs.enemies||[]).filter(e=>e&&e.hp>0); }
-function alivePlayers(room){ return room.players.filter(p=>p.char&&p.char.alive); }
-function pickRandom(a){ return a[Math.floor(Math.random()*a.length)]; }
-function isEnemyHidden(e, gs){
-  if(!e||!(e._hiding||e._vanished)) return false;
-  return aliveEnemies(gs).some(o=>o!==e&&!(o._hiding||o._vanished)); // never hidden when it's the last one
-}
-function summonEnemy(room, tmpl){
-  const gs=room.gs;
-  const e=scaleEnemy(tmpl, room.players.filter(p=>p.connected&&p.char&&p.char.alive).length, false, gs.bossCount);
-  e.id=newEnemyId(); e.summoned=true;
-  gs.enemies.push(e);
-  refreshEnemyAuras(gs);
-  return e;
-}
-const MUTATIONS=[
-  {key:'extraArm',  label:'Extra Arm',  desc:'attacks twice'},
-  {key:'thickHide', label:'Thick Hide', desc:'+3 Defence'},
-  {key:'acidBlood', label:'Acid Blood', desc:'hitting it with a weapon burns you for 1d4'},
-  {key:'tentacles', label:'Tentacles',  desc:'its hits Grab you — 1 bane on your next attack'},
-];
-// Called from scaleEnemy for every new enemy.
-function prepareEnemy(e, bossCount){
-  if(e.mutation===true){
-    const m=pickRandom(MUTATIONS);
-    e.mutation=m.key; e.mutationLabel=m.label; e.mutationDesc=m.desc; e.type=`Mutant · ${m.label}`;
-    if(m.key==='extraArm') e.attacks=2;
-    if(m.key==='thickHide') e.ac+=3;
-  }
-  if(e.swarm){ e.attacks=3; e.dmgNum=1; e.dmgSides=3; e.dmgBonus=bossCount||0; }
-}
-// Auras that depend on who else is alive: Skeleton shield wall, Plague Rat Lord.
-function refreshEnemyAuras(gs){
-  const alive=aliveEnemies(gs);
-  const lord=alive.some(e=>e.ratLord);
-  alive.forEach(e=>{
-    e._wallActive=!!(e.shieldWall&&alive.some(o=>o!==e&&o.tags&&o.tags.includes('undead')));
-    const want=(lord&&!e.ratLord&&e.tags&&e.tags.includes('skaven'))?1:0;
-    const delta=want-(e._ratAura||0);
-    if(delta){ e.ac+=delta; e.dmgBonus=(e.dmgBonus||0)+delta; e._ratAura=want; e.dmgDisplay=`${e.dmgNum}d${e.dmgSides}${e.dmgBonus?'+'+e.dmgBonus:''}`; }
-  });
-}
-// Combat start: pairs, escorts and per-fight charm effects.
-function onCombatStart(room){
-  const gs=room.gs;
-  gs.enemies.forEach(e=>{ if(!e.id||/^e\d$/.test(e.id)) e.id=newEnemyId(); });
-  gs.enemies.slice().forEach(e=>{
-    if(e.horde&&!e.summoned&&gs.enemies.length<4){
-      const tmpl=ENEMY_POOLS.low.find(t=>t.name===e.name);
-      const z=summonEnemy(room,{...tmpl,xp:1}); z.isElite=e.isElite;
-      addLog(room,`🧟 Another <strong>Zombie</strong> shambles out of the dark — they come in pairs!`,'dmg');
-    }
-    if(e.ratLord&&gs.enemies.length<5){ summonEnemy(room,SUMMONS.poxRats); addLog(room,`🐀 The <strong>Plague Rat Lord</strong> arrives with a <strong>Pox Rat Swarm</strong>!`,'dmg'); }
-    if(e.mutation&&e.mutationLabel) addLog(room,`🧬 ${e.name} — <strong>${e.mutationLabel}</strong>: ${e.mutationDesc}.`,'chaos');
-  });
-  refreshEnemyAuras(gs);
-  room.players.forEach(p=>{
-    const c=p.char; if(!c||!c.alive) return;
-    const ch=charmKey(c);
-    if(ch==='gamblerDie'){
-      const keys=['str','agi','int','wil']; const up=pickRandom(keys); const down=pickRandom(keys.filter(k=>k!==up));
-      c.attrs[up]+=2; c.attrs[down]-=1; c._gambler={up,down};
-      addLog(room,`🎲 <strong>Gambler's Die</strong> — ${p.name}: +2 ${up.toUpperCase()}, −1 ${down.toUpperCase()} this fight.`,'loot');
-    }
-    if(ch==='boneRosary'){ c.health=Math.max(1,c.health-3); }
-    if(c.equippedArmor&&c.equippedArmor.special&&c.equippedArmor.special.key==='nurgleMask'&&(c._nurgleDrain||0)<12){
-      c._nurgleDrain=(c._nurgleDrain||0)+2; c.maxHealth=Math.max(1,c.maxHealth-2); c.health=Math.min(c.health,c.maxHealth);
-      addLog(room,`🪰 The <strong>Skull-Mask of Nurgle</strong> feeds — ${p.name} loses 2 max HP until they rest.`,'chaos');
-    }
-    c._unwieldyUsed=false; c._shieldBlockUsed=false; c._lensUsed=false; c._rosaryUsed=false; c._hitSinceTurn=false;
-  });
-}
-// Turn order: shambling enemies always act last.
-function sortTurnOrder(gs, order){
-  const rank=s=>{ if(s.type!=='enemy') return 0; const e=(gs.enemies||[]).find(x=>x&&x.id===s.id); return e&&e.shambling?2:1; };
-  return order.map((s,i)=>[s,i]).sort((a,b)=>rank(a[0])-rank(b[0])||a[1]-b[1]).map(x=>x[0]);
-}
-
-// ── Boss telegraphs ──────────────────────────────────────────────────────────
-const TELEGRAPHS={
-  warpGas:   {name:'Warp-Gas Globe', warn:n=>`⚠ <strong>${n}</strong> uncorks a glowing warp-gas globe — next turn it bursts over the whole warband! Stun him to stop it.`},
-  goreCharge:{name:'Gore Charge',    warn:n=>`⚠ <strong>${n}</strong> lowers his horns and paws the ground — next turn he GORES the weakest warrior for triple damage! Taunt, heal or stun him.`},
-  leap:      {name:'Leaping Maul',   warn:n=>`⚠ <strong>${n}</strong> crouches to spring — next turn it leaps on a random warrior for double damage. Taunt cannot stop it; a stun can.`},
-  slam:      {name:'Bonebreaker Slam',warn:n=>`⚠ <strong>${n}</strong> raises both fists — next turn it SLAMS one warrior for triple damage and a stun! Taunt to choose who takes it, or stun it first.`},
-  stomp:     {name:'Primordial Stomp',warn:n=>`⚠ <strong>${n}</strong> rears up on its hind legs — next turn it stomps the whole warband and knocks everyone Prone! Stun it to stop it.`},
-};
-
-// Returns 'done' when the enemy's special replaced its normal attack.
-// Otherwise may return {targets, ignoreTaunt, mult, extraBoon} to shape the attack.
-function enemyPreTurn(room, ae, alive){
-  const gs=room.gs;
-  const plan={};
-  // Hidden/vanished enemies come back at the start of their own turn.
-  if(ae._vanished){ ae._vanished=false; ae._returnBoon=true; addLog(room,`🐀 <strong>${ae.name}</strong> darts out of the shadows!`,'chaos'); }
-  if(ae.hideBehind){
-    const others=aliveEnemies(gs).filter(o=>o!==ae&&!(o._hiding||o._vanished));
-    if(ae.hp<ae.maxHp*0.3&&others.length){
-      if(!ae._hiding) addLog(room,`🐀 <strong>${ae.name}</strong> squeals and cowers behind ${others[0].name} — it can't be targeted while its friends stand!`,'chaos');
-      ae._hiding=true; return 'done';
-    }
-    ae._hiding=false;
-  }
-  if(ae.trollRegen){
-    const burning=(ae.activeDebuffs||[]).some(d=>d.name==='Burn')||ae._burnedThisRound;
-    if(burning) addLog(room,`🔥 ${ae.name}'s wounds are seared — <strong>no regeneration</strong> this turn!`,'spell');
-    else if(ae.hp<ae.maxHp){ const h=rd(1,6)+2; ae.hp=Math.min(ae.maxHp,ae.hp+h); addLog(room,`💚 <strong>Troll Regeneration!</strong> ${ae.name} knits back <strong>${h}</strong> HP. (Fire stops this.)`,'chaos'); }
-    ae._burnedThisRound=false;
-  }
-  if(ae.bloodTithe){
-    const bleeding=alive.filter(p=>(p.char.activeBuffs||[]).some(b=>b.name==='Bleed'));
-    if(bleeding.length&&ae.hp<ae.maxHp){ const h=bleeding.reduce(a=>a+rd(1,4),0); ae.hp=Math.min(ae.maxHp,ae.hp+h); addLog(room,`🩸 <strong>Blood Tithe!</strong> ${ae.name} drinks from ${bleeding.length} bleeding warrior${bleeding.length>1?'s':''} — +${h} HP.`,'chaos'); }
-  }
-  if(ae.sacrifice){
-    const hurt=aliveEnemies(gs).filter(o=>o!==ae&&o.hp<o.maxHp*0.5).sort((a,b)=>a.hp/a.maxHp-b.hp/b.maxHp)[0];
-    if(hurt&&ae.hp>8){
-      ae.hp-=6; const h=rd(2,6); hurt.hp=Math.min(hurt.maxHp,hurt.hp+h);
-      addLog(room,`🪰 <strong>Blood Sacrifice!</strong> ${ae.name} opens its own veins (−6 HP) to heal ${hurt.name} for <strong>${h}</strong>!`,'chaos');
-      return 'done';
-    }
-  }
-  if(ae.pestilentCall&&!ae._pestilentUsed&&gs.roundNumber>=2&&aliveEnemies(gs).length===1&&gs.enemies.length<5){
-    ae._pestilentUsed=true; summonEnemy(room,SUMMONS.poxRats);
-    addLog(room,`🐀 <strong>Pestilent Call!</strong> Left alone, ${ae.name} calls up a <strong>Pox Rat Swarm</strong>!`,'chaos');
-  }
-  if(ae.dominate&&!ae._dominateUsed&&gs.roundNumber>=2){
-    const pool=alive.filter(p=>!(p.char.activeBuffs||[]).some(b=>b.taunting)); const t=pickRandom(pool.length?pool:alive);
-    if(t){ ae._dominateUsed=true; addBuff(t.char,'Dominated',{skipTurn:true},1); addLog(room,`🧛 <strong>Dominate!</strong> ${ae.name} locks eyes with ${t.name} — they lose their next turn!`,'chaos'); }
-  }
-  if(ae.wail&&gs.roundNumber%2===0){
-    addLog(room,`👻 <strong>Banshee's Wail!</strong> ${ae.name} shrieks — the sound cuts through any armour!`,'chaos');
-    alive.forEach(p=>{
-      const dmg=Math.max(1,rd(1,6)+(gs.bossCount||0)-(charmKey(p.char)==='ironTooth'?1:0));
-      p.char.health=Math.max(0,p.char.health-dmg);
-      let ins='';
-      if(Math.random()<0.5&&!resistsInsanity(p.char)){ p.char.insanity=(p.char.insanity||0)+1; ins=' and gains 1 Insanity'; }
-      addLog(room,`&nbsp;↳ ${p.name} takes <strong class="num-dmg">−${dmg}</strong>${ins} → ${p.char.health}/${p.char.maxHealth} HP`,'dmg-taken');
-      checkDeath(room,p);
-    });
-    return 'done';
-  }
-  if(ae.trollVomit&&gs.roundNumber%3===0){
-    const taunter=alive.find(p=>(p.char.activeBuffs||[]).some(b=>b.taunting));
-    const t=taunter||pickRandom(alive);
-    const dmg=rd(2,6)+(gs.bossCount||0)*2;
-    t.char.health=Math.max(0,t.char.health-dmg);
-    addBuff(t.char,'Corroded',{dmgPenalty:1},2);
-    addLog(room,`🤮 <strong>Troll Vomit!</strong> ${ae.name} spews bile over ${t.name} — <strong class="num-dmg">−${dmg}</strong> (ignores armour) and Corroded (−1 damage, 2 rounds) → ${t.char.health}/${t.char.maxHealth} HP`,'dmg-taken');
-    checkDeath(room,t);
-    return 'done';
-  }
-  if(ae.warpLightning&&gs.roundNumber%2===0){
-    if(d(6)===1){
-      const bf=rd(2,6); ae.hp=Math.max(0,ae.hp-bf);
-      addLog(room,`⚡ <strong>Backfire!</strong> ${ae.name}'s warp lightning explodes in its paws — <strong class="num-dmg">−${bf}</strong> → ${ae.hp}/${ae.maxHp} HP`,'crit');
-      if(ae.hp<=0) resolveEnemyDeath(room,ae);
-      return 'done';
-    }
-    addLog(room,`⚡ <strong>Warp Lightning!</strong> ${ae.name} unleashes crackling green bolts at the whole warband!`,'chaos');
-    alive.forEach(p=>{
-      const dmg=Math.max(1,rd(2,6)+(gs.bossCount||0)-(charmKey(p.char)==='ironTooth'?1:0));
-      p.char.health=Math.max(0,p.char.health-dmg);
-      addLog(room,`&nbsp;↳ ${p.name} <strong class="num-dmg">−${dmg}</strong> → ${p.char.health}/${p.char.maxHealth} HP`,'dmg-taken');
-      checkDeath(room,p);
-    });
-    return 'done';
-  }
-  if(ae.ratlingGun){
-    const shots=1+d(3);
-    const taunter=alive.find(p=>(p.char.activeBuffs||[]).some(b=>b.taunting));
-    plan.targets=Array.from({length:shots},()=>taunter||pickRandom(alive));
-    plan.ignoreTaunt=true; plan.attacks=1;
-    addLog(room,`🔫 <strong>Ratling Gun!</strong> ${ae.name} sprays <strong>${shots}</strong> shots at the warband!`,'chaos');
-    if(d(6)===1){ ae._jamNext=true; }
-  }
-  if(ae.assassinTarget){
-    const lowest=alive.slice().sort((a,b)=>a.char.health-b.char.health)[0];
-    if(lowest){ plan.targets=[lowest]; addLog(room,`🗡 ${ae.name} goes for the weakest — <strong>${lowest.name}</strong>!`,'chaos'); }
-  }
-  if(ae._returnBoon){ ae._returnBoon=false; plan.extraBoon=true; }
-  // Boss telegraphs: announce one round, strike the next.
-  if(ae.telegraph&&ae._windup){
-    const kind=ae._windup; ae._windup=null;
-    const T=TELEGRAPHS[kind];
-    addLog(room,`💥 <strong>${T.name}!</strong>`,'crit');
-    if(kind==='warpGas'){
-      alive.forEach(p=>{ if(!immuneToPoison(p.char)) p.char._poisonedStacks=(p.char._poisonedStacks||0)+3; addBuff(p.char,'Choking',{atkBane:1},1); });
-      addLog(room,`☠ Warp-gas engulfs the warband — <strong>3 poison</strong> and 1 bane for everyone!`,'chaos');
-      if(gs.enemies.length<5){ summonEnemy(room,SUMMONS.clanrat); addLog(room,`🐀 A Clanrat scurries out of the gas!`,'chaos'); }
-      return 'done';
-    }
-    const taunter=alive.find(p=>(p.char.activeBuffs||[]).some(b=>b.taunting));
-    if(kind==='goreCharge'){ plan.targets=[taunter||alive.slice().sort((a,b)=>a.char.health-b.char.health)[0]]; plan.mult=3; plan.extraBoon=true; plan.ignoreTaunt=true; }
-    if(kind==='leap'){ plan.targets=[pickRandom(alive)]; plan.mult=2; plan.ignoreTaunt=true; plan.onHit='leapBleed'; }
-    if(kind==='slam'){ plan.targets=[taunter||pickRandom(alive)]; plan.mult=3; plan.ignoreTaunt=true; plan.onHit='slamStun'; }
-    if(kind==='stomp'){ plan.targets=alive.slice(); plan.mult=1.5; plan.ignoreTaunt=true; plan.onHit='prone'; }
-    plan.attacks=1;
-  }
-  return plan;
-}
-// After the enemy's turn: bosses announce their next big attack every third round.
-function enemyPostTurn(room, ae){
-  const gs=room.gs;
-  if(ae.hp<=0) return;
-  if(ae.telegraph&&!ae._windup&&gs.roundNumber%3===2){
-    ae._windup=ae.telegraph;
-    addLog(room,TELEGRAPHS[ae.telegraph].warn(ae.name),'crit');
-  }
-  if(ae._jamNext){ ae._jamNext=false; addDebuff(ae,'Jammed',{skipTurn:true},1); addLog(room,`🔧 <strong>Jammed!</strong> ${ae.name}'s gun seizes — it loses its next turn clearing it.`,'sys'); }
-}
-// Extra damage from the enemy's side, and the player's mitigation from gear.
-function enemyDamageMods(room, ae, p, dmg, r, plan){
-  const gs=room.gs, c=p.char;
-  if(plan&&plan.mult) dmg=Math.round(dmg*plan.mult);
-  if(ae.gore&&(c.activeBuffs||[]).some(b=>b.name==='Bleed')) dmg+=3;
-  if(ae.carrionFeast&&c.health<c.maxHealth*0.5) dmg+=2;
-  if(ae.bullCharge&&gs.roundNumber===1) dmg+=rd(2,6);
-  if(r.crit&&r.critRoll&&armorTraits(c).includes('padded')) dmg=Math.max(1,dmg-r.critRoll);
-  if(charmKey(c)==='ironTooth') dmg=Math.max(1,dmg-1);
-  if(c._armorShieldBlock&&!c._shieldBlockUsed&&dmg>0){ c._shieldBlockUsed=true; addLog(room,`🛡 <strong>Shield Block!</strong> ${p.name}'s kite shield takes the blow.`,'spell'); dmg=0; }
-  return dmg;
-}
-function enemyAfterHit(room, ae, p, dmg, r, plan){
-  const gs=room.gs, c=p.char;
-  c._hitSinceTurn=true;
-  if(c.alive&&ae.paralysingClaws){ addBuff(c,'Paralysed',{bane:1,consumeOnAttack:true},2); addLog(room,`🧟 <strong>Paralysing Claws!</strong> ${p.name} goes numb — 1 bane on their next attack.`,'chaos'); }
-  if(c.alive&&ae.mutation==='tentacles'){ addBuff(c,'Grabbed',{bane:1,consumeOnAttack:true},2); addLog(room,`🐙 <strong>Tentacles!</strong> ${p.name} is grabbed — 1 bane on their next attack.`,'chaos'); }
-  if(c.alive&&ae.barrowChill&&dmg>0&&(c._barrowDrain||0)<10){
-    c._barrowDrain=(c._barrowDrain||0)+2; c.maxHealth=Math.max(1,c.maxHealth-2); c.health=Math.min(c.health,c.maxHealth);
-    addLog(room,`❄ <strong>Barrow Chill!</strong> ${p.name}'s max HP drops by 2 until they rest (−${c._barrowDrain} so far).`,'chaos');
-  }
-  if(ae.cleaveSpill&&dmg>1){
-    const other=pickRandom(alivePlayers(room).filter(q=>q!==p));
-    if(other){ const sp=Math.floor(dmg/2); other.char.health=Math.max(0,other.char.health-sp); addLog(room,`⚔ <strong>Cleave!</strong> The blow carries on into ${other.name} — <strong class="num-dmg">−${sp}</strong> → ${other.char.health}/${other.char.maxHealth} HP`,'dmg-taken'); checkDeath(room,other); }
-  }
-  if(ae.bullCharge&&gs.roundNumber===1&&c.alive){ addBuff(c,'Prone',{bane:1,consumeOnAttack:true},2); }
-  if(ae.vanish&&ae.hp>0&&aliveEnemies(gs).length>1){ ae._vanished=true; addLog(room,`💨 ${ae.name} melts into the shadows — it can't be targeted until its next turn.`,'chaos'); }
-  if(ae.bloodgreedKill&&!c.alive&&ae.hp>0){ ae.hp=ae.maxHp; addLog(room,`🐂 <strong>Bloodgreed!</strong> ${ae.name} roars over the fallen ${p.name} — fully healed!`,'chaos'); }
-  if(plan&&plan.onHit==='leapBleed'&&c.alive){ addBuff(c,'Bleed',{dotDmg:rd(1,3)},2); addBuff(c,'Bleed',{dotDmg:rd(1,3)},2); }
-  if(plan&&plan.onHit==='slamStun'&&c.alive){ addBuff(c,'Stunned',{skipTurn:true},2); addLog(room,`💫 ${p.name} is <strong>STUNNED</strong> by the slam!`,'chaos'); }
-  if(plan&&plan.onHit==='prone'&&c.alive){ addBuff(c,'Prone',{bane:1,consumeOnAttack:true},2); }
-}
-// A player's weapon hit lands on an enemy. Returns the damage that actually applies.
-function enemyOnWeaponHit(room, player, e, dmg){
-  const gs=room.gs;
-  if(e.skirmisher&&!e._dodgeUsed){ e._dodgeUsed=true; addLog(room,`💨 <strong>Skirmisher!</strong> ${e.name} slips aside — the first blow each fight misses!`,'chaos'); return 0; }
-  if(e.coward&&dmg>=10){
-    const rat=aliveEnemies(gs).find(o=>o!==e&&o.name==='Skaven Clanrat');
-    if(rat){
-      rat.hp=Math.max(0,rat.hp-dmg);
-      addLog(room,`🐀 <strong>Coward!</strong> ${e.name} shoves a Clanrat into the blow — it takes <strong class="num-dmg">−${dmg}</strong> → ${rat.hp}/${rat.maxHp} HP`,'chaos');
-      if(rat.hp<=0) resolveEnemyDeath(room,rat);
-      return 0;
-    }
-  }
-  if(e.damageReduction&&dmg>0) dmg=Math.max(1,dmg-e.damageReduction);
-  if(e.mutation==='acidBlood'&&dmg>0&&player.char.alive){
-    const a=rd(1,4); player.char.health=Math.max(0,player.char.health-a);
-    addLog(room,`🧪 <strong>Acid Blood!</strong> ${e.name}'s blood sprays ${player.name} — <strong class="num-dmg">−${a}</strong>`,'chaos'); checkDeath(room,player);
-  }
-  if(e.battleFury&&e.hp-dmg>0&&(e._fury||0)<4){
-    e._fury=(e._fury||0)+1; e.dmgBonus=(e.dmgBonus||0)+1; e.dmgDisplay=`${e.dmgNum}d${e.dmgSides}${e.dmgBonus?'+'+e.dmgBonus:''}`;
-    addLog(room,`😡 <strong>Battle Fury!</strong> ${e.name} grows angrier — +1 damage (+${e._fury}).`,'chaos');
-  }
-  return dmg;
-}
-// Defensive tricks against weapon attack rolls.
-function enemyDefence(char, e){
-  let banes=0, ac=0;
-  if(e._wallActive) ac+=2;
-  if(e.halberdGuard&&!e._guardUsed){ e._guardUsed=true; banes++; }
-  if(e.ethereal&&!weaponIsHoly(char)) banes++;
-  return {banes, ac};
-}
-function onEnemyDeath(room, e){
-  const gs=room.gs;
-  if(e.splitOnDeath){
-    for(let i=0;i<2&&gs.enemies.length<6;i++) summonEnemy(room,SUMMONS.brimstone);
-    addLog(room,`🔥 <strong>${e.name}</strong> bursts apart into <strong>two Brimstone Horrors</strong>!`,'chaos');
-  }
-  if(e.deathCloud){
-    alivePlayers(room).forEach(p=>{ if(!immuneToPoison(p.char)) p.char._poisonedStacks=(p.char._poisonedStacks||0)+2; });
-    addLog(room,`☠ <strong>Plague Censer!</strong> ${e.name}'s censer shatters — every warrior gains 2 poison.`,'chaos');
-  }
-  if(e.rotFeast){
-    aliveEnemies(gs).filter(o=>o!==e&&o.rotFeast).forEach(o=>{ o.dmgBonus=(o.dmgBonus||0)+2; o.hp=Math.min(o.maxHp,o.hp+4); o.dmgDisplay=`${o.dmgNum}d${o.dmgSides}${o.dmgBonus?'+'+o.dmgBonus:''}`; addLog(room,`🧟 <strong>Rot Feast!</strong> ${o.name} gorges on the fallen — +2 damage, +4 HP.`,'chaos'); });
-  }
-}
-
-// ═════════════════════════════════════════════════════════════════════════════
-// ITEM TRAITS, CHARMS AND CURSED GEAR
-// ═════════════════════════════════════════════════════════════════════════════
-const RANGED_KEYS=['openingShot','marksmanship','longbow'];
-function weaponTraits(c){ return (c.equippedWeapon&&c.equippedWeapon.traits)||[]; }
-function armorTraits(c){ return (c.equippedArmor&&c.equippedArmor.traits)||[]; }
-function charmKey(c){ return c&&c.equippedCharm?c.equippedCharm.key:null; }
-function weaponIsHoly(c){
-  const w=c.equippedWeapon; if(!w) return false;
-  const k=w.special&&w.special.key;
-  return weaponTraits(c).includes('blessed')||['blessedStrike','silverEdge','smiteTheFallen','channelFaith','holySmoke'].includes(k);
-}
-function resistsInsanity(c){ return armorTraits(c).includes('warded')||!!c._armorWitchCoat; }
-function immuneToPoison(c){ return !!(c.equippedArmor&&c.equippedArmor.special&&c.equippedArmor.special.key==='nurgleMask'); }
-function isCursed(item){ return !!(item&&(item.cursed||(item.special&&/^Cursed/.test(item.special.desc||'')))); }
-
-// Roll 0–2 traits onto a freshly generated weapon or armour piece.
-function rollTraits(item, kind){
-  const table=kind==='weapon'?WEAPON_TRAITS:ARMOR_TRAITS;
-  const r=Math.random(); const n=r<0.5?0:r<0.85?1:2;
-  const traits=[];
-  for(let i=0;i<n;i++){
-    const good=Math.random()<0.65;
-    const pool=Object.keys(table).filter(k=>table[k].good===good&&!traits.includes(k));
-    if(pool.length) traits.push(pickRandom(pool));
-  }
-  if(!traits.length) return item;
-  item.traits=traits;
-  if(kind==='armor'){
-    if(traits.includes('reinforced')) item.defBonus+=1;
-    if(traits.includes('rusted')) item.defBonus=Math.max(1,item.defBonus-1);
-  }
-  const lead=table[traits[0]].label;
-  item.name=`${lead} ${item.name}`;
-  const tdesc=traits.map(t=>`${table[t].label} (${table[t].desc})`).join(', ');
-  item.desc=(kind==='armor'?`+${item.defBonus} Defense`:item.desc.split(' — ')[0])+(item.special?` — ${item.special.desc}`:'')+` · Traits: ${tdesc}`;
-  if(item.cost) item.cost=Math.max(5,item.cost+traits.reduce((a,t)=>a+(table[t].good?8:-6),0));
-  return item;
-}
-function makeCharm(key){
-  const C=CHARMS[key];
-  return {id:'c'+uuidv4(),type:'charm',key,name:C.name,desc:C.desc,cursed:!!C.cursed,cost:0,sellCost:3,bought:false};
-}
-function makeCursedGear(key){
-  const g=CURSED_GEAR[key];
-  if(g.type==='weapon') return {id:'w'+uuidv4(),type:'weapon',name:g.name,dice:g.dice,stat:g.stat,bonus:g.bonus,dmgType:g.dmgType,special:g.special,cursed:true,cost:0,sellCost:3,bought:false,desc:`${g.dice}+${g.bonus} · ${g.stat.toUpperCase()} · ${g.dmgType} — ${g.special.desc}`};
-  const def=g.def+d(2);
-  return {id:'a'+uuidv4(),type:'armor',name:g.name,defBonus:def,special:g.special,cursed:true,cost:0,sellCost:3,bought:false,desc:`+${def} Defense — ${g.special.desc}`};
-}
-function makeCursedItem(key){ return CHARMS[key]?makeCharm(key):makeCursedGear(key); }
-function applyCharm(c, charm, on){
-  if(!charm) return;
-  const C=CHARMS[charm.key]||{};
-  const s=on?1:-1;
-  if(C.defMod) c.defense+=s*C.defMod;
-  if(charm.key==='warpAmulet'){ c.power=Math.max(0,(c.power||0)+s); }
-  if(charm.key==='tzeentchLens'){
-    if(on){ const cut=Math.floor(c.maxHealth*0.25); c._lensDrain=cut; c.maxHealth-=cut; c.health=Math.min(c.health,c.maxHealth); }
-    else { c.maxHealth+=(c._lensDrain||0); c._lensDrain=0; }
-  }
-}
-// Rest at a campfire (or Sigmar's Token): lift curse locks and undo lingering drains.
-function cleanseCurses(c, full){
-  if(c._curseLock) c._curseLock={};
-  if(full){
-    if(c._barrowDrain){ c.maxHealth+=c._barrowDrain; c._barrowDrain=0; }
-    if(c._nurgleDrain){ c.maxHealth+=c._nurgleDrain; c._nurgleDrain=0; }
-  }
-}
-// End of each combat round: trickle effects from gear.
-function gearRoundTick(room){
-  alivePlayers(room).forEach(p=>{
-    const c=p.char;
-    if((armorTraits(c).includes('sanctified')||charmKey(c)==='grailToken')&&c.health<c.maxHealth) c.health=Math.min(c.maxHealth,c.health+1);
-    if(c.equippedArmor&&c.equippedArmor.special&&c.equippedArmor.special.key==='shroudFlies'&&c.health>1) c.health-=1;
-  });
-}
-// Per-fight cleanup for charm/trait state.
-function resetGearCombatState(c){
-  if(c._gambler){ c.attrs[c._gambler.up]-=2; c.attrs[c._gambler.down]+=1; c._gambler=null; }
-  c._unwieldyUsed=false; c._shieldBlockUsed=false; c._lensUsed=false; c._rosaryUsed=false; c._lotusHits=0; c._hitSinceTurn=false;
-}
-// Enemy attack-roll modifiers that come from the player's gear.
-function gearVsEnemyAttack(enemy, c, room){
-  let atk=0, banes=0;
-  const ch=charmKey(c);
-  if(ch==='wolfTotem') atk+=1;
-  if(ch==='morrFeather'&&enemy.tags&&enemy.tags.includes('undead')) banes++;
-  if(c.equippedArmor&&c.equippedArmor.special&&c.equippedArmor.special.key==='shroudFlies') banes++;
-  if(armorTraits(c).includes('creaking')&&room&&room.gs&&room.gs.roundNumber===1) atk+=1;
-  if(enemy.skirmisher&&c.equippedWeapon&&c.equippedWeapon.special&&RANGED_KEYS.includes(c.equippedWeapon.special.key)) banes++;
-  return {atk,banes};
-}
+// Enemy mechanics, gear rules and shared helpers live in game/.
+const { pickRandom, aliveEnemies } = require('./game/util');
+const gear = require('./game/gear');
+const { applyCharm, armorTraits, charmKey, cleanseCurses, gearRoundTick, gearVsEnemyAttack, immuneToPoison, isCursed, makeCharm, makeCursedItem, resetGearCombatState, resistsInsanity, rollTraits, weaponTraits } = gear;
+const events = require('./game/events');
+const enemies = require('./game/enemies');
+const { enemyAfterHit, enemyDamageMods, enemyDefence, enemyOnWeaponHit, enemyPostTurn, enemyPreTurn, isEnemyHidden, onCombatStart, onEnemyDeath, prepareEnemy, refreshEnemyAuras, sortTurnOrder } = enemies;
+enemies.bind({ addLog, addBuff, addDebuff, checkDeath, resolveEnemyDeath, scaleEnemy });
+events.bind({ addLog, addBuff, checkDeath, addToInventory, makeCharm: gear.makeCharm, makeCursedItem: gear.makeCursedItem });
 
 // ─── CHARACTER BUILDER ───────────────────────────────────────────────────────
 function buildChar(career) {
@@ -653,7 +292,7 @@ function buildChar(career) {
     elementalAttunement:false, _volatileFormUsed:false,
     ballLightning:false, overcharge:false, _overchargeUsed:false,
     // Necro talents
-    lifeDrain:false, arcaneSurge:false, _arcaneSurgeUsed:false, spellLeech:false, undyingHunger:false, chaosTouch:false, _chaosTouchActive:false,
+    lifeDrain:false, arcaneSurge:false, _arcaneSurgeUsed:false, spellLeech:false, glamourVeil:false, _glamourUsed:false, misdirection:false, _misdirectArmed:false, undyingHunger:false, chaosTouch:false, _chaosTouchActive:false,
     uncontrolledPower:false, _uncontrolledPowerUsed:false,
     // Protection talents
     counterspell:false, _counterspellUsed:false, ward:false, doubleCharge:false,
@@ -849,6 +488,7 @@ function rollEnemyAttack(enemy, char, hasBoon=false, room=null) {
   const skipDebuff=(enemy.activeDebuffs||[]).find(d=>d.skipTurn);
   if(skipDebuff){ skipDebuff.duration--; if(skipDebuff.duration<=0) enemy.activeDebuffs=enemy.activeDebuffs.filter(d=>!d.skipTurn); return {hit:false,crit:false,dmg:0,dmgRoll:0,critRoll:0,total:0,base:0,skipped:true}; }
   if((char.activeBuffs||[]).some(b=>b.immuneThisRound)){ return {hit:false,crit:false,dmg:0,dmgRoll:0,critRoll:0,total:0,base:0,skipped:true,immune:true}; }
+  if(char.glamourVeil&&!char._glamourUsed){ char._glamourUsed=true; if(room) addLog(room,`🪞 <strong>Glamour Veil!</strong> ${enemy.name} strikes an illusion — the attack passes harmlessly through.`,'spell'); return {hit:false,crit:false,dmg:0,dmgRoll:0,critRoll:0,total:0,base:0,boonInfo:' (Glamour Veil)'}; }
   const evasionBane=char.evasion?1:0;
   const poisonBane=(enemy&&enemy._poisonStacks&&enemy._poisonStacks>=5)?1:0; // Poison threshold: 5+ stacks
   const packScornBane=char._armorPackScorn&&enemy&&enemy.tags&&enemy.tags.includes('skaven')?1:0;
@@ -885,6 +525,7 @@ function rollEnemyAttack(enemy, char, hasBoon=false, room=null) {
     if (char.toughness) dmg=Math.max(0,Math.floor(dmg*0.9));
     dmg=Math.max(1,dmg);
   }
+  if(!hit && char.misdirection) char._misdirectArmed=true;
   if(!hit && enemy && enemy.activeDebuffs){
     enemy.activeDebuffs=enemy.activeDebuffs.filter(d=>!d.consumeOnMiss);
   }
@@ -1175,9 +816,12 @@ function _runNodeContent(room, gs, nodeType, playerCount) {
       const tag=isBoss?'⚠ BOSS — ':isElite?'Elite — ':'';
       addLog(room,`⚔ ${tag}<strong>${e.name}</strong> appears! DMG: ${e.dmgDisplay}`,'dmg');
     }
+    const diff=DIFFICULTIES[gs.difficulty||0];
+    if(diff.id>0) gs.enemies.forEach(e=>{ e.maxHp=Math.round(e.maxHp*diff.hp); e.hp=e.maxHp; e.dmgBonus=(e.dmgBonus||0)+diff.dmg; e.dmgDisplay=`${e.dmgNum}d${e.dmgSides}${e.dmgBonus?'+'+e.dmgBonus:''}`; });
     if(gs._nextCombatHalfHP){ gs._nextCombatHalfHP=false; gs.enemies.forEach(e=>{e.hp=Math.ceil(e.hp/2); e.maxHp=e.hp;}); addLog(room,`🔴 Ritual disruption — enemies enter at half HP!`,'chaos'); }
     gs.inCombat=true; gs.phase='combat'; gs.playersActedThisRound=[]; gs.enemyHasActed=false; gs.roundNumber=1;
     onCombatStart(room);
+    startSpoils(room);
     // Castings refill at the start of every fight (spells of the same rank share one pool)
     room.players.forEach(p=>{ if(p.char&&p.char.alive&&p.char.knownSpells&&p.char.knownSpells.length) restoreCastingPools(p.char); });
     room.players.filter(p=>p.char&&p.char.alive&&p.char.preparedSpell).forEach(p=>{
@@ -1191,6 +835,7 @@ function _runNodeContent(room, gs, nodeType, playerCount) {
     buildTurnOrder(room);
     const _ft=gs.turnOrder[0];
     addLog(room,`--- Round 1 begins --- ${_ft?_ft.name+"'s turn":'Warriors act'} ---`,'sys');
+    if(_ft&&_ft.type==='enemy'){ gs.activeTurnIdx=-1; advanceTurn(room); } // enemy has the first strike
     return;
   }
   if(nodeType==='rest') {
@@ -1243,6 +888,7 @@ function _runNodeContent(room, gs, nodeType, playerCount) {
     if(r<=2){ startNodeContent(room,'combat'); return; }
     else if(r<=4){ startNodeContent(room,'loot'); return; }
     else if(r<=5){ startNodeContent(room,'rest'); return; }
+    else if(d(2)===1){ events.startChoiceEvent(room); }
     else { resolveUnknownEvent(room); }
     return;
   }
@@ -1321,20 +967,7 @@ function resolveUnknownEvent(room){
     addLog(room,`🌊 <strong>The Whispering Well.</strong> All spellcasters gain +1 Power. Non-spellcasters gain 5 gold. All are Shaken — 1 bane on next attack.`,'loot');
     return;
   }
-  if(roll===11){
-    // Chaos Ritual Site
-    addLog(room,`🔴 <strong>Chaos Ritual Site!</strong> An active ritual pulses. Choose: disrupt (each warrior takes 1d6 damage, next enemy starts at half HP) or leave (one ally gains +1 Power).`,'chaos');
-    const disrupt=Math.random()<0.5;
-    if(disrupt){
-      alive.forEach(p=>{const dmg=rd(1,6);p.char.health=Math.max(0,p.char.health-dmg);addLog(room,`${p.name} takes ${dmg} chaos damage disrupting the ritual.`,'chaos');checkDeath(room,p);});
-      gs._nextCombatHalfHP=true;
-      addLog(room,`Ritual disrupted — next enemy enters at half HP!`,'sys');
-    } else {
-      const pw=alive[Math.floor(Math.random()*alive.length)];
-      pw.char.power+=1; addLog(room,`${pw.name} absorbs the ritual energy — +1 Power permanently.`,'loot');
-    }
-    return;
-  }
+  if(roll===11){ events.startChoiceEvent(room,'chaosRitual'); return; }
   if(roll===12){
     // Injured Survivor
     const cost=15;
@@ -1424,6 +1057,11 @@ function buildTurnOrder(room) {
     order.push({ type: 'enemy', id: e.id || e.name, name: e.name });
   });
   gs.turnOrder = sortTurnOrder(gs, order);
+  if (gs._enemiesFirst) { // an event gave the enemy the first strike
+    gs._enemiesFirst = false;
+    gs.turnOrder = [...gs.turnOrder.filter(t => t.type === 'enemy'), ...gs.turnOrder.filter(t => t.type !== 'enemy')];
+    addLog(room, '⚠ The enemy strikes first!', 'dmg');
+  }
   gs.activeTurnIdx = 0;
 }
 
@@ -1869,8 +1507,9 @@ function fireEnemyTurn(room, ae) {
   if (ae.packBoss) {
     const ratio = ae.hp / ae.maxHp;
     const threshold = ratio < 0.6 && !ae._pack60 ? '_pack60' : ratio < 0.3 && !ae._pack30 ? '_pack30' : null;
-    if (threshold && gs.enemies && gs.enemies.length < 5) {
-      ae[threshold] = true;
+    const _ap = room.players.filter(p=>p.char&&p.char.alive).length;
+    if (threshold) ae[threshold] = true;
+    if (threshold && gs.enemies && gs.enemies.length < 5 && aliveEnemies(gs).length <= _ap) {
       const clanrat = scaleEnemy({name:'Skaven Clanrat',type:'Skaven',threat:'Low',hp:13,ac:11,atk:0,xp:0,gold:[0,0],tags:['skaven'],packInstinct:true},
         room.players.filter(p=>p.connected&&p.char&&p.char.alive).length, false, gs.bossCount);
       clanrat.id='pack_'+Date.now(); gs.enemies.push(clanrat);
@@ -1931,6 +1570,11 @@ function checkDeath(room, player) {
       addLog(room,`📿 <strong>Bone Rosary!</strong> The beads crack — ${player.name} clings on at 1 HP!`,'heal');
       return;
     }
+    if(player.char._morrWard&&room.gs.inCombat){
+      player.char._morrWard=false; player.char.health=1;
+      addLog(room,`🕯 <strong>Morr turns away.</strong> ${player.name} should have died — and stands at 1 HP.`,'heal');
+      return;
+    }
     if(room.players.some(p=>p.char&&p.char.alive&&p.char.grace&&!p.char._graceUsed&&p.id!==player.id)){
       const graceUser=room.players.find(p=>p.char&&p.char.alive&&p.char.grace&&!p.char._graceUsed&&p.id!==player.id);
       if(graceUser){ graceUser.char._graceUsed=true; player.char.health=1; addLog(room,`🕊 <strong>Grace!</strong> ${graceUser.name}'s faith catches ${player.name} — survives at 1 HP!`,'heal'); return; }
@@ -1957,6 +1601,52 @@ function checkDeath(room, player) {
       addLog(room,`🌑 <strong>Shroud of Undeath!</strong> ${player.name} rises from death at ${player.char.health} HP!`,'chaos');
     }
   }
+}
+
+// ─── BATTLE SPOILS & AFTERMATH ───────────────────────────────────────────────
+// XP and silver earned in a fight are banked here and only paid out when the
+// fight ends, so levelling up and path choices happen after the battle, followed
+// by a short summary screen ("aftermath") that every player confirms.
+function invCounts(char){ const m={}; (char.inventory||[]).forEach(i=>{ m[i.name]=(m[i.name]||0)+(i.qty||1); }); return m; }
+function startSpoils(room){
+  const gs=room.gs;
+  gs.spoils={ xp:{}, silver:{}, enemies:[], inv:{}, rounds:0 };
+  room.players.forEach(p=>{ if(p.char) gs.spoils.inv[p.id]=invCounts(p.char); });
+  return gs.spoils;
+}
+function finishCombat(room, outcome){
+  const gs=room.gs, sp=gs.spoils; gs.spoils=null;
+  if(!sp) return;
+  const rewards={};
+  room.players.forEach(p=>{
+    if(!p.char) return;
+    const mult=DIFFICULTIES[gs.difficulty||0].reward;
+    const xp=Math.round((sp.xp[p.id]||0)*mult), silver=Math.round((sp.silver[p.id]||0)*mult);
+    p.char.xp+=xp; p.char.gold+=silver;
+    const before=sp.inv[p.id]||{}, now=invCounts(p.char), items=[];
+    Object.entries(now).forEach(([n,q])=>{ const gained=q-(before[n]||0); if(gained>0) items.push(gained>1?`${n} ×${gained}`:n); });
+    const levelUps=[];
+    for(let guard=0;guard<10;guard++){
+      const lv=checkLevelUp(p.char); if(!lv.leveled) break;
+      levelUps.push({level:lv.newLevel,hp:lv.hpGain});
+      addLog(room,`🌟 ${p.name} reaches <strong>Level ${lv.newLevel}</strong>! (+${lv.hpGain} max HP)${p.char.pendingLevelUp?' — choose a path!':''}`,'spell');
+      if(p.char.pendingLevelUp) break;
+    }
+    rewards[p.id]={ name:p.name, xp, silver, items, levelUps, choosePath:!!p.char.pendingLevelUp, hp:p.char.health, maxHp:p.char.maxHealth };
+  });
+  const totalXp=Object.values(rewards).reduce((a,r)=>Math.max(a,r.xp),0);
+  if(totalXp>0||outcome==='won') addLog(room,`⚔ Battle ${outcome==='won'?'won':'escaped'} — spoils divided.`,'loot');
+  if(gs.depth>=30||gs.bossCount>=3) return; // the end screen takes over
+  gs.aftermath={ outcome, enemies:sp.enemies, rewards, ready:[] };
+  gs.phase='aftermath';
+}
+function aftermathReady(room){
+  const gs=room.gs; if(gs.phase!=='aftermath'||!gs.aftermath) return;
+  const here=room.players.filter(p=>p.char&&p.connected);
+  if(!here.every(p=>gs.aftermath.ready.includes(p.id))) return;
+  gs.aftermath=null; gs.phase='event';
+  if(gs.depth>=30){ gs.phase='victory'; addLog(room,'🏆 The warband conquers the depths! FOR SIGMAR!','crit'); return; }
+  showPathChoices(room);
 }
 
 function resolveEnemyDeath(room, deadEnemy) {
@@ -2003,7 +1693,7 @@ function resolveEnemyDeath(room, deadEnemy) {
     goldTotal=e.gold?Math.floor((e.gold[0]+Math.floor(Math.random()*(e.gold[1]-e.gold[0]+1)))*0.5):0;
   }
   const goldEach=Math.floor(goldTotal/Math.max(1,survivors.length));
-  addLog(room,`Each survivor: +<strong>${xpEach} XP</strong>, +<strong>${goldEach} silver</strong>.`,'loot');
+
   if(e.threat==='Boss'){
     const bossIdx=gs.bossCount; // 0 = boss1 just killed, 1 = boss2, 2 = boss3
     gs.bossCount++;
@@ -2013,17 +1703,13 @@ function resolveEnemyDeath(room, deadEnemy) {
       addLog(room,`🏆 <strong>${p.name}</strong> claims <em style="color:#e8c050">${leg.name}</em> — ${leg.desc}`,'loot');
     });
   }
+  // XP and silver are banked in the battle's spoils and paid out when the fight ends.
+  const sp=gs.spoils||startSpoils(room);
+  sp.enemies.push(e.name);
   survivors.forEach(p=>{
-    p.char.xp+=xpEach;
-    p.char.gold+=charmKey(p.char)==='ranaldCoin'?Math.floor(goldEach*1.5):goldEach;
-    if(!_combatOver){ // other enemies still standing: pay out, but keep once-per-combat state
-      const lv=checkLevelUp(p.char);
-      if(lv.leveled) addLog(room,`🌟 ${p.name} reaches <strong>Level ${lv.newLevel}</strong>! (+${lv.hpGain} max HP)${p.char.pendingLevelUp?' — Choose a path!':''}`, 'spell');
-      return;
-    }
-    resetCombatState(p);
-    const lv=checkLevelUp(p.char);
-    if(lv.leveled) addLog(room,`🌟 ${p.name} reaches <strong>Level ${lv.newLevel}</strong>! (+${lv.hpGain} max HP)${p.char.pendingLevelUp?' — Choose a path!':''}`, 'spell');
+    sp.xp[p.id]=(sp.xp[p.id]||0)+xpEach;
+    sp.silver[p.id]=(sp.silver[p.id]||0)+(charmKey(p.char)==='ranaldCoin'?Math.floor(goldEach*1.5):goldEach);
+    if(_combatOver) resetCombatState(p);
   });
   rollEnemyDrop(e, room);
   gs.enemies=(gs.enemies||[]).filter(en=>en!==e&&en.hp>0);
@@ -2038,6 +1724,7 @@ function resolveEnemyDeath(room, deadEnemy) {
   gs._nextCombatHalfHP=false;
   gs.inCombat=false; gs.enemy=null; gs.enemies=[]; gs.phase='event';
   gs.playersActedThisRound=[]; gs.enemyHasActed=false; gs.packCooldown=0;
+  finishCombat(room,'won');
   if(gs.depth>=30){gs.phase='victory';addLog(room,'🏆 The Saurian Ancient falls! The warband conquers the depths! FOR SIGMAR!','crit');broadcastState(room.code);return;}
   else if(gs.bossCount>=3){gs.phase='victory';addLog(room,'🏆 The warband conquers the depths! FOR SIGMAR!','crit');broadcastState(room.code);return;}
 }
@@ -2047,7 +1734,7 @@ function resetCombatState(p){
     resetGearCombatState(p.char);
     if(p.char._vigorBonus){ p.char.maxHealth-=p.char._vigorBonus; p.char.health=Math.min(p.char.health,p.char.maxHealth); p.char._vigorBonus=0; } // Vigor lasts one combat
     p.char.sharpeningStone=false;
-    p.char.divineSmiteUsed=false;
+    p.char.divineSmiteUsed=false; p.char._divineSmiteCount=0;
     p.char.spellsurgeUsed=false;
     p.char.pacedStrikesUsed=false;
     p.char.catchBreathUsed=false;
@@ -2088,7 +1775,7 @@ function resetCombatState(p){
     p.char._evilEyeUsed=false;
     p.char._foresightUsed=false;
     p.char._revelationUsed=false;
-    p.char._shieldBashUsed=false; p.char._curseUsed=false; p.char._arcaneSurgeUsed=false; p.char._volatileFormUsed=false; p.char._tauntReadyRound=0; if(p.char.activeBuffs) p.char.activeBuffs=p.char.activeBuffs.filter(b=>!b.taunting); p.char._entangleUsed=false; p.char._freeCastArmed=false;
+    p.char._shieldBashUsed=false; p.char._curseUsed=false; p.char._arcaneSurgeUsed=false; p.char._glamourUsed=false; p.char._misdirectArmed=false; p.char._volatileFormUsed=false; p.char._tauntReadyRound=0; if(p.char.activeBuffs) p.char.activeBuffs=p.char.activeBuffs.filter(b=>!b.taunting); p.char._entangleUsed=false; p.char._freeCastArmed=false;
       p.char._smokeScreenUsed=false;
       p.char._quickstrikeUsed=false;
       p.char._shadowOpeningUsed=false;
@@ -2533,6 +2220,17 @@ function handleMessage(ws,msg){
     sendTo(ws,{type:'ROOM_JOINED',payload:{code,playerId}});
     broadcastState(code); return;
   }
+  if(type==='REJOIN'){
+    const code=String((payload&&payload.code)||'').toUpperCase(), room=rooms.get(code);
+    const player=room&&room.players.find(p=>p.id===(payload&&payload.playerId));
+    if(!player){ sendTo(ws,{type:'REJOIN_FAILED'}); return; }
+    if(player.ws&&player.ws!==ws){ clients.delete(player.ws); try{ player.ws.close(); }catch(e){} }
+    player.ws=ws; player.connected=true; clients.set(ws,{roomCode:code,playerId:player.id});
+    sendTo(ws,{type:'ROOM_JOINED',payload:{code,playerId:player.id,rejoined:true}});
+    if(room.gs.phase!=='lobby') addLog(room,`${player.name} rejoins the warband.`,'sys');
+    resumeRoom(room);
+    broadcastState(code); return;
+  }
   if(type==='SELECT_CAREER'){
     if(!ctx)return; const room=rooms.get(ctx.roomCode); if(!room)return;
     const player=room.players.find(p=>p.id===ctx.playerId); if(!player)return;
@@ -2543,7 +2241,14 @@ function handleMessage(ws,msg){
     const _noviceId=_careerToNovice[payload.career]||'warrior';
     applyNovicePath(player.char, _noviceId);
     player.char.pendingLevelUp=false; // novice already applied
+    const sc=payload.startingCharm;
+    if(sc&&CHARM_SHOP_KEYS.includes(sc)){ const ch=gear.makeCharm(sc); player.char.inventory.push({name:ch.name,qty:1,type:'charm',itemObj:ch,sellCost:3}); equipItem(player.char,player.char.inventory.length-1); }
     broadcastState(ctx.roomCode); return;
+  }
+  if(type==='SET_DIFFICULTY'){
+    if(!ctx)return; const room=rooms.get(ctx.roomCode); if(!room||room.gs.phase!=='lobby'||room.hostId!==ctx.playerId)return;
+    const lvl=Number(payload&&payload.level); if(!DIFFICULTIES[lvl])return;
+    room.gs.difficulty=lvl; broadcastState(ctx.roomCode); return;
   }
   if(type==='PLAYER_READY'){
     if(!ctx)return; const room=rooms.get(ctx.roomCode); if(!room)return;
@@ -2666,6 +2371,12 @@ function handlePlayerAction(room,playerId,payload,ws){
     if(result)addLog(room,`${player.name}: ${result}.`,'loot');
     return;
   }
+  if(action==='CHOOSE_EVENT'){ events.voteChoice(room,playerId,data&&data.option); return; }
+  if(action==='CONTINUE_AFTERMATH'){
+    if(gs.phase!=='aftermath'||!gs.aftermath) return;
+    if(!gs.aftermath.ready.includes(playerId)) gs.aftermath.ready.push(playerId);
+    aftermathReady(room); return;
+  }
   if(action==='PRESS_ONWARD'){
     if(gs.phase!=='event') return;
     if(gs.depth>=30){gs.phase='victory';addLog(room,'🏆 The warband conquers the depths! FOR SIGMAR!','crit');return;}
@@ -2741,7 +2452,7 @@ function handlePlayerAction(room,playerId,payload,ws){
       room.players.forEach(p=>{ if(!p.char) return;
         if(!p.char.alive||p.char.pendingRevive){ p.char.health=Math.max(1,p.char.health); p.char.alive=true; p.char.pendingRevive=false; addLog(room,`${p.name} is dragged away by the warband — 1 HP.`,'heal'); }
         resetCombatState(p); });
-      addLog(room,'Warband escapes. Press onward.','sys');return;
+      finishCombat(room,'fled'); addLog(room,'Warband escapes.','sys');return;
     } else {addLog(room,`${player.name} fails to flee (${total}<DC10).`,'sys');acted=true;}
   }
 
@@ -3266,6 +2977,7 @@ function actCastSpell({room,playerId,data,ws,player,gs,char}){
       // overload is now a USE_TALENT active (see USE_TALENT handler)
       if(char._uncontrolledPowerArmed){ char._uncontrolledPowerArmed=false; total*=2; const bk=rd(1,6); char.health=Math.max(0,char.health-bk); addLog(room,`🌪 <strong>Uncontrolled Power!</strong> ${player.name} takes ${bk} backlash!`,'chaos'); }
       if(char.resonance&&((spellTarget._poisonStacks||0)>0||(spellTarget.activeDebuffs||[]).some(d=>d.name==='Bleed'||d.name==='Burn'))){ total+=rd(1,6); addLog(room,`💥 <strong>Resonance!</strong> +1d6 on afflicted target.`,'spell'); }
+      if(char._misdirectArmed&&spell.type==='attack'){ char._misdirectArmed=false; const _md=rd(1,6); total+=_md; addLog(room,`🎭 <strong>Misdirection!</strong> The foe overreached — +${_md} damage.`,'spell'); }
       if(char.arcaneSurge&&!char._arcaneSurgeUsed&&spell.type==='attack'){ char._arcaneSurgeUsed=true; const _as=rd(1,6); total+=_as; addLog(room,`✴ <strong>Arcane Surge!</strong> ${player.name}'s opening spell surges — +${_as} damage!`,'spell'); }
       if(spell.lifeLeech){const heal=Math.floor(total/4);char.health=Math.min(char.maxHealth,char.health+heal);addLog(room,`${player.name} leeches ${heal} HP (¼)!`,'heal');}
       const spellTradKey=Object.keys(TRADITIONS).find(k=>TRADITIONS[k].spells&&TRADITIONS[k].spells.some(s=>s.name===spell.name));
@@ -3484,7 +3196,7 @@ function actUseTalent({room,playerId,data,ws,player,gs,char}){
   else if(t==='nimbleRecovery'){if(char.nimbleUsed){addLog(room,`${player.name}: already used.`,'sys');return;}char.nimbleUsed=true;const h=talentHeal(char);char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} uses Nimble Recovery — +<strong>${h}</strong> HP (1d6+attr×2).`,'heal');}
   else if(t==='sharedRecovery'){if(char.sharedUsed){addLog(room,`${player.name}: already used.`,'sys');return;}char.sharedUsed=true;room.players.filter(p=>p.char&&p.char.alive).forEach(p=>{const h=talentHeal(char);p.char.health=Math.min(p.char.maxHealth,p.char.health+h);});addLog(room,`${player.name} uses Shared Recovery — all allies healed 1d6+attr×2 HP!`,'heal');}
   else if(t==='spellRecovery'){if(char.spellRecoveryUsed){addLog(room,`${player.name}: already used.`,'sys');return;}char.spellRecoveryUsed=true;const h=talentHeal(char);char.health=Math.min(char.maxHealth,char.health+h);if(char.castingPools){char.knownSpells.filter(sp=>sp.rank===0).forEach(sp=>{char.castingPools['R'+sp.rank]=maxCastings(char.power,0);});} addLog(room,`${player.name} uses Spell Recovery — +<strong>${h}</strong> HP + all rank-0 castings restored!`,'spell');}
-  else if(t==='divineSmite'){if((char._divineSmiteCount||0)>=2){addLog(room,`${player.name}: Divine Smite used 2/2.`,'sys');return;}char._divineSmiteCount=(char._divineSmiteCount||0)+1;const _te=getTargetEnemy(gs);if(!_te)return;
+  else if(t==='divineSmite'){if((char._divineSmiteCount||0)>=2){addLog(room,`${player.name}: Divine Smite used 2/2.`,'sys');return;}char._divineSmiteCount=(char._divineSmiteCount||0)+1;if(char._divineSmiteCount>=2)char.divineSmiteUsed=true;const _te=getTargetEnemy(gs);if(!_te)return;
     const isEvil=_te.undead||_te.chaos||(_te.tags&&(_te.tags.includes('undead')||_te.tags.includes('chaos')));
     const smiteDice=char.wrathOfSigmar?6:3;
     const smiteRoll=rollAttack(char,_te,0);
@@ -3599,7 +3311,7 @@ function actUseTalent({room,playerId,data,ws,player,gs,char}){
   else if(t==='divineFavour'){ char._divineFavourUsed=true;
     char.catchBreathUsed=false;char.nimbleUsed=false;char.sharedUsed=false;char.spellRecoveryUsed=false;
     char.resurrectionUsed=false;char.massHealUsed=false;char._shieldBashUsed=false;char._darkPactUsed=false;char._triageUsed=false;
-    if((char._divineSmiteCount||0)>0)char._divineSmiteCount--;
+    if((char._divineSmiteCount||0)>0)char._divineSmiteCount--;char.divineSmiteUsed=false;
     regainCasting(char,0);
     addLog(room,`🙏 <strong>Divine Favour!</strong> ${player.name} — all 1×/combat abilities refreshed + 1 rank-0 casting!`,'spell');
     acted=true;
@@ -3726,17 +3438,48 @@ function triggerGameover(room){
   },3500);
 }
 
-function broadcastState(roomCode){const room=rooms.get(roomCode);if(!room)return;const data=JSON.stringify({type:'STATE_UPDATE',payload:publicState(room)});room.players.forEach(p=>{if(p.ws.readyState===1)p.ws.send(data);});}
+function broadcastState(roomCode){const room=rooms.get(roomCode);if(!room)return;room.touchedAt=Date.now();persist.scheduleSave(rooms);const data=JSON.stringify({type:'STATE_UPDATE',payload:publicState(room)});room.players.forEach(p=>{if(p.ws&&p.ws.readyState===1)p.ws.send(data);});}
 
 // When someone drops, re-check anything that was waiting on them
 function unblockAfterDisconnect(room, player){
   const gs=room.gs;
   const here=room.players.filter(p=>p.char&&p.char.alive&&p.connected);
   if(!here.length) return;
-  if(gs.phase==='path'&&gs.pathChoices&&here.every(p=>gs.pathVotes[p.id])) resolvePath(room);
+  if(gs.phase==='aftermath') aftermathReady(room);
+  else if(gs.phase==='choice'&&gs.choice&&here.every(p=>gs.choice.votes[p.id])) events.resolveChoice(room);
+  else if(gs.phase==='path'&&gs.pathChoices&&here.every(p=>gs.pathVotes[p.id])) resolvePath(room);
   else if(gs.phase==='loot'&&gs.lootRoom&&here.every(p=>gs.lootPicked.includes(p.id))){ gs.phase='event'; gs.lootRoom=null; addLog(room,'Loot divided. Press onward.','sys'); }
   else if(gs.phase==='merchant'&&!here.some(p=>p.char.merchantStock)){ gs.phase='event'; addLog(room,'The warband leaves the merchant.','sys'); }
   else if(gs.phase==='combat'&&gs.inCombat){ const cur=getCurrentTurn(gs); if(cur&&cur.type==='player'&&cur.id===player.id) advanceTurn(room); }
+}
+
+// ─── SAVED ROOMS ──────────────────────────────────────────────────────────────
+// Rooms come back from disk after a restart with everyone disconnected; players
+// reclaim their seat with REJOIN. A fight that was mid enemy-turn resumes then.
+function restoreRooms(){
+  persist.loadRooms().forEach(r=>{
+    const room={code:r.code,hostId:r.hostId,touchedAt:r.touchedAt,gs:r.gs,_needsResume:true,
+      players:r.players.map(p=>({...p,ws:null,connected:false}))};
+    if(room.gs.phase==='dying') room.gs.phase='gameover';
+    rooms.set(room.code,room);
+  });
+  if(rooms.size) console.log(`Restored ${rooms.size} saved room(s).`);
+}
+function resumeRoom(room){
+  if(!room._needsResume) return;
+  room._needsResume=false;
+  const gs=room.gs;
+  if(gs.inCombat&&gs.phase==='combat'){
+    const cur=getCurrentTurn(gs);
+    if(cur&&cur.type==='enemy'){ gs.activeTurnIdx=Math.max(-1,(gs.activeTurnIdx||0)-1); advanceTurn(room); }
+  }
+}
+// Drop rooms that have been empty for a long time.
+function sweepRooms(){
+  const now=Date.now();
+  for(const [code,room] of rooms){
+    if(!room.players.some(p=>p.connected)&&now-(room.touchedAt||0)>persist.MAX_AGE_MS) rooms.delete(code);
+  }
 }
 
 wss.on('connection',ws=>{
@@ -3745,10 +3488,21 @@ wss.on('connection',ws=>{
     const ctx=clients.get(ws);if(!ctx)return;
     const room=rooms.get(ctx.roomCode);
     if(room){const player=room.players.find(p=>p.id===ctx.playerId);if(player){player.connected=false;addLog(room,`${player.name} disconnected.`,'sys');try{unblockAfterDisconnect(room,player);}catch(e){console.error('Disconnect unblock error:',e);}broadcastState(ctx.roomCode);}
-    setTimeout(()=>{if(room.players.every(p=>!p.connected))rooms.delete(ctx.roomCode);},600000);}
+    room.touchedAt=Date.now(); persist.scheduleSave(rooms);}
     clients.delete(ws);
   });
 });
 
-const PORT=process.env.PORT||3000;
-server.listen(PORT,'0.0.0.0',()=>{ console.log(`Shadows Over Reikland on 0.0.0.0:${PORT}`); });
+// Start the server when run directly (node server.js). Tests require() this file
+// instead and drive the game through the exported functions.
+if (require.main === module) {
+  restoreRooms();
+  setInterval(sweepRooms, 10 * 60 * 1000).unref();
+  // Save immediately when Railway stops the container for a redeploy.
+  ['SIGTERM', 'SIGINT'].forEach(sig => process.on(sig, () => { persist.saveNow(rooms); process.exit(0); }));
+  const PORT = process.env.PORT || 3000;
+  server.listen(PORT, '0.0.0.0', () => { console.log(`Shadows Over Reikland on 0.0.0.0:${PORT}`); });
+}
+
+module.exports = { app, server, rooms, clients, enemies, gear, events,
+  _runNodeContent, actAttack, actCastSpell, actUseTalent, addBuff, addDebuff, addLog, addToInventory, advanceTurn, aftermathReady, applyBleed, applyBurn, applyExpertPath, applyLegendaryArmourPassive, applyLevelGains, applyMasterPath, applyNovicePath, applyPoison, applyTalentList, applyWpnSpecial, autoSkipStunnedPlayer, broadcastState, buildChar, buildLootOptions, buildPlayerShop, buildTurnOrder, castingsLeft, checkDeath, checkLevelUp, endRound, enemyDmgDice, enterNode, equipItem, finishCombat, finishEnemyTurn, fireEnemyTurn, genArmor, genLegendaryItem, genShopScroll, genSpecialArmor, genSpecialWpn, genWpn, getBuffVal, getCurrentTurn, getDebuffVal, getPathHpGain, getSpellsForPower, getTargetEnemy, grantTradition, handleBuy, handleMessage, handlePlayerAction, handleSell, initGameState, invCounts, makeCode, maxCastings, pickEnemy, pickThreeNodes, publicState, refreshCastingPools, regainCasting, resetCombatState, resolveEnemyDeath, resolvePath, resolveUnknownEvent, restoreCastingPools, restorePower, restoreRooms, resumeRoom, rollAttack, rollD20boons, rollEnemyAttack, rollEnemyDrop, scaleEnemy, sendTo, showPathChoices, spendCasting, startNodeContent, startSpoils, sweepRooms, talentHeal, tickBuffs, tickDebuffs, triggerGameover, unblockAfterDisconnect, uniqRanks, useItemLogic };

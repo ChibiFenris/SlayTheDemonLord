@@ -48,6 +48,8 @@ function run(nPlayers, comp, seedLabel){ return new Promise(res=>{
           return act('APPLY_PATH',{pathId:id}); }
         if(c.pendingStatBoost) return act('CHOOSE_STAT',{attr:pick(['str','agi','int','wil'])});
         if(!c.alive) return;
+        if(gs.phase==='choice'&&gs.choice&&!gs.choice.votes[b.id]) return act('CHOOSE_EVENT',{option:pick(gs.choice.options).id});
+        if(gs.phase==='aftermath'&&gs.aftermath&&!gs.aftermath.ready.includes(b.id)) return act('CONTINUE_AFTERMATH');
         if(gs.phase==='path'&&gs.pathChoices&&!(gs.pathVotes||{})[b.id]) return act('VOTE_PATH',{nodeType:pick(gs.pathChoices)});
         if(gs.phase==='loot') return act('PICK_LOOT',{pick:pick(['coins','consumable','weapon','armor','charm'])});
         if(gs.phase==='merchant'){ if(c.merchantStock&&Math.random()<0.5&&c.merchantStock.length){ const it=pick(c.merchantStock); return act('BUY_ITEM',{itemId:it.id}); }

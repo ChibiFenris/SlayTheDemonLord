@@ -71,21 +71,22 @@ function renderMainState(st){
     mShowDeathScreen(players,gs.depth,gs);
     return;
   }
-  if(gs.phase==='gameover'){ show('screen-end'); el('end-title').className='end-title death'; el('end-title').textContent='The Warband Has Fallen'; const deathInfo=gs.deathCause?`<br><span class="end-cause">${gs.deathCause.replace(/<[^>]+>/g,' ').trim()}</span>`:''; el('end-sub').innerHTML=`Depth: <strong>${gs.depth}/30</strong>${deathInfo}`; updateAudio(gs,players); mHideDeathScreen(); return; }
-  if(gs.phase==='victory'){ show('screen-end'); el('end-title').className='end-title victory'; el('end-title').textContent='Victory!'; el('end-sub').innerHTML=`The warband conquers the depths!<br>Depth: ${gs.depth}/30`; updateAudio(gs,players); return; }
-  if(me.char&&me.char.pendingLevelUp&&me.char.pendingPathTier&&!pathPickPending){ showPathPick(me); return; }
+  if(gs.phase==='gameover'){ show('screen-end'); el('end-title').className='end-title death'; el('end-title').textContent='The Warband Has Fallen'; const deathInfo=gs.deathCause?`<br><span class="end-cause">${gs.deathCause.replace(/<[^>]+>/g,' ').trim()}</span>`:''; el('end-sub').innerHTML=`Depth: <strong>${gs.depth}/30</strong>${deathInfo}`; updateAudio(gs,players); mHideDeathScreen(); showRenown(gs); return; }
+  if(gs.phase==='victory'){ show('screen-end'); el('end-title').className='end-title victory'; el('end-title').textContent='Victory!'; el('end-sub').innerHTML=`The warband conquers the depths!<br>Depth: ${gs.depth}/30`; updateAudio(gs,players); showRenown(gs); return; }
+  if(me.char&&me.char.pendingLevelUp&&me.char.pendingPathTier&&!pathPickPending&&gs.phase!=='aftermath'){ showPathPick(me); return; }
   if(pathPickPending) return;
 
   show('screen-game');
   updateAudio(gs,players);
+  if(me.char&&me.char.pendingStatBoost&&!el('stat-choice-modal')) showStatChoiceModal(me.char.attrs);
   el('g-loc').textContent=LOCS[Math.min(gs.depth,LOCS.length-1)];
   el('g-depth').textContent=gs.depth;
   const dt=el('g-depth-track'); dt.innerHTML='';
   for(let i=0;i<30;i++){ const p=document.createElement('div'); p.className='dpip'+(i<gs.depth?' done':i===gs.depth?' cur':''); dt.appendChild(p); }
   const sb=el('g-state');
-  const phMap={combat:'s-combat',merchant:'s-event',loot:'s-event',path:'s-explore',event:'s-explore'};
+  const phMap={combat:'s-combat',merchant:'s-event',loot:'s-event',aftermath:'s-event',choice:'s-event',path:'s-explore',event:'s-explore'};
   sb.className='state-badge '+(phMap[gs.phase]||'s-explore');
-  sb.textContent=gs.phase==='combat'?'In Combat':gs.phase==='merchant'?'Merchant':gs.phase==='loot'?'Loot Room':'Travelling';
+  sb.textContent=gs.phase==='combat'?'In Combat':gs.phase==='aftermath'?(gs.aftermath&&gs.aftermath.outcome==='fled'?'Escaped':'Victory'):gs.phase==='choice'?'Encounter':gs.phase==='merchant'?'Merchant':gs.phase==='loot'?'Loot Room':'Travelling';
 
   renderLog(gs.log);
   renderBattle(gs,players,me);
@@ -333,11 +334,14 @@ const PASSIVE_TALENTS=[
   'swiftFeet','arcaneSurge','spellLeech','pacedStrikes','unstoppable','quickHands','acrobaticRiposte',
   'protectiveBlessing','forceOfWill',
 ];
+// Every passive the character has: the list above plus any described talent that isn't an active.
+function passiveKeys(c){
+  const active=new Set([...ACTIVE_TALENTS.map(a=>a[0]),...EXTRA_ACTIVES.map(e=>e[0])]);
+  return [...new Set([...PASSIVE_TALENTS,...Object.keys(TALENT_DESCS)])].filter(k=>c[k]===true&&!active.has(k));
+}
 const SPELL_ELEMENT_ICON={fire:'🔥',holy:'✨',lightning:'⚡',dark:'🌑',arcane:'🔮'};
-const TRADITION_ELEMENT={fire:'fire',life:'holy',death:'dark',shadow:'dark',battle:'arcane',celestial:'holy',chaos:'arcane',earth:'arcane',storm:'lightning',protection:'arcane',illusion:'arcane',nature:'arcane',transformation:'arcane',time:'arcane'};
 function spellIcon(name){
-  const trad=Object.keys(TRADITION_ELEMENT).find(k=>(TRADITION_SPELLS_CLIENT[k]||[]).some(s=>s.name===name));
-  return trad?SPELL_ELEMENT_ICON[TRADITION_ELEMENT[trad]]||'🔮':'🔮';
+  return SPELL_ELEMENT_ICON[SPELL_ELEMENT[name]]||'🔮';
 }
 
 function talentRow(name,badgeCls,badge,desc){
@@ -353,7 +357,7 @@ function talentsHtml(c){
     const u=used(c,(lastState&&lastState.gs)||{});
     actives.push(talentRow(lbl.replace(/^\S+ /,''),u?'badge-bad':'badge-good',u?'Used':'Ready',TALENT_DESCS[k]||sub));
   });
-  const passives=PASSIVE_TALENTS.filter(k=>c[k]).map(k=>talentRow(labelFromKey(k),'badge-dim','Passive',TALENT_DESCS[k]||labelFromKey(k)));
+  const passives=passiveKeys(c).map(k=>talentRow(labelFromKey(k),'badge-dim','Passive',TALENT_DESCS[k]||labelFromKey(k)));
   let h='';
   if(actives.length) h+=`<div class="ab-section"><div class="ab-title">Active</div>${actives.join('')}</div>`;
   if(passives.length) h+=`<div class="ab-section"><div class="ab-title">Passive</div>${passives.join('')}</div>`;
@@ -540,6 +544,18 @@ function renderActions(gs,players,me){
     return;
   }
 
+  if(gs.phase==='choice'&&gs.choice){
+    heading.textContent=gs.choice.title;
+    body.appendChild(buildChoice(gs,players));
+    return;
+  }
+
+  if(gs.phase==='aftermath'&&gs.aftermath){
+    heading.textContent=gs.aftermath.outcome==='fled'?'You escaped':'Battle won';
+    body.appendChild(buildAftermath(gs,players));
+    return;
+  }
+
   if(gs.phase==='event'){
     heading.textContent='Actions';
     const g=document.createElement('div'); g.className='action-grid single';
@@ -576,8 +592,9 @@ function renderActions(gs,players,me){
     const _atkLabel=`${_dtIcon} Attack${_bonus}`;
     const _atkTip=`${_dtIcon} ${_dtype==='blunt'?'Blunt — ×1.5 dmg vs AC ≥ 16 (heavy armour)':'Slashing — ×1.5 dmg vs AC ≤ 14 (light/no armour)'}. ${wpnStr}.`;
     addBtn(g,_atkLabel,wpnStr,'am-',()=>send('PLAYER_ACTION',{action:'ATTACK'}),false,_atkTip);
+    const noSpells=char.equippedCharm&&char.equippedCharm.key==='brassSkull'; // Brass Skull of Khorne forbids spells
     (char.knownSpells||[]).forEach(sp=>{
-      const avail=castingsLeftC(char,sp.name,sp.rank)>0;
+      const avail=!noSpells&&castingsLeftC(char,sp.name,sp.rank)>0;
       const desc=sp.desc||`Rank ${sp.rank} spell.`;
       const isHeal=(sp.type==='heal'||sp.heal);
       const isUtil=(sp.type==='utility');
@@ -682,3 +699,65 @@ function shopEl(item,gold){
 }
 function buyItem(id){ send('PLAYER_ACTION',{action:'BUY_ITEM',data:{itemId:id}}); }
 function leaveShop(){ send('PLAYER_ACTION',{action:'LEAVE_SHOP'}); }
+
+// ─── BATTLE AFTERMATH ─────────────────────────────────────────────────────────
+// Summary shown after every fight: what fell, and what each warrior took away.
+function buildAftermath(gs,players){
+  const a=gs.aftermath, wrap=document.createElement('div'); wrap.className='aftermath';
+  const slain=a.enemies||[];
+  const counts={}; slain.forEach(n=>counts[n]=(counts[n]||0)+1);
+  const slainTxt=Object.entries(counts).map(([n,c])=>c>1?`${n} ×${c}`:n).join(', ');
+  wrap.insertAdjacentHTML('beforeend',`<p class="am-lead">${a.outcome==='fled'?'You broke away from the fight.':'The field is yours.'}${slainTxt?` Slain: <strong>${slainTxt}</strong>.`:''}</p>`);
+  const order=[myId,...players.map(p=>p.id).filter(id=>id!==myId)];
+  order.forEach(id=>{
+    const r=a.rewards&&a.rewards[id]; if(!r) return;
+    const lines=[];
+    if(r.xp) lines.push(`<span class="am-xp">+${r.xp} XP</span>`);
+    if(r.silver) lines.push(`<span class="am-silver">+${r.silver} silver</span>`);
+    r.items.forEach(it=>lines.push(`<span class="am-item">${it}</span>`));
+    if(!lines.length) lines.push('<span class="am-none">Nothing this time</span>');
+    const lv=r.levelUps.length?`<div class="am-level">🌟 Level ${r.levelUps[r.levelUps.length-1].level}! ${r.choosePath?(id===myId?'Choose your path when you continue.':'Choosing a path.'):''}</div>`:'';
+    wrap.insertAdjacentHTML('beforeend',`<div class="am-row${id===myId?' mine':''}"><div class="am-name">${r.name}<small>${r.hp}/${r.maxHp} HP</small></div><div class="am-gains">${lines.join('')}</div>${lv}</div>`);
+  });
+  const ready=a.ready.includes(myId);
+  const waiting=players.filter(p=>p.char&&p.connected&&!a.ready.includes(p.id)).length;
+  if(ready){
+    wrap.insertAdjacentHTML('beforeend',`<div class="acted-msg">Waiting for ${waiting} other${waiting===1?'':'s'}…</div>`);
+  } else {
+    const b=document.createElement('button'); b.className='btn gold btn-w'; b.textContent='Continue';
+    b.onclick=()=>send('PLAYER_ACTION',{action:'CONTINUE_AFTERMATH'}); wrap.appendChild(b);
+  }
+  return wrap;
+}
+
+// ─── CHOICE EVENTS ────────────────────────────────────────────────────────────
+// An Unknown-room event with options; every warrior votes and the majority wins.
+function buildChoice(gs,players){
+  const ch=gs.choice, wrap=document.createElement('div'); wrap.className='choice-event';
+  wrap.insertAdjacentHTML('beforeend',`<p class="ce-text">${ch.icon} ${ch.text}</p>`);
+  const mine=ch.votes[myId];
+  const tally={}; Object.values(ch.votes).forEach(v=>tally[v]=(tally[v]||0)+1);
+  const list=document.createElement('div'); list.className='choice-list';
+  ch.options.forEach(o=>{
+    const b=document.createElement('button'); b.className='choice-btn'+(mine===o.id?' voted':'');
+    b.innerHTML=`<span class="choice-name">${o.label}${tally[o.id]?` <small>${tally[o.id]} vote${tally[o.id]>1?'s':''}</small>`:''}</span><span class="choice-desc">${o.desc}</span>`;
+    b.onclick=()=>send('PLAYER_ACTION',{action:'CHOOSE_EVENT',data:{option:o.id}});
+    list.appendChild(b);
+  });
+  wrap.appendChild(list);
+  const waiting=players.filter(p=>p.char&&p.char.alive&&p.connected&&!ch.votes[p.id]).length;
+  if(mine) wrap.insertAdjacentHTML('beforeend',`<div class="acted-msg">You chose. Waiting for ${waiting} other${waiting===1?'':'s'}… (you can still change your vote)</div>`);
+  return wrap;
+}
+
+// End screen: renown earned this run and anything it unlocked.
+let _renownShown=null;
+function showRenown(gs){
+  const box=el('end-renown'); if(!box) return;
+  const code=el('disp-code').textContent;
+  const r=awardRun(gs,code);
+  if(r) _renownShown=r;
+  const x=_renownShown; if(!x){ box.innerHTML=''; return; }
+  box.innerHTML=`<div class="er-earned">+${x.earned} Renown <small>(total ${x.total})</small></div>`+
+    x.unlocked.map(u=>`<div class="er-unlock">🔓 Unlocked: ${u.label}</div>`).join('');
+}

@@ -30,6 +30,7 @@
     <div class="sub">A co-op descent for Shadow of the Demon Lord</div>
   </div>
   <div class="head-tools">
+    <button class="btn icon-btn" onclick="openHelp()" title="How to play" aria-label="How to play">?</button>
     <button id="ui-toggle" class="btn icon-btn" onclick="toggleUI()" title="Switch layout" aria-label="Switch layout">📱</button>
     <button id="audio-toggle" class="btn" onclick="setMute(!audioMuted)" aria-label="Mute music">🔊<span class="btn-lbl"> Mute</span></button>
     <input type="range" min="0" max="1" step="0.05" value="0.5" aria-label="Volume" oninput="setVolume(parseFloat(this.value))" title="Volume">
@@ -58,17 +59,20 @@
         <button class="btn btn-w" onclick="joinRoom()">Join room</button>
       </div>
       <div class="err" id="lobby-err" role="alert"></div>
+      <p class="renown-line" id="renown-line"></p>
     </div>
     <div class="lobby-col">
       <div class="panel" id="room-panel" hidden>
         <div class="ph">Room <span id="disp-code" class="room-code">----</span></div>
         <p class="hint">Share this code with friends.</p>
         <div id="player-slots"></div>
+        <div class="difficulty-pick" id="difficulty-pick" hidden></div>
       </div>
       <div class="panel" id="career-panel" hidden>
         <div class="ph">Choose Your Career</div>
         <p class="hint">You begin at <strong>Level 1</strong> with your novice talents. Reach <strong>Level 3</strong> to choose an Expert path and <strong>Level 7</strong> to choose a Master path.</p>
         <div class="career-grid" id="career-grid"></div>
+        <label class="charm-pick" id="charm-pick" hidden><span>Starting charm</span><select id="charm-select"></select></label>
         <button class="btn btn-w gold" onclick="setReady()">Ready</button>
       </div>
     </div>
@@ -132,17 +136,21 @@
   <div class="end-wrap">
     <div class="end-title" id="end-title">Game Over</div>
     <div class="end-sub" id="end-sub"></div>
-    <button class="btn gold" onclick="location.reload()">Return to Altdorf</button>
+    <div class="end-renown" id="end-renown"></div>
+    <button class="btn gold" onclick="leaveGame()">Return to Altdorf</button>
   </div>
 </section>
 
 </div>
 <script src="js/data.js"></script>
 <script src="js/core.js"></script>
+<script src="js/progress.js"></script>
 <script src="js/desktop.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/effects.js"></script>
 <script src="js/mobile.js"></script>
+<script src="js/sfx.js"></script>
+<script src="js/help.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

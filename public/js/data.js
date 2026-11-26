@@ -1,7 +1,7 @@
 'use strict';
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const CAREER_LABELS={warrior:'State Soldier',rogue:'Roadwarden',wizard:'Bright Wizard',priest:'Sigmarite Priest'};
-const XP_T=[0,0,2,10,19,24,29,34,51,68,84]; // must match XP_THRESHOLDS in server.js
+const XP_T=[0,0,2,10,19,24,29,34,51,68,84]; // default; refreshed from the server's XP_THRESHOLDS on load
 const LOCS=['The Reikland Road','Altdorf Sewers','The Grey Mountains','The Forest of Shadows','Bogenhafen Catacombs','Ruins of Mordheim','The Dark Moors','The Chaos Wastes','A Forsaken Temple','The River Reik','Skaven Under-warren','Corrupted Village','The Blighted Marshes','Chaos Shrine','The Final Abyss'];
 
 const CAREER_DETAILS={
@@ -59,10 +59,10 @@ const EXPERT_INFO={
   ranger:   {name:'Ranger',       gains:'+5 HP. Lv3: Quick Step (miss = +2 Def), Hunter\'s Mark (first hit marks, +2 dmg vs marked). Lv4: Fade (Quick Step active = +1 boon), Evasion (attackers subtract bane d6), +1 AGI. Lv5: Skirmish (hits on marked = 2 poison). Lv6: Smoke Screen (3 banes on all enemies 2 rounds), +1 AGI.',desc:'Hunter and Ghost. Mark targets for bonus damage. Evasion and Smoke Screen keep you untouchable.'},
   paladin:  {name:'Paladin',      gains:'+4 HP, +1 Power. Lv3: Holy Fervor (hits deal 1d3+WIL holy and heal you 1d3), Divine Smite (+3d6, 2×/combat). Lv4: Lay on Hands (weapon hits heal 1d6+WIL, 2×/combat), +1 STR. Lv5: Righteous Fury (kills heal all allies 1d6+WIL), Combat Prowess (+1d6/hit). Lv6: Sacred Aegis (attacker takes 1d6 holy), Wrath of Sigmar (Divine Smite deals 6d6), +1 WIL.',desc:'Warrior Priest. Holy Fervor triggers on every weapon hit. Wrath of Sigmar is a devastating execute. Righteous Fury turns kills into group heals.'},
   assassin: {name:'Assassin',     gains:'+5 HP. Lv3: Poison Blade (+2 poison/hit), Shadow Opening (first attack extra boon). Lv4: Venom on First Hit (4 poison first hit), Quick Hands (items free action), +1 AGI. Lv5: Assassination (above 50% HP: +2 poison; below: +1d6+3 dmg), Dead Man\'s Hand (kill heals 2d6+AGI). Lv6: Exploit Weakness (5+ stacks = +1 boon), Deathblow (hits 2 poison, crits 4), +1 AGI.',desc:'Shadow Killer. Stack poison fast with Poison Blade then detonate at 50% with Assassination. Deathblow crits apply 4 stacks.'},
-  elementalist:{name:'Wizard',    gains:'+4 HP, +1 Power. Lv3: Burning Soul (+1d6 if target burning), Utility Focus (spells +1 round). Lv4: Prepared Spell (free rank-1 at combat start), +1 INT. Lv5: Burn on Spell (attack spells apply Burn DoT), Conflagration (re-burning resets to max dice). Lv6: Metamagic (free cast, 1×), Lingering Magic (DoTs apply twice), +1 INT.',desc:'Bright and Jade Wizard. Burning Soul, Ignite, and Conflagration combine for massive fire damage. Lingering Magic doubles every DoT you apply.'},
+  elementalist:{name:'Pyromancer',    gains:'+4 HP, +1 Power. Lv3: Burning Soul (+1d6 if target burning), Utility Focus (spells +1 round). Lv4: Prepared Spell (free rank-1 at combat start), +1 INT. Lv5: Burn on Spell (attack spells apply Burn DoT), Conflagration (re-burning resets to max dice). Lv6: Metamagic (free cast, 1×), Lingering Magic (DoTs apply twice), +1 INT.',desc:'Bright Wizard of the fire wind. Burning Soul, Ignite, and Conflagration combine for massive fire damage. Lingering Magic doubles every DoT you apply.'},
   sorcerer:    {name:'Sorcerer',  gains:'+4 HP, +1 Power. Lv3: Arcane Surge (first spell each combat +1d6), Spell Leech (spell kill = heal 1d6). Lv4: Surge (spell kill = regain all rank 0-1 castings), Spell Recovery (restore rank-0, 1×), +1 INT. Lv5: Metamagic (free cast, 1×), Resonance (+1d6 vs burning/bleeding/poisoned). Lv6: Chain Reaction (25% lightning fires twice), Overload (next spell casts twice, 1×), +1 INT.',desc:'Death and Storm. Dual elemental mastery. Surge keeps you casting. Chain Reaction and Overload are late-game spell nova.'},
   warlock:     {name:'Warlock',   gains:'+4 HP, +1 Power. Lv3: Curse (target takes +1 boon/+1 dmg from all attacks), Evil Eye (target 2 banes on attacks 3 rounds). Lv4: Blood Offering (lose 1d6 HP to regain all castings, no action), +1 INT. Lv5: Mass Heal (all allies 1d6), Hex (+4 dmg to cursed/Evil Eye targets). Lv6: Dark Pact (lose 1d6 HP, next spell free, no action), +1 INT.',desc:'Chaos Witch. Curse marks a target for the whole party. Blood Offering and Dark Pact trade HP for raw spell power. Hex amplifies your curse damage.'},
-  wizard:      {name:'Wizard',    gains:'+4 HP, +1 Power. Lv3: Utility Focus (spells +1 round), Prepared Spell (free rank-1 at combat start). Lv4: +1 INT. Lv5: Metamagic (free cast, 1×), Lingering Magic (DoTs apply twice). Lv6: +1 INT.',desc:'Jade Wizard — Illusion and Control. Extended utility spells and free casts. Lingering Magic is powerful for any DoT build.'},
+  wizard:      {name:'Illusionist', gains:'+4 HP, +1 Power. Lv3: Utility Focus (utility spells +1 round), Prepared Spell (free rank-1 at combat start). Lv4: Glamour Veil (the first attack against you each fight misses), +1 INT. Lv5: Metamagic (free cast, 1×), Misdirection (an enemy miss gives your next attack spell +1d6). Lv6: Lingering Magic (expiring buffs grant 1 boon), +1 INT.',desc:'Grey Wizard of deceit. Hard to pin down and rewards the enemy for missing.'},
   spellbinder: {name:'Spellbinder',gains:'+4 HP, +1 Power. Lv3: Flame Edge (weapon attacks deal fire dmg, apply Burn, trigger Burning Soul), Arcane Strike (4%+4%/INT-mod chance to bypass enemy AC). Lv4: Combat Prowess (+1d6/hit), Rage Trigger (damage procs +1 boon +1d6), +1 INT. Lv5: Burning Soul (+1d6 if target burning), Rage (after taking dmg +1d6 bonus). Lv6: Frenzy (kills extend Rage), +1 STR.',desc:'Arcane Berserker. Flame Edge turns every swing into fire damage. Stack Burning Soul on top for massive hybrid damage.'},
   healer:      {name:'Healer',    gains:'+4 HP, +1 Power. Lv3: Mass Heal (all allies 1d6), Triage (all allies regen 1d6/round 2 turns). Lv4: Holy Fervor (hits deal 1d3+WIL holy and heal you 1d3), Divine Favour (refresh 1×/combat, restore rank-0), +1 WIL. Lv5: Resurrection (fatal hit = heal to half HP + 2 boons), Battle Medic (heal ally = heal self 1d6). Lv6: Sacred Ground (regen 1d6/round + 3 boons, 2 turns), +1 WIL.',desc:'Blessed Healer. Mass Heal, Triage, and Sacred Ground keep everyone alive. Resurrection acts as a death prevention shield.'},
   druid:       {name:'Druid',     gains:'+4 HP, +1 Power. Lv3: Shared Recovery (all allies heal), Nature Bond (immune to poison, melee attackers get 1d6 poison). Lv4: Druid Fervor (hits deal 4+best(WIL/INT) nature dmg and heal same), Foresight (bless: next 2 attacks reroll take higher, 1×), +1 WIL. Lv5: Mass Heal (all allies 1d6), Entangle (root 1 enemy, 1×). Lv6: Druid\'s Fury (2 rounds: +1d6 dmg, +2 boons, 2 Bleed per hit, no action, 1×), Revelation (curse: next 2 attacks reroll take worse, 1×), +1 WIL.',desc:'Wild and Wise. Nature Bond makes you poison-immune and punishes melee attackers. Druid Fervor triggers on every weapon hit. Druid\'s Fury is a powerful no-action burst.'},
@@ -84,6 +84,8 @@ const MASTER_INFO={
 };
 
 const TALENT_DESCS={
+  glamourVeil:'Glamour Veil — the first attack against you each fight strikes an illusion and misses.',
+  misdirection:'Misdirection — whenever an enemy misses you, your next attack spell deals +1d6.',
   // ── NOVICE ──────────────────────────────────────────────────────────────
   weaponTraining:'Passive — All weapon attack rolls add a boon d6 (roll d6, add highest to d20). Net effect: attacks rarely miss.',
   catchBreath:'Active (1×/combat) — Heal 1d6 + STR HP. No action cost.',
@@ -318,25 +320,11 @@ const TRADITION_INFO = {
   time:           {label:'Time', desc:'Tempo. Swiftness (R0, +1 boon for 3 rounds) → Rewrite Moment (R1, reroll misses) → Minor Paradox (R2, regain castings) → Precognition (R3, 2 boons and +4 Defence).'},
 };
 
-// Spell lists per tradition (mirrors server TRADITIONS)
-const TRADITION_SPELLS_CLIENT = {
-  fire:           [{name:'Flame Missile',rank:0,desc:'[R0] 1d6 + INT to one enemy. Burn 1d6 (loses 1 die each round). Fire: ×2 vs Undead.'},{name:'Meteor',rank:1,desc:'[R1] 2d6+2 + INT to ALL enemies. Burn 2d6 (loses 1 die each round). Fire: ×2 vs Undead.'},{name:'Fiery Volley',rank:1,desc:'[R1] Three missiles at one enemy, each 1d6+1, plus INT once. Burn 2d6 (loses 1 die each round). Fire: ×2 vs Undead.'},{name:'Fireball',rank:2,desc:'[R2] 5d6 + INT to ALL enemies. Burn 2d6 (loses 1 die each round). Fire: ×2 vs Undead.'},{name:'Immolate',rank:3,desc:'[R3] 4d6 + INT to one enemy. Burn 3d6 (loses 1 die each round). Fire: ×2 vs Undead.'}],
-  life:           [{name:"Sigmar's Smite",rank:0,desc:'[R0] 1d6 + WIL to one enemy. Holy: ×2 vs Chaos.'},{name:'Minor Healing',rank:0,desc:'[R0] Heal yourself or an ally 1d6 + WIL.'},{name:'Cure',rank:1,desc:'[R1] Clear all debuffs from yourself, then heal 1d6 + WIL.'},{name:'Light Healing',rank:1,desc:'[R1] Heal yourself or an ally 2d6 + WIL.'},{name:'Moderate Healing',rank:2,desc:'[R2] Heal yourself or an ally 3d6 + WIL.'},{name:'Vitality Burst',rank:2,desc:'[R2] Every living ally heals 2d6 + WIL.'},{name:'Major Healing',rank:3,desc:'[R3] Restore yourself or an ally to full HP.'}],
-  death:          [{name:'Spectral Grasp',rank:0,desc:'[R0] 1d3 + INT to one enemy. Dark: ×2 vs Beastmen.'},{name:'Grave Grasp',rank:1,desc:'[R1] 1d6 + INT. Chilled: 1d3 damage and 1 bane per round for 2 rounds. Dark: ×2 vs Beastmen.'},{name:'Bone Splinters',rank:2,desc:'[R2] 3d6 + INT. If the target is left at 25% HP or less, d20 10+ kills it outright. Dark: ×2 vs Beastmen.'},{name:'Cannibalize Magic',rank:3,desc:'[R3] 3d6 + INT. On a hit you regain one rank-1 casting. Dark: ×2 vs Beastmen.'}],
-  shadow:         [{name:'Nightfall Blade',rank:0,desc:'[R0] Your weapon hits deal +1d6 (rolled when cast) for 5 rounds.'},{name:'Shadow Dart',rank:1,desc:'[R1] 2d6 + INT to one enemy. Dark: ×2 vs Beastmen.'},{name:'Shadow Strike',rank:2,desc:'[R2] Three strikes at one enemy, each 2d6, plus INT once. Dark: ×2 vs Beastmen.'},{name:'Enervation',rank:3,desc:'[R3] Target loses 20 max HP for the rest of combat.'}],
-  battle:         [{name:'Augmented Attack',rank:0,desc:'[R0] Your next weapon hit deals +1d6 (rolled when cast).'},{name:'Close Wounds',rank:1,desc:'[R1] Heal yourself or an ally 1d6 + STR.'},{name:'Mighty Attack',rank:1,desc:'[R1] Your next weapon hit gets 2 boons and +2d6 damage (rolled when cast).'},{name:'Battle Prowess',rank:3,desc:'[R3] For 7 rounds your attacks have 1 boon and deal +1d6.'}],
-  celestial:      [{name:'Burning Beam',rank:0,desc:'[R0] 1d6 + INT to one enemy. Burn 1d6 (loses 1 die each round). Holy: ×2 vs Chaos.'},{name:'Flash',rank:1,desc:'[R1] Blinds the target: 3 banes on its attacks until it misses.'},{name:'Sunrays',rank:2,desc:'[R2] Three beams at one enemy, each 1d6, plus INT once. Holy: ×2 vs Chaos.'},{name:'Radiation',rank:3,desc:'[R3] 3d6 + WIL to one enemy and Blinds it (3 banes until it misses). Holy: ×2 vs Chaos.'}],
-  chaos:          [{name:'Erratic Bolt',rank:0,desc:'[R0] 1d6 + INT. Roll d20: on 12+ deal 2d6 extra. Arcane: ×1.25 vs Skaven, Chaos, Undead, Beastmen.'},{name:'Capricious Devastation',rank:1,desc:'[R1] 2d6 + INT. Roll d20: on 12+ deal 2d6 extra. Arcane: ×1.25 vs Skaven, Chaos, Undead, Beastmen.'},{name:'Color of Magic',rank:2,desc:'[R2] 1d6+2 + INT. Roll d20: on 12+ deal 2d6 extra. Arcane: ×1.25 vs Skaven, Chaos, Undead, Beastmen.'},{name:'Chaotic Lance',rank:3,desc:'[R3] 4d6 + INT to ALL enemies. Roll d20: on 12+ your target takes 2d6 extra. Arcane: ×1.25 vs Skaven, Chaos, Undead, Beastmen.'}],
-  earth:          [{name:'Earth Spike',rank:0,desc:'[R0] 1d6 + INT. Knocks the target Prone (1 bane until it misses) and applies 1 Bleed. Arcane: ×1.25 vs Skaven, Chaos, Undead, Beastmen.'},{name:'Stone Blades',rank:1,desc:'[R1] 2d6 + INT to ALL enemies and 1 Bleed on each. Arcane: ×1.25 vs Skaven, Chaos, Undead, Beastmen.'},{name:'Avalanche',rank:2,desc:'[R2] 4d6 + INT to ALL enemies and 2 Bleed on each. Arcane: ×1.25 vs Skaven, Chaos, Undead, Beastmen.'},{name:'Eruption',rank:3,desc:'[R3] 5d6 + INT to ALL enemies and 2 Bleed on each. Arcane: ×1.25 vs Skaven, Chaos, Undead, Beastmen.'}],
-  storm:          [{name:'Forked Lightning',rank:0,desc:'[R0] Hits one enemy twice, each 1d6+2, plus INT once. Lightning: ×2 vs Skaven.'},{name:'Freezing Fog',rank:1,desc:'[R1] 1d3 + INT. Chilled (1d3 damage and 1 bane per round, 2 rounds) and Slowed (+1 bane, 2 rounds). Lightning: ×2 vs Skaven.'},{name:'Call Lightning',rank:2,desc:'[R2] 3d6+5 + INT. Roll d20: on 15+ the target is Stunned for 2 turns. Lightning: ×2 vs Skaven.'},{name:'Lightning Bolt',rank:3,desc:'[R3] 5d6 + INT. Roll d20: on 15+ it strikes again for the same damage. Lightning: ×2 vs Skaven.'}],
-  protection:     [{name:'Force Field',rank:0,desc:'[R0] You take 35% less damage for 2 rounds.'},{name:'Sanctuary',rank:1,desc:'[R1] All allies take 35% less damage for 2 rounds.'},{name:'Vigor',rank:2,desc:'[R2] +10 max HP and heal 10, until combat ends.'},{name:'Protective Field',rank:3,desc:'[R3] All allies are immune to damage this round.'}],
-  illusion:       [{name:'Figment',rank:0,desc:'[R0] One enemy attacks with 1 bane until it misses.'},{name:'Vertigo',rank:1,desc:'[R1] Your next attack has 2 boons.'},{name:'Glamer',rank:2,desc:'[R2] Target enemy loses its next action.'},{name:'Phantasm',rank:3,desc:'[R3] 4d6 + INT psychic damage to one enemy. Arcane: ×1.25 vs Skaven, Chaos, Undead, Beastmen.'}],
-  nature:         [{name:'Oak Hide',rank:0,desc:'[R0] +2 Defence for 3 rounds.'},{name:'Healing Berries',rank:1,desc:'[R1] Heal yourself or an ally 1d3 + WIL, three times.'},{name:'Shillelagh',rank:1,desc:'[R1] Your next weapon hit deals +1d6 (rolled when cast).'},{name:'Wrath of Nature',rank:3,desc:'[R3] 3d6 + INT. Vines give the target 2 banes for 3 rounds. Arcane: ×1.25 vs Skaven, Chaos, Undead, Beastmen.'}],
-  transformation: [{name:'Beast Within',rank:0,desc:'[R0] Your next weapon hit deals +1d6 (rolled when cast).'},{name:'Dire Beast',rank:1,desc:'[R1] Your weapon hits deal +1d6 (rolled when cast) for 5 rounds.'},{name:'Mist Form',rank:2,desc:'[R2] You take 35% less damage for 3 rounds.'},{name:'Speed Healing',rank:3,desc:'[R3] Heal yourself or an ally 3d6 + WIL.'}],
-  time:           [{name:'Swiftness',rank:0,desc:'[R0] +1 boon on all your attacks for 3 rounds.'},{name:'Rewrite Moment',rank:1,desc:'[R1] For 3 rounds, a missed weapon attack is rerolled once.'},{name:'Minor Paradox',rank:2,desc:'[R2] Regain one casting of each rank 0–2.'},{name:'Precognition',rank:3,desc:'[R3] For 3 rounds: 2 boons on your attacks and +4 Defence.'}],
-};
+// Rules tables owned by the server. These defaults are replaced by /api/game-data
+// on load (see core.js), so the client can never drift from the server's numbers.
+const SPELL_ELEMENT={}; // spell name -> fire | holy | lightning | dark | arcane
 
-// ─── CASTINGS TABLE (mirrors server) ─────────────────────────────────────────
+// ─── CASTINGS TABLE (default; refreshed from the server) ─────────────────────────────────────────
 const CASTINGS_TABLE_C = {
   0:[1,0,0,0], 1:[2,1,0,0], 2:[3,2,1,0], 3:[4,2,1,1],
   4:[5,2,2,1], 5:[6,3,2,2], 6:[7,3,2,2], 7:[8,3,2,2],
@@ -386,17 +374,18 @@ const EXTRA_ACTIVES=[
 ];
 
 // ─── AUDIO SYSTEM ────────────────────────────────────────────────────────────
+// Music lives in public/music as compressed MP3 (the original WAVs were ~330 MB).
 const TRACKS = {
-  lobby:      'audio/Main Theme.wav',
-  explore:    'audio/Explore Theme.wav',
-  battle:     ['audio/Battle Theme.wav', 'audio/2ndBattle Theme.wav'],
-  elite:      'audio/Elite Theme.wav',
-  boss1:      'audio/1stBoss Theme.wav',
-  boss2:      'audio/2ndBoss Theme.wav',
-  boss3:      'audio/Final Boss Theme.wav',
-  merchant:   'audio/Merchant Theme.wav',
-  victory:    'audio/Victory Theme.wav',
-  defeat:     'audio/Defeat Theme.wav',
+  lobby:      'music/main-theme.mp3',
+  explore:    'music/explore-theme.mp3',
+  battle:     ['music/battle-theme.mp3', 'music/2ndbattle-theme.mp3'],
+  elite:      'music/elite-theme.mp3',
+  boss1:      'music/1stboss-theme.mp3',
+  boss2:      'music/2ndboss-theme.mp3',
+  boss3:      'music/final-boss-theme.mp3',
+  merchant:   'music/merchant-theme.mp3',
+  victory:    'music/victory-theme.mp3',
+  defeat:     'music/defeat-theme.mp3',
 };
 
 

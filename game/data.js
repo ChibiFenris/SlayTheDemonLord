@@ -65,9 +65,9 @@ const EXPERT_PATHS = {
     desc:"Shadow Killer. Poison Blade: every hit +2 poison stacks. Shadow Opening: first attack extra boon. Venom on First Hit (L4): first hit applies 4 poison stacks. Quick Hands: free item use. Assassination: enemy below 50% HP = +1d6+3 dmg. Dead Man's Hand: kill heals 2d6+AGI. Exploit Weakness: boon vs 5+ stacks. Deathblow: hits apply 2 poison, crits 4." },
 
   // ── ARCANE: ELEMENTALIST + WIZARD ────────────────────────────────
-  elementalist:{ label:'Wizard',hpGain:4, power:1,
+  elementalist:{ label:'Pyromancer',hpGain:4, power:1,
     levelGains:{ 3:['burningSoul','utilityFocus'], 4:['preparedSpell','+1int'], 5:['burnOnSpell','conflagration'], 6:['metamagic','lingeringMagic','+1int'] },
-    desc:'Bright & Jade Wizard. Burning Soul: +1d6 if target burning. Utility Focus: utility spells +1 round. Prepared Spell: free rank-1 at combat start. Burn on Spell. Conflagration: re-burning resets to max. Metamagic: free cast 1x. Lingering Magic: expiring buffs grant boon.' },
+    desc:'Bright Wizard of the fire wind. Learns Firewall. Burning Soul: +1d6 if target burning. Utility Focus: utility spells +1 round. Prepared Spell: free rank-1 at combat start. Burn on Spell. Conflagration: re-burning resets to max. Metamagic: free cast 1x. Lingering Magic: expiring buffs grant boon.' },
 
   // ── ARCANE: EVOKER + SORCERER ─────────────────────────────────────
   sorcerer:    { label:'Sorcerer',    hpGain:4, power:1,
@@ -80,9 +80,9 @@ const EXPERT_PATHS = {
     desc:'Chaos Witch. Curse: all attacks vs target +1 boon and +1 dmg until death. Evil Eye: 2 banes for 3 rounds. Blood Offering: lose 1d6 HP to regain all castings. Mass Heal. Hex: +4 dmg to cursed/Evil Eye targets. Dark Pact: lose 1d6 HP, next spell free (no action cost).' },
 
   // ── ARCANE: CONTROL ──────────────────────────────────────────────
-  wizard:      { label:'Wizard',      hpGain:4, power:1,
-    levelGains:{ 3:['utilityFocus','preparedSpell'], 4:['+1int'], 5:['metamagic','lingeringMagic'], 6:['+1int'] },
-    desc:'Jade Wizard — Illusion. Utility Focus +1 round duration. Prepared Spell: one rank-1 free on combat start. Lingering Magic: expiring buffs grant 1 boon.' },
+  wizard:      { label:'Illusionist', hpGain:4, power:1,
+    levelGains:{ 3:['utilityFocus','preparedSpell'], 4:['glamourVeil','+1int'], 5:['metamagic','misdirection'], 6:['lingeringMagic','+1int'] },
+    desc:'Grey Wizard of deceit. Utility Focus: utility spells +1 round. Prepared Spell: free rank-1 at combat start. Glamour Veil (L4): the first attack against you each fight misses. Metamagic: free cast 1x. Misdirection (L5): when an enemy misses you, your next attack spell deals +1d6. Lingering Magic: expiring buffs grant 1 boon.' },
 
   // ── ARCANE: SPELLBINDER + BERSERKER ──────────────────────────────
   spellbinder: { label:'Spellbinder', hpGain:4, power:1,

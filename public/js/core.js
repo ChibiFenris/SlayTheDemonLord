@@ -5,6 +5,17 @@ let TOKEN_FILES={};
 fetch('tokens/index.json').then(r=>r.json()).then(d=>{ TOKEN_FILES=d; if(lastState) renderState(lastState); }).catch(()=>{});
 function tokenSrc(name){ const f=TOKEN_FILES[name]; return f?'tokens/'+f:null; }
 
+// Rules tables come from the server so client and server always agree.
+fetch('api/game-data').then(r=>r.json()).then(g=>{
+  if(Array.isArray(g.xpThresholds)) XP_T.splice(0,XP_T.length,...g.xpThresholds);
+  if(g.castingsTable) Object.assign(CASTINGS_TABLE_C,g.castingsTable);
+  if(g.spellElements) Object.assign(SPELL_ELEMENT,g.spellElements);
+  if(g.charms) GAME_CHARMS=g.charms;
+  if(g.difficulties) GAME_DIFFICULTIES=g.difficulties;
+  renderProgressUI();
+  if(lastState) renderState(lastState);
+}).catch(()=>{});
+
 // Browser storage can throw (private mode, blocked cookies) — never let it break the game.
 const store={
   get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
@@ -43,7 +54,12 @@ function connect(){
   el('conn-msg').textContent='Connecting to '+location.host+'...';
   show('screen-connect');
   try{ ws=new WebSocket(url); }catch(e){ sched('Could not open connection.'); return; }
-  ws.onopen=()=>{ clearTimeout(reconnectTimer); show('screen-lobby'); buildCareerGrid(); };
+  ws.onopen=()=>{
+    clearTimeout(reconnectTimer); buildCareerGrid();
+    const sess=loadSession();
+    if(sess) send('REJOIN',sess); // reclaim our seat after a refresh, dropped connection or server restart
+    else show('screen-lobby');
+  };
   ws.onmessage=e=>{ try{ onMsg(JSON.parse(e.data)); }catch(ex){ console.error(ex); } };
   ws.onclose=e=>{ sched('Disconnected (code '+e.code+' reason: '+(e.reason||'none')+'). Retrying...'); console.warn('WS close',e.code,e.reason,e.wasClean); };
   ws.onerror=e=>{ console.error('WS error',e); };
@@ -53,9 +69,21 @@ function send(type,payload={}){ if(ws&&ws.readyState===1) ws.send(JSON.stringify
 function el(id){ return document.getElementById(id); }
 function show(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); el(id).classList.add('active'); }
 
+// The room and seat we're in, so a refresh or reconnect drops us back into the game.
+const SESSION_KEY='sorSession', SESSION_MAX_AGE=12*60*60*1000;
+function saveSession(code,playerId){ store.set(SESSION_KEY,JSON.stringify({code,playerId,at:Date.now()})); }
+function loadSession(){
+  try{ const s=JSON.parse(store.get(SESSION_KEY)||'null'); return s&&Date.now()-s.at<SESSION_MAX_AGE?{code:s.code,playerId:s.playerId}:null; }
+  catch(e){ return null; }
+}
+function clearSession(){ store.set(SESSION_KEY,''); }
+function leaveGame(){ clearSession(); location.reload(); }
+
 function onMsg(msg){
+  if(msg.type==='REJOIN_FAILED'){ clearSession(); show('screen-lobby'); return; }
   if(msg.type==='ROOM_CREATED'||msg.type==='ROOM_JOINED'){
     myId=msg.payload.playerId;
+    saveSession(msg.payload.code,myId);
     el('disp-code').textContent=msg.payload.code;
     el('join-panel').hidden=true;
     el('room-panel').hidden=false;
@@ -96,10 +124,11 @@ function joinRoom(){
 function selCareer(btn){
   document.querySelectorAll('.cbtn').forEach(b=>b.classList.remove('sel'));
   btn.classList.add('sel'); selectedCareer=btn.dataset.career;
-  send('SELECT_CAREER',{career:selectedCareer});
+  send('SELECT_CAREER',{career:selectedCareer,startingCharm:selectedCharm});
 }
-function setReady(){ send('SELECT_CAREER',{career:selectedCareer}); setTimeout(()=>send('PLAYER_READY'),50); }
+function setReady(){ send('SELECT_CAREER',{career:selectedCareer,startingCharm:selectedCharm}); setTimeout(()=>send('PLAYER_READY'),50); }
 function updateLobbySlots(players){
+  renderProgressUI(players);
   const el2=el('player-slots'); if(!el2)return;
   let h='';
   for(let i=0;i<4;i++){
