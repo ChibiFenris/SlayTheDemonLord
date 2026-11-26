@@ -113,8 +113,21 @@ function renderLog(log){
 }
 
 // ─── BATTLE ARENA ─────────────────────────────────────────────────────────────
-const ENEMY_TAG_LABEL={skaven:'🐀 Skaven',chaos:'☠ Chaos',undead:'💀 Undead',beast:'🐗 Beast'};
-const ENEMY_WEAKNESS={skaven:'⚡ Weak: Lightning + Holy',chaos:'✨ Weak: Holy',undead:'🔥 Weak: Fire',beast:'🌑 Weak: Dark'};
+const ENEMY_TAG_LABEL={skaven:'🐀 Skaven',chaos:'☠ Chaos',undead:'💀 Undead',beast:'🐗 Beast',vermin:'🐀 Vermin'};
+const ENEMY_WEAKNESS={skaven:'⚡ Weak: Lightning',chaos:'✨ Weak: Holy',undead:'🔥 Weak: Fire',beast:'🌑 Weak: Dark','fire-weak':'🔥 Weak: Fire'};
+const TELEGRAPH_NAMES={warpGas:'Warp-Gas Globe',goreCharge:'Gore Charge',leap:'Leaping Maul',slam:'Bonebreaker Slam',stomp:'Primordial Stomp'};
+// Status chips that matter for decisions: winding up, hidden, mutation.
+function enemyStateChips(e){
+  const out=[];
+  if(e._windup) out.push(`<span class="e-status-chip e-chip-alert" title="Stun it to cancel; Taunt redirects most big attacks.">⚠ Next turn: ${TELEGRAPH_NAMES[e._windup]||'big attack'}</span>`);
+  if(e._hiding) out.push('<span class="e-status-chip e-chip-tag">🫥 Cowering — can\'t be targeted</span>');
+  if(e._vanished) out.push('<span class="e-status-chip e-chip-tag">💨 Vanished</span>');
+  if(e.mutationLabel) out.push(`<span class="e-status-chip e-chip-debuff" title="${e.mutationDesc||''}">🧬 ${e.mutationLabel}</span>`);
+  return out;
+}
+function enemyAbilityChips(e){
+  return enemyAbilities(e).filter(([n])=>n!=='Mutation').map(([n,d])=>`<span class="e-status-chip e-chip-ability" title="${d.replace(/"/g,'&quot;')}">${n}</span>`);
+}
 const DEBUFF_ICON={'Blinded':'👁','Stunned':'💫','Slowed':'❄','Figment':'👻','Glamer (miss)':'✨','Vine Snare':'🌿','Enervated':'💔'};
 function threatClass(t){ return t==='Boss'?'tb':t==='Elite'||t==='High'?'th':t==='Moderate'?'tm':'tl'; }
 function tipChip(cls,name,label,isEnemy){
@@ -131,21 +144,19 @@ function renderBattle(gs,players,me){
   const eEl=el('ba-enemy'); eEl.innerHTML='';
   enemies.forEach((e,idx)=>{
     if(!e||e.hp<=0)return;
-    const eTok=TOKEN_DATA[e.name];
+    const eTok=tokenSrc(e.name);
     const hpPct=Math.max(0,e.hp/e.maxHp*100);
     const isTarget=idx===activeIdx;
     const eRow=document.createElement('div'); eRow.className='token-row er'+(multi&&isTarget?' targeted':''); eRow.dataset.eidx=idx;
-    const chips=[];
+    const chips=enemyStateChips(e);
     if(e._poisonStacks>0) chips.push(tipChip('e-chip-dot','Poison',`☠ Poison ×${e._poisonStacks}`,true));
     (e.activeDebuffs||[]).forEach(d=>{
       chips.push(d.dotDmg
         ?tipChip('e-chip-dot',d.name,`${d.name} ${d.dotDmg} dmg · ${d.duration}r`,true)
         :tipChip('e-chip-debuff',d.name,`${DEBUFF_ICON[d.name]||'⚠'} ${d.name} · ${d.duration}r`,true));
     });
-    (e.tags||[]).forEach(t=>chips.push(`<span class="e-status-chip e-chip-tag">${ENEMY_TAG_LABEL[t]||t}</span>`));
-    if(e.lifeLeech) chips.push('<span class="e-status-chip e-chip-tag">🩸 Leech</span>');
-    if(e.regen) chips.push('<span class="e-status-chip e-chip-tag">💚 Regen</span>');
-    if(e.insanityAtk) chips.push('<span class="e-status-chip e-chip-tag">🌀 Insanity</span>');
+    (e.tags||[]).forEach(t=>{ if(ENEMY_TAG_LABEL[t]) chips.push(`<span class="e-status-chip e-chip-tag">${ENEMY_TAG_LABEL[t]}</span>`); });
+    chips.push(...enemyAbilityChips(e));
     (e.tags||[]).forEach(t=>{ if(ENEMY_WEAKNESS[t]) chips.push(`<span class="e-status-chip e-chip-weak">${ENEMY_WEAKNESS[t]}</span>`); });
     const target=!multi?'':isTarget
       ?'<div class="target-mark">▶ Targeted</div>'
@@ -168,7 +179,7 @@ function renderBattle(gs,players,me){
     const c=p.char,isMe=p.id===myId;
     const acted=hasActedThisRound(gs,p.id);
     const hp=Math.max(0,c.health/c.maxHealth*100);
-    const src=TOKEN_DATA[p.career];
+    const src=tokenSrc(p.career);
     const tokCls=['tok',!c.alive?'fallen':acted?'acted':'',isMe?'mine':''].join(' ').trim();
     const badge=!c.alive?'<span class="tok-badge tb-f">Fallen</span>':acted?'<span class="tok-badge tb-a">Acted ✓</span>':'';
     const row=document.createElement('div'); row.className='token-row';
@@ -251,6 +262,7 @@ function buildCard(p,gs){
       <div><dt>Silver</dt><dd class="silver">${c.gold} ss</dd></div>
       <div class="wide"><dt>Weapon</dt><dd>${w?`${w.name} ${w.dice}+${w.bonus||0} ${w.dmgType==='blunt'?'🔨':'⚔'}`:'Unarmed'}</dd></div>
       <div class="wide"><dt>Armour</dt><dd>${a?`${a.name} +${a.defBonus}`:'None'}</dd></div>
+      <div class="wide"><dt>Charm</dt><dd${c.equippedCharm?` title="${c.equippedCharm.desc.replace(/"/g,'&quot;')}"`:''}>${c.equippedCharm?c.equippedCharm.name:'None'}</dd></div>
     </dl>
     ${statusChips(c)}
     ${!c.alive?'<div class="dead-label">Fallen</div>':''}`;
@@ -366,24 +378,27 @@ function abilitiesHtml(c){
 }
 
 // ─── INVENTORY ────────────────────────────────────────────────────────────────
-const USABLE_ITEMS=['Healing Draught','Greater Healing Draught','Flask of Oil','Fire Jar','Lucky Pendant','Sharpening Stone'];
+const USABLE_ITEMS=['Healing Draught','Greater Healing Draught','Flask of Oil','Fire Jar','Incendiary Flask','Daemon Fire','Lucky Pendant',
+  'Sharpening Stone','Antitoxin','Smoke Bomb',"Sigmar's Token",'Troll Blood','Dwarf Ale','Warpstone Dust','Black Lotus Oil','Holy Water','Hellfire Bomb','Fly Agaric'];
 const ALLY_ITEMS=['Healing Draught','Greater Healing Draught'];
 function isUsableItem(name){ return USABLE_ITEMS.includes(name)||name.startsWith('Scroll:'); }
 function inventoryHtml(c,inCombat,atMerchant){
   let h='';
   (c.inventory||[]).forEach((item,idx)=>{
     const o=item.itemObj;
-    const isWpn=item.type==='weapon', isArmor=item.type==='armor';
-    const isEq=(isWpn&&c.equippedWeapon&&o&&o.id===c.equippedWeapon.id)||(isArmor&&c.equippedArmor&&o&&o.id===c.equippedArmor.id);
+    const isWpn=item.type==='weapon', isArmor=item.type==='armor', isCharm=item.type==='charm';
+    const isEq=(isWpn&&c.equippedWeapon&&o&&o.id===c.equippedWeapon.id)||(isArmor&&c.equippedArmor&&o&&o.id===c.equippedArmor.id)||(isCharm&&c.equippedCharm&&o&&o.id===c.equippedCharm.id);
     const stat=isWpn&&o?` ${o.dice}+${o.bonus}${o.dmgType==='blunt'?' 🔨':' ⚔'}`:isArmor&&o?` +${o.defBonus} Def`:'';
     const special=(isWpn||isArmor)&&o&&o.special?'<span class="special-mark" title="Has a special ability">✦</span>':'';
     let btns='';
-    if((isWpn||isArmor)&&!isEq) btns+=`<button class="mini-btn" onclick="equipItem(${idx})">Equip</button>`;
+    if((isWpn||isArmor||isCharm)&&!isEq) btns+=`<button class="mini-btn" onclick="equipItem(${idx})">Equip</button>`;
     if(isUsableItem(item.name)) btns+=`<button class="mini-btn" onclick="useItem('${esc(item.name)}',${inCombat})">Use</button>`;
     if(ALLY_ITEMS.includes(item.name)&&inCombat) btns+=`<button class="mini-btn good" onclick="useAlly('${esc(item.name)}')">Ally</button>`;
     if(atMerchant&&!isEq) btns+=`<button class="mini-btn" onclick="sellItem(${idx})">Sell 1 ss</button>`;
-    const open=(isWpn||isArmor)?` onclick="openItemPopout(${idx},this)" role="button" tabindex="0"`:'';
-    h+=`<li class="${isEq?'equipped':''}"><span class="iname${open?' clickable':''}"${open}>${item.name}${item.qty>1?` ×${item.qty}`:''}<small>${stat}</small>${special}${isEq?'<span class="eq-mark">Equipped</span>':''}</span><span class="inv-btns">${btns}</span></li>`;
+    const open=(isWpn||isArmor||isCharm)?` onclick="openItemPopout(${idx},this)" role="button" tabindex="0"`:'';
+    const cursed=o&&o.cursed?'<span class="cursed-mark" title="Cursed: once equipped it can\'t be removed until you rest">⛓ Cursed</span>':'';
+    const tip=!open&&ITEM_DESCS[item.name]?` title="${ITEM_DESCS[item.name].replace(/"/g,'&quot;')}"`:'';
+    h+=`<li class="${isEq?'equipped':''}"><span class="iname${open?' clickable':''}"${open}${tip}>${item.name}${item.qty>1?` ×${item.qty}`:''}<small>${stat}</small>${special}${cursed}${isEq?'<span class="eq-mark">Equipped</span>':''}</span><span class="inv-btns">${btns}</span></li>`;
   });
   return h||'<li class="empty">Your pack is empty.</li>';
 }
@@ -397,11 +412,11 @@ function openItemPopout(invIdx, triggerEl){
   const content=document.getElementById('ip-content');
   if(!pop||!content) return;
 
-  const isWpn=item.type==='weapon', isArm=item.type==='armor';
-  const statLine=isWpn&&obj?`${obj.dice}+${obj.bonus} · ${(obj.stat||'').toUpperCase()} · ${obj.dmgType||''}`:
+  const isWpn=item.type==='weapon', isArm=item.type==='armor', isCharm=item.type==='charm';
+  const statLine=isCharm?'Charm':isWpn&&obj?`${obj.dice}+${obj.bonus} · ${(obj.stat||'').toUpperCase()} · ${obj.dmgType||''}`:
                  isArm&&obj?`+${obj.defBonus} Defense`:'';
   const isEqWpn=isWpn&&me.char.equippedWeapon&&obj&&obj.id===me.char.equippedWeapon.id;
-  const isEqArm=isArm&&me.char.equippedArmor&&obj&&obj.id===me.char.equippedArmor.id;
+  const isEqArm=(isArm&&me.char.equippedArmor&&obj&&obj.id===me.char.equippedArmor.id)||(isCharm&&me.char.equippedCharm&&obj&&obj.id===me.char.equippedCharm.id);
   const inCombat=lastState.gs&&lastState.gs.phase==='combat';
   const atMerchant=lastState.gs&&lastState.gs.phase==='merchant';
   const usable=isUsableItem(item.name);
@@ -436,7 +451,7 @@ function openItemPopout(invIdx, triggerEl){
 
   let btnHtml='<div class="ip-btns">';
   if(isWpn&&!isEqWpn) btnHtml+=`<button class="mini-btn" onclick="equipItem(${invIdx});closeItemPopout()">Equip</button>`;
-  if(isArm&&!isEqArm) btnHtml+=`<button class="mini-btn" onclick="equipItem(${invIdx});closeItemPopout()">Equip</button>`;
+  if((isArm||isCharm)&&!isEqArm) btnHtml+=`<button class="mini-btn" onclick="equipItem(${invIdx});closeItemPopout()">Equip</button>`;
   if(usable) btnHtml+=`<button class="mini-btn" onclick="useItem('${esc(item.name)}',${inCombat});closeItemPopout()">Use</button>`;
   if(atMerchant&&!isEqWpn&&!isEqArm) btnHtml+=`<button class="mini-btn" onclick="sellItem(${invIdx});closeItemPopout()">Sell 1ss</button>`;
   btnHtml+='</div>';
@@ -444,6 +459,8 @@ function openItemPopout(invIdx, triggerEl){
   content.innerHTML=`
     <div class="ip-name">${item.name}${legendary?' <span class="legendary-tag">Legendary</span>':''}</div>
     ${statLine?`<div class="ip-stat">${statLine}${isEqWpn||isEqArm?' · <span class="eq-mark">Equipped</span>':''}</div>`:''}
+    ${isCharm&&obj?`<div class="ip-special"><div class="ip-special-desc">${obj.desc}</div></div>`:''}
+    ${obj&&obj.cursed?'<div class="ip-stat cursed-mark">⛓ Cursed — once equipped it can\'t be removed until you rest or use a Sigmar\'s Token.</div>':''}
     ${specialHtml}
     ${extraDesc&&!specialHtml?`<div class="ip-special"><div class="ip-special-desc">${extraDesc}</div></div>`:''}
     ${btnHtml}`;
@@ -636,9 +653,12 @@ function renderLoot(gs,me){
   const consDesc=o.scrollSpell?o.scrollSpell.desc:ITEM_DESCS[o.consumable]||o.consumable;
   lootOpt(opts,'💰',`${loot.coins} Silver`,'Coin from the cache.',()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'coins'}}));
   lootOpt(opts,'🧪',consName,consDesc,()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'consumable'}}));
-  lootOpt(opts,'⚔',o.weapon.name,`${o.weapon.dice}+${o.weapon.bonus} · ${o.weapon.stat.toUpperCase()} — added to inventory`,()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'weapon'}}));
-  lootOpt(opts,'🛡',o.armor.name,`+${o.armor.defBonus} Defense — added to inventory`,()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'armor'}}));
+  lootOpt(opts,'⚔',o.weapon.name,`${o.weapon.dice}+${o.weapon.bonus} · ${o.weapon.stat.toUpperCase()}${traitText(o.weapon)}`,()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'weapon'}}));
+  lootOpt(opts,'🛡',o.armor.name,`+${o.armor.defBonus} Defence${traitText(o.armor)}`,()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'armor'}}));
+  if(o.charm) lootOpt(opts,'📿',o.charm.name,o.charm.desc,()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'charm'}}));
 }
+// The traits part of an item's description, for compact cards.
+function traitText(item){ const d=(item&&item.desc)||''; const i=d.indexOf('Traits: '); return i>=0?` · ${d.slice(i+8)}`:''; }
 function lootOpt(parent,icon,name,desc,onClick){
   const d=document.createElement('div'); d.className='loot-opt';
   d.innerHTML=`<div class="loot-icon">${icon}</div><div class="loot-name">${name}</div><div class="loot-desc">${desc}</div>`;
@@ -651,7 +671,7 @@ function renderShop(stock,myGold){
   const L=document.createElement('div'); L.className='shop-col';
   const R=document.createElement('div'); R.className='shop-col';
   [stock.weaponEnhance,stock.statBoost,stock.weapon1,stock.weapon2,stock.armor].forEach(it=>{if(it)L.appendChild(shopEl(it,myGold));});
-  [...(stock.consumables||[]),stock.scroll].forEach(it=>{if(it)R.appendChild(shopEl(it,myGold));});
+  [stock.charm,...(stock.consumables||[]),stock.scroll].forEach(it=>{if(it)R.appendChild(shopEl(it,myGold));});
   grid.appendChild(L); grid.appendChild(R);
 }
 function shopEl(item,gold){

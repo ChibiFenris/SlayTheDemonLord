@@ -386,53 +386,89 @@ const TRADITIONS = {
 };
 
 const ENEMY_POOLS = {
+  // Each enemy has ONE signature mechanic (see "ENEMY SIGNATURE MECHANICS" in server.js).
   low: [
     {name:'Skaven Clanrat',  type:'Skaven',  threat:'Low', hp:13,ac:11,atk:1,xp:1,gold:[2,8],  tags:['skaven'],
-     packInstinct:true},
-    {name:'Beastman Gor',    type:'Beastmen',threat:'Low', hp:16,ac:12,atk:2,xp:1,gold:[3,10], tags:['beast'],chaos:true,
-     recklessCharge:true, bloodOnHit:true},
+     packInstinct:true, hideBehind:true},
+    {name:'Beastman Gor',    type:'Beastmen',threat:'Low', hp:16,ac:12,atk:2,xp:1,gold:[3,10], tags:['beast'],
+     recklessCharge:true, bloodOnHit:true, gore:true},
     {name:'Undead Skeleton', type:'Undead',  threat:'Low', hp:18,ac:10,atk:1,xp:1,gold:[0,5],  tags:['undead'],undead:true,
-     undying:true, weakToBlunt:true},
-    {name:'Mutant Thug',     type:'Cultist', threat:'Low', hp:11,ac:13,atk:2,xp:1,gold:[5,15], tags:['chaos'],chaos:true,
-     corrodingBite:true, mutate:true},
+     undying:true, weakToBlunt:true, stunImmune:true, shieldWall:true},
+    {name:'Mutant Thug',     type:'Mutant',  threat:'Low', hp:12,ac:12,atk:2,xp:1,gold:[5,15], tags:['chaos'],chaos:true,
+     mutation:true},
+    {name:'Ghoul',           type:'Corpse-eater',threat:'Low', hp:15,ac:12,atk:2,xp:1,gold:[2,8], tags:['undead'],
+     paralysingClaws:true, carrionFeast:true},
+    {name:'Zombie',          type:'Undead',  threat:'Low', hp:13,ac:9, atk:0,xp:1,gold:[0,4],  tags:['undead'],undead:true,
+     horde:true, shambling:true, rotFeast:true},
+    {name:'Pox Rat Swarm',   type:'Vermin',  threat:'Low', hp:10,ac:10,atk:1,xp:1,gold:[0,3],  tags:['vermin'],
+     swarm:true},
+    {name:'Ungor Skirmisher',type:'Beastmen',threat:'Low', hp:12,ac:13,atk:2,xp:1,gold:[2,8],  tags:['beast'],
+     skirmisher:true},
   ],
   mid: [
     {name:'Chaos Marauder',    type:'Chaos',  threat:'Moderate',hp:36,ac:13,atk:3,xp:2,gold:[10,25],tags:['chaos'],chaos:true,
-     frenziedAssault:true, chaosWorship:true},
+     battleFury:true},
     {name:'Skaven Stormvermin',type:'Skaven', threat:'Moderate',hp:29,ac:16,atk:3,xp:2,gold:[8,20], tags:['skaven'],
-     skavenDiscipline:true, gutterFighting:true},
-    {name:'Wight',             type:'Undead', threat:'Moderate',hp:34,ac:11,atk:3,xp:2,gold:[5,15], tags:['undead'],undead:true,lifeLeech:true,
-     graveChill:true},
-    {name:'Plague Monk',       type:'Chaos',  threat:'Moderate',hp:27,ac:13,atk:3,xp:2,gold:[5,15], tags:['chaos'],chaos:true,
-     virulentBlade:true, plagueFrenzy:true},
+     skavenDiscipline:true, halberdGuard:true, callsPack:true},
+    {name:'Wight',             type:'Undead', threat:'Moderate',hp:34,ac:12,atk:3,xp:2,gold:[5,15], tags:['undead'],undead:true,
+     barrowChill:true},
+    {name:'Plague Monk',       type:'Skaven', threat:'Moderate',hp:27,ac:13,atk:3,xp:2,gold:[5,15], tags:['chaos'],chaos:true,
+     virulentBlade:true, plagueFrenzy:true, deathCloud:true},
+    {name:'Blue Horror',       type:'Daemon', threat:'Moderate',hp:24,ac:12,atk:2,xp:2,gold:[5,15], tags:['chaos'],chaos:true,
+     splitOnDeath:true},
+    {name:'Gutter Runner',     type:'Skaven', threat:'Moderate',hp:22,ac:15,atk:3,xp:2,gold:[10,25],tags:['skaven'],
+     assassinTarget:true, vanish:true},
+    {name:'Nurgle Cultist',    type:'Cultist',threat:'Moderate',hp:26,ac:11,atk:2,xp:2,gold:[5,20], tags:['chaos'],chaos:true,
+     sacrifice:true, pestilentCall:true},
+    {name:'Banshee',           type:'Undead', threat:'Moderate',hp:28,ac:13,atk:2,xp:2,gold:[5,15], tags:['undead'],undead:true,
+     wail:true, ethereal:true},
+    {name:'Plague Rat Lord',   type:'Skaven', threat:'Moderate',hp:30,ac:14,atk:3,xp:2,gold:[10,25],tags:['skaven'],
+     ratLord:true},
   ],
   high: [
     {name:'Chaos Warrior',  type:'Chaos',  threat:'High',hp:63,ac:16,atk:4,xp:4,gold:[15,40],tags:['chaos'],chaos:true,
-     brutalCleave:true, chosenOfTheGods:true, _godsUsed:false},
+     damageReduction:2, cleaveSpill:true},
     {name:'Vampire Count', type:'Undead', threat:'High',hp:50,ac:14,atk:4,xp:4,gold:[20,60],tags:['undead'],undead:true,lifeLeech:true,
-     lifeLeechFrac:0.5, hypnoticGaze:true, mistForm:true},
-    {name:'Bloodletter',   type:'Chaos',  threat:'High',hp:55,ac:15,atk:4,xp:4,gold:[25,50],tags:['chaos'],chaos:true,insanityAtk:true,
-     ignoresDef:2, frenzyAtk:{threshold:0.5,newAtk:4,boon:true,extraDmg:true}, daemonicIchor:true},
+     lifeLeechFrac:0.5, mistForm:true, dominate:true},
+    {name:'Bloodletter',   type:'Daemon', threat:'High',hp:55,ac:15,atk:4,xp:4,gold:[25,50],tags:['chaos'],chaos:true,
+     hellblade:true, bloodOnHit:true, bloodTithe:true},
     {name:'Skaven Warlord',type:'Skaven', threat:'High',hp:53,ac:13,atk:3,xp:4,gold:[10,30],tags:['skaven'],
-     warlordCommand:true, scurryAway:true, poisonBlade:4},
+     warlordCommand:true, scurryAway:true, coward:true},
+    {name:'Minotaur',      type:'Beastmen',threat:'High',hp:66,ac:14,atk:4,xp:4,gold:[15,40],tags:['beast'],
+     bullCharge:true, bloodgreedKill:true},
+    {name:'River Troll',   type:'Troll',  threat:'High',hp:75,ac:12,atk:3,xp:4,gold:[10,30],tags:['fire-weak'],
+     trollRegen:true, trollVomit:true},
+    {name:'Ratling Gun Team',type:'Skaven',threat:'High',hp:46,ac:13,atk:3,xp:4,gold:[15,35],tags:['skaven'],
+     ratlingGun:true},
+    {name:'Warlock Engineer',type:'Skaven',threat:'High',hp:44,ac:13,atk:3,xp:4,gold:[20,40],tags:['skaven'],
+     warpLightning:true},
   ],
+  // Bosses telegraph a big attack a round ahead: stun them, Taunt, or heal up in time.
   boss1: [
     {name:'Skaven Warlord Gnashteeth',type:'Skaven Boss', threat:'Boss',hp:68,ac:14,atk:2,xp:5,gold:[30,80], tags:['skaven'],
-     skavencunning:true, seethingRage:true, packBoss:true},
-    {name:'Beastlord Kragthor',       type:'Beastmen Boss',threat:'Boss',hp:72,ac:14,atk:2,xp:5,gold:[25,70], tags:['beast'],chaos:true,
-     stampede:true, bloodlust:true, belowRoar:true, bloodlustActive:false},
+     skavencunning:true, seethingRage:true, packBoss:true, telegraph:'warpGas'},
+    {name:'Beastlord Kragthor',       type:'Beastmen Boss',threat:'Boss',hp:72,ac:14,atk:2,xp:5,gold:[25,70], tags:['beast'],
+     stampede:true, bloodlust:true, belowRoar:true, telegraph:'goreCharge'},
   ],
   boss2: [
     {name:'Varghulf',            type:'Undead Boss', threat:'Boss',hp:115,ac:15,atk:4,xp:5,gold:[200,200],tags:['undead'],undead:true,lifeLeech:true,
-     lifeLeechFrac:0.25, frenzyMulti:{threshold:0.5}, critMajorBleed:true},
+     lifeLeechFrac:0.25, frenzyMulti:{threshold:0.5}, critMajorBleed:true, telegraph:'leap'},
     {name:'Bonebreaker Ratogre', type:'Skaven Boss', threat:'Boss',hp:105,ac:16,atk:3,xp:5,gold:[200,200],tags:['skaven'],insanityAtk:true,
-     crushingBlow:true, packLeader:true, skavenPackTactics:true},
+     packLeader:true, skavenPackTactics:true, telegraph:'slam'},
   ],
   boss3: [
-    {name:'Saurian Ancient',type:'Ancient Boss',threat:'Boss',hp:200,ac:15,atk:5,xp:5,gold:[60,150],tags:[],
-     regen:true, primordialRoar:true, crushingTail:true, extinctionPulse:true, ancientScales:true},
+    {name:'Saurian Ancient',type:'Ancient Boss',threat:'Boss',hp:200,ac:15,atk:5,xp:5,gold:[60,150],tags:['fire-weak'],
+     regen:true, primordialRoar:true, crushingTail:true, extinctionPulse:true, ancientScales:true, telegraph:'stomp'},
   ],
 };
+
+// Enemies that only ever appear as summons.
+const SUMMONS = {
+  clanrat:   {name:'Skaven Clanrat', type:'Skaven', threat:'Low', hp:13,ac:11,atk:0,xp:0,gold:[0,0], tags:['skaven'], packInstinct:true},
+  poxRats:   {name:'Pox Rat Swarm',  type:'Vermin', threat:'Low', hp:10,ac:10,atk:1,xp:0,gold:[0,0], tags:['vermin'], swarm:true},
+  brimstone: {name:'Brimstone Horror',type:'Daemon',threat:'Low', hp:7, ac:11,atk:1,xp:0,gold:[0,0], tags:['chaos'], chaos:true},
+};
+
 
 const XP_THRESHOLDS = [0,0,2,10,19,24,29,34,51,68,84]; // Lv3@depth8, Lv4@depth11, Lv7@depth17, Lv10@depth27 // Lv3@boss1(~18xp), Lv7@boss2(~52xp), Lv10@end
 
@@ -456,7 +492,8 @@ const SCROLL_SPELLS_LIST = [
   {name:'Bone Prison',       desc:'One enemy loses their next turn (Stunned)',                    type:'utility', dmgDice:'0d0', bonePrison:true},
 ];
 
-const LOOT_CONS_LIST=['Healing Draught','Greater Healing Draught','Incendiary Flask','Daemon Fire','Lucky Pendant','Sharpening Stone','Antitoxin','Smoke Bomb'];
+const LOOT_CONS_LIST=['Healing Draught','Greater Healing Draught','Incendiary Flask','Daemon Fire','Lucky Pendant','Sharpening Stone','Antitoxin','Smoke Bomb',
+  'Troll Blood','Dwarf Ale','Warpstone Dust','Black Lotus Oil','Holy Water','Hellfire Bomb','Fly Agaric'];
 
 const WEAPON_BASES=[
   {name:'Reiklander Sword', dice:'1d6', stat:'str', dmgType:'slashing', special:{key:'bladeguard',  desc:'Passive: +1 Defense while equipped. Blade catches enemy weapons — lost if you are stunned.'}},
@@ -475,6 +512,10 @@ const WEAPON_BASES=[
   {name:'Arcane Hammer',    dice:'2d6', stat:'int', dmgType:'blunt',    special:{key:'runeStrike',  desc:'Active (1/combat): overcharge the rune — next hit ignores all enemy damage reduction and defensive buff bonuses.'}},
   {name:'Blessed Staff',    dice:'1d6', stat:'wil', dmgType:'blunt',    special:{key:'channelFaith',desc:'Passive: divine focus — adds your WIL modifier to all healing spells cast with this staff.'}},
   {name:'War Censer',       dice:'2d6', stat:'wil', dmgType:'blunt',    special:{key:'holySmoke',   desc:'Passive: burning incense coats each hit with 1 poison stack from the sacred fumes.'}},
+  {name:'Paired Daggers',dice:'2d4',stat:'agi',dmgType:'slashing',special:{key:'twinBlades',desc:'Passive: two quick blades — you crit on 19–20.'}},
+  {name:'Greatsword',   dice:'3d6',stat:'str',dmgType:'slashing',special:{key:'greatBlade',desc:'Passive: a huge two-handed blade — −1 Defence while equipped.'}},
+  {name:'Flail',        dice:'2d6',stat:'str',dmgType:'blunt',   special:{key:'flailSwing',desc:'Passive: +2 to hit against Defence 15 or higher. On a fumble the head swings back — you take 1d6.'}},
+  {name:'Longbow',      dice:'1d8',stat:'agi',dmgType:'slashing',special:{key:'longbow',   desc:'Passive: 1 boon on round-1 attacks; 1 bane if you were hit since your last turn.'}}
 ];
 
 const ARMOR_BASES=[
@@ -490,6 +531,8 @@ const ARMOR_BASES=[
   {name:'Flagellant Tabard', def:1, special:{key:'righteousSuffering', desc:'Passive: pain fuels the strike — after taking 5+ damage in one hit, your next attack deals +1d6 bonus damage.'}},
   {name:'Dragonscale Vest',  def:4, special:{key:'fireImmune',  desc:'Passive: dragonscale absorbs flame — immune to all fire damage. Your fire-element attacks and items deal +1d6 bonus damage.'}},
   {name:'Verminplate Coif',  def:4, special:{key:'packScorn',   desc:'Passive: carved from a Skaven warlord — Skaven attackers have 1 bane vs you. Each Skaven you kill restores 1 HP.'}},
+  {name:'Kite Shield',      def:2,special:{key:'shieldBlock',desc:'Passive: blocks the first hit against you each fight.'}},
+  {name:'Witch-Hunter Coat',def:2,special:{key:'witchCoat',  desc:'Passive: immune to Insanity. +1 boon on attacks against Chaos.'}}
 ];
 
 const LEGENDARY_ITEMS = {
@@ -588,6 +631,13 @@ const SHOP_CONSUMABLES=[
   {name:'Antitoxin',              desc:'Clear all your poison stacks',cost:18},
   {name:'Smoke Bomb',             desc:'All enemies attack with 2 banes this round',cost:20},
   {name:"Sigmar's Token",         desc:'Heal 1d6+3 HP and remove one debuff',cost:30},
+  {name:'Troll Blood',     desc:'Regenerate 3 HP a round for 3 rounds, but −2 Defence meanwhile', cost:24},
+  {name:'Dwarf Ale',       desc:'Heal 2d6 HP, but 1 bane on your next attack', cost:16},
+  {name:'Warpstone Dust',  desc:'+2 damage for the rest of the fight, and you gain 1 Corruption', cost:22},
+  {name:'Black Lotus Oil', desc:'Your next 3 weapon hits each add 3 poison', cost:26},
+  {name:'Holy Water',      desc:'3d6 holy damage to an undead or daemonic target', cost:20},
+  {name:'Hellfire Bomb',   desc:'4d6 fire to every enemy — and 1d6 to you', cost:34},
+  {name:'Fly Agaric',      desc:'Your next spell costs no casting and deals +1d6, but you take 1d4', cost:20}
 ];
 
 const SCROLL_SPELLS_SHOP=[
@@ -606,22 +656,90 @@ const SCROLL_SPELLS_SHOP=[
   {name:'Battle Hymn',        desc:'All allies +2 ATK for 2 rounds',          type:'utility', dmgDice:'0d0', battleHymn:true},
 ];
 
+
+// ─── ITEM TRAITS ───────────────────────────────────────────────────────────
+// Found and bought weapons/armour roll 0–2 of these. Bad traits are real downsides.
+const WEAPON_TRAITS = {
+  keen:     {label:'Keen',     good:true,  desc:'crits on 19–20'},
+  balanced: {label:'Balanced', good:true,  desc:'+1 to hit'},
+  serrated: {label:'Serrated', good:true,  desc:'hits cause Bleed'},
+  blessed:  {label:'Blessed',  good:true,  desc:'+2 damage vs undead and Chaos; counts as holy'},
+  vicious:  {label:'Vicious',  good:true,  desc:'+1 damage'},
+  venomous: {label:'Venomous', good:true,  desc:'hits add 1 poison'},
+  notched:  {label:'Notched',  good:false, desc:'−1 damage'},
+  unwieldy: {label:'Unwieldy', good:false, desc:'1 bane on your first attack each fight'},
+  clumsy:   {label:'Clumsy',   good:false, desc:'−1 to hit'},
+  brittle:  {label:'Brittle',  good:false, desc:'each fumble permanently costs 1 damage'},
+};
+const ARMOR_TRAITS = {
+  reinforced:{label:'Reinforced',good:true,  desc:'+1 Defence'},
+  padded:    {label:'Padded',    good:true,  desc:'crits against you deal no extra dice'},
+  sanctified:{label:'Sanctified',good:true,  desc:'heal 1 HP at the end of each round'},
+  warded:    {label:'Warded',    good:true,  desc:'immune to Insanity'},
+  heavy:     {label:'Heavy',     good:false, desc:'−1 to hit with AGI weapons, −3 to flee'},
+  rusted:    {label:'Rusted',    good:false, desc:'−1 Defence'},
+  creaking:  {label:'Creaking',  good:false, desc:'enemies have +1 to hit you in round 1'},
+};
+
+// ─── CHARMS (one trinket slot; most trade a strength for a weakness) ───────
+const CHARMS = {
+  haresFoot:  {name:"Lucky Hare's Foot",     desc:'+1 to hit, but −1 Defence.', atkMod:1, defMod:-1},
+  ironTooth:  {name:'Iron Tooth Charm',      desc:'−1 damage taken, but −1 damage dealt.'},
+  witchSeal:  {name:"Witch-Hunter's Seal",   desc:'1 boon against Chaos, but 1 bane against everything else.'},
+  gamblerDie: {name:"Gambler's Die",         desc:'Each fight: +2 to a random attribute and −1 to another.'},
+  boneRosary: {name:'Bone Rosary',           desc:'Once per fight a killing blow leaves you at 1 HP, but you start each fight 3 HP lower.'},
+  wolfTotem:  {name:'Wolf-Pelt Totem',       desc:'+2 damage below half HP, but enemies have +1 to hit you.'},
+  ranaldCoin: {name:"Ranald's Coin",         desc:'+50% silver from kills, but −1 Defence.', defMod:-1},
+  morrFeather:{name:"Morr's Raven Feather",  desc:'Undead have 1 bane against you, but healing draughts heal 2 less.'},
+  grailToken: {name:"Grail Pilgrim's Token", desc:'Heal 1 HP at the end of each round, but −1 to hit.', atkMod:-1},
+  brassSkull: {name:'Brass Skull of Khorne', desc:'+1d3 damage on weapon hits, but you cannot cast spells.'},
+  // cursed charms
+  warpAmulet: {name:'Warpstone Amulet',      desc:'Cursed. +1 Power, but each spell you cast has a 1-in-6 chance to give you Corruption.', cursed:true},
+  tzeentchLens:{name:"Tzeentch's Lens",      desc:'Cursed. Reroll your first missed attack each fight, but −25% max HP while worn.', cursed:true},
+};
+const CHARM_SHOP_KEYS = ['haresFoot','ironTooth','witchSeal','gamblerDie','boneRosary','wolfTotem','ranaldCoin','morrFeather','grailToken','brassSkull'];
+
+// Cursed weapons/armour: strong, but the downside is real and you can't swap them out
+// until you rest at a campfire or use a Sigmar's Token.
+const CURSED_GEAR = {
+  khornateAxe: {type:'weapon',name:'Khornate Axe',dice:'3d6',stat:'str',dmgType:'slashing',bonus:2,
+    special:{key:'khornateAxe',desc:'Cursed. If you end your turn without attacking, the axe drinks from you — take 1d6.'}},
+  nurgleMask:  {type:'armor',name:'Skull-Mask of Nurgle',def:4,
+    special:{key:'nurgleMask',desc:'Cursed. Immune to poison, but you lose 2 max HP at the start of each fight until you rest.'}},
+  shroudFlies: {type:'armor',name:'Shroud of Flies',def:3,
+    special:{key:'shroudFlies',desc:'Cursed. Enemies have 1 bane against you, but the flies feed — lose 1 HP each round (never below 1).'}},
+};
+
 const ENEMY_DROPS = {
   'Skaven Clanrat':    [{type:'weapon',name:'Clanrat Blade',    dice:'1d6',stat:'agi',dmgType:'slashing',bonus:1,special:{key:'holySmoke',desc:'Passive: each hit applies 1 poison stack from filth-coated blade.'},chance:0.10}],
-  'Beastman Gor':      [{type:'weapon',name:'Gor Cleaver',      dice:'1d6',stat:'str',dmgType:'slashing',bonus:1,special:{key:'cleave',  desc:'Active: after a kill, next attack this round deals +1d6 dmg.'},chance:0.10}],
+  'Beastman Gor':      [{type:'weapon',name:'Gor Cleaver',      dice:'1d6',stat:'str',dmgType:'slashing',bonus:1,special:{key:'cleave',  desc:'Active: after a kill, next attack this round deals +1d6 dmg.'},chance:0.10},{type:'charm',key:'wolfTotem',chance:0.08}],
   'Undead Skeleton':   [{type:'armor', name:'Bone-Laced Mail',  def:2, special:{key:'dwarfForged',desc:'Passive: Gromril is the hardest metal in the world — cannot be stunned more than once per combat. -1 to all incoming damage.'},chance:0.10}],
-  'Mutant Thug':       [{type:'weapon',name:'Chaos Cudgel',     dice:'1d6',stat:'str',dmgType:'blunt',  bonus:1,special:{key:'sunder',   desc:'Active: on a crit, target loses 2 AC for the rest of combat.'},chance:0.10}],
-  'Chaos Marauder':    [{type:'armor', name:'Marauder Hide',    def:2, special:{key:'chaosWard',desc:'Passive: warded against corruption — -2 damage from all Chaos enemies. +1 boon on WIL checks vs Chaos.'},chance:0.10}],
+  'Mutant Thug':       [{type:'weapon',name:'Chaos Cudgel',     dice:'1d6',stat:'str',dmgType:'blunt',  bonus:1,special:{key:'sunder',   desc:'Active: on a crit, target loses 2 AC for the rest of combat.'},chance:0.10},{type:'charm',key:'gamblerDie',chance:0.08}],
+  'Chaos Marauder':    [{type:'armor', name:'Marauder Hide',    def:2, special:{key:'chaosWard',desc:'Passive: warded against corruption — -2 damage from all Chaos enemies. +1 boon on WIL checks vs Chaos.'},chance:0.10},{type:'charm',key:'witchSeal',chance:0.08}],
   'Skaven Stormvermin':[{type:'weapon',name:'Stormvermin Halberd',dice:'2d6',stat:'str',dmgType:'slashing',bonus:2,special:{key:'reach',desc:'Passive: +1 boon on round 1 attacks. Your reach means charging enemies cannot use Reckless Charge vs you.'},chance:0.12}],
-  'Wight':             [{type:'armor', name:'Wight Shroud',     def:2, special:{key:'lastTarget',desc:'Passive: your shadowy movement draws less attention — enemies always attack other allies before you.'},chance:0.12}],
+  'Wight':             [{type:'armor', name:'Wight Shroud',     def:2, special:{key:'lastTarget',desc:'Passive: your shadowy movement draws less attention — enemies always attack other allies before you.'},chance:0.12},{type:'charm',key:'ironTooth',chance:0.08}],
   'Plague Monk':       [{type:'weapon',name:'Plague Censer',    dice:'2d6',stat:'wil',dmgType:'blunt',  bonus:2,special:{key:'holySmoke',desc:'Passive: each hit applies 1 poison stack from sacred incense.'},chance:0.12}],
   'Chaos Warrior':     [{type:'armor', name:'Chaos Plate',      def:4, special:{key:'chaosWard',desc:'Passive: warded against corruption — -2 damage from all Chaos enemies. +1 boon on WIL checks vs Chaos.'},chance:0.12}],
-  'Vampire Count':     [{type:'weapon',name:'Vampiric Blade',   dice:'2d6',stat:'agi',dmgType:'slashing',bonus:2,special:{key:'riposte', desc:'Active: when an enemy misses you, make a free counterattack with 1 boon. Once/round.'},chance:0.12}],
-  'Bloodletter':       [{type:'weapon',name:"Bloodletter's Axe",dice:'2d6',stat:'str',dmgType:'slashing',bonus:3,special:{key:'cleave',  desc:'Active: after a kill, next attack this round deals +1d6 dmg.'},chance:0.12}],
-  'Skaven Warlord':    [{type:'weapon',name:'Warlord Blade',    dice:'2d6',stat:'agi',dmgType:'slashing',bonus:3,special:{key:'bladeguard',desc:'Passive: +1 Defense while equipped. Blade catches enemy weapons — lost if you are stunned.'},chance:0.15}],
+  'Vampire Count':     [{type:'weapon',name:'Vampiric Blade',   dice:'2d6',stat:'agi',dmgType:'slashing',bonus:2,special:{key:'riposte', desc:'Active: when an enemy misses you, make a free counterattack with 1 boon. Once/round.'},chance:0.12},{type:'charm',key:'grailToken',chance:0.08}],
+  'Bloodletter':       [{type:'weapon',name:"Bloodletter's Axe",dice:'2d6',stat:'str',dmgType:'slashing',bonus:3,special:{key:'cleave',  desc:'Active: after a kill, next attack this round deals +1d6 dmg.'},chance:0.12},{type:'charm',key:'brassSkull',chance:0.1}],
+  'Skaven Warlord':    [{type:'weapon',name:'Warlord Blade',    dice:'2d6',stat:'agi',dmgType:'slashing',bonus:3,special:{key:'bladeguard',desc:'Passive: +1 Defense while equipped. Blade catches enemy weapons — lost if you are stunned.'},chance:0.15},{type:'charm',key:'ranaldCoin',chance:0.1}],
+  'Ghoul':             [{type:'charm',key:'boneRosary',chance:0.12}],
+  'Zombie':            [{type:'weapon',name:'Rotting Flail',dice:'2d6',stat:'str',dmgType:'blunt',bonus:1,chance:0.08,special:{key:'flailSwing',desc:'Passive: +2 to hit against Defence 15 or higher. On a fumble the head swings back — you take 1d6.'}}],
+  'Pox Rat Swarm':     [{type:'charm',key:'haresFoot',chance:0.08}],
+  'Ungor Skirmisher':  [{type:'weapon',name:'Ungor Longbow',dice:'1d8',stat:'agi',dmgType:'slashing',bonus:1,chance:0.12,special:{key:'longbow',desc:'Passive: 1 boon on round-1 attacks; 1 bane if you were hit since your last turn.'}}],
+  'Blue Horror':       [{type:'cursed',key:'tzeentchLens',chance:0.10}],
+  'Gutter Runner':     [{type:'weapon',name:'Gutter Runner Blades',dice:'2d4',stat:'agi',dmgType:'slashing',bonus:2,chance:0.12,special:{key:'twinBlades',desc:'Passive: two quick blades — you crit on 19–20.'}}],
+  'Nurgle Cultist':    [{type:'cursed',key:'nurgleMask',chance:0.10}],
+  'Banshee':           [{type:'charm',key:'morrFeather',chance:0.12}],
+  'Plague Rat Lord':   [{type:'cursed',key:'shroudFlies',chance:0.10}],
+  'Minotaur':          [{type:'cursed',key:'khornateAxe',chance:0.12}],
+  'River Troll':       [{type:'consumable',name:'Troll Blood',chance:0.5}],
+  'Ratling Gun Team':  [{type:'cursed',key:'warpAmulet',chance:0.12}],
+  'Warlock Engineer':  [{type:'consumable',name:'Warpstone Dust',chance:0.5}]
 };
 
 module.exports = {
+  SUMMONS, WEAPON_TRAITS, ARMOR_TRAITS, CHARMS, CHARM_SHOP_KEYS, CURSED_GEAR,
   CAREERS,
   NOVICE_PATHS,
   EXPERT_PATHS,

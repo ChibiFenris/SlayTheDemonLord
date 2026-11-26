@@ -1,7 +1,9 @@
 'use strict';
-// Portrait tokens (base64 images keyed by class / enemy name)
-let TOKEN_DATA={};
-fetch('tokens.json').then(r=>r.json()).then(d=>{ TOKEN_DATA=d; }).catch(()=>{});
+// Portraits live in public/tokens/ as small webp files; index.json maps a class or
+// enemy name to its file so the browser only downloads (and caches) what it shows.
+let TOKEN_FILES={};
+fetch('tokens/index.json').then(r=>r.json()).then(d=>{ TOKEN_FILES=d; if(lastState) renderState(lastState); }).catch(()=>{});
+function tokenSrc(name){ const f=TOKEN_FILES[name]; return f?'tokens/'+f:null; }
 
 // Browser storage can throw (private mode, blocked cookies) — never let it break the game.
 const store={

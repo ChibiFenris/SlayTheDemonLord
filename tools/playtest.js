@@ -49,7 +49,7 @@ function run(nPlayers, comp, seedLabel){ return new Promise(res=>{
         if(c.pendingStatBoost) return act('CHOOSE_STAT',{attr:pick(['str','agi','int','wil'])});
         if(!c.alive) return;
         if(gs.phase==='path'&&gs.pathChoices&&!(gs.pathVotes||{})[b.id]) return act('VOTE_PATH',{nodeType:pick(gs.pathChoices)});
-        if(gs.phase==='loot') return act('PICK_LOOT',{pick:pick(['coins','consumable','weapon','armor'])});
+        if(gs.phase==='loot') return act('PICK_LOOT',{pick:pick(['coins','consumable','weapon','armor','charm'])});
         if(gs.phase==='merchant'){ if(c.merchantStock&&Math.random()<0.5&&c.merchantStock.length){ const it=pick(c.merchantStock); return act('BUY_ITEM',{itemId:it.id}); }
           if(c.inventory&&c.inventory.length&&Math.random()<0.2) return act('SELL_ITEM',{invIndex:Math.floor(Math.random()*c.inventory.length)});
           return act('LEAVE_SHOP'); }
