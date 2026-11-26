@@ -2,7 +2,7 @@
 // Portraits live in public/tokens/ as small webp files; index.json maps a class or
 // enemy name to its file so the browser only downloads (and caches) what it shows.
 let TOKEN_FILES={};
-fetch('tokens/index.json').then(r=>r.json()).then(d=>{ TOKEN_FILES=d; if(lastState) renderState(lastState); }).catch(()=>{});
+fetch('tokens/index.json',{cache:'no-cache'}).then(r=>r.json()).then(d=>{ TOKEN_FILES=d; if(lastState) renderState(lastState); }).catch(()=>{});
 function tokenSrc(name){ const f=TOKEN_FILES[name]; return f?'tokens/'+f:null; }
 
 // Rules tables come from the server so client and server always agree.

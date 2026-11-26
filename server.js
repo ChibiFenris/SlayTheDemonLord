@@ -26,7 +26,12 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.ht
 app.set('trust proxy', 1);
 // Music and portraits rarely change: let browsers cache them for a week.
 app.use('/music', express.static(path.join(__dirname, 'public', 'music'), { maxAge: '7d' }));
-app.use('/tokens', express.static(path.join(__dirname, 'public', 'tokens'), { maxAge: '7d' }));
+// Portraits cache for a week, but the name→file list must always be fresh,
+// or browsers miss portraits for anything added since their last visit.
+app.use('/tokens', express.static(path.join(__dirname, 'public', 'tokens'), {
+  maxAge: '7d',
+  setHeaders: (res, file) => { if (file.endsWith('index.json')) res.setHeader('Cache-Control', 'no-cache'); },
+}));
 app.use(express.static(path.join(__dirname, 'public')));
 
 const rooms = new Map();
