@@ -13,10 +13,269 @@ const heal = (c, n) => { c.health = Math.min(c.maxHealth, c.health + n); };
 const hurt = (room, p, n) => { p.char.health = Math.max(0, p.char.health - n); S.checkDeath(room, p); };
 const nextFight = (c, name, fx) => S.addBuff(c, name, fx, 99); // 99-round buffs clear when the next fight ends
 
-const partyHas = (room, career) => alive(room).some(p => p.career === career);
+const partyHas = (room, career) => alive(room).some(p => [].concat(career).includes(p.career)); // one career or a list
 const cursedInPack = c => (c.inventory || []).filter(i => i.itemObj && i.itemObj.cursed);
 
 const CHOICE_EVENTS = {
+  // ── Former instant events, now choices ───────────────────────────────────
+  shrineSigmar: {
+    title: 'Shrine of Sigmar', icon: '⛪',
+    text: 'A roadside shrine, its hammer still bright. Candles burn, though no one tends them.',
+    options: [
+      { id: 'pray', label: 'Kneel and pray', desc: 'Everyone heals 1d6+3 and gets 1 boon on their next attack.' },
+      { id: 'tithe', label: 'Leave a tithe', desc: 'Pay 15 silver each (if you can): heal fully.' },
+      { id: 'loot', label: 'Take the offering bowl', desc: '+20 silver each, but 1 bane in the next fight.' },
+    ],
+    resolve(room, opt) {
+      const ps = alive(room);
+      if (opt === 'pray') { const h = rd(1, 6) + 3; ps.forEach(p => { heal(p.char, h); S.addBuff(p.char, 'Shrine Blessing', { atkBoon: 1, consumeOnAttack: true }, 99); }); return S.addLog(room, `⛪ The warband prays — everyone heals <strong>${h} HP</strong> and gains 1 boon on their next attack.`, 'heal'); }
+      if (opt === 'tithe') { ps.forEach(p => { if (p.char.gold < 15) return S.addLog(room, `${p.name} has nothing to give.`, 'sys'); p.char.gold -= 15; p.char.health = p.char.maxHealth; S.addLog(room, `⛪ ${p.name} leaves 15 silver — <strong>fully healed</strong>.`, 'heal'); }); return; }
+      ps.forEach(p => { p.char.gold += 20; nextFight(p.char, 'Sacrilege', { bane: 1 }); });
+      S.addLog(room, '💰 The warband empties the bowl — +20 silver each. Sigmar is watching. (1 bane next fight.)', 'chaos');
+    },
+  },
+  hangingCage: {
+    title: 'The Hanging Cage', icon: '☠',
+    text: 'A gibbet cage creaks above the road. Inside, a body — and a purse still on its belt.',
+    options: [
+      { id: 'climb', label: 'Climb up for the purse', desc: 'One of you gets 30 silver; 1d6 damage from the fall.' },
+      { id: 'bury', label: 'Cut him down and bury him', desc: 'Everyone gets 1 boon in the next fight.' },
+      { id: 'pass', label: 'Hurry past', desc: 'The sight rattles everyone: 1 bane until you first draw blood.' },
+    ],
+    resolve(room, opt) {
+      const ps = alive(room);
+      if (opt === 'climb') { const p = pickRandom(ps); p.char.gold += 30; S.addLog(room, `🪙 ${p.name} climbs up and takes the purse — <strong>+30 silver</strong>.`, 'loot'); return hurt(room, p, rd(1, 6)); }
+      if (opt === 'bury') { ps.forEach(p => nextFight(p.char, 'Honoured the Dead', { atkBoon: 1 })); return S.addLog(room, '⚰ The warband buries the stranger. Morr is pleased. (1 boon next fight.)', 'heal'); }
+      ps.forEach(p => S.addBuff(p.char, 'Rattled', { bane: 1 }, 500));
+      S.addLog(room, '☠ The warband hurries past, unsettled — 1 bane until they draw first blood.', 'chaos');
+    },
+  },
+  alchemistCache: {
+    title: "The Alchemist's Cache", icon: '⚗',
+    text: 'A collapsed workshop. Shelves of stoppered bottles, some labelled, some smoking.',
+    options: [
+      { id: 'labelled', label: 'Take only the labelled bottles', desc: 'Everyone gets a Healing Draught.' },
+      { id: 'all', label: 'Grab everything', desc: 'Everyone gets two random potions — but one of you gets splashed with acid (2d6).' },
+    ],
+    resolve(room, opt) {
+      const ps = alive(room);
+      if (opt === 'labelled') { ps.forEach(p => S.addToInventory(p.char, 'Healing Draught')); return S.addLog(room, '⚗ Each warrior pockets a <strong>Healing Draught</strong>.', 'loot'); }
+      const pool = ['Healing Draught', 'Incendiary Flask', 'Sharpening Stone', 'Antitoxin', 'Smelling Salts', 'Ironhide Tonic'];
+      ps.forEach(p => { const a = pickRandom(pool), b = pickRandom(pool); S.addToInventory(p.char, a); S.addToInventory(p.char, b); S.addLog(room, `⚗ ${p.name} finds <strong>${a}</strong> and <strong>${b}</strong>.`, 'loot'); });
+      const unlucky = pickRandom(ps); S.addLog(room, `💥 A bottle bursts in ${unlucky.name}'s hands!`, 'dmg'); hurt(room, unlucky, rd(2, 6));
+    },
+  },
+  veteranGhost: {
+    title: "The Veteran's Ghost", icon: '👻',
+    text: 'A pale soldier stands at attention by an old battlefield. He offers one last lesson — to one of you.',
+    options: [
+      { id: 'learn', label: 'Accept the lesson', desc: 'One of you gains a permanent +1 to hit, but everyone loses 1d4 HP to the grave-cold.' },
+      { id: 'salute', label: 'Salute and move on', desc: 'Everyone heals 1d4.' },
+    ],
+    resolve(room, opt) {
+      const ps = alive(room);
+      if (opt === 'salute') { ps.forEach(p => heal(p.char, rd(1, 4))); return S.addLog(room, '🫡 The ghost returns the salute and fades. The warband feels lighter. (+1d4 HP.)', 'heal'); }
+      const t = pickRandom(ps); t.char.weaponAtkBonus = (t.char.weaponAtkBonus || 0) + 1;
+      S.addLog(room, `👻 The ghost teaches ${t.name} an old soldier's trick — <strong>permanent +1 to hit</strong>.`, 'loot');
+      ps.forEach(p => hurt(room, p, rd(1, 4)));
+    },
+  },
+  skavenTraps: {
+    title: 'The Abandoned Ambush', icon: '🐀',
+    text: 'Fresh tracks, sprung nets, a half-eaten meal. The ratmen fled moments ago — their traps are still set.',
+    options: [
+      { id: 'loot', label: 'Strip the traps for silver', desc: 'Everyone gets 5–30 silver.' },
+      { id: 'reset', label: 'Turn their traps on them', desc: 'The first enemy of the next fight starts stunned.' },
+    ],
+    resolve(room, opt) {
+      if (opt === 'reset') { room.gs._nextCombatFirstEnemyStunned = true; return S.addLog(room, '🪤 The warband re-sets the traps ahead. (The first enemy next fight starts stunned.)', 'crit'); }
+      const coins = rd(1, 6) * 5; alive(room).forEach(p => { p.char.gold += coins; });
+      S.addLog(room, `🐀 The warband strips the traps — <strong>${coins} silver</strong> each.`, 'loot');
+    },
+  },
+  ruinousAltar: {
+    title: 'The Ruinous Altar', icon: '🔮', minDepth: 5,
+    text: 'An altar of the Changer of Ways, its runes shifting as you look. It offers knowledge, for a price.',
+    options: [
+      { id: 'read', label: 'Read the runes', desc: 'One of you gains +1 INT; everyone loses 3 max HP until the next rest.' },
+      { id: 'smash', label: 'Smash it', desc: 'Everyone takes 1d4, and the next fight begins with 1 boon.' },
+      { id: 'leave', label: 'Leave it', desc: 'Nothing happens.' },
+    ],
+    resolve(room, opt) {
+      const ps = alive(room);
+      if (opt === 'leave') return S.addLog(room, 'The runes stop shifting as you walk away.', 'sys');
+      if (opt === 'smash') { ps.forEach(p => { hurt(room, p, rd(1, 4)); if (p.char.alive) nextFight(p.char, 'Defiant', { atkBoon: 1 }); }); return S.addLog(room, '🔨 The altar cracks apart. (1 boon next fight.)', 'crit'); }
+      ps.forEach(p => { p.char.maxHealth = Math.max(1, p.char.maxHealth - 3); p.char.health = Math.min(p.char.health, p.char.maxHealth); });
+      const t = pickRandom(ps); t.char.attrs.int++;
+      S.addLog(room, `🔮 ${t.name} understands the runes — <strong>+1 INT</strong>. Everyone loses 3 max HP until they rest.`, 'chaos');
+    },
+  },
+  fieldHospital: {
+    title: 'The Field Hospital', icon: '🏥',
+    text: "A ruined field hospital. A surgeon's kit lies open; the cots are still made.",
+    options: [
+      { id: 'rest', label: 'Rest on the cots', desc: 'Everyone heals 2d6.' },
+      { id: 'search', label: 'Search the supplies', desc: 'One of you finds a Greater Healing Draught; everyone else a Healing Draught.' },
+    ],
+    resolve(room, opt) {
+      const ps = alive(room);
+      if (opt === 'rest') { const h = rd(2, 6); ps.forEach(p => heal(p.char, h)); return S.addLog(room, `🏥 The warband rests — <strong>+${h} HP</strong> each.`, 'heal'); }
+      const lucky = pickRandom(ps);
+      ps.forEach(p => S.addToInventory(p.char, p === lucky ? 'Greater Healing Draught' : 'Healing Draught'));
+      S.addLog(room, `🏥 ${lucky.name} finds a <strong>Greater Healing Draught</strong>; the others a Healing Draught each.`, 'loot');
+    },
+  },
+  whisperingWell: {
+    title: 'The Whispering Well', icon: '🌊',
+    text: 'Voices rise from a dry well, promising power to whoever listens long enough.',
+    options: [
+      { id: 'listen', label: 'Listen', desc: 'Spellcasters gain +1 Power; others gain 5 silver. Everyone is Shaken (1 bane next attack).' },
+      { id: 'coin', label: 'Drop a coin and make a wish', desc: '5 silver each: a 50% chance everyone heals 2d6.' },
+      { id: 'cover', label: 'Cover the well', desc: 'Nothing happens.' },
+    ],
+    resolve(room, opt) {
+      const ps = alive(room);
+      if (opt === 'cover') return S.addLog(room, 'The voices fall silent under the stones.', 'sys');
+      if (opt === 'coin') {
+        ps.forEach(p => { p.char.gold = Math.max(0, p.char.gold - 5); });
+        if (d(2) === 1) { const h = rd(2, 6); ps.forEach(p => heal(p.char, h)); return S.addLog(room, `✨ The wish is granted — everyone heals <strong>${h} HP</strong>.`, 'heal'); }
+        return S.addLog(room, '🌊 The coins splash into nothing. The well keeps its secrets.', 'sys');
+      }
+      ps.forEach(p => { S.addBuff(p.char, 'Shaken', { bane: 1 }, 1); if (p.char.spellcaster) { p.char.power += 1; p.char.maxPower = (p.char.maxPower || 0) + 1; S.refreshCastingPools(p.char); } else p.char.gold += 5; });
+      S.addLog(room, '🌊 Spellcasters gain <strong>+1 Power</strong>; the others find 5 silver. Everyone is Shaken.', 'loot');
+    },
+  },
+  mercenaries: {
+    title: 'The Mercenary Standoff', icon: '⚔',
+    text: 'A band of sellswords blocks the road, hands on their hilts. Their captain grins.',
+    options: [
+      { id: 'talk', label: 'Negotiate', desc: 'They share supplies: 10–60 silver each and 1 boon for 2 rounds.' },
+      { id: 'hire', label: 'Pay them to scout ahead (20 silver each)', desc: 'The next fight begins with 2 boons for everyone.' },
+    ],
+    resolve(room, opt) {
+      const ps = alive(room);
+      if (opt === 'hire') { ps.forEach(p => { p.char.gold = Math.max(0, p.char.gold - 20); nextFight(p.char, 'Scouted', { atkBoon: 2 }); }); return S.addLog(room, '🗺 The mercenaries scout the road ahead. (2 boons next fight.)', 'crit'); }
+      const coins = rd(2, 6) * 5; ps.forEach(p => { p.char.gold += coins; S.addBuff(p.char, 'Negotiated Edge', { atkBoon: 1 }, 2); });
+      S.addLog(room, `🤝 The captain laughs and shares the spoils — <strong>${coins} silver</strong> each and 1 boon for 2 rounds.`, 'loot');
+    },
+  },
+  injuredSurvivor: {
+    title: 'The Injured Survivor', icon: '🧑',
+    text: 'A wounded soldier lies by the road, clutching a satchel. He begs for help.',
+    options: [
+      { id: 'help', label: 'Tend his wounds (15 silver each)', desc: 'Everyone heals 1d6 and gets 1 boon on their next attack.' },
+      { id: 'satchel', label: 'Take his satchel', desc: 'One random potion each. 1 bane next fight.' },
+      { id: 'leave', label: 'Leave him', desc: 'Nothing gained, nothing lost.' },
+    ],
+    resolve(room, opt) {
+      const ps = alive(room);
+      if (opt === 'leave') return S.addLog(room, 'The warband walks on.', 'sys');
+      if (opt === 'help') { ps.forEach(p => { if (p.char.gold < 15) return; p.char.gold -= 15; heal(p.char, rd(1, 6)); S.addBuff(p.char, 'Aided', { atkBoon: 1, consumeOnAttack: true }, 99); }); return S.addLog(room, '🩹 He thanks you with a blessing — those who paid heal and gain 1 boon.', 'heal'); }
+      ps.forEach(p => { S.addToInventory(p.char, pickRandom(['Healing Draught', 'Antitoxin', 'Smelling Salts'])); nextFight(p.char, 'Shamed', { bane: 1 }); });
+      S.addLog(room, '🎒 The warband takes his satchel. His eyes follow you. (1 bane next fight.)', 'chaos');
+    },
+  },
+  blackMarket: {
+    title: 'The Black Market', icon: '🕵',
+    text: 'A whispering trader in a back alley, wares hidden under a tarp.',
+    options: [
+      { id: 'scroll', label: 'Buy a scroll (15 silver)', desc: 'The first of you with 15 silver buys a random spell scroll.' },
+      { id: 'blood', label: 'Sell a little blood', desc: '+30 silver each, but −5 max HP permanently.' },
+      { id: 'leave', label: 'Walk away', desc: 'Nothing happens.' },
+    ],
+    resolve(room, opt) {
+      const ps = alive(room);
+      if (opt === 'leave') return S.addLog(room, 'The trader melts back into the alley.', 'sys');
+      if (opt === 'blood') { ps.forEach(p => { p.char.gold += 30; p.char.maxHealth = Math.max(1, p.char.maxHealth - 5); p.char.health = Math.min(p.char.health, p.char.maxHealth); }); return S.addLog(room, '🩸 A shadowy deal — +30 silver each, −5 max HP for good.', 'chaos'); }
+      const buyer = ps.find(p => p.char.gold >= 15);
+      if (!buyer) return S.addLog(room, 'Nobody can afford a scroll.', 'sys');
+      const sc = pickRandom(S.SCROLL_SPELLS_LIST); const sn = `Scroll: ${sc.name}`;
+      buyer.char.gold -= 15; S.addToInventory(buyer.char, sn); buyer.char.scrollSpells = buyer.char.scrollSpells || {}; buyer.char.scrollSpells[sn] = sc;
+      S.addLog(room, `📜 ${buyer.name} buys a <strong>${sn}</strong> for 15 silver.`, 'loot');
+    },
+  },
+  // ── New events ───────────────────────────────────────────────────────────
+  abandonedWagon: {
+    title: 'The Overturned Wagon', icon: '🛒',
+    text: 'A merchant wagon lies on its side, its horses gone. Crates spill into the mud. Something moved under the canvas.',
+    options: [
+      { id: 'search', label: 'Search the crates', desc: 'Half the time a weapon or armour for one of you; otherwise a giant rat bites (1d6).' },
+      { id: 'right', label: 'Right the wagon for its owner', desc: 'The owner catches up and pays 25 silver each.' },
+    ],
+    resolve(room, opt) {
+      const ps = alive(room);
+      if (opt === 'right') { ps.forEach(p => { p.char.gold += 25; }); return S.addLog(room, '🛒 The grateful owner catches up and pays <strong>25 silver</strong> each.', 'loot'); }
+      const t = pickRandom(ps);
+      if (d(2) === 1) { const it = d(2) === 1 ? S.genWpn(room.gs.bossCount || 0) : S.genArmor(room.gs.bossCount || 0); S.addToInventory(t.char, it.name, it); return S.addLog(room, `🛒 ${t.name} finds <strong>${it.name}</strong> in a crate. (In inventory.)`, 'loot'); }
+      S.addLog(room, `🐀 A rat the size of a dog bites ${t.name}!`, 'dmg'); hurt(room, t, rd(1, 6));
+    },
+  },
+  flagellants: {
+    title: 'The Flagellant Procession', icon: '🔔',
+    text: 'Chanting penitents whip their own backs as they march. Their prophet points at you: "Repent! The End Times are come!"',
+    options: [
+      { id: 'join', label: 'March with them a while', desc: 'Everyone takes 1d4 but gains 1 boon for the next two fights.' },
+      { id: 'alms', label: 'Give alms (10 silver each)', desc: 'They bless you: everyone heals 1d6.' },
+      { id: 'mock', label: 'Mock them', desc: 'Free entertainment. They curse you: 1 bane next fight.' },
+    ],
+    resolve(room, opt) {
+      const ps = alive(room);
+      if (opt === 'join') { ps.forEach(p => { hurt(room, p, rd(1, 4)); if (p.char.alive) S.addBuff(p.char, 'Zealous', { atkBoon: 1 }, 198); }); return S.addLog(room, '🔔 The warband marches and bleeds with the faithful. (1 boon for two fights.)', 'crit'); }
+      if (opt === 'alms') { ps.forEach(p => { p.char.gold = Math.max(0, p.char.gold - 10); heal(p.char, rd(1, 6)); }); return S.addLog(room, '🙏 The prophet blesses each warrior. (+1d6 HP.)', 'heal'); }
+      ps.forEach(p => nextFight(p.char, 'Cursed by Zealots', { bane: 1 }));
+      S.addLog(room, '😏 The warband laughs. The prophet\'s curse follows you. (1 bane next fight.)', 'chaos');
+    },
+  },
+  trollToll: {
+    title: 'The Troll Bridge', icon: '🌉', minDepth: 6,
+    text: 'A river troll squats under a rickety bridge. "Toll," it grunts, holding out an enormous hand.',
+    options: [
+      { id: 'pay', label: 'Pay the toll (20 silver each)', desc: 'Cross safely.' },
+      { id: 'wade', label: 'Wade across downstream', desc: 'Everyone takes 1d6 from the freezing current.' },
+      { id: 'trick', label: 'Trick it (Roadwarden)', desc: 'Cross for free, and lift 20 silver each from its hoard.', needs: 'rogue' },
+      { id: 'challenge', label: 'Challenge it (Slayer)', desc: 'The Slayer trades blows (2d6) — the troll respects it and lets everyone pass with a Troll Blood draught.', needs: 'slayer' },
+    ],
+    resolve(room, opt) {
+      const ps = alive(room);
+      if (opt === 'pay') { ps.forEach(p => { p.char.gold = Math.max(0, p.char.gold - 20); }); return S.addLog(room, '🪙 The troll counts every coin, then waves you across.', 'sys'); }
+      if (opt === 'trick') { ps.forEach(p => { p.char.gold += 20; }); return S.addLog(room, '🎭 The Roadwarden distracts the troll with a riddle while the warband helps itself — <strong>+20 silver</strong> each.', 'loot'); }
+      if (opt === 'challenge') { ps.filter(p => p.career === 'slayer').forEach(p => hurt(room, p, rd(2, 6))); ps.forEach(p => S.addToInventory(p.char, 'Troll Blood')); return S.addLog(room, '🪓 The Slayer and the troll trade blows until the troll laughs and offers each of you a flask of <strong>Troll Blood</strong>.', 'loot'); }
+      ps.forEach(p => hurt(room, p, rd(1, 6)));
+      S.addLog(room, '🌊 The warband fords the icy river downstream.', 'dmg');
+    },
+  },
+  ghostlyDuel: {
+    title: 'The Ghostly Duellist', icon: '🤺', minDepth: 10,
+    text: 'A spectral noble bows and draws a blade of moonlight. "One bout. Win, and my sword is yours."',
+    options: [
+      { id: 'duel', label: 'Accept the duel', desc: 'Your best fighter rolls: win a fine weapon, lose and take 2d6.' },
+      { id: 'decline', label: 'Bow and decline', desc: 'He respects good manners: everyone heals 1d4.' },
+    ],
+    resolve(room, opt) {
+      const ps = alive(room);
+      if (opt === 'decline') { ps.forEach(p => heal(p.char, rd(1, 4))); return S.addLog(room, '🎩 The ghost returns your bow and fades. (+1d4 HP.)', 'heal'); }
+      const best = ps.slice().sort((a, b) => Math.max(b.char.attrs.str, b.char.attrs.agi) - Math.max(a.char.attrs.str, a.char.attrs.agi))[0];
+      const roll = d(20) + Math.max(best.char.attrs.str, best.char.attrs.agi) - 10;
+      if (roll >= 13) { const w = S.genWpn((room.gs.bossCount || 0) + 1); S.addToInventory(best.char, w.name, w); return S.addLog(room, `🤺 ${best.name} wins the bout (${roll} vs 13) and claims <strong>${w.name}</strong>. (In inventory.)`, 'loot'); }
+      S.addLog(room, `🤺 ${best.name} loses the bout (${roll} vs 13).`, 'dmg'); hurt(room, best, rd(2, 6));
+    },
+  },
+  moonlitGrove: {
+    title: 'The Moonlit Grove', icon: '🌙', minDepth: 4,
+    text: 'Silver light falls on a ring of standing stones. The air hums. Something old is listening.',
+    options: [
+      { id: 'rest', label: 'Rest inside the ring', desc: 'Everyone heals 1d6+2.' },
+      { id: 'commune', label: 'Commune with it (Priest or Wizard)', desc: 'Every spellcaster regains all castings and gets 1 boon next fight.', needs: ['priest', 'wizard'] },
+      { id: 'dig', label: 'Dig at the centre stone', desc: '40 silver for one of you, but everyone is Cursed (1 bane) next fight.' },
+    ],
+    resolve(room, opt) {
+      const ps = alive(room);
+      if (opt === 'rest') { ps.forEach(p => heal(p.char, rd(1, 6) + 2)); return S.addLog(room, '🌙 The warband sleeps under the stones and wakes refreshed.', 'heal'); }
+      if (opt === 'commune') { ps.filter(p => p.char.spellcaster).forEach(p => { S.refreshCastingPools(p.char); nextFight(p.char, 'Moonlit', { atkBoon: 1 }); }); return S.addLog(room, '✨ The stones answer. Spellcasters regain every casting. (1 boon next fight.)', 'spell'); }
+      pickRandom(ps).char.gold += 40; ps.forEach(p => nextFight(p.char, 'Grove Curse', { bane: 1 }));
+      S.addLog(room, '💰 Beneath the stone: 40 silver. The grove will not forget. (1 bane next fight.)', 'chaos');
+    },
+  },
   // ── Events added with the Witch Hunter and Dwarf Slayer ──────────────────
   // minDepth keeps an event to the deeper road; an option with `needs` only
   // appears when someone of that career is in the warband.

@@ -13,7 +13,7 @@ const CAREER_DETAILS={
     defence:'13 Defence',
     weapon:'1d6+2 slashing (STR)',
     role:'Iron tank. Highest HP and armour. Hits hard and soaks punishment. Bleed on every hit.',
-    level1:'Weapon Training (+1 boon attacks) · Catch Breath (heal 1d6+STR, 1/combat) · Shield Bash (stun, 1/combat) · Taunt (enemies attack only you, 2 rounds) · Bleed on Hit'
+    level1:'Weapon Training (+1 boon attacks) · Catch Breath (heal 1d6+STR, cooldown 12) · Shield Bash (stun, cooldown 8) · Taunt (enemies attack only you, 2 rounds) · Bleed on Hit'
   },
   rogue:{
     name:'Roadwarden',
@@ -23,7 +23,7 @@ const CAREER_DETAILS={
     defence:'12 Defence',
     weapon:'1d6+2 slashing (AGI)',
     role:'Evasive poisoner. Hardest to hit. Opens with venom and blunts the first attack each round.',
-    level1:'Trickery (3 poison first hit, 2 all hits) · Evasion (1 bane on the first attack each round) · Nimble Recovery (heal 1d6+AGI, 1/combat)'
+    level1:'Trickery (3 poison first hit, 2 all hits) · Evasion (1 bane on the first attack each round) · Nimble Recovery (heal 1d6+AGI, cooldown 12)'
   },
   wizard:{
     name:'Bright Wizard',
@@ -33,7 +33,7 @@ const CAREER_DETAILS={
     defence:'11 Defence',
     weapon:'1d6+2 blunt (INT)',
     role:'Fire spellcaster. Low HP, devastating fire spells. Burn on every attack spell.',
-    level1:'+1 Power (casting slots) · Burning Soul (+1d6 if target burning) · Burn on Spell (attack spells apply Burn DoT) · Spell Recovery (1/combat)'
+    level1:'+1 Power (casting slots) · Burning Soul (+1d6 if target burning) · Burn on Spell (attack spells apply Burn DoT) · Spell Recovery (cooldown 12)'
   },
   priest:{
     name:'Sigmarite Priest',
@@ -43,7 +43,7 @@ const CAREER_DETAILS={
     defence:'13 Defence',
     weapon:'1d6+2 blunt (WIL)',
     role:'Support striker. Every weapon hit heals you and deals holy damage. Strong group healer.',
-    level1:'+1 Power (divine slots) · Weapon Training (+1 boon attacks) · Holy Fervor (hits deal 1d3+WIL holy and heal you 1d3) · Shared Recovery (1/combat) · Divine Favour (1/combat)'
+    level1:'+1 Power (divine slots) · Weapon Training (+1 boon attacks) · Holy Fervor (hits deal 1d3+WIL holy and heal you 1d3) · Shared Recovery (cooldown 12) · Divine Favour (cooldown 14)'
   },
   witchhunter:{
     name:'Witch Hunter',
@@ -53,7 +53,7 @@ const CAREER_DETAILS={
     defence:'13 Defence',
     weapon:'1d6+2 piercing (AGI)',
     role:'Hunter of the unholy. Condemns one foe each fight and punishes it hard. Deadly against undead and Chaos.',
-    level1:'Condemn (free action: mark a foe, +1 boon and +1d6 on hits; passes on when it dies) · Silver Shot (+2 dmg vs undead, daemons, Chaos) · First Volley (+1 boon on first attack) · Catch Breath (1/combat)'
+    level1:'Condemn (free action: mark a foe, +1 boon and +1d6 on hits; passes on when it dies) · Silver Shot (+2 dmg vs undead, daemons, Chaos) · First Volley (+1 boon on first attack) · Catch Breath (cooldown 12)'
   },
   slayer:{
     name:'Dwarf Slayer',
@@ -63,17 +63,17 @@ const CAREER_DETAILS={
     defence:'10 Defence',
     weapon:'1d8+2 slashing (STR)',
     role:'Glass-cannon berserker. Easy to hit, hard to kill, and hits harder the closer to death and the bigger the foe.',
-    level1:"Slayer's Oath (+1d6 vs elites and bosses) · Death Wish (below half HP: +1 boon, +2 dmg) · Rage (when hit, next attack +1 boon +1d6) · Catch Breath (1/combat)"
+    level1:"Slayer's Oath (+1d6 vs elites and bosses) · Death Wish (below half HP: +1 boon, +2 dmg) · Rage (when hit, next attack +1 boon +1d6) · Catch Breath (cooldown 12)"
   },
 };
 
 const NOVICE_INFO={
-  warrior:{name:'Warrior',    gains:'Lv1: +5 Max HP. Weapon Training: +1 boon on all attacks. Catch Breath: heal 1d6+STR, 1×/combat. Shield Bash: stun one enemy for 2 turns, 1×/combat. Taunt: for 2 rounds all enemies attack only you (ready again after 3 rounds). Bleed on Hit: every weapon hit applies 1 Bleed stack.'},
-  rogue:  {name:'Rogue',      gains:'Lv1: +4 Max HP. Trickery: first hit applies 3 poison stacks, subsequent hits apply 2 stacks. Evasion: the first attacker each round subtracts the highest bane d6 from d20. Nimble Recovery: heal 1d6+AGI, 1×/combat. Venom on First Hit: first attack applies 4 poison stacks.'},
-  magician:{name:'Magician',  gains:'Lv1: +4 Max HP. +1 Power (extra casting slots). Burning Soul: fire spells deal +1d6 if target is already Burning. Burn on Spell: attack spells apply 1d6 Burn DoT. Spell Recovery: restore rank-0 castings, 1×/combat.'},
-  witchhunter:{name:'Witch Hunter', gains:'Lv1: +5 Max HP. Condemn (free action, 1×/combat): +1 boon and +1d6 on hits against your target. Silver Shot: +2 dmg vs undead, daemons, Chaos. First Volley: +1 boon on your first attack. Catch Breath (1×/combat).'},
-  slayer: {name:'Slayer',     gains:"Lv1: +6 Max HP. Slayer's Oath: +1d6 vs elites and bosses. Death Wish: below half HP +1 boon and +2 dmg. Rage: when hit, next attack +1 boon +1d6. Catch Breath (1×/combat)."},
-  priest: {name:'Priest',     gains:'Lv1: +4 Max HP. +1 Power (divine casting slots). Weapon Training: +1 boon on all attacks. Holy Fervor: every weapon hit deals 1d3+WIL holy damage and heals you 1d3 HP. Shared Recovery: all allies heal, 1×/combat. Divine Favour: refresh 1×/combat abilities, 1×/combat.'},
+  warrior:{name:'Warrior',    gains:'Lv1: +5 Max HP. Weapon Training: +1 boon on all attacks. Catch Breath: heal 1d6+STR, cooldown 12. Shield Bash: stun one enemy for 2 turns, cooldown 8. Taunt: for 2 rounds all enemies attack only you (ready again after 3 rounds). Bleed on Hit: every weapon hit applies 1 Bleed stack.'},
+  rogue:  {name:'Rogue',      gains:'Lv1: +4 Max HP. Trickery: first hit applies 3 poison stacks, subsequent hits apply 2 stacks. Evasion: the first attacker each round subtracts the highest bane d6 from d20. Nimble Recovery: heal 1d6+AGI, cooldown 12. Venom on First Hit: first attack applies 4 poison stacks.'},
+  magician:{name:'Magician',  gains:'Lv1: +4 Max HP. +1 Power (extra casting slots). Burning Soul: fire spells deal +1d6 if target is already Burning. Burn on Spell: attack spells apply 1d6 Burn DoT. Spell Recovery: restore rank-0 castings, cooldown 12.'},
+  witchhunter:{name:'Witch Hunter', gains:'Lv1: +5 Max HP. Condemn (free action, cooldown 6): +1 boon and +1d6 on hits against your target. Silver Shot: +2 dmg vs undead, daemons, Chaos. First Volley: +1 boon on your first attack. Catch Breath (cooldown 12).'},
+  slayer: {name:'Slayer',     gains:"Lv1: +6 Max HP. Slayer's Oath: +1d6 vs elites and bosses. Death Wish: below half HP +1 boon and +2 dmg. Rage: when hit, next attack +1 boon +1d6. Catch Breath (cooldown 12)."},
+  priest: {name:'Priest',     gains:'Lv1: +4 Max HP. +1 Power (divine casting slots). Weapon Training: +1 boon on all attacks. Holy Fervor: every weapon hit deals 1d3+WIL holy damage and heals you 1d3 HP. Shared Recovery: all allies heal, cooldown 12. Divine Favour: refresh your recharging abilities (cooldown 14).'},
 };
 
 const EXPERT_INFO={
@@ -81,14 +81,14 @@ const EXPERT_INFO={
   giantSlayer:{name:'Giant Slayer',  gains:'+6 HP. Lv3: Bleed on Hit, Rage Trigger (any hit taken readies a raging strike). Lv4: Combat Expertise (+1d6 vs stunned), +1 STR. Lv5: Combat Prowess (+1d6 per hit), Relentless (damage builds each attack). Lv6: Unstoppable (survive a killing blow once per run), +1 STR.',desc:'Slayer path. Bleeds, rages and refuses to die.'},
   defender:{name:'Fighter',      gains:'+5 HP. Lv3: Bulwark (+5 HP, +2 Def), Bleed on Hit. Lv4: Paced Strikes (every 2nd hit = 2 Bleed), Press the Advantage (hit = +1 boon next attack), +1 STR. Lv5: Combat Expertise (+1d6 vs stunned targets), Weapon Aptitude (+2 to hit). Lv6: Deep Bleed (all Bleed doubled), +1 STR.',desc:'Iron Wall. Bulwark gives HP and Defence. Paced Strikes and Deep Bleed stack Bleed fast. Press the Advantage chains boons every hit.'},
   ranger:   {name:'Ranger',       gains:'+5 HP. Lv3: Quick Step (miss = +2 Def), Hunter\'s Mark (first hit marks, +2 dmg vs marked). Lv4: Fade (Quick Step active = +1 boon), Evasion (first attacker each round subtracts bane d6), +1 AGI. Lv5: Skirmish (hits on marked = 2 poison). Lv6: Smoke Screen (3 banes on all enemies 2 rounds), +1 AGI.',desc:'Hunter and Ghost. Mark targets for bonus damage. Evasion and Smoke Screen keep you untouchable.'},
-  paladin:  {name:'Paladin',      gains:'+4 HP, +1 Power. Lv3: Holy Fervor (hits deal 1d3+WIL holy and heal you 1d3), Divine Smite (+3d6, 2×/combat). Lv4: Lay on Hands (weapon hits heal 1d6+WIL, 2×/combat), +1 STR. Lv5: Righteous Fury (kills heal all allies 1d6+WIL), Combat Prowess (+1d6/hit). Lv6: Sacred Aegis (attacker takes 1d6 holy), Wrath of Sigmar (Divine Smite deals 6d6), +1 WIL.',desc:'Warrior Priest. Holy Fervor triggers on every weapon hit. Wrath of Sigmar is a devastating execute. Righteous Fury turns kills into group heals.'},
+  paladin:  {name:'Paladin',      gains:'+4 HP, +1 Power. Lv3: Holy Fervor (hits deal 1d3+WIL holy and heal you 1d3), Divine Smite (+3d6, cooldown 4). Lv4: Lay on Hands (weapon hits heal 1d6+WIL, 2×/combat), +1 STR. Lv5: Righteous Fury (kills heal all allies 1d6+WIL), Combat Prowess (+1d6/hit). Lv6: Sacred Aegis (attacker takes 1d6 holy), Wrath of Sigmar (Divine Smite deals 6d6), +1 WIL.',desc:'Warrior Priest. Holy Fervor triggers on every weapon hit. Wrath of Sigmar is a devastating execute. Righteous Fury turns kills into group heals.'},
   assassin: {name:'Assassin',     gains:'+5 HP. Lv3: Poison Blade (+2 poison/hit), Shadow Opening (first attack extra boon). Lv4: Venom on First Hit (4 poison first hit), Quick Hands (items free action), +1 AGI. Lv5: Assassination (above 50% HP: +2 poison; below: +1d6+3 dmg), Dead Man\'s Hand (kill heals 2d6+AGI). Lv6: Exploit Weakness (5+ stacks = +1 boon), Deathblow (hits 2 poison, crits 4), +1 AGI.',desc:'Shadow Killer. Stack poison fast with Poison Blade then detonate at 50% with Assassination. Deathblow crits apply 4 stacks.'},
   elementalist:{name:'Pyromancer',    gains:'+4 HP, +1 Power. Lv3: Burning Soul (+1d6 if target burning), Utility Focus (spells +1 round). Lv4: Prepared Spell (free rank-1 at combat start), +1 INT. Lv5: Burn on Spell (attack spells apply Burn DoT), Conflagration (re-burning resets to max dice). Lv6: Metamagic (free cast, 1×), Lingering Magic (DoTs apply twice), +1 INT.',desc:'Bright Wizard of the fire wind. Burning Soul, Ignite, and Conflagration combine for massive fire damage. Lingering Magic doubles every DoT you apply.'},
   sorcerer:    {name:'Sorcerer',  gains:'+4 HP, +1 Power. Lv3: Arcane Surge (first spell each combat +1d6), Spell Leech (spell kill = heal 1d6). Lv4: Surge (spell kill = regain all rank 0-1 castings), Spell Recovery (restore rank-0, 1×), +1 INT. Lv5: Metamagic (free cast, 1×), Resonance (+1d6 vs burning/bleeding/poisoned). Lv6: Chain Reaction (25% lightning fires twice), Overload (next spell casts twice, 1×), +1 INT.',desc:'Death and Storm. Dual elemental mastery. Surge keeps you casting. Chain Reaction and Overload are late-game spell nova.'},
   warlock:     {name:'Warlock',   gains:'+4 HP, +1 Power. Lv3: Curse (target takes +1 boon/+1 dmg from all attacks), Evil Eye (target 2 banes on attacks 3 rounds). Lv4: Blood Offering (lose 1d6 HP to regain all castings, no action), +1 INT. Lv5: Mass Heal (all allies 1d6), Hex (+4 dmg to cursed/Evil Eye targets). Lv6: Dark Pact (lose 1d6 HP, next spell free, no action), +1 INT.',desc:'Chaos Witch. Curse marks a target for the whole party. Blood Offering and Dark Pact trade HP for raw spell power. Hex amplifies your curse damage.'},
   wizard:      {name:'Illusionist', gains:'+4 HP, +1 Power. Lv3: Utility Focus (utility spells +1 round), Prepared Spell (free rank-1 at combat start). Lv4: Glamour Veil (the first attack against you each fight misses), +1 INT. Lv5: Metamagic (free cast, 1×), Misdirection (an enemy miss gives your next attack spell +1d6). Lv6: Lingering Magic (expiring buffs grant 1 boon), +1 INT.',desc:'Grey Wizard of deceit. Hard to pin down and rewards the enemy for missing.'},
   spellbinder: {name:'Spellbinder',gains:'+4 HP, +1 Power. Lv3: Flame Edge (weapon attacks deal fire dmg, apply Burn, trigger Burning Soul), Arcane Strike (4%+4%/INT-mod chance to bypass enemy AC). Lv4: Combat Prowess (+1d6/hit), Rage Trigger (damage procs +1 boon +1d6), +1 INT. Lv5: Burning Soul (+1d6 if target burning), Rage (after taking dmg +1d6 bonus). Lv6: Frenzy (kills extend Rage), +1 STR.',desc:'Arcane Berserker. Flame Edge turns every swing into fire damage. Stack Burning Soul on top for massive hybrid damage.'},
-  healer:      {name:'Healer',    gains:'+4 HP, +1 Power. Lv3: Mass Heal (all allies 1d6), Triage (all allies regen 1d6/round 2 turns). Lv4: Holy Fervor (hits deal 1d3+WIL holy and heal you 1d3), Divine Favour (refresh 1×/combat, restore rank-0), +1 WIL. Lv5: Resurrection (fatal hit = heal to half HP + 2 boons), Battle Medic (heal ally = heal self 1d6). Lv6: Sacred Ground (regen 1d6/round + 3 boons, 2 turns), +1 WIL.',desc:'Blessed Healer. Mass Heal, Triage, and Sacred Ground keep everyone alive. Resurrection acts as a death prevention shield.'},
+  healer:      {name:'Healer',    gains:'+4 HP, +1 Power. Lv3: Mass Heal (all allies 1d6), Triage (all allies regen 1d6/round 2 turns). Lv4: Holy Fervor (hits deal 1d3+WIL holy and heal you 1d3), Divine Favour (cooldown 14: refresh abilities, restore rank-0), +1 WIL. Lv5: Resurrection (fatal hit = heal to half HP + 2 boons), Battle Medic (heal ally = heal self 1d6). Lv6: Sacred Ground (regen 1d6/round + 3 boons, 2 turns), +1 WIL.',desc:'Blessed Healer. Mass Heal, Triage, and Sacred Ground keep everyone alive. Resurrection acts as a death prevention shield.'},
   druid:       {name:'Druid',     gains:'+4 HP, +1 Power. Lv3: Shared Recovery (all allies heal), Nature Bond (immune to poison, melee attackers get 1d6 poison). Lv4: Druid Fervor (hits deal 4+best(WIL/INT) nature dmg and heal same), Foresight (bless: next 2 attacks reroll take higher, 1×), +1 WIL. Lv5: Mass Heal (all allies 1d6), Entangle (root 1 enemy, 1×). Lv6: Druid\'s Fury (2 rounds: +1d6 dmg, +2 boons, 2 Bleed per hit, no action, 1×), Revelation (curse: next 2 attacks reroll take worse, 1×), +1 WIL.',desc:'Wild and Wise. Nature Bond makes you poison-immune and punishes melee attackers. Druid Fervor triggers on every weapon hit. Druid\'s Fury is a powerful no-action burst.'},
 };
 
@@ -103,35 +103,35 @@ const MASTER_INFO={
   executioner:{name:'Executioner',   gains:'+5 HP. Lv7: Deathblow (hits 2 poison, crits 4 poison), Cleanup (kill = free attack). Lv8: Poison Blade (+2 poison/hit), Unrelenting (Bladestorm hits each gain +1 boon), +1 AGI. Lv9: Phantom Strike (first attack auto-hits), Dead Aim (declare before attack, hit = crit, 1×). Lv10: Bladestorm (hit = 1 extra strike), Flurry Bleed (all Bladestorm hits apply Bleed), +1 AGI.',desc:'No Survivors. Cleanup chains free attacks on kills. Poison Blade + Deathblow stacks poison fast. Bladestorm with Unrelenting and Flurry Bleed is a late-game finisher.'},
   transmuter: {name:'Transmuter',    gains:'+4 HP, +1 Power. Lv7: Burning Soul (+1d6 if target burning), Elemental Attunement (spells ×1.25 vs foes with no weakness). Lv8: Ball Lightning (spell kill arcs 1d6 to next enemy), +1 INT. Lv9: Overcast (+2d6 bonus, spend 2 slots), Volatile Form (first attack spell each combat hits all enemies). Lv10: Catastrophe (10d6 all enemies, 1×), Overcharge (free cast, 1×), +1 INT.',desc:'Alchemist and Storm. Transmute spells to exploit any weakness. Ball Lightning chains damage on kills. Catastrophe is your win button.'},
   necromancer:{name:'Necromancer',   gains:'+4 HP, +1 Power. Lv7: Life Drain (spell kill = heal 1d4). Lv8: Metamagic (free cast, 1×), Chaos Touch (all chaos spell bonuses trigger 100%), +1 INT. Lv9: Spell Surge (free cast, 1×), Undying Hunger (DoT tick kill = +1 cast all spells + heal 1d6+INT). Lv10: Uncontrolled Power (double spell dice, take 1d6 backlash, 1×), +1 INT.',desc:'Death and Chaos. Dark Evoker pushes dark spell damage to ×2.5. Undying Hunger rewards DoT kills with massive casting refunds. Chaos Touch makes all bonus effects guaranteed.'},
-  abjurer:    {name:'Abjurer',       gains:'+4 HP, +1 Power. Lv7: Shieldwall (+2 Def), Counterspell (negate on-hit ability targeting ally, 1×). Lv8: Overcast (+2d6 bonus, spend 2 slots), Double Charge (Overcast 2×/combat), +1 INT. Lv9: Toughness (10% dmg reduction), Ward (all allies +1 Def while you live). Lv10: Spell Surge (free cast, 1×), Force of Will (Overcast stuns on d20 11+), +1 WIL.',desc:'Protection and Battle Mage. Ward and Shieldwall make the whole party tankier. Overcast + Double Charge + Force of Will creates repeated stun pressure.'},
+  abjurer:    {name:'Abjurer',       gains:'+4 HP, +1 Power. Lv7: Shieldwall (+2 Def), Counterspell (negate on-hit ability targeting ally, 1×). Lv8: Overcast (+2d6 bonus, spend 2 slots), Double Charge (re-arm Overcast, cooldown 4), +1 INT. Lv9: Toughness (10% dmg reduction), Ward (all allies +1 Def while you live). Lv10: Spell Surge (free cast, 1×), Force of Will (Overcast stuns on d20 11+), +1 WIL.',desc:'Protection and Battle Mage. Ward and Shieldwall make the whole party tankier. Overcast + Double Charge + Force of Will creates repeated stun pressure.'},
   archmage:   {name:'Archmage',      gains:'+4 HP, +2 Power. Lv7: Spell Surge (free cast, 1×), Arcane Mastery (+1 Power, know all rank-0 spells from tradition). Lv8: Utility Focus (spells +1 round), Esoteric Knowledge (use scroll without consuming, 1×), +1 INT. Lv9: Catastrophe (10d6 all enemies, 1×), Spell Echo (spell fires again at half dmg, 1×). Lv10: Metamagic (free cast, 1×), Lingering Magic (DoTs apply twice), +1 INT.',desc:'Arcane Pinnacle. +2 Power gives dramatically more casting slots. Arcane Mastery at L7 unlocks all tradition rank-0 spells. Lingering Magic + Catastrophe is a late-game wipe.'},
   healer_m:   {name:'High Healer',   gains:'+4 HP, +2 Power. Lv7: Mass Heal (all allies 1d6), Overflowing Grace (Mass Heal also removes one debuff each). Lv8: Holy Fervor (hits deal 1d3+WIL holy and heal you 1d3), Banish (chaos/undead loses next action, 1×), +1 WIL. Lv9: Miracle Heal (restore one target to full HP, 1×), Protective Blessing (healed target +2 Def next turn). Lv10: Resurrection (fatal hit = heal to half HP + 2 boons, 1×), Sanctify (killed chaos/undead can\'t trigger death abilities), +1 WIL.',desc:'Blessed and Anointed. +2 Power means vast casting slots. Overflowing Grace makes every Mass Heal also cleanse debuffs. Combines healing, anti-chaos, and death prevention.'},
   chaplain:   {name:'Templar',       gains:'+4 HP, +1 Power. Lv7: Rallying Cry (all allies heal), Last Rites (ally falls = all others heal 1 HP). Lv8: Holy Fervor (hits deal 1d3+WIL holy and heal you 1d3), Blessed Blade (ignore DR vs undead/chaos), +1 WIL. Lv9: Mass Heal (all allies 1d6), Vigil (full-HP allies +1 boon next attack). Lv10: Divine Smite (+3d6, 2×), Holy Fire (Smite on chaos applies Burn), Combat Prowess (+1d6/hit), +1 WIL.',desc:'War Priest and Templar. Blessed Blade ignores damage reduction on undead and chaos. Last Rites makes every ally death trigger a group heal. Holy Fire adds Burn on top of smite damage.'},
 };
 
 const TALENT_DESCS={
-  condemn:'Active (free action, 1×/combat; 2× with Judgement) — Name your target a heretic: your attacks on it get +1 boon and your hits deal +1d6. When it dies, the mark passes to the next enemy you attack.',
+  condemn:'Active (free action, cooldown 6 rounds; 3 with Judgement) — Name your target a heretic: your attacks on it get +1 boon and your hits deal +1d6. When it dies, the mark passes to the next enemy you attack.',
   silverShot:'Passive — +2 damage on hits against undead, daemons and servants of Chaos.',
   firstVolley:'Passive — Your first attack each combat gets +1 boon.',
   burnTheWitch:'Passive — Your hits on a Condemned enemy apply 1 Burn.',
-  judgement:'Passive — Condemn can be used twice per combat, and hits on Condemned foes deal +2 more.',
+  judgement:'Passive — Condemn recharges in 3 rounds instead of 6, and hits on Condemned foes deal +2 more.',
   slayerOath:"Passive — Slayer's Oath: +1d6 damage on hits against elites and bosses.",
   deathWish:'Passive — While below half HP, your attacks get +1 boon and your hits deal +2 damage.',
   glamourVeil:'Glamour Veil — the first attack against you each fight strikes an illusion and misses.',
   misdirection:'Misdirection — whenever an enemy misses you, your next attack spell deals +1d6.',
   // ── NOVICE ──────────────────────────────────────────────────────────────
   weaponTraining:'Passive — All weapon attack rolls add a boon d6 (roll d6, add highest to d20). Net effect: attacks rarely miss.',
-  catchBreath:'Active (1×/combat) — Heal 1d6 + STR HP. No action cost.',
-  shieldBash:'Active (1×/combat) — Stun one enemy for 1 full turn. No action cost.',
+  catchBreath:'Active (cooldown 12 rounds) — Heal 1d6 + STR HP. No action cost.',
+  shieldBash:'Active (cooldown 8 rounds) — Stun one enemy for 1 full turn. No action cost.',
   bleedOnHit:'Passive — Every weapon hit applies 1 Bleed stack (DoT: 1d3 dmg/round, fades after 2 rounds).',
   bleedOnCrit:'Passive — Critical hits apply 1 Bleed stack.',
   trickery:'Passive — First hit each combat applies 3 poison stacks. Every later hit applies 2.',
   loneSurvivor:'Passive — You started this run alone. Warrior: +6 max HP. Wizard, Priest and Witch Hunter: +5 max HP. All gain +1 extra HP every level.',
-  nimbleRecovery:'Active (1×/combat) — Heal 1d6 + AGI HP.',
-  spellRecovery:'Active (1×/combat) — Restore all rank-0 casting slots.',
-  sharedRecovery:'Active (1×/combat) — All living allies heal 1d6 + their highest attribute modifier.',
+  nimbleRecovery:'Active (cooldown 12 rounds) — Heal 1d6 + AGI HP.',
+  spellRecovery:'Active (cooldown 12 rounds) — Restore all rank-0 casting slots.',
+  sharedRecovery:'Active (cooldown 12 rounds) — All living allies heal 1d6 + their highest attribute modifier.',
   holyFervor:'Passive — Every weapon hit deals 1d3 + WIL holy damage and heals you 1d3 HP.',
-  divineFavour:'Active (1×/combat) — Refresh all 1×/combat abilities and restore 1 rank-0 casting slot.',
+  divineFavour:'Active (cooldown 14 rounds) — Refresh all your recharging abilities and restore 1 rank-0 casting slot.',
   // ── EXPERT ──────────────────────────────────────────────────────────────
   bulwark:'Passive — +5 max HP and +2 Defence in combat.',
   pacedStrikes:'Passive — Every 2nd weapon hit applies 2 Bleed stacks to the target.',
@@ -146,8 +146,8 @@ const TALENT_DESCS={
   fadePassive:'Passive — When Quick Step is active, your next attack gains +1 boon.',
   evasion:'Passive — The first enemy attack against you each round subtracts the highest bane d6 from its d20 roll.',
   skirmish:'Passive — Every hit against your Marked target applies 2 poison stacks.',
-  smokeScreen:'Active (1×/combat) — All enemies roll with 3 banes on attacks for 2 rounds.',
-  divineSmite:'Active (2×/combat) — Deal +3d6 holy bonus damage on your next attack.',
+  smokeScreen:'Active (cooldown 10 rounds) — All enemies roll with 3 banes on attacks for 2 rounds.',
+  divineSmite:'Active (cooldown 4 rounds) — Deal +3d6 holy bonus damage on your next attack.',
   layOnHands:'Passive (2×/combat) — When your weapon hit deals damage, you heal 1d6 + WIL.',
   righteousFury:'Passive — When you kill any enemy, all living allies heal 1d6 + WIL HP.',
   sacredAegis:'Passive — When an enemy hits you, they take 1d6 holy retribution damage.',
@@ -165,30 +165,30 @@ const TALENT_DESCS={
   preparedSpell:'Passive — At combat start, cast one rank-1 spell for free.',
   burnOnSpell:'Passive — All attack spells apply a 1d6 Burn DoT to the target.',
   conflagration:'Passive — Re-applying Burn to a burning target resets it to maximum dice.',
-  metamagic:'Active (1×/combat, no action) — Your next spell costs no casting.',
+  metamagic:'Active (cooldown 6 rounds, no action) — Your next spell costs no casting.',
   lingeringMagic:'Passive — When you apply any DoT (Burn, Bleed, Poison), apply it twice.',
   flameEdge:'Passive — Weapon attacks deal fire damage and apply 1 Burn. Triggers Burning Soul.',
   arcaneStrike:'Passive — 4% + 4% per INT modifier chance to bypass enemy AC entirely (INT 10=4%, INT 11=8%, INT 12=12%).',
   surge:'Passive — Spell kill: regain all rank-0 and rank-1 casting slots.',
   resonance:'Passive — Spells deal +1d6 to targets already Burning, Bleeding, or Poisoned.',
   chainReaction:'Passive — 25% chance each lightning spell hit fires a second time for free.',
-  overload:'Active (1×/combat) — No action cost. Prime next attack spell to cast twice.',
-  curse:'Active (1×/combat) — Cursed target: all attacks +1 boon and +1 dmg until it dies.',
-  evilEye:'Active (1×/combat) — Target rolls with 2 banes on all attacks for 3 rounds.',
+  overload:'Active (cooldown 8 rounds) — No action cost. Prime next attack spell to cast twice.',
+  curse:'Active (cooldown 6 rounds) — Cursed target: all attacks +1 boon and +1 dmg until it dies.',
+  evilEye:'Active (cooldown 6 rounds) — Target rolls with 2 banes on all attacks for 3 rounds.',
   bloodOffering:'No action — Lose 1d6 HP to regain all rank 0-2 casting slots.',
-  massHeal:'Active (1×/combat) — All living allies heal 1d6 HP.',
+  massHeal:'Active (cooldown 12 rounds) — All living allies heal 1d6 HP.',
   hex:'Passive — Evil Eye or Cursed targets take +4 damage from all sources.',
   darkPact:'No action — Lose 1d6 HP; next spell costs no action and no casting slot.',
   natureBond:'Passive — Immune to poison. Enemies that melee-hit you receive 1d6 poison stacks.',
   druidFervor:'Passive — Every weapon hit deals 4 + best(WIL/INT) nature damage and heals you 4 + best(WIL/INT) HP.',
-  druidsFury:'Active (1×/combat) — No action cost. For 2 rounds: +1d6 damage per hit, +2 boons on attacks, hits apply 2 Bleed stacks.',
-  foresight:'Active (1×/combat) — Bless self or ally: next 2 attacks add a boon d6, take the higher result.',
-  entangle:'Active (1×/combat) — Roots your target enemy: it loses its next action.',
-  revelation:'Active (1×/combat) — Curse enemy: next 2 attacks subtract a bane d6, take the lower result.',
-  triage:'Active (1×/combat) — All living allies regen 1d6 HP/round for 2 rounds.',
-  resurrection:'Active (1×/combat) — Bless the most wounded ally: their next killing blow leaves them at half HP with 2 boons instead.',
+  druidsFury:'Active (cooldown 6 rounds) — No action cost. For 2 rounds: +1d6 damage per hit, +2 boons on attacks, hits apply 2 Bleed stacks.',
+  foresight:'Active (cooldown 6 rounds) — Bless self or ally: next 2 attacks add a boon d6, take the higher result.',
+  entangle:'Active (cooldown 8 rounds) — Roots your target enemy: it loses its next action.',
+  revelation:'Active (cooldown 6 rounds) — Curse enemy: next 2 attacks subtract a bane d6, take the lower result.',
+  triage:'Active (cooldown 12 rounds) — All living allies regen 1d6 HP/round for 2 rounds.',
+  resurrection:'Active (cooldown 16 rounds) — Bless the most wounded ally: their next killing blow leaves them at half HP with 2 boons instead.',
   battleMedic:'Passive — When you heal an ally, you also heal 1d6 HP.',
-  sacredGround:'Active (1×/combat) — All allies regen 1d6/round for 2 rounds and gain 3 boons.',
+  sacredGround:'Active (cooldown 12 rounds) — All allies regen 1d6/round for 2 rounds and gain 3 boons.',
   // ── MASTER ──────────────────────────────────────────────────────────────
   shieldwall:'Passive — +2 Defence while in combat.',
   bodyguard:'Passive — When an enemy hits you, reflect half the damage back at the attacker.',
@@ -200,16 +200,16 @@ const TALENT_DESCS={
   vengeancePassive:'Passive — When an ally falls in combat, immediately make one free weapon attack.',
   endure:'Passive — If an attack would drop you below 35% HP, halve its damage instead. 1×/combat.',
   unstoppable:'Once per run — Survive one killing blow at 1 HP.',
-  battleOrders:'Active (1×/combat) — Grant one ally an additional action this round.',
+  battleOrders:'Active (cooldown 8 rounds) — Grant one ally an additional action this round.',
   warlordAura:'Passive — All allies gain +1 boon on attack rolls while you are alive.',
   devastatingCharge:'Passive — First hit each combat deals +1d6 damage and knocks the target Prone.',
   sweepingBlow:'Passive — On a successful hit, all other enemies take 75% of the damage dealt.',
-  intercept:'Active (1×/combat) — No action cost. All enemies reroll their damage die, take the lower result for 1 round.',
+  intercept:'Active (cooldown 8 rounds) — No action cost. All enemies reroll their damage die, take the lower result for 1 round.',
   killingMomentum:'Passive — When you kill an enemy, immediately make a free weapon attack against another.',
   quickstrike:'Passive — Round 1 only: your attack hits twice.',
   inspire:'Passive — When you kill an enemy, all living allies gain 2 boons on their next action.',
   markHeretic:'Passive — Your hits mark the target. All attacks vs marked target gain +2 boons.',
-  warCry:'Active (1×/combat) — No action cost. All allies gain +3 to attack rolls and +3 damage for 2 rounds.',
+  warCry:'Active (cooldown 8 rounds) — No action cost. All allies gain +3 to attack rolls and +3 damage for 2 rounds.',
   weaponMaster:'Passive — Damage rolls can never do less than half the maximum possible.',
   purgeTheWicked:'Passive — When you kill a Marked target, all living allies heal 1d6 HP.',
   phantomStrike:'Passive — Your first attack each combat automatically hits, bypassing Defence.',
@@ -221,46 +221,51 @@ const TALENT_DESCS={
   flicker:'Passive (1×/combat) — The first enemy attack against you is negated.',
   cleanup:'Passive — When you kill an enemy, immediately make a free attack against another.',
   unrelenting:'Passive — Each hit in a Bladestorm gains +1 boon.',
-  deadAim:'Active (1×/combat) — Declare before attacking. If you hit, it is automatically a critical hit.',
+  deadAim:'Active (cooldown 6 rounds) — Declare before attacking. If you hit, it is automatically a critical hit.',
   flurryBleed:'Passive — All hits during Bladestorm apply 1 Bleed stack.',
   elementalAttunement:'Passive — Attack spells deal ×1.25 damage to enemies with no elemental weakness.',
   ballLightning:'Passive — When a lightning spell kills an enemy, arc 1d6 lightning to the nearest other enemy.',
   overcast:'Passive — Spend 2 casting slots on any spell to deal +2d6 bonus damage.',
   volatileForm:'Passive (1×/combat) — Your first attack spell each combat hits all enemies.',
-  catastrophe:'Active (1×/combat) — Deal 10d6 damage to all enemies.',
-  overcharge:'Active (1×/combat) — Cast any spell for free without spending a casting slot.',
+  catastrophe:'Active (cooldown 9 rounds) — Deal 10d6 damage to all enemies.',
+  overcharge:'Active (cooldown 8 rounds) — Cast any spell for free without spending a casting slot.',
   lifeDrain:'Passive — When a spell kills an enemy, heal 1d4 HP.',
   arcaneSurge:'Passive — Your first attack spell each combat deals +1d6 damage.',
   spellLeech:'Passive — When a spell kills an enemy, heal 1d6 HP.',
   chaosTouch:'Passive — All chaos spell bonus effects trigger with 100% chance.',
-  spellsurge:'Active (1×/combat, no action) — Your next spell costs no casting. Also +1 Power.',
+  spellsurge:'Active (cooldown 8 rounds, no action) — Your next spell costs no casting. Also +1 Power.',
   undyingHunger:'Passive — When a DoT tick kills an enemy, regain 1 casting for every known spell and heal 1d6+INT HP.',
-  uncontrolledPower:'Passive — Once per combat: double all spell dice. Take 1d6 backlash damage.',
-  counterspell:'Active (1×/combat) — Negate one on-hit ability or effect targeting an ally.',
-  doubleCharge:'Passive — You may use Overcast twice per combat instead of once.',
+  uncontrolledPower:'Active (cooldown 8 rounds) — Double all spell dice on your next spell. Take 1d6 backlash damage.',
+  counterspell:'Active (cooldown 6 rounds) — Negate one on-hit ability or effect targeting an ally.',
+  doubleCharge:'Active (cooldown 4 rounds) — Re-arm Overcast so you can use it again.',
   ward:'Passive — All allies gain +1 Defence while you are alive.',
   forceOfWill:'Passive — Overcast spells stun their target on d20 11+.',
-  esotericKnowledge:'Active (1×/combat) — Use a spell scroll without consuming it.',
+  esotericKnowledge:'Active (cooldown 8 rounds) — Use a spell scroll without consuming it.',
   arcaneMastery:'Passive — +1 Power permanently. Learn all rank-0 spells from your tradition.',
   spellEcho:'Passive (1×/combat) — Your first damaging spell echoes for half its damage.',
   overflowingGrace:'Passive — Each target healed by Mass Heal also removes one debuff.',
   holyAura:'Passive — All allies gain +2 Defence while you are alive.',
   divineVessel:'Passive — All healing spells you cast deal +1d6 additional healing.',
-  miracleHeal:'Active (1×/combat) — Restore the most wounded ally to full HP. Also +1 Power.',
+  miracleHeal:'Active (cooldown 14 rounds) — Restore the most wounded ally to full HP. Also +1 Power.',
   protectiveBlessing:'Passive — Anyone you heal gains +2 Defence this round.',
   grace:'Passive (1×/combat) — When an ally would fall, they survive at 1 HP instead.',
-  banish:'Active (1×/combat) — One chaos or undead enemy loses their next action.',
+  banish:'Active (cooldown 8 rounds) — One chaos or undead enemy loses their next action.',
   sanctify:'Passive — Chaos and undead enemies you kill cannot trigger on-death abilities.',
   lastRites:'Passive — When an ally falls, all other living allies immediately heal 1 HP.',
   blessedBlade:'Passive — Your weapon attacks vs undead and chaos ignore any damage reduction.',
   vigil:'Passive — Allies at full HP gain +1 boon on their next attack roll.',
   holyFire:'Passive — When Divine Smite hits a chaos enemy, it also applies a 1d6 Burn DoT.',
-  rallyingCry:'Active (1×/combat) — All living allies heal 1d6 + their highest attribute modifier.',
+  rallyingCry:'Active (cooldown 12 rounds) — All living allies heal 1d6 + their highest attribute modifier.',
   taunt:'Active (costs your action) — For 2 rounds all enemies attack only you. Ready again 3 rounds after use.'
 };
 
 const ITEM_DESCS={
   'Healing Draught':'Drink to heal 1d6 + your level HP. Can also be given to an ally (heals by their level).',
+  'Bandages':'Stop all bleeding on you and heal 1d4.',
+  'Smelling Salts':'Shake off Stunned, Prone, Shaken and similar, and get 1 boon on your next attack.',
+  'Ironhide Tonic':'+2 Defence for 3 rounds. Combat only.',
+  'Throwing Knives':'Throw at your target for 2d4 + AGI damage.',
+  'Tar Pot':'Your target attacks with 2 banes for 2 rounds.',
   'Greater Healing Draught':'Drink to heal 2d6 + twice your level HP. Can also be given to an ally (heals by their level).',
   'Flask of Oil':'Throw in combat to deal 2d6 fire damage to the enemy.',
   'Fire Jar':'Smash in combat to deal 3d6 fire damage to the enemy.',
@@ -377,9 +382,19 @@ function castingsLeftC(char, spellName, rank) {
 // ── Talent tap ───────────────────────────────────────────────────────────────
 // Active talents usable in combat that are not covered by the explicit buttons above.
 // [key, button label, short subtitle, used(char, gs)]
+// Ability cooldowns (rounds), filled in from the server's rules on load.
+let COOLDOWNS_C={};
+// How many rounds until a used ability is ready; null if it isn't recharging.
+function cooldownLeft(c,k){
+  const d=COOLDOWNS_C[k]; if(!d) return null;
+  const left=(c._cd||{})[k];
+  if(left!=null) return left;
+  return (k==='condemn'&&c.judgement&&d.judgement)?d.judgement:d.rounds; // used this round: full cooldown ahead
+}
+function cooldownText(c,k){ const n=cooldownLeft(c,k); return n==null?'Used':`Ready in ${n} round${n===1?'':'s'}`; }
 const EXTRA_ACTIVES=[
   ['taunt','📯 Taunt','Enemies attack only you',(c,gs)=>(c._tauntReadyRound||0)>(gs.roundNumber||0)],
-  ['condemn','⚖ Condemn','Free: +1 boon, +1d6 on target',c=>(c._condemnUses||0)>=(c.judgement?2:1)],
+  ['condemn','⚖ Condemn','Free: +1 boon, +1d6 on target',c=>!!c._condemnUsed],
   ['entangle','🌿 Entangle','Enemy loses next action',c=>c._entangleUsed],
   ['miracleHeal','🌟 Miracle Heal','Ally to full HP',c=>c.miracleUsed],
   ['spellsurge','✨ Spell Surge','Next spell free',c=>c.spellsurgeUsed],
@@ -387,7 +402,6 @@ const EXTRA_ACTIVES=[
   ['battleOrders','⚔ Battle Orders','Ally acts again',c=>c._battleOrdersUsed],
   ['intercept','🛡 Intercept','Enemies roll dmg twice, lower',c=>c._interceptUsed],
   ['devastatingCharge','🐗 Devastating Charge','Next hit +1d6 + Prone',c=>c._devastatingChargeUsed],
-  ['markHeretic','⚖ Mark Heretic','Mark target (+2 boons)',c=>false],
   ['deadAim','🎯 Dead Aim','Next hit is a crit',c=>c._deadAimUsed],
   ['smokeScreen','💨 Smoke Screen','Enemies get banes',c=>c._smokeScreenUsed],
   ['curse','🎃 Curse','Target: +1 boon/+1 dmg vs it',c=>c._curseUsed],
@@ -405,7 +419,7 @@ const EXTRA_ACTIVES=[
   ['overcharge','⚡ Overcharge','Free cast',c=>c._overchargeUsed],
   ['uncontrolledPower','🌪 Uncontrolled Power','Double spell dice',c=>c._uncontrolledPowerUsed],
   ['esotericKnowledge','📜 Esoteric Knowledge','Scroll not consumed',c=>c._esotericKnowledgeUsed],
-  ['doubleCharge','💥 Double Charge','Overcast again',c=>(c._doubleChargeCount||0)>=2],
+  ['doubleCharge','💥 Double Charge','Overcast again',c=>!!c._doubleChargeUsed],
 ];
 
 // ─── AUDIO SYSTEM ────────────────────────────────────────────────────────────

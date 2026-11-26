@@ -17,9 +17,10 @@ app.get('/api/daily', (req, res) => { const key = runlog.todayKey(); res.json({ 
 // Rules tables the client needs for display (XP bar, castings, spell icons).
 app.get('/api/game-data', (req, res) => {
   const spellElements = {};
+  const cooldowns = Object.fromEntries(Object.entries(COOLDOWNS).map(([k, d]) => [k, { rounds: d.rounds, judgement: d.judgement || null }]));
   Object.values(TRADITIONS).forEach(t => (t.spells || []).forEach(s => { spellElements[s.name] = t.elemType || 'arcane'; }));
   const charms = {}; CHARM_SHOP_KEYS.forEach(k => { charms[k] = { name: CHARMS[k].name, desc: CHARMS[k].desc }; });
-  res.json({ xpThresholds: XP_THRESHOLDS, castingsTable: CASTINGS_TABLE, spellElements, charms,
+  res.json({ xpThresholds: XP_THRESHOLDS, castingsTable: CASTINGS_TABLE, spellElements, charms, cooldowns,
     difficulties: DIFFICULTIES.map(x => ({ id: x.id, name: x.name, hp: x.hp, dmg: x.dmg, reward: x.reward })) });
 });
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
@@ -55,7 +56,7 @@ const {
   CAREERS, NOVICE_PATHS, EXPERT_PATHS, MASTER_PATHS, CASTINGS_TABLE, TRADITIONS,
   ENEMY_POOLS, XP_THRESHOLDS, POISON_CAP, NODE_TYPES, SCROLL_SPELLS_LIST, LOOT_CONS_LIST,
   WEAPON_BASES, ARMOR_BASES, LEGENDARY_ITEMS, SHOP_CONSUMABLES, SCROLL_SPELLS_SHOP, ENEMY_DROPS,
-  CHARMS, CHARM_SHOP_KEYS, } = require('./game/data');
+  CHARMS, CHARM_SHOP_KEYS, COOLDOWNS, cooldownFor, } = require('./game/data');
 
 // Game logic split into modules under game/ (see each file's header).
 const combatMod = require('./game/combat');
@@ -67,9 +68,9 @@ const { pickThreeNodes, restorePower, showPathChoices, resolvePath, startNodeCon
 const turnsMod = require('./game/turns');
 const { buildTurnOrder, getCurrentTurn, autoSkipStunnedPlayer, advanceTurn, TURN_LIMIT_MS, startTurnTimer, endRound, fireEnemyTurn, finishEnemyTurn, checkDeath } = turnsMod;
 const itemsMod = require('./game/items');
-const { genLegendaryItem, genWpn, genArmor, genShopScroll, buildPlayerShop, addToInventory, applyLegendaryArmourPassive, applyWpnSpecial, equipItem, handleBuy, handleSell, useItemLogic, rollEnemyDrop } = itemsMod;
+const { genLegendaryItem, genWpn, genArmor, genShopScroll, buildPlayerShop, addToInventory, applyLegendaryArmourPassive, applyWpnSpecial, equipItem, handleBuy, SELL_RATE, itemValue, sellPrice, unequipCharm, handleSell, useItemLogic, rollEnemyDrop } = itemsMod;
 const actionsMod = require('./game/actions');
-const { actAttack, actCastSpell, actUseTalent } = actionsMod;
+const { actAttack, actCastSpell, isUnholy, actUseTalent } = actionsMod;
 
 // Difficulty levels unlocked with Renown (tracked per player in their browser).
 const DIFFICULTIES = [
@@ -220,7 +221,7 @@ const events = require('./game/events');
 const enemies = require('./game/enemies');
 const { enemyAfterHit, enemyDamageMods, enemyDefence, enemyOnWeaponHit, enemyPostTurn, enemyPreTurn, isEnemyHidden, onCombatStart, onEnemyDeath, prepareEnemy, refreshEnemyAuras, sortTurnOrder } = enemies;
 enemies.bind({ addLog, addBuff, addDebuff, checkDeath, resolveEnemyDeath, scaleEnemy });
-events.bind({ addLog, addBuff, checkDeath, addToInventory, genArmor, genWpn, makeCharm: gear.makeCharm, makeCursedItem: gear.makeCursedItem });
+events.bind({ addLog, addBuff, checkDeath, addToInventory, genArmor, genWpn, refreshCastingPools, SCROLL_SPELLS_LIST, makeCharm: gear.makeCharm, makeCursedItem: gear.makeCursedItem });
 
 // ─── CHARACTER BUILDER ───────────────────────────────────────────────────────
 // Lone Survivor: Warriors, Wizards, Priests and Witch Hunters who start a run alone get a little extra staying power.
@@ -233,6 +234,28 @@ function applyLoneSurvivor(room, player){
   if(ls.power){ c.power+=ls.power; c.maxPower=(c.maxPower||0)+ls.power; refreshCastingPools(c); }
   addLog(room,`🕯 <strong>Lone Survivor</strong> — ${player.name} walks the dark road alone: +${ls.hp} max HP${ls.power?', +1 Power':''}.`,'loot');
 }
+
+// ─── ABILITY COOLDOWNS ─────────────────────────────────────────────────────────
+// Called at the end of every combat round. An ability used this round starts its
+// cooldown; when the count runs out its "used" marker clears and it's ready again.
+function tickCooldowns(room){
+  const ready=[];
+  room.players.forEach(p=>{
+    const c=p.char; if(!c||!c.alive) return;
+    const cd=c._cd||(c._cd={});
+    for(const [k,def] of Object.entries(COOLDOWNS)){
+      if(!c[k]) continue;
+      const used=!!c[def.flag];
+      if(cd[k]!=null){
+        if(!used){ delete cd[k]; continue; } // refreshed early (Divine Favour, a rest...)
+        cd[k]--;
+        if(cd[k]<=0){ c[def.flag]=false; delete cd[k]; ready.push(`${p.name}'s ${labelOf(k)}`); }
+      } else if(used) cd[k]=cooldownFor(c,k);
+    }
+  });
+  if(ready.length) addLog(room,`⏳ Ready again: ${ready.join(', ')}.`,'sys');
+}
+function labelOf(k){ return k.replace(/([A-Z])/g,' $1').replace(/^./,ch=>ch.toUpperCase()); }
 
 // ─── LEAVING ──────────────────────────────────────────────────────────────────
 // In the lobby a player is simply removed. Mid-run their character stays behind:
@@ -676,7 +699,8 @@ function resetCombatState(p){
     p.char._relentlessCount=0;
     p.char._fadedLastRound=false;
     p.char.rageTriggerActive=false;
-    p.char._huntersMarkTarget=null; p.char._condemnTargetId=null; p.char._condemnUses=0; p.char._firstVolleyUsed=false;
+    p.char._huntersMarkTarget=null; p.char._condemnTargetId=null; p.char._condemnUsed=false; p.char._doubleChargeUsed=false; p.char._firstVolleyUsed=false;
+    p.char._cd={}; // every ability is ready when a fight begins
     p.char._markHereticTarget=null;
     p.char._sacredGroundUsed=false;
     p.char._divineFavourUsed=false;
@@ -924,6 +948,7 @@ function handlePlayerAction(room,playerId,payload,ws){
     if(alive.every(p=>gs.lootPicked.includes(p.id))){gs.phase='event';gs.lootRoom=null;addLog(room,'Loot divided. Press onward.','sys');}
     return;
   }
+  if(action==='UNEQUIP_CHARM'){ const r=unequipCharm(char); if(r) addLog(room,`${player.name}: ${r}.`,'loot'); return; }
   if(action==='EQUIP_ITEM'){
     const idx=data.inventoryIndex;
     if(idx===undefined||idx<0||idx>=char.inventory.length)return;
@@ -1090,7 +1115,8 @@ function triggerGameover(room){
   },3500);
 }
 
-function broadcastState(roomCode){const room=rooms.get(roomCode);if(!room)return;if((room.gs.phase==='gameover'||room.gs.phase==='victory')&&!room.gs._recorded)recordRunEnd(room);room.touchedAt=Date.now();persist.scheduleSave(rooms);statesync.broadcast(room,publicState(room));}
+function broadcastState(roomCode){const room=rooms.get(roomCode);if(!room)return;room.players.forEach(p=>{ if(p.char&&p.char.inventory) p.char.inventory.forEach(i=>{ i.sellCost=sellPrice(i); }); }); // players see what each item sells for
+if((room.gs.phase==='gameover'||room.gs.phase==='victory')&&!room.gs._recorded)recordRunEnd(room);room.touchedAt=Date.now();persist.scheduleSave(rooms);statesync.broadcast(room,publicState(room));}
 
 // When someone drops, re-check anything that was waiting on them
 function unblockAfterDisconnect(room, player){
@@ -1107,7 +1133,7 @@ function unblockAfterDisconnect(room, player){
 
 // Hand every split-out module the helpers it uses. Runs once all of server.js
 // has been evaluated, so constants defined anywhere in this file are ready.
-const MODULE_API = { ARMOR_BASES, CAREERS, CHARMS, CHARM_SHOP_KEYS, DIFFICULTIES, ENEMY_DROPS, EXPERT_PATHS, LEGENDARY_ITEMS, LOOT_CONS_LIST, MASTER_PATHS, NODE_TYPES, NOVICE_PATHS, POISON_CAP, SCROLL_SPELLS_LIST, SCROLL_SPELLS_SHOP, SELF_TICK_DOTS, SHOP_CONSUMABLES, TRADITIONS, WEAPON_BASES, XP_THRESHOLDS, addBuff, addDebuff, addLog, addToInventory, advanceTurn, aliveEnemies, applyBleed, applyBurn, applyCharm, applyDailyToEnemies, applyPoison, armorTraits, broadcastState, buildPlayerShop, buildTurnOrder, castingsLeft, charmKey, checkDeath, cleanseCurses, d, enemyAfterHit, enemyDamageMods, enemyDefence, enemyOnWeaponHit, enemyPostTurn, enemyPreTurn, events, gearRoundTick, gearVsEnemyAttack, getSpellsForPower, getTargetEnemy, immuneToPoison, isCursed, isEnemyHidden, makeCharm, makeCursedItem, maxCastings, modVal, onCombatStart, pickEnemy, pickRandom, rd, refreshCastingPools, regainCasting, resistsInsanity, resolveEnemyDeath, restoreCastingPools, rollAttack, rollEnemyAttack, rollTraits, scaleEnemy, sendTo, sortTurnOrder, spendCasting, startSpoils, talentHeal, tickBuffs, tickDebuffs, triggerGameover, uniqRanks, uuidv4, weaponTraits };
+const MODULE_API = { ARMOR_BASES, CAREERS, CHARMS, CHARM_SHOP_KEYS, DIFFICULTIES, ENEMY_DROPS, EXPERT_PATHS, LEGENDARY_ITEMS, LOOT_CONS_LIST, MASTER_PATHS, NODE_TYPES, NOVICE_PATHS, POISON_CAP, SCROLL_SPELLS_LIST, SCROLL_SPELLS_SHOP, SELF_TICK_DOTS, SHOP_CONSUMABLES, TRADITIONS, WEAPON_BASES, XP_THRESHOLDS, addBuff, addDebuff, addLog, advanceTurn, aliveEnemies, applyBleed, applyBurn, applyCharm, applyDailyToEnemies, applyPoison, armorTraits, broadcastState, buildPlayerShop, buildTurnOrder, castingsLeft, charmKey, checkDeath, cleanseCurses, d, enemyAfterHit, enemyDamageMods, enemyDefence, enemyOnWeaponHit, enemyPostTurn, enemyPreTurn, events, gearRoundTick, gearVsEnemyAttack, getSpellsForPower, getTargetEnemy, immuneToPoison, isCursed, isEnemyHidden, makeCharm, makeCursedItem, maxCastings, modVal, onCombatStart, pickEnemy, pickRandom, rd, refreshCastingPools, regainCasting, resistsInsanity, resolveEnemyDeath, restoreCastingPools, rollAttack, rollEnemyAttack, rollTraits, scaleEnemy, sendTo, sortTurnOrder, spendCasting, startSpoils, talentHeal, tickBuffs, tickCooldowns, tickDebuffs, triggerGameover, uniqRanks, uuidv4, weaponTraits };
 [combatMod, pathsMod, nodesMod, turnsMod, itemsMod, actionsMod].forEach(m => m.bind(MODULE_API));
 
 // Start the server when run directly (node server.js). Tests require() this file
@@ -1121,6 +1147,6 @@ if (require.main === module) {
   server.listen(PORT, '0.0.0.0', () => { console.log(`Shadows Over Reikland on 0.0.0.0:${PORT}`); });
 }
 
-module.exports = { app, server, rooms, clients, enemies, gear, events, runlog, cleanName, leaveRoom, allowMessage, RATE,
+module.exports = { app, server, rooms, clients, enemies, gear, events, runlog, cleanName, leaveRoom, tickCooldowns, unequipCharm, sellPrice, allowMessage, RATE,
   startTurnTimer, recordRunEnd, takeOverSeat, applyDailyToEnemies, startDailyRun, TURN_LIMIT_MS,
   _runNodeContent, actAttack, actCastSpell, actUseTalent, addBuff, addDebuff, addLog, addToInventory, advanceTurn, aftermathReady, applyBleed, applyBurn, applyExpertPath, applyLegendaryArmourPassive, applyLevelGains, applyMasterPath, applyNovicePath, applyPoison, applyTalentList, applyWpnSpecial, autoSkipStunnedPlayer, broadcastState, buildChar, buildLootOptions, buildPlayerShop, buildTurnOrder, castingsLeft, checkDeath, checkLevelUp, endRound, enemyDmgDice, enterNode, equipItem, finishCombat, finishEnemyTurn, fireEnemyTurn, genArmor, genLegendaryItem, genShopScroll, genSpecialArmor, genSpecialWpn, genWpn, getBuffVal, getCurrentTurn, getDebuffVal, getPathHpGain, getSpellsForPower, getTargetEnemy, grantTradition, handleBuy, handleMessage, handlePlayerAction, handleSell, initGameState, invCounts, makeCode, maxCastings, pickEnemy, pickThreeNodes, publicState, refreshCastingPools, regainCasting, resetCombatState, resolveEnemyDeath, resolvePath, resolveUnknownEvent, restoreCastingPools, restorePower, restoreRooms, resumeRoom, rollAttack, rollD20boons, rollEnemyAttack, rollEnemyDrop, scaleEnemy, sendTo, showPathChoices, spendCasting, startNodeContent, startSpoils, sweepRooms, talentHeal, tickBuffs, tickDebuffs, triggerGameover, unblockAfterDisconnect, uniqRanks, useItemLogic };

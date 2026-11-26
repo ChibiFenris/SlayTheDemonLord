@@ -43,7 +43,7 @@ function mTapTalent(key,char){
   const inCombat=lastState&&lastState.gs&&lastState.gs.phase==='combat';
   const btn=isActive&&!used&&inCombat?sheetButtons(`<button class="m-btn use" onclick="mUseTalent('${key}')">Use ${label}</button>`):sheetButtons('');
   mSheet(label,isActive?'Active talent':'Passive talent',TALENT_DESCS[key]||label,[],
-    isActive?(used?'off':'ok'):'ok',isActive?(used?'Used this combat':'Ready'):'Always active',btn);
+    isActive?(used?'off':'ok'):'ok',isActive?(used?(key==='taunt'?'Recharging':cooldownText(char,key)):'Ready'):'Always active',btn);
 }
 function mUseTalent(t){ mCloseSheet(); send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:t}}); }
 
@@ -81,7 +81,7 @@ function mTapItem(idx,char,inCombat){
   if(isCharm){
     const isEq=char.equippedCharm&&o&&o.id===char.equippedCharm.id;
     let primary=isEq?'':`<button class="m-btn use" onclick="mEquip(${idx})">Wear</button>`;
-    if(atMerchant&&!isEq) primary+=`<button class="m-btn" onclick="mCloseSheet();sellItem(${idx})">Sell 1 ss</button>`;
+    if(atMerchant&&!isEq) primary+=`<button class="m-btn" onclick="mCloseSheet();sellItem(${idx})">Sell ${entry.sellCost||1} ss</button>`;
     mOpenSheet(`<div class="m-sheet-name">${entry.name}</div><div class="m-sheet-type">Charm</div><div class="m-sheet-desc">${o?o.desc:''}</div>${cursedNote}<div class="m-sheet-status ${isEq?'ok':'warn'}">${isEq?'Worn':'In your pack'}</div>${sheetButtons(primary)}`);
     return;
   }
@@ -89,7 +89,7 @@ function mTapItem(idx,char,inCombat){
     const stat=isWpn&&o?`${o.dice}+${o.bonus||0} · ${(o.stat||'').toUpperCase()} · ${o.dmgType||''}`:isArm&&o?`+${o.defBonus} Defence`:'';
     const isEq=(isWpn&&char.equippedWeapon&&o&&o.id===char.equippedWeapon.id)||(isArm&&char.equippedArmor&&o&&o.id===char.equippedArmor.id);
     let primary=isEq?'':`<button class="m-btn use" onclick="mEquip(${idx})">Equip</button>`;
-    if(atMerchant&&!isEq) primary+=`<button class="m-btn" onclick="mCloseSheet();sellItem(${idx})">Sell 1 ss</button>`;
+    if(atMerchant&&!isEq) primary+=`<button class="m-btn" onclick="mCloseSheet();sellItem(${idx})">Sell ${entry.sellCost||1} ss</button>`;
     const special=o&&o.special?`<div class="m-sheet-desc">✦ ${o.special.desc}</div>`:'';
     const traits=traitText(o).replace(/^ · /,'');
     mOpenSheet(`<div class="m-sheet-name">${entry.name}</div><div class="m-sheet-type">${isWpn?'Weapon':'Armour'} · ${stat}</div>${special}${traits?`<div class="m-sheet-desc">Traits: ${traits}</div>`:''}${cursedNote}<div class="m-sheet-status ${isEq?'ok':'warn'}">${isEq?'Equipped':'In your pack'}</div>${sheetButtons(primary)}`);
@@ -98,7 +98,7 @@ function mTapItem(idx,char,inCombat){
   let primary='';
   if(isUsableItem(entry.name)) primary+=`<button class="m-btn use" onclick="mUseItem('${esc(entry.name)}',${inCombat})">Use</button>`;
   if(ALLY_ITEMS.includes(entry.name)&&inCombat) primary+=`<button class="m-btn use" onclick="mCloseSheet();useAlly('${esc(entry.name)}')">Give to ally</button>`;
-  if(atMerchant) primary+=`<button class="m-btn" onclick="mCloseSheet();sellItem(${idx})">Sell 1 ss</button>`;
+  if(atMerchant) primary+=`<button class="m-btn" onclick="mCloseSheet();sellItem(${idx})">Sell ${entry.sellCost||1} ss</button>`;
   mSheet(entry.name,'Consumable',desc,[['Quantity','×'+(entry.qty||1)]],'ok','',sheetButtons(primary));
 }
 function mUseItem(n,inCombat){ mCloseSheet(); useItem(n,inCombat); }
@@ -205,7 +205,7 @@ function mRenderGame(gs,players,me){
       </div>
       <div class="m-hp-row"><span class="m-hp-label">HP</span>${mBar(pct,'hp '+hpClass(pct))}<span class="m-hp-val">${c.health}/${c.maxHealth}</span></div>
       <div class="m-hp-row"><span class="m-hp-label">XP</span>${mBar(xp.pct,'xp')}<span class="m-hp-val">${c.level>=10?'Max':`${c.xp}/${xp.next}`}</span></div>
-      ${c.equippedCharm?`<div class="m-stats">📿 ${c.equippedCharm.name}</div>`:''}
+      ${c.equippedCharm?`<div class="m-stats">📿 ${c.equippedCharm.name} <button class="mini-btn" onclick="unequipCharm()">Remove</button></div>`:''}
       <div class="m-stats">Def <b>${c.defense}</b>${c.power>0?` · Power <b>${c.power}</b>`:''} · STR <b>${c.attrs.str}</b> · AGI <b>${c.attrs.agi}</b> · INT <b>${c.attrs.int}</b> · WIL <b>${c.attrs.wil}</b></div>
       ${chips.length?`<div class="chip-row">${chips.join('')}</div>`:''}
       ${c.alive?'':'<div class="dead-label">Fallen</div>'}`);
@@ -279,7 +279,7 @@ function mRenderGame(gs,players,me){
     const stock=char.merchantStock;
     heading('Merchant');
     act.appendChild(mEl('div','m-sub',`Your silver: <b>${char.gold} ss</b>`));
-    [stock.weaponEnhance,stock.statBoost,stock.weapon1,stock.weapon2,stock.armor,stock.charm,...(stock.consumables||[]),stock.scroll].filter(Boolean).forEach(item=>{
+    [stock.weaponEnhance,stock.statBoost,stock.weapon1,stock.weapon2,stock.weapon3,stock.armor,stock.armor2,stock.charm,stock.charm2,...(stock.consumables||[]),stock.scroll].filter(Boolean).forEach(item=>{
       const desc=(item.itemObj&&item.itemObj.desc)||item.desc||ITEM_DESCS[item.name]||'';
       const afford=char.gold>=item.cost;
       act.appendChild(mEl('div','m-shop-item'+(item.bought?' sold':''),`
@@ -332,7 +332,7 @@ function mBuildKit(char,gs){
     if(char.rageBoon){ const r=mEl('button','m-pill armed','Rage armed'); r.onclick=()=>mTapTalent('rage',char); wrap.appendChild(r); }
     keys.forEach(k=>{
       const used=talentUsed(k,char);
-      const p=mEl('button','m-pill'+(used===null?' passive':used?' used':' ready'),labelFromKey(k));
+      const p=mEl('button','m-pill'+(used===null?' passive':used?' used':' ready'),labelFromKey(k)+(used&&COOLDOWNS_C[k]?` ⏳${cooldownLeft(char,k)}`:''));
       p.onclick=()=>mTapTalent(k,char); wrap.appendChild(p);
     });
     if(!keys.length&&!char.rageBoon) wrap.innerHTML='<span class="empty">No talents yet.</span>';

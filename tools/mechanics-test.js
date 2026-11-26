@@ -85,7 +85,7 @@ const logHas=(room,re)=>room.gs.log.some(l=>re.test(l.msg));
   ok(room.gs.phase==='event'&&a.char.health>5,'majority option resolves and heals'); }
 // 8. Every choice event resolves every option without errors
 { for(const [key,ev] of Object.entries(S.events.CHOICE_EVENTS)) for(const o of ev.options){
-    const {room}=mkRoom(o.needs?['wizard',o.needs]:['warrior','wizard']); room.gs.phase='event'; room.gs.depth=25; room.players.forEach(p=>{p.char.gold=50;});
+    const {room}=mkRoom(o.needs?['warrior',[].concat(o.needs)[0]]:['warrior','wizard']); room.gs.phase='event'; room.gs.depth=25; room.players.forEach(p=>{p.char.gold=50;});
     let err=null; try{ S.events.startChoiceEvent(room,key); room.players.forEach(p=>S.events.voteChoice(room,p.id,o.id)); }catch(e){ err=e; }
     if(err||room.gs.phase==='choice') ok(false,`event ${key}/${o.id} failed: ${err&&err.message}`);
   } ok(true,'all choice events resolve');
@@ -220,7 +220,7 @@ const logHas=(room,re)=>room.gs.log.some(l=>re.test(l.msg));
   ok(wh._condemnTargetId===room.gs.enemies[0].id&&room.gs.activeTurnIdx===before,'Condemn marks the target and does not use the turn');
   ok((room.gs.enemies[0].activeDebuffs||[]).some(d=>d.condemned),'the Condemned enemy shows the mark');
   S.handlePlayerAction(room,room.players[0].id,{action:'USE_TALENT',data:{talent:'condemn'}});
-  ok(wh._condemnUses===1,'Condemn works once per combat without Judgement');
+  ok(wh._condemnUsed===true&&(room.gs.log.slice(-1)[0].msg||'').includes('recharging'),'Condemn cannot be used again while recharging');
   // Boons: First Volley + Condemn on the first attack
   const real=Math.random; Math.random=()=>0.5;
   const ra=S.rollAttack(wh,room.gs.enemies[0],0); Math.random=real;
@@ -286,4 +286,32 @@ const logHas=(room,re)=>room.gs.log.some(l=>re.test(l.msg));
   const {room:r3,wss:w3}=mkRoom(['wizard']); combat(r3,['Skaven Clanrat']); const code=r3.code;
   const before=S.runlog.readRuns().length; S.leaveRoom(w3[0]);
   ok(!S.rooms.has(code)&&S.runlog.readRuns().length===before,'quitting a solo run closes it without logging it'); }
+// 25. Cooldowns replace once-per-combat
+{ const {room}=mkRoom(['warrior','priest']); combat(room,['Skaven Stormvermin']); const w=room.players[0].char;
+  w.catchBreathUsed=true; S.tickCooldowns(room);
+  ok(w._cd.catchBreath===12,'using an ability starts its cooldown (Catch Breath: 12 rounds)');
+  for(let i=0;i<11;i++) S.tickCooldowns(room); ok(w.catchBreathUsed&&w._cd.catchBreath===1,'it counts down each round');
+  S.tickCooldowns(room); ok(!w.catchBreathUsed&&w._cd.catchBreath===undefined,'then it is ready again in the same fight');
+  w.catchBreathUsed=true; S.tickCooldowns(room); S.resetCombatState(room.players[0]); ok(!w.catchBreathUsed&&Object.keys(w._cd).length===0,'every ability is ready when a new fight starts');
+  const p=room.players[1].char; p.divineSmite=true; const pi=room.gs.turnOrder.findIndex(t=>t.id===room.players[1].id); room.gs.activeTurnIdx=pi;
+  S.handlePlayerAction(room,room.players[1].id,{action:'USE_TALENT',data:{talent:'divineSmite'}});
+  ok(p.divineSmiteUsed,'Divine Smite goes on cooldown after one use'); }
+// 26. Selling, charms and the merchant
+{ const {room}=mkRoom(['warrior']); const c=room.players[0].char; room.gs.phase='merchant';
+  c.inventory.push({name:'Ironhide Tonic',qty:1}); const g0=c.gold; S.handleSell(room,room.players[0],c.inventory.length-1);
+  ok(c.gold-g0===Math.round(22*0.15),'items sell for 15% of their value (Ironhide Tonic 22 → 3)');
+  const w=S.genWpn(0); c.inventory.push({name:w.name,qty:1,type:'weapon',itemObj:w}); const g1=c.gold; S.handleSell(room,room.players[0],c.inventory.length-1);
+  ok(c.gold-g1===Math.max(1,Math.round(w.cost*0.15)),'gear sells for 15% of its shop price');
+  const ch=S.gear.makeCharm('haresFoot'); c.inventory.push({name:ch.name,qty:1,type:'charm',itemObj:ch}); S.equipItem(c,c.inventory.length-1);
+  S.handlePlayerAction(room,room.players[0].id,{action:'UNEQUIP_CHARM',data:{}});
+  ok(!c.equippedCharm&&c.inventory.some(i=>i.itemObj&&i.itemObj.key==='haresFoot'),'charms can be taken off');
+  const cur=S.gear.makeCursedItem('nurgleMask'); if(cur.type==='charm'){ c.inventory.push({name:cur.name,qty:1,type:'charm',itemObj:cur}); S.equipItem(c,c.inventory.length-1);
+    S.handlePlayerAction(room,room.players[0].id,{action:'UNEQUIP_CHARM',data:{}}); ok(c.equippedCharm&&c.equippedCharm.cursed,'cursed charms stay on'); }
+  const shop=S.buildPlayerShop(0);
+  ok(shop.weapon3&&shop.armor2&&shop.charm2&&shop.consumables.length===6&&shop.charm.key!==shop.charm2.key&&shop.armor.name!==shop.armor2.name&&new Set([shop.weapon1.name,shop.weapon2.name,shop.weapon3.name]).size===3,'the merchant stocks 3 weapons, 2 armours, 2 different charms and 6 consumables');
+  combat(room,['Skaven Clanrat']); const items=['Bandages','Smelling Salts','Ironhide Tonic','Throwing Knives','Tar Pot']; let used=0;
+  items.forEach(n=>{ c.inventory.push({name:n,qty:1}); if(S.useItemLogic(room,room.players[0],n,true)) used++; });
+  ok(used===5,'all five new consumables work'); }
+// 27. Unknown rooms that are events are always choices
+{ let allChoice=true; for(let i=0;i<20;i++){ const {room}=mkRoom(['warrior']); S.resolveUnknownEvent(room); if(room.gs.phase!=='choice') allChoice=false; } ok(allChoice,'every unknown-room event is a choice'); }
 console.log(fails?fails+' FAILED':'all passed'); process.exit(fails?1:0);

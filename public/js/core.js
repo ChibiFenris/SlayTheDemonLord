@@ -12,6 +12,7 @@ fetch('api/game-data').then(r=>r.json()).then(g=>{
   if(g.spellElements) Object.assign(SPELL_ELEMENT,g.spellElements);
   if(g.charms) GAME_CHARMS=g.charms;
   if(g.difficulties) GAME_DIFFICULTIES=g.difficulties;
+  if(g.cooldowns) COOLDOWNS_C=g.cooldowns;
   renderProgressUI();
   if(lastState) renderState(lastState);
 }).catch(()=>{});

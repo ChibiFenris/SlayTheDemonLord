@@ -2,9 +2,9 @@
 // Gear generation, the merchant, equipping and using items, enemy drops.
 // Moved out of server.js unchanged. The server hands this module the helpers it
 // uses through bind() once everything is defined (see the bottom of server.js).
-let ARMOR_BASES, CHARM_SHOP_KEYS, ENEMY_DROPS, LEGENDARY_ITEMS, SCROLL_SPELLS_SHOP, SHOP_CONSUMABLES, WEAPON_BASES, addBuff, addDebuff, addLog, applyCharm, broadcastState, charmKey, checkDeath, cleanseCurses, d, getTargetEnemy, isCursed, makeCharm, makeCursedItem, maxCastings, modVal, pickRandom, rd, resolveEnemyDeath, rollTraits, sendTo, uniqRanks, uuidv4;
+let ARMOR_BASES, CHARM_SHOP_KEYS, ENEMY_DROPS, LEGENDARY_ITEMS, SCROLL_SPELLS_SHOP, SHOP_CONSUMABLES, WEAPON_BASES, addBuff, addDebuff, addLog, applyCharm, broadcastState, charmKey, checkDeath, cleanseCurses, d, getTargetEnemy, isCursed, makeCharm, makeCursedItem, maxCastings, modVal, rd, resolveEnemyDeath, rollTraits, sendTo, uniqRanks, uuidv4;
 function bind(api) {
-  ({ ARMOR_BASES, CHARM_SHOP_KEYS, ENEMY_DROPS, LEGENDARY_ITEMS, SCROLL_SPELLS_SHOP, SHOP_CONSUMABLES, WEAPON_BASES, addBuff, addDebuff, addLog, applyCharm, broadcastState, charmKey, checkDeath, cleanseCurses, d, getTargetEnemy, isCursed, makeCharm, makeCursedItem, maxCastings, modVal, pickRandom, rd, resolveEnemyDeath, rollTraits, sendTo, uniqRanks, uuidv4 } = api);
+  ({ ARMOR_BASES, CHARM_SHOP_KEYS, ENEMY_DROPS, LEGENDARY_ITEMS, SCROLL_SPELLS_SHOP, SHOP_CONSUMABLES, WEAPON_BASES, addBuff, addDebuff, addLog, applyCharm, broadcastState, charmKey, checkDeath, cleanseCurses, d, getTargetEnemy, isCursed, makeCharm, makeCursedItem, maxCastings, modVal, rd, resolveEnemyDeath, rollTraits, sendTo, uniqRanks, uuidv4 } = api);
 }
 // ─── MERCHANT & ITEMS ───────────────────────────────────────────────────────
 function genLegendaryItem(bossIndex) {
@@ -44,14 +44,19 @@ function genShopScroll(){
 function buildPlayerShop(bossCount=0){
   const hd1={id:'hd1'+uuidv4(),name:'Healing Draught',cost:10,sellCost:3,desc:'Heal 1d6 + your level HP',bought:false,type:'consumable'};
   const hd2={id:'hd2'+uuidv4(),name:'Healing Draught',cost:10,sellCost:3,desc:'Heal 1d6 + your level HP',bought:false,type:'consumable'};
-  const otherPool=SHOP_CONSUMABLES.filter(c=>c.name!=='Healing Draught').sort(()=>Math.random()-0.5);
-  const other=otherPool[0]?{id:'c'+uuidv4(),name:otherPool[0].name,cost:otherPool[0].cost,sellCost:3,desc:otherPool[0].desc,bought:false,type:'consumable'}:hd1;
+  // Two Healing Draughts plus four other consumables, all different.
+  const otherPool=SHOP_CONSUMABLES.filter(c=>c.name!=='Healing Draught').sort(()=>Math.random()-0.5).slice(0,4);
+  const others=otherPool.map(c=>({id:'c'+uuidv4(),name:c.name,cost:c.cost,desc:c.desc,bought:false,type:'consumable'}));
+  const charmKeys=CHARM_SHOP_KEYS.slice().sort(()=>Math.random()-0.5);
+  // No two weapons or armours with the same name on one visit.
+  const distinct=(gen,n)=>{ const out=[]; for(let i=0;i<n*6&&out.length<n;i++){ const it=gen(bossCount); if(!out.some(o=>o.name===it.name)) out.push(it); } while(out.length<n) out.push(gen(bossCount)); return out; };
+  const wpns=distinct(genWpn,3), arms=distinct(genArmor,2);
   return{
     weaponEnhance:{id:'we'+uuidv4(),name:'Weapon Enhancement',desc:'+1 dmg AND +1 to hit on equipped weapon (cap +6)',cost:30,bought:false,type:'enhance'},
     statBoost:    {id:'sb'+uuidv4(),name:'+1 Primary Stat',desc:'Increase highest attribute by 1',cost:35,bought:false,type:'statboost'},
-    weapon1:genWpn(bossCount),weapon2:genWpn(bossCount),armor:genArmor(bossCount),
-    charm:Object.assign(makeCharm(pickRandom(CHARM_SHOP_KEYS)),{cost:28}),
-    consumables:[hd1,hd2,other],scroll:genShopScroll(),
+    weapon1:wpns[0],weapon2:wpns[1],weapon3:wpns[2],armor:arms[0],armor2:arms[1],
+    charm:Object.assign(makeCharm(charmKeys[0]),{cost:28}),charm2:Object.assign(makeCharm(charmKeys[1]),{cost:28}),
+    consumables:[hd1,hd2,...others],scroll:genShopScroll(),
   };
 }
 
@@ -182,7 +187,7 @@ function equipItem(char, inventoryIndex) {
 function handleBuy(room,player,itemId){
   const char=player.char, stock=char.merchantStock;
   if(!stock){sendTo(player.ws,{type:'ERROR',payload:{msg:'No shop open.'}});return;}
-  const all=[stock.weaponEnhance,stock.statBoost,stock.weapon1,stock.weapon2,stock.armor,stock.charm,stock.scroll,...stock.consumables].filter(Boolean);
+  const all=[stock.weaponEnhance,stock.statBoost,stock.weapon1,stock.weapon2,stock.weapon3,stock.armor,stock.armor2,stock.charm,stock.charm2,stock.scroll,...stock.consumables].filter(Boolean);
   const item=all.find(i=>i.id===itemId);
   if(!item||item.bought){sendTo(player.ws,{type:'ERROR',payload:{msg:'Already purchased.'}});return;}
   if(char.gold<item.cost){sendTo(player.ws,{type:'ERROR',payload:{msg:`Need ${item.cost} ss, have ${char.gold}.`}});return;}
@@ -217,6 +222,36 @@ function handleBuy(room,player,itemId){
   else if(item.type==='consumable'){addToInventory(char,item.name);addLog(room,`${player.name} buys ${item.name}.`,'loot');}
 }
 
+// ─── ITEM VALUE AND SELLING ──────────────────────────────────────────────────
+// Everything sells for 15% of what it's worth. Shop items know their price; loot
+// is valued the way the shop would price it.
+const SELL_RATE = 0.15;
+function itemValue(entry){
+  const o=entry.itemObj;
+  if(o){
+    if(o.cost) return o.cost;
+    if(o.legendary||o.id==='leg'||/^leg/.test(o.id||'')) return 160;
+    if(o.cursed) return 40;
+    if(o.type==='charm') return 28;
+    if(o.type==='weapon'){ const heavy=!['1d6','1d8','2d4'].includes(o.dice); return Math.max(5,(heavy?20:15)+(o.bonus||0)*8+(o.special?10:0)); }
+    if(o.type==='armor') return Math.max(5,12+(o.defBonus||0)*8+(o.special?15:0));
+  }
+  const shop=SHOP_CONSUMABLES.find(c=>c.name===entry.name); if(shop) return shop.cost;
+  if(/^Scroll: /.test(entry.name)) return 35;
+  return 10;
+}
+function sellPrice(entry){ return Math.max(1,Math.round(itemValue(entry)*SELL_RATE)); }
+
+// Take off the worn charm (cursed charms stay on until you rest).
+function unequipCharm(char){
+  const ch=char.equippedCharm; if(!ch) return null;
+  if(char._curseLock&&char._curseLock.charm) return `can't remove the cursed ${ch.name} — rest at a campfire or use a Sigmar's Token first`;
+  applyCharm(char,ch,false);
+  char.inventory.push({name:ch.name,qty:1,type:'charm',itemObj:ch});
+  char.equippedCharm=null;
+  return `Took off ${ch.name}`;
+}
+
 function handleSell(room,player,invIndex){
   const char=player.char;
   if(invIndex<0||invIndex>=char.inventory.length) return;
@@ -226,10 +261,11 @@ function handleSell(room,player,invIndex){
     if(char.equippedArmor&&item.itemObj.id===char.equippedArmor.id){sendTo(player.ws,{type:'ERROR',payload:{msg:'Unequip first.'}});return;}
     if(char.equippedCharm&&item.itemObj.id===char.equippedCharm.id){sendTo(player.ws,{type:'ERROR',payload:{msg:'Unequip first.'}});return;}
   }
-  char.gold+=1;
+  const price=sellPrice(item);
+  char.gold+=price;
   char.inventory[invIndex].qty--;
   if(char.inventory[invIndex].qty<=0) char.inventory.splice(invIndex,1);
-  addLog(room,`${player.name} sells ${item.name} for 1 silver.`,'loot');
+  addLog(room,`${player.name} sells ${item.name} for ${price} silver.`,'loot');
 }
 
 // ─── ITEM USE ─────────────────────────────────────────────────────────────────
@@ -249,6 +285,33 @@ _te._burnedThisRound=true;_te.hp=Math.max(0,_te.hp-dmg);addLog(room,`${player.na
   else if(itemName==='Antitoxin'){char._poisonedStacks=0; if(char.activeBuffs) char.activeBuffs=char.activeBuffs.filter(b=>!b.bane||b.name!=='Plagued'); if(char.conditions) char.conditions=char.conditions.filter(c=>c!=='Poisoned'); addLog(room,`🧪 <strong>Antitoxin!</strong> ${player.name} clears all poison!`,'heal');}
   else if(itemName==='Smoke Bomb'){if(inCombat){(room.gs.enemies||[]).filter(e=>e&&e.hp>0).forEach(e=>{if(!e.activeDebuffs)e.activeDebuffs=[];e.activeDebuffs.push({name:'Smoked',bane:2,duration:1});}); addLog(room,`💨 <strong>Smoke Bomb!</strong> All enemies have 2 banes next round!`,'spell');}else{consumed=false;}}
   else if(itemName==="Sigmar's Token"){const th=rd(1,6)+3;char.health=Math.min(char.maxHealth,char.health+th);if(char.activeBuffs&&char.activeBuffs.length)char.activeBuffs=char.activeBuffs.filter(b=>b.duration>=500||!b.bane);if(char.conditions&&char.conditions.length)char.conditions.pop();cleanseCurses(char,false);addLog(room,`✝ <strong>Sigmar's Token!</strong> +${th} HP, one debuff removed and any curse loosened — cursed gear can be taken off.`,'heal');}
+  else if(itemName==='Bandages'){
+    const bleeds=(char.activeBuffs||[]).filter(b=>b.name==='Bleed').length;
+    char.activeBuffs=(char.activeBuffs||[]).filter(b=>b.name!=='Bleed');
+    const h=rd(1,4); char.health=Math.min(char.maxHealth,char.health+h);
+    addLog(room,`🩹 ${player.name} binds their wounds — ${bleeds?'bleeding stopped, ':''}+<strong>${h}</strong> HP.`,'heal');
+  }
+  else if(itemName==='Smelling Salts'){
+    const bad=['Stunned','Prone','Shaken','Rattled','Paralysed','Grabbed','Dominated','Choking','Retching'];
+    const had=(char.activeBuffs||[]).filter(b=>bad.includes(b.name)).map(b=>b.name);
+    char.activeBuffs=(char.activeBuffs||[]).filter(b=>!bad.includes(b.name));
+    addBuff(char,'Sharp Senses',{atkBoon:1,consumeOnAttack:true},99);
+    addLog(room,`👃 ${player.name} snaps awake${had.length?` — shakes off ${[...new Set(had)].join(', ')}`:''} and gets 1 boon on their next attack.`,'heal');
+  }
+  else if(itemName==='Ironhide Tonic'){
+    if(!inCombat){consumed=false;addLog(room,`${player.name}: Ironhide Tonic wears off too fast to drink outside a fight.`,'sys');}
+    else{addBuff(char,'Ironhide',{defBonus:2},3);char.defense+=2;addLog(room,`🛡 ${player.name} drinks Ironhide Tonic — <strong>+2 Defence</strong> for 3 rounds.`,'spell');}
+  }
+  else if(itemName==='Throwing Knives'){
+    const _te=getTargetEnemy(room.gs);
+    if(!inCombat||!_te){consumed=false;addLog(room,`${player.name}: no target for the knives.`,'sys');}
+    else{const dmg=Math.max(1,rd(2,4)+modVal(char.attrs.agi));_te.hp=Math.max(0,_te.hp-dmg);addLog(room,`🗡 ${player.name} throws knives at ${_te.name} — <strong class="num-dmg">−${dmg}</strong>.`,'dmg');if(_te.hp<=0) resolveEnemyDeath(room,_te);}
+  }
+  else if(itemName==='Tar Pot'){
+    const _te=getTargetEnemy(room.gs);
+    if(!inCombat||!_te){consumed=false;addLog(room,`${player.name}: no target for the tar.`,'sys');}
+    else{addDebuff(_te,'Tarred',{bane:2},2);addLog(room,`⚫ ${player.name} hurls a pot of tar at ${_te.name} — it attacks with <strong>2 banes</strong> for 2 rounds.`,'spell');}
+  }
   else if(itemName==='Troll Blood'){
     if(!inCombat){consumed=false;addLog(room,`${player.name}: Troll Blood only works in the heat of battle.`,'sys');}
     else{addBuff(char,'Troll Blood',{regenHp:3,defBonus:-2},3);char.defense-=2;addLog(room,`🧪 <strong>Troll Blood!</strong> ${player.name}'s wounds start knitting (+3 HP a round for 3 rounds) — but their skin goes soft (−2 Defence).`,'heal');}
@@ -406,4 +469,4 @@ function rollEnemyDrop(enemy, room){
   });
 }
 
-module.exports = { bind, genLegendaryItem, genWpn, genArmor, genShopScroll, buildPlayerShop, addToInventory, applyLegendaryArmourPassive, applyWpnSpecial, equipItem, handleBuy, handleSell, useItemLogic, rollEnemyDrop };
+module.exports = { bind, genLegendaryItem, genWpn, genArmor, genShopScroll, buildPlayerShop, addToInventory, applyLegendaryArmourPassive, applyWpnSpecial, equipItem, handleBuy, SELL_RATE, itemValue, sellPrice, unequipCharm, handleSell, useItemLogic, rollEnemyDrop };

@@ -18,6 +18,8 @@ const HELP_SECTIONS=[
   ['New careers','The Witch Hunter Condemns one enemy each fight (a free action) and hits the unholy harder. The Dwarf Slayer wears no armour, grows stronger below half HP and hits elites and bosses for more.'],
   ['Practice fight','From the lobby, Practice fight puts you in one easy battle with any career and a coach. Nothing is lost if you fall.'],
   ['Quick chat and accounts','In a party, the quick-chat buttons send short calls like "Heal me!". In the lobby, a name and PIN save your Renown so it follows you to another device.'],
+  ['Cooldowns','Active abilities recharge: after you use one it shows "Ready in N rounds" and comes back later in the same fight. Every ability is ready again when a new fight starts.'],
+  ['Merchant and selling','The merchant stocks three weapons, two armours, two charms and six consumables. Anything you sell fetches 15% of its value. You can take a charm off at any time (cursed ones stay on until you rest).'],
   ['Playing alone','Bosses are smaller and call fewer minions when you play solo. A Warrior, Wizard, Priest or Witch Hunter who starts a run alone also gains Lone Survivor: extra HP at the start and every level.'],
 ];
 const TIPS={

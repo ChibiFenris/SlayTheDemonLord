@@ -700,10 +700,9 @@ function actUseTalent({room,playerId,data,ws,player,gs,char}){
   // Condemn is a free action: marking a target doesn't use your turn.
   if(t==='condemn'){
     if(!char.condemn){ addLog(room,`${player.name} cannot Condemn.`,'sys'); return; }
-    const max=char.judgement?2:1;
-    if((char._condemnUses||0)>=max){ addLog(room,`${player.name}: Condemn used ${max}/${max} this combat.`,'sys'); return; }
+    if(char._condemnUsed){ addLog(room,`${player.name}: Condemn is recharging.`,'sys'); return; }
     const te=getTargetEnemy(gs); if(!te||te.hp<=0) return;
-    char._condemnUses=(char._condemnUses||0)+1; char._condemnTargetId=te.id;
+    char._condemnUsed=true; char._condemnTargetId=te.id;
     (te.activeDebuffs=te.activeDebuffs||[]).filter(d=>d.condemned).forEach(d=>{ d.duration=0; });
     addDebuff(te,'Condemned',{condemned:true},99);
     addLog(room,`⚖ <strong>Condemn!</strong> ${player.name} names ${te.name} a heretic — +1 boon and +1d6 on every hit${char.judgement?' (+2 Judgement)':''}.`,'crit');
@@ -768,7 +767,7 @@ function actUseTalent({room,playerId,data,ws,player,gs,char}){
   else if(t==='nimbleRecovery'){if(char.nimbleUsed){addLog(room,`${player.name}: already used.`,'sys');return;}char.nimbleUsed=true;const h=talentHeal(char);char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} uses Nimble Recovery — +<strong>${h}</strong> HP (1d6+attr×2).`,'heal');}
   else if(t==='sharedRecovery'){if(char.sharedUsed){addLog(room,`${player.name}: already used.`,'sys');return;}char.sharedUsed=true;room.players.filter(p=>p.char&&p.char.alive).forEach(p=>{const h=talentHeal(char);p.char.health=Math.min(p.char.maxHealth,p.char.health+h);});addLog(room,`${player.name} uses Shared Recovery — all allies healed 1d6+attr×2 HP!`,'heal');}
   else if(t==='spellRecovery'){if(char.spellRecoveryUsed){addLog(room,`${player.name}: already used.`,'sys');return;}char.spellRecoveryUsed=true;const h=talentHeal(char);char.health=Math.min(char.maxHealth,char.health+h);if(char.castingPools){char.knownSpells.filter(sp=>sp.rank===0).forEach(sp=>{char.castingPools['R'+sp.rank]=maxCastings(char.power,0);});} addLog(room,`${player.name} uses Spell Recovery — +<strong>${h}</strong> HP + all rank-0 castings restored!`,'spell');}
-  else if(t==='divineSmite'){if((char._divineSmiteCount||0)>=2){addLog(room,`${player.name}: Divine Smite used 2/2.`,'sys');return;}char._divineSmiteCount=(char._divineSmiteCount||0)+1;if(char._divineSmiteCount>=2)char.divineSmiteUsed=true;const _te=getTargetEnemy(gs);if(!_te)return;
+  else if(t==='divineSmite'){if(char.divineSmiteUsed){addLog(room,`${player.name}: Divine Smite is recharging.`,'sys');return;}char._divineSmiteCount=(char._divineSmiteCount||0)+1;char.divineSmiteUsed=true;const _te=getTargetEnemy(gs);if(!_te)return;
     const isEvil=_te.undead||_te.chaos||(_te.tags&&(_te.tags.includes('undead')||_te.tags.includes('chaos')));
     const smiteDice=char.wrathOfSigmar?6:3;
     const smiteRoll=rollAttack(char,_te,0);
@@ -943,10 +942,10 @@ function actUseTalent({room,playerId,data,ws,player,gs,char}){
     addLog(room,`📜 <strong>Esoteric Knowledge!</strong> ${player.name} can use a scroll spell this combat without consuming it!`,'spell');
   }
   else if(t==='doubleCharge'){
-    if((char._doubleChargeCount||0)>=2){addLog(room,`${player.name}: Double Charge both uses spent.`,'sys');return;}
+    if(char._doubleChargeUsed){addLog(room,`${player.name}: Double Charge is recharging.`,'sys');return;}
     if(char.overcastUsed){addLog(room,`${player.name}: Overcast already armed this round.`,'sys');return;}
-    char._doubleChargeCount=(char._doubleChargeCount||0)+1; char.overcastUsed=false;
-    addLog(room,`🌀 <strong>Double Charge!</strong> ${player.name} rearms Overcast (${2-(char._doubleChargeCount)} uses left)!`,'spell');
+    char._doubleChargeCount=(char._doubleChargeCount||0)+1; char._doubleChargeUsed=true; char.overcastUsed=false;
+    addLog(room,`🌀 <strong>Double Charge!</strong> ${player.name} rearms Overcast!`,'spell');
   }
   else if(t==='intercept'){
     if(char._interceptUsed){addLog(room,`${player.name}: Intercept already used.`,'sys');return;}
@@ -964,4 +963,4 @@ function actUseTalent({room,playerId,data,ws,player,gs,char}){
   return acted;
 }
 
-module.exports = { bind, actAttack, actCastSpell, actUseTalent };
+module.exports = { bind, actAttack, actCastSpell, isUnholy, actUseTalent };

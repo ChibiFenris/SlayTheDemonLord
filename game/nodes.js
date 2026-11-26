@@ -2,9 +2,9 @@
 // The road: path votes, room contents, unknown-room encounters and loot rooms.
 // Moved out of server.js unchanged. The server hands this module the helpers it
 // uses through bind() once everything is defined (see the bottom of server.js).
-let ARMOR_BASES, CHARM_SHOP_KEYS, DIFFICULTIES, LOOT_CONS_LIST, NODE_TYPES, SCROLL_SPELLS_LIST, WEAPON_BASES, addBuff, addLog, addToInventory, advanceTurn, applyDailyToEnemies, buildPlayerShop, buildTurnOrder, cleanseCurses, d, events, makeCharm, makeCursedItem, maxCastings, onCombatStart, pickEnemy, pickRandom, rd, refreshCastingPools, restoreCastingPools, rollTraits, startSpoils, uniqRanks, uuidv4;
+let ARMOR_BASES, CHARM_SHOP_KEYS, DIFFICULTIES, LOOT_CONS_LIST, NODE_TYPES, SCROLL_SPELLS_LIST, WEAPON_BASES, addBuff, addLog, advanceTurn, applyDailyToEnemies, buildPlayerShop, buildTurnOrder, cleanseCurses, d, events, makeCharm, maxCastings, onCombatStart, pickEnemy, pickRandom, refreshCastingPools, restoreCastingPools, rollTraits, startSpoils, uniqRanks, uuidv4;
 function bind(api) {
-  ({ ARMOR_BASES, CHARM_SHOP_KEYS, DIFFICULTIES, LOOT_CONS_LIST, NODE_TYPES, SCROLL_SPELLS_LIST, WEAPON_BASES, addBuff, addLog, addToInventory, advanceTurn, applyDailyToEnemies, buildPlayerShop, buildTurnOrder, cleanseCurses, d, events, makeCharm, makeCursedItem, maxCastings, onCombatStart, pickEnemy, pickRandom, rd, refreshCastingPools, restoreCastingPools, rollTraits, startSpoils, uniqRanks, uuidv4 } = api);
+  ({ ARMOR_BASES, CHARM_SHOP_KEYS, DIFFICULTIES, LOOT_CONS_LIST, NODE_TYPES, SCROLL_SPELLS_LIST, WEAPON_BASES, addBuff, addLog, advanceTurn, applyDailyToEnemies, buildPlayerShop, buildTurnOrder, cleanseCurses, d, events, makeCharm, maxCastings, onCombatStart, pickEnemy, pickRandom, refreshCastingPools, restoreCastingPools, rollTraits, startSpoils, uniqRanks, uuidv4 } = api);
 }
 // ─── PATH/NODE LOGIC ─────────────────────────────────────────────────────────
 function pickThreeNodes() {
@@ -158,133 +158,15 @@ function _runNodeContent(room, gs, nodeType, playerCount) {
     if(r<=2){ startNodeContent(room,'combat'); return; }
     else if(r<=4){ startNodeContent(room,'loot'); return; }
     else if(r<=5){ startNodeContent(room,'rest'); return; }
-    else if(d(2)===1){ events.startChoiceEvent(room); }
     else { resolveUnknownEvent(room); }
     return;
   }
 }
 
 // ─── UNKNOWN ROOM ENCOUNTERS ─────────────────────────────────────────────────
+// Every unknown room is now a choice: the warband decides what to do.
 function resolveUnknownEvent(room){
-  const gs=room.gs;
-  const alive=room.players.filter(p=>p.char&&p.char.alive);
-  const roll=d(15); // events 11–14 were unreachable with a d10
-  if(roll===15){
-    const target=alive[Math.floor(Math.random()*alive.length)];
-    const key=pickRandom(['khornateAxe','nurgleMask','shroudFlies','warpAmulet','tzeentchLens']);
-    const item=makeCursedItem(key);
-    addToInventory(target.char,item.name,item);
-    addLog(room,`⛓ <strong>Cursed Reliquary.</strong> Behind a ring of black candles, ${target.name} finds <strong>${item.name}</strong>. Powerful… and cursed: once worn it can't be removed until you rest. (In inventory.)`,'chaos');
-    return;
-  }
-  if(roll===1){
-    const heal=rd(1,6)+3;
-    alive.forEach(p=>{p.char.health=Math.min(p.char.maxHealth,p.char.health+heal);addBuff(p.char,'Shrine Blessing',{atkBoon:1,consumeOnAttack:true},99);});
-    addLog(room,`⛪ <strong>Shrine of Sigmar!</strong> The warband prays — each warrior heals <strong>${heal} HP</strong> and gains 1 boon on their next attack!`,'heal');
-    return;
-  }
-  if(roll===2){
-    alive.forEach(p=>{addBuff(p.char,'Rattled',{bane:1},500);});
-    addLog(room,`☠ <strong>The Hanging Cage.</strong> A grim warning. All warriors are Rattled — 1 bane on all attacks until they draw first blood.`,'chaos');
-    return;
-  }
-  if(roll===3){
-    const pool=['Healing Draught','Incendiary Flask','Sharpening Stone','Antitoxin'];
-    alive.forEach(p=>{const item=pool[Math.floor(Math.random()*pool.length)];addToInventory(p.char,item);});
-    addLog(room,`⚗ <strong>Alchemist's Cache!</strong> The warband rifles through an abandoned stash — each warrior finds a useful item.`,'loot');
-    return;
-  }
-  if(roll===4){
-    const target=alive[Math.floor(Math.random()*alive.length)];
-    const attrs=['str','agi','int','wil'];
-    const attr=attrs[Math.floor(Math.random()*attrs.length)];
-    target.char.attrs[attr]+=1;
-    addBuff(target.char,'Warpstone Power',{atkBoon:1},99); // boon lasts next combat only (99 rounds clears at combat end)
-    addBuff(target.char,'Corrupted',{bane:1},999);
-    addLog(room,`💎 <strong>Warpstone Fragment!</strong> ${target.name} reaches for the glowing stone — +1 ${attr.toUpperCase()} permanently and 1 boon on all attacks next combat. Corrupted condition gained.`,'chaos');
-    return;
-  }
-  if(roll===5){
-    const target=alive[Math.floor(Math.random()*alive.length)];
-    target.char.weaponAtkBonus++;
-    addLog(room,`👻 <strong>The Veteran's Ghost.</strong> A fallen soldier shares one last lesson with ${target.name} — permanent +1 to hit.`,'loot');
-    return;
-  }
-  if(roll===6){
-    const coins=rd(1,6)*5;
-    alive.forEach(p=>{p.char.gold+=coins;});
-    gs._nextCombatFirstEnemyStunned=true;
-    addLog(room,`🐀 <strong>Skaven Ambush — Failed!</strong> The ratmen fled. Each warrior claims ${coins} silver from their abandoned traps. The first enemy next combat starts stunned.`,'loot');
-    return;
-  }
-  if(roll===7){
-    alive.forEach(p=>{p.char.maxHealth=Math.max(1,p.char.maxHealth-3);p.char.health=Math.min(p.char.health,p.char.maxHealth);addBuff(p.char,'Corrupted',{bane:1},2);});
-    const runeTarget=alive[Math.floor(Math.random()*alive.length)];
-    runeTarget.char.attrs.int=(runeTarget.char.attrs.int||10)+1;
-    addLog(room,`🔮 <strong>Ruinous Altar.</strong> All warriors lose 3 max HP until next rest and gain 1 bane for 2 rounds. But ${runeTarget.name} gains <strong>+1 INT</strong> permanently from dark knowledge.`,'chaos');
-    return;
-  }
-  if(roll===8){
-    const heal=rd(2,6);
-    alive.forEach(p=>{p.char.health=Math.min(p.char.maxHealth,p.char.health+heal);});
-    const lucky=alive[Math.floor(Math.random()*alive.length)];
-    addToInventory(lucky.char,'Greater Healing Draught');
-    addLog(room,`🏥 <strong>Field Hospital Ruins!</strong> All warriors heal <strong>${heal} HP</strong>. ${lucky.name} finds a Greater Healing Draught.`,'heal');
-    return;
-  }
-  if(roll===9){
-    alive.forEach(p=>{addBuff(p.char,'Shaken',{bane:1},1);if(p.char.spellcaster){p.char.power+=1;if(p.char.castingPools){Object.keys(p.char.castingPools).forEach(k=>{p.char.castingPools[k]=Math.min(p.char.castingPools[k]+1,maxCastings(p.char.power,0));});}addLog(room,`🌊 ${p.name} gains +1 Power from the Well.`,'loot');}else{p.char.gold+=5;addLog(room,`🌊 ${p.name} claims 5 silver from the depths.`,'loot');}});
-    addLog(room,`🌊 <strong>The Whispering Well.</strong> All spellcasters gain +1 Power. Non-spellcasters gain 5 gold. All are Shaken — 1 bane on next attack.`,'loot');
-    return;
-  }
-  if(roll===11){ events.startChoiceEvent(room,'chaosRitual'); return; }
-  if(roll===12){
-    // Injured Survivor
-    const cost=15;
-    addLog(room,`🧑 <strong>Injured Survivor!</strong> A wounded soldier. Spend ${cost} silver to heal all 1d6 and gain +1 boon next combat.`,'sys');
-    const canAfford=alive.every(p=>p.char.gold>=cost);
-    if(canAfford){
-      alive.forEach(p=>{p.char.gold-=cost; const h=rd(1,6); p.char.health=Math.min(p.char.maxHealth,p.char.health+h); addBuff(p.char,'Aided',{atkBoon:1,consumeOnAttack:true},99); addLog(room,`${p.name} spends ${cost}s — +${h} HP, 1 boon next attack.`,'heal');});
-    } else {
-      addLog(room,`The warband cannot afford to help. The soldier fades.`,'sys');
-    }
-    return;
-  }
-  if(roll===13){
-    // Armourers Workshop
-    const wp=alive[Math.floor(Math.random()*alive.length)];
-    wp.char.weaponDmgBonus=(wp.char.weaponDmgBonus||0)+1;
-    addLog(room,`🔨 <strong>Armourer's Workshop!</strong> ${wp.name} sharpens their weapon on the abandoned grinding wheel — <strong>+1 permanent weapon damage</strong>.`,'loot');
-    return;
-  }
-  if(roll===14){
-    // The Black Market
-    const bm=Math.ceil(Math.random()*3);
-    if(bm===1){
-      if(alive[0]&&alive[0].char.inventory.length){
-        const item=alive[0].char.inventory[Math.floor(Math.random()*alive[0].char.inventory.length)];
-        const val=(item.sellCost||3)*3;
-        alive[0].char.gold+=val; alive[0].char.inventory=alive[0].char.inventory.filter(i=>i!==item);
-        addLog(room,`🕵 <strong>Black Market!</strong> Sold ${item.name} for triple value — ${val} silver.`,'loot');
-      } else { alive.forEach(p=>{p.char.gold+=15;}); addLog(room,`🕵 <strong>Black Market!</strong> Nothing to sell — mysterious benefactor pays 15 silver each.`,'loot'); }
-    } else if(bm===2){
-      const sc=SCROLL_SPELLS_LIST[Math.floor(Math.random()*SCROLL_SPELLS_LIST.length)];
-      const buyer=alive.find(p=>p.char.gold>=15);
-      if(buyer){ buyer.char.gold-=15; const sn=`Scroll: ${sc.name}`; addToInventory(buyer.char,sn); buyer.char.scrollSpells[sn]=sc;
-        addLog(room,`🕵 <strong>Black Market!</strong> ${buyer.name} buys a ${sn} for 15 silver.`,'loot'); }
-      else addLog(room,`🕵 <strong>Black Market!</strong> A scroll-seller eyes your empty purses and moves on.`,'sys');
-    } else {
-      alive.forEach(p=>{p.char.gold+=30;p.char.maxHealth=Math.max(1,p.char.maxHealth-5);p.char.health=Math.min(p.char.health,p.char.maxHealth);});
-      addLog(room,`🕵 <strong>Black Market!</strong> A shadowy deal — each warrior gains 30 silver but loses 5 max HP permanently.`,'chaos');
-    }
-    return;
-  }
-  if(roll===10){
-    const coins=rd(2,6)*5;
-    alive.forEach(p=>{p.char.gold+=coins;addBuff(p.char,'Negotiated Edge',{atkBoon:1},2);});
-    addLog(room,`⚔ <strong>Mercenary Standoff.</strong> You negotiate passage for ${coins} silver — and they share something useful. All warriors gain 1 boon for 2 rounds.`,'loot');
-    return;
-  }
+  events.startChoiceEvent(room);
 }
 
 // ─── LOOT ROOM ───────────────────────────────────────────────────────────────

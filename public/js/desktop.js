@@ -264,7 +264,7 @@ function buildCard(p,gs){
       <div><dt>Silver</dt><dd class="silver">${c.gold} ss</dd></div>
       <div class="wide"><dt>Weapon</dt><dd>${w?`${w.name} ${w.dice}+${w.bonus||0} ${w.dmgType==='blunt'?'🔨':'⚔'}`:'Unarmed'}</dd></div>
       <div class="wide"><dt>Armour</dt><dd>${a?`${a.name} +${a.defBonus}`:'None'}</dd></div>
-      <div class="wide"><dt>Charm</dt><dd${c.equippedCharm?` title="${c.equippedCharm.desc.replace(/"/g,'&quot;')}"`:''}>${c.equippedCharm?c.equippedCharm.name:'None'}</dd></div>
+      <div class="wide"><dt>Charm</dt><dd${c.equippedCharm?` title="${c.equippedCharm.desc.replace(/"/g,'&quot;')}"`:''}>${c.equippedCharm?c.equippedCharm.name:'None'}${c.equippedCharm&&p.id===myId?` <button class="mini-btn" onclick="unequipCharm()" title="Take the charm off and put it in your pack">Remove</button>`:''}</dd></div>
     </dl>
     ${statusChips(c)}
     ${!c.alive?'<div class="dead-label">Fallen</div>':''}`;
@@ -351,12 +351,12 @@ function talentRow(name,badgeCls,badge,desc){
 function talentsHtml(c){
   const actives=ACTIVE_TALENTS.filter(([k])=>c[k]).map(([k,label,usedKey])=>{
     const used=usedKey?!!c[usedKey]:false;
-    return talentRow(label,used?'badge-bad':'badge-good',used?'Used':'Ready',TALENT_DESCS[k]||label);
+    return talentRow(label,used?'badge-bad':'badge-good',used?cooldownText(c,k):'Ready',TALENT_DESCS[k]||label);
   });
   EXTRA_ACTIVES.forEach(([k,lbl,sub,used])=>{
     if(!c[k]||ACTIVE_TALENTS.some(t=>t[0]===k)) return;
     const u=used(c,(lastState&&lastState.gs)||{});
-    actives.push(talentRow(lbl.replace(/^\S+ /,''),u?'badge-bad':'badge-good',u?'Used':'Ready',TALENT_DESCS[k]||sub));
+    actives.push(talentRow(lbl.replace(/^\S+ /,''),u?'badge-bad':'badge-good',u?(k==='taunt'?'Recharging':cooldownText(c,k)):'Ready',TALENT_DESCS[k]||sub));
   });
   const passives=passiveKeys(c).map(k=>talentRow(labelFromKey(k),'badge-dim','Passive',TALENT_DESCS[k]||labelFromKey(k)));
   let h='';
@@ -384,7 +384,8 @@ function abilitiesHtml(c){
 
 // ─── INVENTORY ────────────────────────────────────────────────────────────────
 const USABLE_ITEMS=['Healing Draught','Greater Healing Draught','Flask of Oil','Fire Jar','Incendiary Flask','Daemon Fire','Lucky Pendant',
-  'Sharpening Stone','Antitoxin','Smoke Bomb',"Sigmar's Token",'Troll Blood','Dwarf Ale','Warpstone Dust','Black Lotus Oil','Holy Water','Hellfire Bomb','Fly Agaric'];
+  'Sharpening Stone','Antitoxin','Smoke Bomb',"Sigmar's Token",'Troll Blood','Dwarf Ale','Warpstone Dust','Black Lotus Oil','Holy Water','Hellfire Bomb','Fly Agaric',
+  'Bandages','Smelling Salts','Ironhide Tonic','Throwing Knives','Tar Pot'];
 const ALLY_ITEMS=['Healing Draught','Greater Healing Draught'];
 function isUsableItem(name){ return USABLE_ITEMS.includes(name)||name.startsWith('Scroll:'); }
 function inventoryHtml(c,inCombat,atMerchant){
@@ -399,7 +400,7 @@ function inventoryHtml(c,inCombat,atMerchant){
     if((isWpn||isArmor||isCharm)&&!isEq) btns+=`<button class="mini-btn" onclick="equipItem(${idx})">Equip</button>`;
     if(isUsableItem(item.name)) btns+=`<button class="mini-btn" onclick="useItem('${esc(item.name)}',${inCombat})">Use</button>`;
     if(ALLY_ITEMS.includes(item.name)&&inCombat) btns+=`<button class="mini-btn good" onclick="useAlly('${esc(item.name)}')">Ally</button>`;
-    if(atMerchant&&!isEq) btns+=`<button class="mini-btn" onclick="sellItem(${idx})">Sell 1 ss</button>`;
+    if(atMerchant&&!isEq) btns+=`<button class="mini-btn" onclick="sellItem(${idx})">Sell ${item.sellCost||1} ss</button>`;
     const open=(isWpn||isArmor||isCharm)?` onclick="openItemPopout(${idx},this)" role="button" tabindex="0"`:'';
     const cursed=o&&o.cursed?'<span class="cursed-mark" title="Cursed: once equipped it can\'t be removed until you rest">⛓ Cursed</span>':'';
     const tip=!open&&ITEM_DESCS[item.name]?` title="${ITEM_DESCS[item.name].replace(/"/g,'&quot;')}"`:'';
@@ -458,7 +459,7 @@ function openItemPopout(invIdx, triggerEl){
   if(isWpn&&!isEqWpn) btnHtml+=`<button class="mini-btn" onclick="equipItem(${invIdx});closeItemPopout()">Equip</button>`;
   if((isArm||isCharm)&&!isEqArm) btnHtml+=`<button class="mini-btn" onclick="equipItem(${invIdx});closeItemPopout()">Equip</button>`;
   if(usable) btnHtml+=`<button class="mini-btn" onclick="useItem('${esc(item.name)}',${inCombat});closeItemPopout()">Use</button>`;
-  if(atMerchant&&!isEqWpn&&!isEqArm) btnHtml+=`<button class="mini-btn" onclick="sellItem(${invIdx});closeItemPopout()">Sell 1ss</button>`;
+  if(atMerchant&&!isEqWpn&&!isEqArm) btnHtml+=`<button class="mini-btn" onclick="sellItem(${invIdx});closeItemPopout()">Sell ${item.sellCost||1} ss</button>`;
   btnHtml+='</div>';
 
   content.innerHTML=`
@@ -494,6 +495,7 @@ function esc(s){ return s.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g
 function useItem(name,inCombat){ send('PLAYER_ACTION',{action:inCombat?'USE_ITEM':'USE_ITEM_OOC',data:{itemName:name}}); }
 function equipItem(idx){ send('PLAYER_ACTION',{action:'EQUIP_ITEM',data:{inventoryIndex:idx}}); }
 function sellItem(idx){ send('PLAYER_ACTION',{action:'SELL_ITEM',data:{invIndex:idx}}); }
+function unequipCharm(){ send('PLAYER_ACTION',{action:'UNEQUIP_CHARM',data:{}}); }
 
 function useAlly(itemName){
   if(!lastState)return;
@@ -625,6 +627,9 @@ function renderActions(gs,players,me){
     if(char.metamagic&&!char.metamagicUsed)       addBtn(g,'🔮 Metamagic','Next spell free','as-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'metamagic'}}),false,TALENT_DESCS.metamagic);
     if(char.catastrophe&&!char.catastropheUsed)   addBtn(g,'💥 Catastrophe','10d6 all enemies','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'catastrophe'}}),false,TALENT_DESCS.catastrophe);
     EXTRA_ACTIVES.forEach(([k,lbl,sub,used])=>{ if(char[k]&&!used(char,gs)) addBtn(g,lbl,sub,'at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:k}}),false,TALENT_DESCS[k]||sub); });
+    // Recharging abilities stay visible, greyed out, with the rounds left.
+    ACTIVE_TALENTS.forEach(([k,label,usedKey])=>{ if(char[k]&&usedKey&&char[usedKey]&&COOLDOWNS_C[k]) addBtn(g,'⏳ '+label,cooldownText(char,k),'at-',null,true,TALENT_DESCS[k]||label); });
+    EXTRA_ACTIVES.forEach(([k,lbl,sub,used])=>{ if(char[k]&&used(char,gs)&&COOLDOWNS_C[k]) addBtn(g,'⏳ '+lbl.replace(/^\S+ /,''),cooldownText(char,k),'at-',null,true,TALENT_DESCS[k]||sub); });
     const isBoss=gs.enemy&&gs.enemy.threat==='Boss';
     addBtn(g,'⏭ End Turn','Pass your turn','am-',()=>send('PLAYER_ACTION',{action:'PASS_TURN'}),false,'Skip your action this round.');
     addBtn(g,'Flee',isBoss?'No escape':'AGI vs DC10','amv-',()=>send('PLAYER_ACTION',{action:'FLEE'}),isBoss,'Attempt to flee combat. Roll d20+AGI vs DC10. Success costs opportunity damage unless you have Shadowstep.');
@@ -689,8 +694,8 @@ function renderShop(stock,myGold){
   const grid=el('g-shop-items'); grid.innerHTML='';
   const L=document.createElement('div'); L.className='shop-col';
   const R=document.createElement('div'); R.className='shop-col';
-  [stock.weaponEnhance,stock.statBoost,stock.weapon1,stock.weapon2,stock.armor].forEach(it=>{if(it)L.appendChild(shopEl(it,myGold));});
-  [stock.charm,...(stock.consumables||[]),stock.scroll].forEach(it=>{if(it)R.appendChild(shopEl(it,myGold));});
+  [stock.weaponEnhance,stock.statBoost,stock.weapon1,stock.weapon2,stock.weapon3,stock.armor,stock.armor2].forEach(it=>{if(it)L.appendChild(shopEl(it,myGold));});
+  [stock.charm,stock.charm2,...(stock.consumables||[]),stock.scroll].forEach(it=>{if(it)R.appendChild(shopEl(it,myGold));});
   grid.appendChild(L); grid.appendChild(R);
 }
 function shopEl(item,gold){

@@ -92,7 +92,7 @@ function runGame(careers, opts = {}) {
         return send(sk, 'PICK_LOOT', { pick: p });
       }
       if (gs.phase === 'merchant' && c.merchantStock) {
-        const stock = c.merchantStock; const all = [stock.armor, stock.weapon1, stock.weapon2, ...(stock.consumables || [])].filter(Boolean);
+        const stock = c.merchantStock; const all = [stock.armor, stock.armor2, stock.weapon1, stock.weapon2, stock.weapon3, ...(stock.consumables || [])].filter(Boolean);
         const lockW = c._curseLock && c._curseLock.weapon, lockA = c._curseLock && c._curseLock.armor;
         const buy = all.find(it => !it.bought && it.cost <= c.gold && (
           (it.type === 'weapon' && !lockW && it.stat === (c.equippedWeapon && c.equippedWeapon.stat || it.stat) && wpnScore(it) > wpnScore(c.equippedWeapon) + 1) ||
@@ -123,7 +123,7 @@ function runGame(careers, opts = {}) {
       const boss = (gs.enemies || []).find(e => e && e.hp > 0 && e._windup);
       if (boss && c.shieldBash && !c._shieldBashUsed) return send(sk, 'USE_TALENT', { talent: 'shieldBash' });
       if (c.taunt && hurtAlly && hurtAlly.id !== myId && !((c._tauntReadyRound || 0) > gs.roundNumber)) return send(sk, 'USE_TALENT', { talent: 'taunt' });
-      if (c.condemn && (c._condemnUses || 0) < (c.judgement ? 2 : 1) && !c._condemnTargetId) return send(sk, 'USE_TALENT', { talent: 'condemn' });
+      if (c.condemn && !c._condemnUsed && !c._condemnTargetId) return send(sk, 'USE_TALENT', { talent: 'condemn' });
       for (const t of ['divineSmite', 'warCry', 'deadAim', 'curse', 'massHeal']) if (c[t] && !c[t + 'Used'] && !c['_' + t + 'Used']) return send(sk, 'USE_TALENT', { talent: t });
       const atkSpell = spells.filter(s => s.type === 'attack' && left(s) > 0).sort((a, b) => b.rank - a.rank)[0];
       if (atkSpell && (sk.career === 'wizard' || (sk.career === 'priest' && atkSpell.rank > 0))) return send(sk, 'CAST_SPELL', { spellName: atkSpell.name });

@@ -2,9 +2,9 @@
 // Combat flow: turn order, the party turn timer, enemy turns, rounds and deaths.
 // Moved out of server.js unchanged. The server hands this module the helpers it
 // uses through bind() once everything is defined (see the bottom of server.js).
-let SELF_TICK_DOTS, addBuff, addDebuff, addLog, aliveEnemies, applyPoison, broadcastState, charmKey, d, enemyAfterHit, enemyDamageMods, enemyPostTurn, enemyPreTurn, gearRoundTick, immuneToPoison, rd, resistsInsanity, resolveEnemyDeath, rollAttack, rollEnemyAttack, scaleEnemy, sortTurnOrder, tickBuffs, tickDebuffs, triggerGameover;
+let SELF_TICK_DOTS, addBuff, addDebuff, addLog, aliveEnemies, applyPoison, broadcastState, charmKey, d, enemyAfterHit, enemyDamageMods, enemyPostTurn, enemyPreTurn, gearRoundTick, immuneToPoison, rd, resistsInsanity, resolveEnemyDeath, rollAttack, rollEnemyAttack, scaleEnemy, sortTurnOrder, tickBuffs, tickCooldowns, tickDebuffs, triggerGameover;
 function bind(api) {
-  ({ SELF_TICK_DOTS, addBuff, addDebuff, addLog, aliveEnemies, applyPoison, broadcastState, charmKey, d, enemyAfterHit, enemyDamageMods, enemyPostTurn, enemyPreTurn, gearRoundTick, immuneToPoison, rd, resistsInsanity, resolveEnemyDeath, rollAttack, rollEnemyAttack, scaleEnemy, sortTurnOrder, tickBuffs, tickDebuffs, triggerGameover } = api);
+  ({ SELF_TICK_DOTS, addBuff, addDebuff, addLog, aliveEnemies, applyPoison, broadcastState, charmKey, d, enemyAfterHit, enemyDamageMods, enemyPostTurn, enemyPreTurn, gearRoundTick, immuneToPoison, rd, resistsInsanity, resolveEnemyDeath, rollAttack, rollEnemyAttack, scaleEnemy, sortTurnOrder, tickBuffs, tickCooldowns, tickDebuffs, triggerGameover } = api);
 }
 // ─── COMBAT FLOW: TURN ORDER ───────────────────────────────────────────────────────
 
@@ -135,6 +135,7 @@ function endRound(room) {
   const gs = room.gs;
   if (!gs.inCombat || gs.phase === 'victory' || gs.phase === 'gameover' || gs.phase === 'dying') return;
   gs.totalRounds = (gs.totalRounds || 0) + 1;
+  tickCooldowns(room);
   room.players.forEach(p => {
       if (!p.char || !p.char.alive) return;
       tickBuffs(p.char);
