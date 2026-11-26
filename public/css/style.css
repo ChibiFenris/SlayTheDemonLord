@@ -480,7 +480,7 @@ body:not(.ui-mobile) #m-game-view{display:none;}
 
 /* modal overlay (target picker, apothecary) */
 .overlay{position:fixed;inset:0;z-index:9100;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.75);}
-.overlay-box{width:100%;max-width:400px;max-height:85vh;overflow-y:auto;}
+.overlay-box{box-sizing:border-box;width:100%;max-width:400px;max-height:85vh;overflow-y:auto;overflow-x:hidden;}
 .overlay-box .btn+.btn{margin-top:8px;}
 .overlay-sub{font-size:14px;font-style:italic;color:var(--ash);margin-bottom:12px;}
 .choice-list{display:flex;flex-direction:column;gap:7px;}
@@ -547,7 +547,12 @@ body.ui-mobile .head h1{font-size:clamp(18px,5.6vw,28px);}
 body.ui-mobile .head .sub,body.ui-mobile .head-tools input[type=range]{display:none;}
 body.ui-mobile .head-tools .btn{min-height:40px;min-width:44px;padding:5px 10px;}
 body.ui-mobile .btn-lbl,body.ui-mobile .tiptext{display:none;}
-body.ui-mobile .head h1{white-space:nowrap;}
+/* Phones: the title may wrap so the header never pushes the page wider than the screen */
+body.ui-mobile .head{gap:8px;}
+body.ui-mobile .head-title{flex:1 1 auto;min-width:0;}
+body.ui-mobile .head h1{white-space:normal;line-height:1;}
+body.ui-mobile .head-tools{gap:6px;flex-shrink:0;}
+body.ui-mobile .head-tools .btn{min-width:42px;padding:5px 8px;}
 body.ui-mobile .game-grid{display:block;}
 body.ui-mobile .sidebar,body.ui-mobile .main-col{display:none;}
 body.ui-mobile #m-game-view{display:flex;flex-direction:column;gap:10px;}
@@ -720,3 +725,9 @@ body.ui-mobile .path-node{min-height:var(--tap);}
 .acct-note{color:var(--verdigris-bright);margin-top:4px;}
 /* End screen */
 .end-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+
+/* Leave / quit confirmation */
+.leave-box{max-width:420px;}
+.leave-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:14px;}
+.leave-actions .btn{flex:1 1 140px;margin:0;white-space:normal;}
+.leave-actions .btn+.btn{margin-top:0;}

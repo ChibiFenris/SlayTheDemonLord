@@ -273,4 +273,17 @@ const logHas=(room,re)=>room.gs.log.some(l=>re.test(l.msg));
   ok(S.runlog.readRuns().length===before,'practice fights are not logged as runs');
   room.gs.phase='aftermath'; room.gs.aftermath={ready:[room.players[0].id]}; S.aftermathReady(room);
   ok(room.gs.phase==='practiceDone','practice ends after its one fight'); }
+// 24. Leaving and quitting
+{ const {room,wss}=mkRoom(['warrior','priest']); room.gs.phase='lobby'; const hostId=room.hostId;
+  S.leaveRoom(wss[0]); ok(room.players.length===1&&room.hostId!==hostId&&room.hostId===room.players[0].id,'leaving the lobby removes you and hands over host');
+  const {room:r2,wss:w2}=mkRoom(['warrior','priest']); combat(r2,['Skaven Clanrat']);
+  const pIdx=r2.gs.turnOrder.findIndex(t=>t.id===r2.players[0].id); r2.gs.activeTurnIdx=pIdx;
+  S.leaveRoom(w2[0]);
+  ok(r2.players.length===2&&!r2.players[0].connected&&r2.players[0].char,'quitting mid-run leaves your character behind');
+  const cur=r2.gs.turnOrder[r2.gs.activeTurnIdx]; ok(!cur||cur.id!==r2.players[0].id,'the quitter\'s turn passes');
+  const sent=[]; S.handleMessage({readyState:1,send(m){sent.push(JSON.parse(m));}},{type:'JOIN_ROOM',payload:{code:r2.code,name:'Late'}});
+  ok(sent.some(m=>m.type==='ROOM_JOINED')&&r2.players[0].name==='Late','the empty seat can be taken straight away');
+  const {room:r3,wss:w3}=mkRoom(['wizard']); combat(r3,['Skaven Clanrat']); const code=r3.code;
+  const before=S.runlog.readRuns().length; S.leaveRoom(w3[0]);
+  ok(!S.rooms.has(code)&&S.runlog.readRuns().length===before,'quitting a solo run closes it without logging it'); }
 console.log(fails?fails+' FAILED':'all passed'); process.exit(fails?1:0);

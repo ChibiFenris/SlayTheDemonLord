@@ -79,7 +79,35 @@ function loadSession(){
   catch(e){ return null; }
 }
 function clearSession(){ store.set(SESSION_KEY,''); }
-function leaveGame(){ clearSession(); location.reload(); }
+function leaveGame(){
+  send('LEAVE_ROOM',{}); clearSession();
+  setTimeout(()=>location.reload(),150); // give the message a moment to go out
+}
+// Ask before leaving; what happens depends on where you are.
+function confirmLeave(){
+  const st=lastState, gs=st&&st.gs, phase=gs?gs.phase:'lobby';
+  const party=st?st.players.filter(p=>p.connected).length:1;
+  const ended=['gameover','victory','practiceDone'].includes(phase);
+  let title='Leave this room?', text='You go back to the main menu.', go='Leave room';
+  if(gs&&gs.practice&&!ended){ title='End the practice fight?'; text='You go back to the main menu.'; go='Leave practice'; }
+  else if(phase!=='lobby'&&!ended){
+    title='Quit this run?'; go='Quit to main menu';
+    text=party>1
+      ? 'Your character stays behind and the warband carries on without you. Another player can take over your seat with the room code.'
+      : 'The run ends here. It earns no Renown and is not added to your run history.';
+  }
+  closeOverlay();
+  const ov=document.createElement('div'); ov.className='overlay'; ov.id='ov';
+  ov.onclick=e=>{ if(e.target===ov) closeOverlay(); };
+  ov.innerHTML=`<div class="panel overlay-box leave-box" role="dialog" aria-modal="true" aria-labelledby="leave-h">
+    <div class="ph" id="leave-h">${title}</div><p class="help-p">${text}</p>
+    <div class="leave-actions"><button class="btn" onclick="closeOverlay()">Stay</button><button class="btn gold" onclick="leaveGame()">${go}</button></div></div>`;
+  document.body.appendChild(ov);
+  const stay=ov.querySelector('.btn'); if(stay) stay.focus();
+}
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeOverlay(); });
+// The Leave button shows whenever you're in a room.
+function updateLeaveButton(){ const b=el('leave-btn'); if(b) b.hidden=!myId; }
 
 // Rebuild the full state from a patch (mirror of game/statesync.js apply()).
 let lastSeq=null;
@@ -98,7 +126,7 @@ function onMsg(msg){
   if(onAccountMsg(msg)) return;
   if(msg.type==='REJOIN_FAILED'){ clearSession(); show('screen-lobby'); return; }
   if(msg.type==='ROOM_CREATED'||msg.type==='ROOM_JOINED'){
-    myId=msg.payload.playerId;
+    myId=msg.payload.playerId; updateLeaveButton();
     saveSession(msg.payload.code,myId,msg.payload.token);
     el('disp-code').textContent=msg.payload.code;
     el('join-panel').hidden=true;

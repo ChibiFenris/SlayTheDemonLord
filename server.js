@@ -234,6 +234,28 @@ function applyLoneSurvivor(room, player){
   addLog(room,`🕯 <strong>Lone Survivor</strong> — ${player.name} walks the dark road alone: +${ls.hp} max HP${ls.power?', +1 Power':''}.`,'loot');
 }
 
+// ─── LEAVING ──────────────────────────────────────────────────────────────────
+// In the lobby a player is simply removed. Mid-run their character stays behind:
+// the party carries on and the seat is free for someone else to take over
+// straight away. If nobody is left, the room (and a solo run) is closed.
+function leaveRoom(ws){
+  const ctx=clients.get(ws); clients.delete(ws);
+  const room=ctx&&rooms.get(ctx.roomCode); if(!room) return;
+  const player=room.players.find(p=>p.id===ctx.playerId); if(!player) return;
+  const gs=room.gs;
+  if(gs.phase==='lobby'){
+    room.players=room.players.filter(p=>p!==player);
+  } else {
+    player.connected=false; player.ws=null; player.disconnectedAt=0; player.takenOver=true; player.token=uuidv4();
+    if(!['gameover','victory','practiceDone'].includes(gs.phase)) addLog(room,`🚪 <strong>${player.name}</strong> leaves the warband.`,'sys');
+  }
+  const here=room.players.filter(p=>p.connected);
+  if(!here.length){ if(room._turnTimer) clearTimeout(room._turnTimer); rooms.delete(room.code); persist.scheduleSave(rooms); return; }
+  if(room.hostId===player.id) room.hostId=here[0].id;
+  if(gs.phase!=='lobby') { try{ unblockAfterDisconnect(room,player); }catch(e){ console.error('Leave error:',e); } }
+  broadcastState(room.code);
+}
+
 // ─── QUICK CHAT AND PRACTICE ──────────────────────────────────────────────────
 const EMOTES = { heal:'Heal me!', focus:'Focus the boss!', wait:'Wait for me!', back:'Fall back!', nice:'Well fought!', ready:'Ready!' };
 function startPractice(room){
@@ -771,6 +793,8 @@ function handleMessageInner(ws,msg){
     }
     broadcastState(ctx.roomCode); return;
   }
+  // ── Leaving a room or quitting a run ──
+  if(type==='LEAVE_ROOM'){ leaveRoom(ws); return; }
   // ── Quick chat ──
   if(type==='EMOTE'){
     if(!ctx)return; const room=rooms.get(ctx.roomCode); if(!room)return;
@@ -1097,6 +1121,6 @@ if (require.main === module) {
   server.listen(PORT, '0.0.0.0', () => { console.log(`Shadows Over Reikland on 0.0.0.0:${PORT}`); });
 }
 
-module.exports = { app, server, rooms, clients, enemies, gear, events, runlog, cleanName, allowMessage, RATE,
+module.exports = { app, server, rooms, clients, enemies, gear, events, runlog, cleanName, leaveRoom, allowMessage, RATE,
   startTurnTimer, recordRunEnd, takeOverSeat, applyDailyToEnemies, startDailyRun, TURN_LIMIT_MS,
   _runNodeContent, actAttack, actCastSpell, actUseTalent, addBuff, addDebuff, addLog, addToInventory, advanceTurn, aftermathReady, applyBleed, applyBurn, applyExpertPath, applyLegendaryArmourPassive, applyLevelGains, applyMasterPath, applyNovicePath, applyPoison, applyTalentList, applyWpnSpecial, autoSkipStunnedPlayer, broadcastState, buildChar, buildLootOptions, buildPlayerShop, buildTurnOrder, castingsLeft, checkDeath, checkLevelUp, endRound, enemyDmgDice, enterNode, equipItem, finishCombat, finishEnemyTurn, fireEnemyTurn, genArmor, genLegendaryItem, genShopScroll, genSpecialArmor, genSpecialWpn, genWpn, getBuffVal, getCurrentTurn, getDebuffVal, getPathHpGain, getSpellsForPower, getTargetEnemy, grantTradition, handleBuy, handleMessage, handlePlayerAction, handleSell, initGameState, invCounts, makeCode, maxCastings, pickEnemy, pickThreeNodes, publicState, refreshCastingPools, regainCasting, resetCombatState, resolveEnemyDeath, resolvePath, resolveUnknownEvent, restoreCastingPools, restorePower, restoreRooms, resumeRoom, rollAttack, rollD20boons, rollEnemyAttack, rollEnemyDrop, scaleEnemy, sendTo, showPathChoices, spendCasting, startNodeContent, startSpoils, sweepRooms, talentHeal, tickBuffs, tickDebuffs, triggerGameover, unblockAfterDisconnect, uniqRanks, useItemLogic };
