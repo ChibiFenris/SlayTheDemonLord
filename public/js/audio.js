@@ -45,16 +45,26 @@ function playTrack(key) {
   a.onerror = () => { /* audio file missing — fail silently */ };
   a.src = src; // set src after onerror so 404s don't throw
   audioEl = a;
-  a.play().catch(() => {
-    document.addEventListener('click', () => {
-      if (audioEl && audioEl.paused && !audioMuted) audioEl.play().catch(()=>{});
-    }, { once: true });
-  });
+  if (audioMuted) return; // muted: load the track but don't start it
+  a.play().catch(() => unlockOnFirstTouch());
+}
+
+// Browsers (iPhones especially) only start audio after the player touches the page.
+let _unlockArmed = false;
+function unlockOnFirstTouch() {
+  if (_unlockArmed) return; _unlockArmed = true;
+  const go = () => {
+    _unlockArmed = false;
+    ['pointerdown', 'touchend', 'keydown'].forEach(ev => document.removeEventListener(ev, go, true));
+    if (audioEl && audioEl.paused && !audioMuted) audioEl.play().catch(() => {});
+  };
+  ['pointerdown', 'touchend', 'keydown'].forEach(ev => document.addEventListener(ev, go, true));
 }
 
 function setMute(muted) {
   audioMuted = muted;
-  if (audioEl) audioEl.volume = muted ? 0 : audioVolume;
+  // iPhones ignore the volume setting, so muting pauses the music rather than turning it down.
+  if (audioEl) { if (muted) audioEl.pause(); else { audioEl.volume = audioVolume; audioEl.play().catch(() => unlockOnFirstTouch()); } }
   const btn = el('audio-toggle');
   if (btn) { btn.innerHTML = muted ? '🔇<span class="btn-lbl"> Unmute</span>' : '🔊<span class="btn-lbl"> Mute</span>'; btn.setAttribute('aria-label', muted ? 'Unmute music' : 'Mute music'); }
   store.set('audioMuted', muted ? '1' : '0');

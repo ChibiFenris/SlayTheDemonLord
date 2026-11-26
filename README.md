@@ -152,10 +152,25 @@ Every finished run adds one line to `runs.jsonl` in the data folder: party, clas
 
 ## Daily Run, turn timer and late joining
 
-- **Daily Run:** the host can turn it on in the room. Each day has one blessing and one hardship (e.g. Well Provisioned + Hardened Foes) shared by everyone; results go on today's board in the lobby (`/api/daily`).
+- **Daily Run:** the host can turn it on in the room. Each day has one blessing and one hardship (e.g. Well Provisioned + Hardened Foes) shared by everyone, and every Daily starts from the same random seed; results go on today's board in the lobby (`/api/daily`).
 - **Turn timer:** with two or more players, each turn has 60 seconds; when it runs out the turn passes. Solo play has no timer.
 - **Joining late:** entering the code of a run in progress takes over the character of a player who has been gone for 20+ seconds.
 
 ## Automatic checks
 
 `.github/workflows/test.yml` runs `npm test` on every push to GitHub (see the Actions tab). Railway waits for `/health` to answer before switching players over to a new deploy, so a deploy that fails to start never replaces a working one.
+
+## Accounts, practice and quick chat
+
+- **Accounts:** in the lobby, a name and a 4–8 digit PIN keep Renown and run history in `accounts.json` in the data folder (PINs are stored as salted hashes; five wrong PINs lock the name for five minutes). Signing in on another device brings the Renown along.
+- **Practice fight:** one easy battle with any career and a coach; no Renown, not logged.
+- **Quick chat:** party games get six fixed calls ("Heal me!", "Focus the boss!", …), shown as pop-ups and in the log.
+
+## Code layout
+
+`server.js` sets up the web server, rooms, messages and run records. Game rules live in `game/`:
+`combat.js` (rolls, buffs, damage over time), `actions.js` (attacks, spells, talents), `turns.js` (turn order, enemy turns, deaths), `nodes.js` (the road and its rooms), `items.js` (gear, merchant, items), `paths.js` (levelling), `enemies.js` and `events.js` (enemy specials and choice events), `rng.js` (per-room seeded randomness), `statesync.js` (sending players only what changed), `accounts.js`, `runlog.js`, `persist.js` and `data.js` (all the tables).
+
+Every room has its own seeded random generator, so a run can be replayed from its seed. Browsers receive small state patches after the first full state; bots and tools that don't ask for patches still get full states.
+
+Messages are rate-limited per connection, names are cleaned of markup, and one connection can create at most five rooms.

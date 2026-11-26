@@ -17,6 +17,8 @@ const PATHS = {
   rogue:   { expert: ['ranger', 'assassin'],            master: ['shadowblade', 'executioner', 'warlord'] },
   wizard:  { expert: ['elementalist', 'sorcerer', 'warlock', 'wizard', 'spellbinder'], master: ['transmuter', 'necromancer', 'abjurer', 'archmage'] },
   priest:  { expert: ['healer', 'druid', 'paladin'],    master: ['healer_m', 'chaplain', 'champion'] },
+  witchhunter: { expert: ['inquisitor', 'ranger'],      master: ['witchfinder', 'champion'] },
+  slayer:  { expert: ['giantSlayer', 'defender'],      master: ['daemonSlayer', 'brute'] },
 };
 const TRADS = Object.keys(D.TRADITIONS);
 const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -121,6 +123,7 @@ function runGame(careers, opts = {}) {
       const boss = (gs.enemies || []).find(e => e && e.hp > 0 && e._windup);
       if (boss && c.shieldBash && !c._shieldBashUsed) return send(sk, 'USE_TALENT', { talent: 'shieldBash' });
       if (c.taunt && hurtAlly && hurtAlly.id !== myId && !((c._tauntReadyRound || 0) > gs.roundNumber)) return send(sk, 'USE_TALENT', { talent: 'taunt' });
+      if (c.condemn && (c._condemnUses || 0) < (c.judgement ? 2 : 1) && !c._condemnTargetId) return send(sk, 'USE_TALENT', { talent: 'condemn' });
       for (const t of ['divineSmite', 'warCry', 'deadAim', 'curse', 'massHeal']) if (c[t] && !c[t + 'Used'] && !c['_' + t + 'Used']) return send(sk, 'USE_TALENT', { talent: t });
       const atkSpell = spells.filter(s => s.type === 'attack' && left(s) > 0).sort((a, b) => b.rank - a.rank)[0];
       if (atkSpell && (sk.career === 'wizard' || (sk.career === 'priest' && atkSpell.rank > 0))) return send(sk, 'CAST_SPELL', { spellName: atkSpell.name });
@@ -132,7 +135,7 @@ function runGame(careers, opts = {}) {
 
 (async () => {
   const N = +process.argv[2] || 40;
-  const setups = [['warrior'], ['rogue'], ['wizard'], ['priest'], ['warrior', 'rogue', 'wizard', 'priest']];
+  const setups = [['warrior'], ['rogue'], ['wizard'], ['priest'], ['witchhunter'], ['slayer'], ['warrior', 'rogue', 'wizard', 'priest']];
   const charmStats = {}, weaponStats = {};
   console.log(`Balance run: ${N} games per setup\n`);
   console.log('setup'.padEnd(34) + 'win%  avg depth  past boss1  past boss2  timeouts');

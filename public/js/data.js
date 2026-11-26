@@ -1,6 +1,6 @@
 'use strict';
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
-const CAREER_LABELS={warrior:'State Soldier',rogue:'Roadwarden',wizard:'Bright Wizard',priest:'Sigmarite Priest'};
+const CAREER_LABELS={warrior:'State Soldier',rogue:'Roadwarden',wizard:'Bright Wizard',priest:'Sigmarite Priest',witchhunter:'Witch Hunter',slayer:'Dwarf Slayer'};
 const XP_T=[0,0,2,10,19,24,29,34,51,68,84]; // default; refreshed from the server's XP_THRESHOLDS on load
 const LOCS=['The Reikland Road','Altdorf Sewers','The Grey Mountains','The Forest of Shadows','Bogenhafen Catacombs','Ruins of Mordheim','The Dark Moors','The Chaos Wastes','A Forsaken Temple','The River Reik','Skaven Under-warren','Corrupted Village','The Blighted Marshes','Chaos Shrine','The Final Abyss'];
 
@@ -45,16 +45,40 @@ const CAREER_DETAILS={
     role:'Support striker. Every weapon hit heals you and deals holy damage. Strong group healer.',
     level1:'+1 Power (divine slots) · Weapon Training (+1 boon attacks) · Holy Fervor (hits deal 1d3+WIL holy and heal you 1d3) · Shared Recovery (1/combat) · Divine Favour (1/combat)'
   },
+  witchhunter:{
+    name:'Witch Hunter',
+    stats:'STR 10 · AGI 12 · INT 10 · WIL 10',
+    armor:'Leather Coat (+1 Def)',
+    hp:'29 HP',
+    defence:'13 Defence',
+    weapon:'1d6+2 piercing (AGI)',
+    role:'Hunter of the unholy. Condemns one foe each fight and punishes it hard. Deadly against undead and Chaos.',
+    level1:'Condemn (free action: mark a foe, +1 boon and +1d6 on hits; passes on when it dies) · Silver Shot (+2 dmg vs undead, daemons, Chaos) · First Volley (+1 boon on first attack) · Catch Breath (1/combat)'
+  },
+  slayer:{
+    name:'Dwarf Slayer',
+    stats:'STR 12 · AGI 10 · INT 10 · WIL 10',
+    armor:'No armour, ever (Defence = AGI)',
+    hp:'34 HP',
+    defence:'10 Defence',
+    weapon:'1d8+2 slashing (STR)',
+    role:'Glass-cannon berserker. Easy to hit, hard to kill, and hits harder the closer to death and the bigger the foe.',
+    level1:"Slayer's Oath (+1d6 vs elites and bosses) · Death Wish (below half HP: +1 boon, +2 dmg) · Rage (when hit, next attack +1 boon +1d6) · Catch Breath (1/combat)"
+  },
 };
 
 const NOVICE_INFO={
   warrior:{name:'Warrior',    gains:'Lv1: +5 Max HP. Weapon Training: +1 boon on all attacks. Catch Breath: heal 1d6+STR, 1×/combat. Shield Bash: stun one enemy for 2 turns, 1×/combat. Taunt: for 2 rounds all enemies attack only you (ready again after 3 rounds). Bleed on Hit: every weapon hit applies 1 Bleed stack.'},
   rogue:  {name:'Rogue',      gains:'Lv1: +4 Max HP. Trickery: first hit applies 3 poison stacks, subsequent hits apply 2 stacks. Evasion: the first attacker each round subtracts the highest bane d6 from d20. Nimble Recovery: heal 1d6+AGI, 1×/combat. Venom on First Hit: first attack applies 4 poison stacks.'},
   magician:{name:'Magician',  gains:'Lv1: +4 Max HP. +1 Power (extra casting slots). Burning Soul: fire spells deal +1d6 if target is already Burning. Burn on Spell: attack spells apply 1d6 Burn DoT. Spell Recovery: restore rank-0 castings, 1×/combat.'},
+  witchhunter:{name:'Witch Hunter', gains:'Lv1: +5 Max HP. Condemn (free action, 1×/combat): +1 boon and +1d6 on hits against your target. Silver Shot: +2 dmg vs undead, daemons, Chaos. First Volley: +1 boon on your first attack. Catch Breath (1×/combat).'},
+  slayer: {name:'Slayer',     gains:"Lv1: +6 Max HP. Slayer's Oath: +1d6 vs elites and bosses. Death Wish: below half HP +1 boon and +2 dmg. Rage: when hit, next attack +1 boon +1d6. Catch Breath (1×/combat)."},
   priest: {name:'Priest',     gains:'Lv1: +4 Max HP. +1 Power (divine casting slots). Weapon Training: +1 boon on all attacks. Holy Fervor: every weapon hit deals 1d3+WIL holy damage and heals you 1d3 HP. Shared Recovery: all allies heal, 1×/combat. Divine Favour: refresh 1×/combat abilities, 1×/combat.'},
 };
 
 const EXPERT_INFO={
+  inquisitor:{name:'Inquisitor',     gains:"+5 HP. Lv3: Mark Heretic (marked target +2 boons), Burn the Witch (hits on your Condemned foe apply Burn). Lv4: Hunter's Mark (+2 dmg vs marked), +1 AGI. Lv5: Resonance (+1d6 vs afflicted foes), Dead Man's Hand (kills heal you). Lv6: Purge the Wicked, +1 AGI.",desc:'Witch Hunter path. Condemn, mark and burn one heretic at a time.'},
+  giantSlayer:{name:'Giant Slayer',  gains:'+6 HP. Lv3: Bleed on Hit, Rage Trigger (any hit taken readies a raging strike). Lv4: Combat Expertise (+1d6 vs stunned), +1 STR. Lv5: Combat Prowess (+1d6 per hit), Relentless (damage builds each attack). Lv6: Unstoppable (survive a killing blow once per run), +1 STR.',desc:'Slayer path. Bleeds, rages and refuses to die.'},
   defender:{name:'Fighter',      gains:'+5 HP. Lv3: Bulwark (+5 HP, +2 Def), Bleed on Hit. Lv4: Paced Strikes (every 2nd hit = 2 Bleed), Press the Advantage (hit = +1 boon next attack), +1 STR. Lv5: Combat Expertise (+1d6 vs stunned targets), Weapon Aptitude (+2 to hit). Lv6: Deep Bleed (all Bleed doubled), +1 STR.',desc:'Iron Wall. Bulwark gives HP and Defence. Paced Strikes and Deep Bleed stack Bleed fast. Press the Advantage chains boons every hit.'},
   ranger:   {name:'Ranger',       gains:'+5 HP. Lv3: Quick Step (miss = +2 Def), Hunter\'s Mark (first hit marks, +2 dmg vs marked). Lv4: Fade (Quick Step active = +1 boon), Evasion (first attacker each round subtracts bane d6), +1 AGI. Lv5: Skirmish (hits on marked = 2 poison). Lv6: Smoke Screen (3 banes on all enemies 2 rounds), +1 AGI.',desc:'Hunter and Ghost. Mark targets for bonus damage. Evasion and Smoke Screen keep you untouchable.'},
   paladin:  {name:'Paladin',      gains:'+4 HP, +1 Power. Lv3: Holy Fervor (hits deal 1d3+WIL holy and heal you 1d3), Divine Smite (+3d6, 2×/combat). Lv4: Lay on Hands (weapon hits heal 1d6+WIL, 2×/combat), +1 STR. Lv5: Righteous Fury (kills heal all allies 1d6+WIL), Combat Prowess (+1d6/hit). Lv6: Sacred Aegis (attacker takes 1d6 holy), Wrath of Sigmar (Divine Smite deals 6d6), +1 WIL.',desc:'Warrior Priest. Holy Fervor triggers on every weapon hit. Wrath of Sigmar is a devastating execute. Righteous Fury turns kills into group heals.'},
@@ -69,6 +93,8 @@ const EXPERT_INFO={
 };
 
 const MASTER_INFO={
+  witchfinder:{name:'Witchfinder General', gains:'+4 HP. Lv7: Judgement (Condemn twice per combat, Condemned foes take +2 more), Quickstrike. Lv8: Dead Aim (next hit is a crit), +1 AGI. Lv9: Exploit Weakness, Inspire. Lv10: Phantom Strike (first attack auto-hits), +1 AGI.',desc:'Witch Hunter master. Two condemnations a fight and executions on demand.'},
+  daemonSlayer:{name:'Daemon Slayer',      gains:'+5 HP. Lv7: Frenzy (kills extend rage), Fortitude. Lv8: Devastating Charge (next hit +1d6 and Prone), +1 STR. Lv9: Sweeping Blow, Endure. Lv10: Killing Momentum, +1 STR.',desc:'Slayer master. The last Slayer standing.'},
   myrmidon:   {name:'Sentinel',      gains:'+5 HP. Lv7: Shieldwall (+2 Def), Shield Bash (stun, no action, 1×). Lv8: Evasion (bane on first attack each round; every attack while Taunting), Rebound (reflect half dmg to attacker), +1 STR. Lv9: Toughness (10% dmg reduction), Fortress Stance (below 50% HP = extra 10% reduction). Lv10: Perfect Defence (first damaging hit deals 0, 1×), +1 STR.',desc:'Fortress Guardian. Toughness and Fortress Stance stack for up to 20% damage reduction. Perfect Defence makes you completely untouchable for one round.'},
   brute:      {name:'Berserker',     gains:'+5 HP. Lv7: Relentless (hits +1 dmg stack, misses +1 to-hit stack, max 5), Fortitude (immune to Bleed/Poison). Lv8: Combat Prowess (+1d6/hit), Vengeance (ally falls = free attack), +1 STR. Lv9: Rallying Cry (all allies heal), Endure (if hit would drop you below 35% HP, halve it, 1×/combat). Lv10: Combat Expertise (+1d6 vs stunned targets), Unstoppable (survive death once/run), +1 STR.',desc:'Relentless Force. Relentless builds damage and accuracy stacks separately. Endure prevents burst kills. Unstoppable at L10 is the last resort.'},
   warlord:    {name:'Warlord',       gains:'+5 HP. Lv7: Rallying Cry (all allies heal), Battle Orders (ally free action, 1×). Lv8: Warlord Aura (all allies +1 boon), Devastating Charge (+1d6 + Prone first hit), +1 STR. Lv9: Sweeping Blow (hits deal 75% dmg to all others), Intercept (all enemies reroll dmg take lower, no action, 1×). Lv10: Killing Momentum (kill = free attack), +1 WIL.',desc:'Battlefield Commander. Warlord Aura buffs the whole party passively. Intercept protects everyone by weakening all enemy hits at once.'},
@@ -84,6 +110,13 @@ const MASTER_INFO={
 };
 
 const TALENT_DESCS={
+  condemn:'Active (free action, 1×/combat; 2× with Judgement) — Name your target a heretic: your attacks on it get +1 boon and your hits deal +1d6. When it dies, the mark passes to the next enemy you attack.',
+  silverShot:'Passive — +2 damage on hits against undead, daemons and servants of Chaos.',
+  firstVolley:'Passive — Your first attack each combat gets +1 boon.',
+  burnTheWitch:'Passive — Your hits on a Condemned enemy apply 1 Burn.',
+  judgement:'Passive — Condemn can be used twice per combat, and hits on Condemned foes deal +2 more.',
+  slayerOath:"Passive — Slayer's Oath: +1d6 damage on hits against elites and bosses.",
+  deathWish:'Passive — While below half HP, your attacks get +1 boon and your hits deal +2 damage.',
   glamourVeil:'Glamour Veil — the first attack against you each fight strikes an illusion and misses.',
   misdirection:'Misdirection — whenever an enemy misses you, your next attack spell deals +1d6.',
   // ── NOVICE ──────────────────────────────────────────────────────────────
@@ -93,7 +126,7 @@ const TALENT_DESCS={
   bleedOnHit:'Passive — Every weapon hit applies 1 Bleed stack (DoT: 1d3 dmg/round, fades after 2 rounds).',
   bleedOnCrit:'Passive — Critical hits apply 1 Bleed stack.',
   trickery:'Passive — First hit each combat applies 3 poison stacks. Every later hit applies 2.',
-  loneSurvivor:'Passive — You started this run alone. Warrior: +6 max HP. Wizard and Priest: +5 max HP. All gain +1 extra HP every level.',
+  loneSurvivor:'Passive — You started this run alone. Warrior: +6 max HP. Wizard, Priest and Witch Hunter: +5 max HP. All gain +1 extra HP every level.',
   nimbleRecovery:'Active (1×/combat) — Heal 1d6 + AGI HP.',
   spellRecovery:'Active (1×/combat) — Restore all rank-0 casting slots.',
   sharedRecovery:'Active (1×/combat) — All living allies heal 1d6 + their highest attribute modifier.',
@@ -346,6 +379,7 @@ function castingsLeftC(char, spellName, rank) {
 // [key, button label, short subtitle, used(char, gs)]
 const EXTRA_ACTIVES=[
   ['taunt','📯 Taunt','Enemies attack only you',(c,gs)=>(c._tauntReadyRound||0)>(gs.roundNumber||0)],
+  ['condemn','⚖ Condemn','Free: +1 boon, +1d6 on target',c=>(c._condemnUses||0)>=(c.judgement?2:1)],
   ['entangle','🌿 Entangle','Enemy loses next action',c=>c._entangleUsed],
   ['miracleHeal','🌟 Miracle Heal','Ally to full HP',c=>c.miracleUsed],
   ['spellsurge','✨ Spell Surge','Next spell free',c=>c.spellsurgeUsed],
@@ -456,6 +490,7 @@ const ENEMY_ABILITY_INFO=[
   ['crushingTail','Crushing Tail','On hit: 20% chance to stun you.'],
   ['extinctionPulse','Extinction Pulse','Once, below 30% HP: blinds every warrior and regenerates fast for 2 turns.'],
   ['ancientScales','Ancient Scales','10% chance to shrug off a weapon hit entirely.'],
+  ['fortitude','Plague-Hardened','Bleeding does not affect it.'],
   ['telegraph','Big Attack','Every few rounds it warns of a big attack, then strikes on its next turn. Stun it to cancel; Taunt redirects most of them.'],
 ];
 function enemyAbilities(enemy){ return ENEMY_ABILITY_INFO.filter(([k])=>enemy[k]).map(([,n,d])=>[n,d]); }

@@ -57,6 +57,8 @@ function connect(){
   ws.onopen=()=>{
     clearTimeout(reconnectTimer); buildCareerGrid();
     const sess=loadSession();
+    send('HELLO',{patches:true}); // ask for small state patches instead of the full state every time
+    const acct=getAccount(); if(acct) send('ACCOUNT_RESUME',{token:acct.token}); // keep the account signed in
     if(sess) send('REJOIN',sess); // reclaim our seat after a refresh, dropped connection or server restart
     else show('screen-lobby');
   };
@@ -79,7 +81,21 @@ function loadSession(){
 function clearSession(){ store.set(SESSION_KEY,''); }
 function leaveGame(){ clearSession(); location.reload(); }
 
+// Rebuild the full state from a patch (mirror of game/statesync.js apply()).
+let lastSeq=null;
+function applyStatePatch(state,patch){
+  const gs=Object.assign({},state.gs,patch.gs||{});
+  (patch.gsDel||[]).forEach(k=>{ delete gs[k]; });
+  if(patch.logFull) gs.log=patch.logFull;
+  else if(patch.logAppend) gs.log=(gs.log||[]).concat(patch.logAppend).slice(-patch.logLen);
+  let players=state.players;
+  if(patch.playersFull) players=patch.playersFull;
+  else if(patch.players){ players=players.slice(); Object.keys(patch.players).forEach(i=>{ players[+i]=patch.players[i]; }); }
+  return {gs,players,hostId:patch.hostId!==undefined?patch.hostId:state.hostId};
+}
+
 function onMsg(msg){
+  if(onAccountMsg(msg)) return;
   if(msg.type==='REJOIN_FAILED'){ clearSession(); show('screen-lobby'); return; }
   if(msg.type==='ROOM_CREATED'||msg.type==='ROOM_JOINED'){
     myId=msg.payload.playerId;
@@ -90,9 +106,16 @@ function onMsg(msg){
     el('career-panel').hidden=false;
   }
   if(msg.type==='STATE_UPDATE'){
-    lastState=msg.payload;
+    lastState=msg.payload; lastSeq=msg.seq;
     pathPickPending=false;
     renderState(msg.payload);
+  }
+  if(msg.type==='STATE_PATCH'){
+    const p=msg.payload;
+    if(!lastState||p.base!==lastSeq){ send('RESYNC',{}); return; } // missed an update: ask for the full state
+    lastState=applyStatePatch(lastState,p); lastSeq=p.seq;
+    pathPickPending=false;
+    renderState(lastState);
   }
   if(msg.type==='ERROR'){ el('lobby-err').textContent=msg.payload.msg; }
   if(msg.type==='STAT_CHOICE'){ showStatChoiceModal(msg.payload.attrs); }

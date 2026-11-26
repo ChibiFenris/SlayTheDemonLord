@@ -22,6 +22,7 @@ function nextUnlock(){ const r=getProgress().renown; return UNLOCKS.find(u=>u.at
 
 // Called once when a run ends; returns what was earned for the end screen.
 function awardRun(gs,code){
+  if(gs.practice) return null; // practice fights earn nothing
   const stamp=`${code}:${gs.depth}:${gs.phase}`;
   if(store.get('sorLastAward')===stamp) return null;
   store.set('sorLastAward',stamp);
@@ -46,13 +47,14 @@ function addRunToHistory(gs,earned){
     cause:cause.slice(0,90), renown:earned };
   const h=[rec,...getHistory()].slice(0,HISTORY_MAX);
   store.set(HISTORY_KEY,JSON.stringify(h));
+  accountRecordRun(rec,earned); // signed-in players keep it on the server too
 }
 function renderHistory(){
   const box=el('run-history'); if(!box) return;
   const h=getHistory();
   if(!h.length){ box.hidden=true; return; }
   box.hidden=false;
-  const names={warrior:'Warrior',rogue:'Roadwarden',wizard:'Wizard',priest:'Priest'};
+  const names={warrior:'Warrior',rogue:'Roadwarden',wizard:'Wizard',priest:'Priest',witchhunter:'Witch Hunter',slayer:'Slayer'};
   const diffs=['','Grim','Doom'];
   const when=t=>{ const d=Math.round((Date.now()-t)/86400000); return d<=0?'today':d===1?'yesterday':`${d} days ago`; };
   box.innerHTML='<div class="rh-title">Recent runs</div>'+h.slice(0,6).map(r=>`
@@ -76,7 +78,7 @@ function loadDaily(){
 function renderDaily(){
   const board=el('daily-board');
   if(board&&dailyInfo){
-    const names={warrior:'Warrior',rogue:'Roadwarden',wizard:'Wizard',priest:'Priest'};
+    const names={warrior:'Warrior',rogue:'Roadwarden',wizard:'Wizard',priest:'Priest',witchhunter:'Witch Hunter',slayer:'Slayer'};
     board.hidden=false;
     board.innerHTML=`<div class="rh-title">Today's Daily Run</div>
       <div class="daily-mods">${dailyInfo.mods.map(m=>`<span class="daily-mod"><strong>${m.name}</strong> ${m.desc}</span>`).join('')}</div>
@@ -100,6 +102,8 @@ function renderDaily(){
 // Lobby: renown line, starting-charm picker and (for the host) difficulty.
 function renderProgressUI(players){
   renderHistory(); loadDaily(); renderDaily();
+  const ab=el('account-box'), state=getAccount()?'in':'out';
+  if(ab&&ab.dataset.state!==state){ ab.dataset.state=state; renderAccount(); } // don't wipe a half-typed PIN on every update
   const p=getProgress(), nu=nextUnlock();
   const line=el('renown-line');
   if(line) line.innerHTML=`Renown <strong>${p.renown}</strong>${p.runs?` · ${p.runs} run${p.runs>1?'s':''}, deepest ${p.best}`:''}${nu?` · next unlock at ${nu.at}: ${nu.label}`:' · everything unlocked'}`;

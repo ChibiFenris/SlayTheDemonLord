@@ -85,10 +85,16 @@ const logHas=(room,re)=>room.gs.log.some(l=>re.test(l.msg));
   ok(room.gs.phase==='event'&&a.char.health>5,'majority option resolves and heals'); }
 // 8. Every choice event resolves every option without errors
 { for(const [key,ev] of Object.entries(S.events.CHOICE_EVENTS)) for(const o of ev.options){
-    const {room}=mkRoom(['warrior','wizard']); room.gs.phase='event'; room.players.forEach(p=>{p.char.gold=50;});
+    const {room}=mkRoom(o.needs?['wizard',o.needs]:['warrior','wizard']); room.gs.phase='event'; room.gs.depth=25; room.players.forEach(p=>{p.char.gold=50;});
     let err=null; try{ S.events.startChoiceEvent(room,key); room.players.forEach(p=>S.events.voteChoice(room,p.id,o.id)); }catch(e){ err=e; }
     if(err||room.gs.phase==='choice') ok(false,`event ${key}/${o.id} failed: ${err&&err.message}`);
-  } ok(true,'all choice events resolve'); }
+  } ok(true,'all choice events resolve');
+  const {room:g}=mkRoom(['warrior','wizard']); g.gs.depth=25; S.events.startChoiceEvent(g,'desecratedShrine');
+  ok(!g.gs.choice.options.some(o=>o.id==='consecrate'||o.id==='purge'),'class options are hidden without that class');
+  const {room:g2}=mkRoom(['priest','witchhunter']); g2.gs.depth=25; S.events.startChoiceEvent(g2,'desecratedShrine');
+  ok(g2.gs.choice.options.some(o=>o.id==='consecrate')&&g2.gs.choice.options.some(o=>o.id==='purge'),'class options appear with that class');
+  const {room:g3}=mkRoom(['warrior']); g3.gs.depth=3; let deep=false; for(let i=0;i<60;i++){ S.events.startChoiceEvent(g3); if(S.events.CHOICE_EVENTS[g3.gs.choice.key].minDepth>3) deep=true; }
+  ok(!deep,'deep-road events never appear early'); }
 // 9. Difficulty raises enemy HP and rewards
 { const {room,wss}=mkRoom(['warrior']); room.gs.phase='lobby'; S.handleMessage(wss[0],{type:'SET_DIFFICULTY',payload:{level:2}});
   ok(room.gs.difficulty===2,'host can set difficulty in the lobby'); }
@@ -157,4 +163,114 @@ const logHas=(room,re)=>room.gs.log.some(l=>re.test(l.msg));
   ok(back.includes('REJOIN_FAILED')&&seat.ws===nw,'the old player cannot snatch the seat back without its new token');
   const ok2=[]; seat.connected=false; S.handleMessage({readyState:1,send(m){ok2.push(JSON.parse(m).type);}},{type:'REJOIN',payload:{code:room.code,playerId:seat.id,token:j.payload.token}});
   ok(ok2.includes('ROOM_JOINED'),'the newcomer can rejoin with their token'); }
+// 16. Input safety
+{ ok(S.cleanName('<img src=x onerror=alert(1)>Bob','P')==='img src=x onerror=alert(1)Bob'.slice(0,20),'names lose markup characters');
+  ok(S.cleanName('   ','Player')==='Player'&&S.cleanName('A'.repeat(50),'P').length===20,'blank names fall back, long names are cut');
+  const ws={readyState:1,send(){},close(){ this.closed=true; }}; let allowed=0;
+  for(let i=0;i<100;i++) if(S.allowMessage(ws)) allowed++;
+  ok(allowed<=S.RATE.burst+1&&allowed>=S.RATE.burst-1,'a burst of messages is capped');
+  const sent=[]; const w2={readyState:1,send(m){sent.push(JSON.parse(m));}};
+  for(let i=0;i<7;i++) S.handleMessage(w2,{type:'CREATE_ROOM',payload:{name:'Spam'}});
+  ok(sent.filter(m=>m.type==='ROOM_CREATED').length===5&&sent.some(m=>m.type==='ERROR'),'one connection can only create a few rooms');
+  S.handleMessage(w2,null); S.handleMessage(w2,{type:5}); S.handleMessage(w2,{type:'JOIN_ROOM'}); ok(true,'malformed messages are ignored'); }
+// 17. Per-room random numbers
+{ const R=require('../game/rng');
+  const a=R.makeRng(42), b=R.makeRng(42); const sa=[1,2,3,4,5].map(()=>R.next(a)), sb=[1,2,3,4,5].map(()=>R.next(b));
+  ok(JSON.stringify(sa)===JSON.stringify(sb)&&sa.every(x=>x>=0&&x<1),'the same seed gives the same numbers');
+  const roomA={gs:{rng:R.makeRng(7)}}, roomB={gs:{rng:R.makeRng(7)}};
+  const ra=R.withRoom(roomA,()=>[Math.random(),Math.random()]); Math.random(); const rb=R.withRoom(roomB,()=>[Math.random(),Math.random()]);
+  ok(ra[0]===rb[0]&&ra[1]===rb[1],'Math.random follows the room being handled');
+  const mk=()=>{ const ws={readyState:1,send(){}}; S.handleMessage(ws,{type:'CREATE_ROOM',payload:{name:'S'}}); const room=[...S.rooms.values()].pop();
+    S.handleMessage(ws,{type:'SET_DAILY',payload:{on:true}}); S.handleMessage(ws,{type:'SELECT_CAREER',payload:{career:'warrior'}}); S.handleMessage(ws,{type:'PLAYER_READY',payload:{}}); return room; };
+  const d1=mk(), d2=mk();
+  ok(JSON.stringify(d1.gs.pathChoices)===JSON.stringify(d2.gs.pathChoices)&&d1.gs.rng.s===d2.gs.rng.s,'two Daily Runs start with the same choices');
+  ok(S.publicState(d1).gs.rng===undefined,'the seed is never sent to players'); }
+// 18. State patches rebuild exactly the full state
+{ const SS=require('../game/statesync');
+  const {room}=mkRoom(['warrior','priest']); combat(room,['Skaven Clanrat','Skaven Clanrat']);
+  const got=[]; const pws={readyState:1,_patches:true,send(m){got.push(JSON.parse(m));}};
+  const fws={readyState:1,send(m){got.push({full:true,...JSON.parse(m)});}};
+  room.players[0].ws=pws; room.players[1].ws=fws; room._sync=null;
+  let mirror=null, okAll=true, fullBytes=0, patchBytes=0;
+  for(let step=0;step<25;step++){
+    got.length=0;
+    if(step%3===0) S.addLog(room,'step '+step,'sys');
+    if(step%4===1) room.gs.enemies[0].hp=Math.max(0,room.gs.enemies[0].hp-1);
+    if(step%5===2) room.players[1].char.health--;
+    if(step===10) delete room.gs.choice; if(step===11) room.gs.someFlag=true;
+    S.broadcastState(room.code);
+    const forP=got.find(m=>!m.full), forF=got.find(m=>m.full);
+    fullBytes+=JSON.stringify(forF).length; patchBytes+=JSON.stringify(forP).length;
+    if(forP.type==='STATE_UPDATE') mirror=forP.payload; else mirror=SS.apply(mirror,forP.payload);
+    const canon=v=>JSON.stringify(v,(k,x)=>x&&typeof x==='object'&&!Array.isArray(x)?Object.keys(x).sort().reduce((o,kk)=>{ if(kk!=='turnMsLeft') o[kk]=x[kk]; return o; },{}):x);
+    if(canon(S.publicState(room))!==canon(mirror)){ okAll=false; console.log('  patch mismatch at step',step); break; }
+  }
+  ok(okAll,'patched state matches the full state after every update');
+  ok(got.length===2,'players who did not ask for patches still get full states');
+  ok(patchBytes<fullBytes/4,`patches are much smaller (${Math.round(patchBytes/1024)} KB vs ${Math.round(fullBytes/1024)} KB over 25 updates)`); }
+// 19. New classes
+{ const {room}=mkRoom(['witchhunter','slayer']); const wh=room.players[0].char, sl=room.players[1].char;
+  ok(wh.condemn&&wh.silverShot&&wh.firstVolley&&wh.catchBreath&&wh.maxHealth===29,'Witch Hunter starts with Condemn, Silver Shot, First Volley (29 HP)');
+  ok(sl.slayerOath&&sl.deathWish&&sl.rage&&sl.maxHealth===34&&sl.defense===10,'Dwarf Slayer starts with Oath, Death Wish, Rage (34 HP, Defence 10)');
+  ok(wh.equippedWeapon.dmgType==='piercing'&&sl.equippedWeapon.dice==='1d8','new classes get their own weapons');
+  combat(room,['Undead Skeleton','Skaven Clanrat']); room.gs.activeEnemyIdx=0;
+  const pIdx=room.gs.turnOrder.findIndex(t=>t.id===room.players[0].id); room.gs.activeTurnIdx=pIdx;
+  const before=room.gs.activeTurnIdx;
+  S.handlePlayerAction(room,room.players[0].id,{action:'USE_TALENT',data:{talent:'condemn'}});
+  ok(wh._condemnTargetId===room.gs.enemies[0].id&&room.gs.activeTurnIdx===before,'Condemn marks the target and does not use the turn');
+  ok((room.gs.enemies[0].activeDebuffs||[]).some(d=>d.condemned),'the Condemned enemy shows the mark');
+  S.handlePlayerAction(room,room.players[0].id,{action:'USE_TALENT',data:{talent:'condemn'}});
+  ok(wh._condemnUses===1,'Condemn works once per combat without Judgement');
+  // Boons: First Volley + Condemn on the first attack
+  const real=Math.random; Math.random=()=>0.5;
+  const ra=S.rollAttack(wh,room.gs.enemies[0],0); Math.random=real;
+  ok(ra&&ra.final>ra.base,'First Volley and Condemn give boons');
+  // Death Wish
+  sl.health=Math.floor(sl.maxHealth/2)-1; Math.random=()=>0.5; const rb=S.rollAttack(sl,room.gs.enemies[1],0); Math.random=real;
+  ok(rb&&rb.final>rb.base,'Death Wish gives a boon below half HP');
+  const ws={readyState:1,send(){}}; S.handleMessage(ws,{type:'CREATE_ROOM',payload:{name:'X'}}); const r2=[...S.rooms.values()].pop();
+  S.handleMessage(ws,{type:'SELECT_CAREER',payload:{career:'slayer'}}); ok(r2.players[0].char.novicePath==='slayer','choosing Slayer applies its novice path'); }
+// 20. New bosses: every boss pool has three, and each wind-up resolves
+{ const D2=require('../game/data.js');
+  ok(D2.ENEMY_POOLS.boss1.length===4&&D2.ENEMY_POOLS.boss2.length===4&&D2.ENEMY_POOLS.boss3.length===3,'boss pools: 4 / 4 / 3');
+  const kinds=['warpStorm','hornCurse','plagueWind','trollSmash','hellfire','dragonBreath'];
+  let allOk=true;
+  for(const k of kinds){
+    const {room}=mkRoom(['warrior','priest']); const boss=[...D2.ENEMY_POOLS.boss1,...D2.ENEMY_POOLS.boss2,...D2.ENEMY_POOLS.boss3].find(b=>b.telegraph===k);
+    const e=S.scaleEnemy(JSON.parse(JSON.stringify(boss)),2,false,1); e.id='b1'; room.gs.enemies=[e]; room.gs.enemy=e; room.gs.inCombat=true; room.gs.phase='combat'; room.gs.roundNumber=3;
+    S.startSpoils(room); S.buildTurnOrder(room); e._windup=k;
+    const hp0=room.players.map(p=>p.char.health);
+    try{ const res=S.enemyPreTurn(room,e,room.players.filter(p=>p.char.alive)); 
+      const changed=room.players.some((p,i)=>p.char.health!==hp0[i]||(p.char.activeBuffs||[]).length||p.char._poisonedStacks)||res!=='done';
+      if(!changed){ allOk=false; console.log('  wind-up did nothing:',k); }
+    }catch(err){ allOk=false; console.log('  wind-up failed:',k,err.message); }
+  }
+  ok(allOk,'all six new boss wind-ups resolve');
+  ok(true,'boss portraits: '+['Grey Seer Skrittar','Bray-Shaman Ghorros','Blight King Gutrot','Gorgrund the Stone Troll',"Daemon Prince Vhar'kul",'Skaldrak the Elder Wyrm'].filter(n=>require('../public/tokens/index.json')[n]).length+'/6'); }
+// 21. Quick chat
+{ const {room,wss}=mkRoom(['warrior','priest']);
+  S.handleMessage(wss[0],{type:'EMOTE',payload:{id:'heal'}}); S.handleMessage(wss[0],{type:'EMOTE',payload:{id:'heal'}}); S.handleMessage(wss[0],{type:'EMOTE',payload:{id:'<script>'}});
+  ok(room.gs.log.filter(l=>l.type==='emote').length===1&&/Heal me!/.test(room.gs.log.find(l=>l.type==='emote').msg),'quick chat posts fixed lines with a cooldown'); }
+// 22. Accounts
+{ const A=require('../game/accounts'); A._reset();
+  const got=[]; const ws={readyState:1,send(m){got.push(JSON.parse(m));}};
+  S.handleMessage(ws,{type:'ACCOUNT_LOGIN',payload:{name:'Fox',pin:'1234',local:{progress:{renown:40,runs:2,best:12},history:[]}}});
+  const okm=got.find(m=>m.type==='ACCOUNT_OK'); ok(okm&&okm.payload.created&&okm.payload.progress.renown===40,'a new account starts from this browser\'s Renown');
+  got.length=0; S.handleMessage(ws,{type:'ACCOUNT_LOGIN',payload:{name:'fox',pin:'9999'}});
+  ok(got.some(m=>m.type==='ACCOUNT_ERROR'),'a wrong PIN is refused');
+  got.length=0; S.handleMessage(ws,{type:'ACCOUNT_RUN',payload:{token:okm.payload.token,earned:15,rec:{depth:14,victory:false,career:'slayer'}}});
+  const after=got.find(m=>m.type==='ACCOUNT_OK'); ok(after&&after.payload.progress.renown===55&&after.payload.progress.best===14&&after.payload.history.length===1,'finished runs add Renown on the server');
+  got.length=0; const ws2={readyState:1,send(m){got.push(JSON.parse(m));}}; S.handleMessage(ws2,{type:'ACCOUNT_LOGIN',payload:{name:'Fox',pin:'1234'}});
+  ok(got.some(m=>m.type==='ACCOUNT_OK'&&m.payload.progress.renown===55),'signing in elsewhere brings the Renown along');
+  for(let i=0;i<6;i++) A.login('Fox','0000'); ok(/Too many/.test(A.login('Fox','1234').error||''),'repeated wrong PINs lock the account');
+  ok(A.login('<b>','1234').error&&A.login('Ann','12').error,'bad names and short PINs are refused'); }
+// 23. Practice fight
+{ const got=[]; const ws={readyState:1,send(m){got.push(JSON.parse(m));}};
+  S.handleMessage(ws,{type:'START_PRACTICE',payload:{name:'Recruit',career:'witchhunter'}});
+  const room=[...S.rooms.values()].pop();
+  ok(room.gs.practice&&room.gs.phase==='combat'&&room.gs.enemies.length>=1&&room.players[0].char.condemn,'practice starts one fight with the chosen career');
+  const before=S.runlog.readRuns().length; room.gs.phase='gameover'; S.broadcastState(room.code);
+  ok(S.runlog.readRuns().length===before,'practice fights are not logged as runs');
+  room.gs.phase='aftermath'; room.gs.aftermath={ready:[room.players[0].id]}; S.aftermathReady(room);
+  ok(room.gs.phase==='practiceDone','practice ends after its one fight'); }
 console.log(fails?fails+' FAILED':'all passed'); process.exit(fails?1:0);

@@ -13,7 +13,108 @@ const heal = (c, n) => { c.health = Math.min(c.maxHealth, c.health + n); };
 const hurt = (room, p, n) => { p.char.health = Math.max(0, p.char.health - n); S.checkDeath(room, p); };
 const nextFight = (c, name, fx) => S.addBuff(c, name, fx, 99); // 99-round buffs clear when the next fight ends
 
+const partyHas = (room, career) => alive(room).some(p => p.career === career);
+const cursedInPack = c => (c.inventory || []).filter(i => i.itemObj && i.itemObj.cursed);
+
 const CHOICE_EVENTS = {
+  // ── Events added with the Witch Hunter and Dwarf Slayer ──────────────────
+  // minDepth keeps an event to the deeper road; an option with `needs` only
+  // appears when someone of that career is in the warband.
+  fence: {
+    title: 'The Black-Market Fence', icon: '🕯',
+    text: 'A hooded figure squats beside a cart of oddities. "Cursed things? I buy. I sell. No questions."',
+    options: [
+      { id: 'sell', label: 'Sell your cursed gear', desc: 'Every unequipped cursed item in your packs sells for 40 silver.' },
+      { id: 'buy', label: 'Buy a cursed relic', desc: 'Anyone with 40 silver buys a random cursed relic.' },
+      { id: 'haggle', label: 'Haggle (Roadwarden)', desc: 'Everyone with 20 silver buys a cursed relic at half price.', needs: 'rogue' },
+      { id: 'leave', label: 'Move along', desc: 'Nothing gained, nothing lost.' },
+    ],
+    resolve(room, opt) {
+      if (opt === 'leave') return S.addLog(room, 'The fence shrugs and pulls his hood lower.', 'sys');
+      if (opt === 'sell') {
+        let total = 0;
+        alive(room).forEach(p => {
+          const items = cursedInPack(p.char); if (!items.length) return;
+          const gain = items.reduce((a, i) => a + 40 * (i.qty || 1), 0);
+          p.char.inventory = p.char.inventory.filter(i => !items.includes(i)); p.char.gold += gain; total += gain;
+          S.addLog(room, `🕯 ${p.name} sells ${items.map(i => i.name).join(', ')} — <strong>+${gain} silver</strong>.`, 'loot');
+        });
+        if (!total) S.addLog(room, '🕯 Nobody has anything cursed to sell. The fence looks disappointed.', 'sys');
+        return;
+      }
+      const price = opt === 'haggle' ? 20 : 40;
+      let bought = 0;
+      alive(room).forEach(p => {
+        if (p.char.gold < price) return;
+        const item = S.makeCursedItem(pickRandom(['khornateAxe', 'nurgleMask', 'shroudFlies', 'warpAmulet', 'tzeentchLens']));
+        p.char.gold -= price; S.addToInventory(p.char, item.name, item); bought++;
+        S.addLog(room, `🕯 ${p.name} buys <strong>${item.name}</strong> for ${price} silver — cursed, but strong. (In inventory.)`, 'chaos');
+      });
+      if (!bought) S.addLog(room, `🕯 Nobody can afford the fence's price.`, 'sys');
+    },
+  },
+  dwarfGate: {
+    title: 'The Sealed Dwarf Gate', icon: '⛏', minDepth: 8,
+    text: 'A great stone door carved with runes blocks a side-passage. Dwarfish words are cut above it: an oath of passage.',
+    options: [
+      { id: 'force', label: 'Force the gate', desc: 'Everyone strains (1d4 damage). Half the time, one of you finds dwarf-forged armour.' },
+      { id: 'oath', label: 'Speak the oath-words (Slayer)', desc: 'The gate opens: a Greater Healing Draught each, and the Slayer gains +1 STR.', needs: 'slayer' },
+      { id: 'leave', label: 'Leave it sealed', desc: 'The dwarfs sealed it for a reason.' },
+    ],
+    resolve(room, opt) {
+      const ps = alive(room);
+      if (opt === 'leave') return S.addLog(room, 'The runes stay dark. The warband moves on.', 'sys');
+      if (opt === 'oath') {
+        ps.forEach(p => S.addToInventory(p.char, 'Greater Healing Draught'));
+        ps.filter(p => p.career === 'slayer').forEach(p => { p.char.attrs.str++; S.addLog(room, `🪓 ${p.name} speaks the oath of Grimnir — the ancestors grant <strong>+1 STR</strong>.`, 'loot'); });
+        return S.addLog(room, '⛏ The gate grinds open on a forgotten storeroom — a <strong>Greater Healing Draught</strong> each.', 'loot');
+      }
+      ps.forEach(p => hurt(room, p, rd(1, 4)));
+      if (d(2) === 1) {
+        const lucky = pickRandom(ps.filter(p => p.char.alive)); if (!lucky) return;
+        const arm = S.genArmor(room.gs.bossCount || 0); arm.name = 'Dwarf-Forged ' + arm.name.replace(/^Dwarf-Forged /, '');
+        S.addToInventory(lucky.char, arm.name, arm);
+        S.addLog(room, `⛏ The gate gives way. ${lucky.name} finds <strong>${arm.name}</strong> inside. (In inventory.)`, 'loot');
+      } else S.addLog(room, '⛏ The gate gives way onto an empty, dusty hall. Bruised for nothing.', 'sys');
+    },
+  },
+  desecratedShrine: {
+    title: 'The Desecrated Shrine', icon: '🜏', minDepth: 18,
+    text: "A chapel of Sigmar, its altar smeared with the eight-pointed star. The cult's offerings are still warm.",
+    options: [
+      { id: 'smash', label: 'Smash the altar', desc: 'Everyone takes 1d6 from the backlash; the warband fights the next battle with 1 boon.' },
+      { id: 'consecrate', label: 'Consecrate it (Priest)', desc: 'Everyone heals 2d6 and fights the next battle with 1 boon.', needs: 'priest' },
+      { id: 'purge', label: 'Purge it with fire (Witch Hunter)', desc: "Burn the cult's hoard out of the walls: +40 silver each.", needs: 'witchhunter' },
+      { id: 'take', label: 'Take the offerings', desc: '+25 silver each, but the Dark Gods notice: 1 Insanity each.' },
+    ],
+    resolve(room, opt) {
+      const ps = alive(room);
+      if (opt === 'smash') { ps.forEach(p => { hurt(room, p, rd(1, 6)); if (p.char.alive) nextFight(p.char, 'Righteous', { atkBoon: 1 }); }); return S.addLog(room, '🔨 The altar cracks. Something screams in the stone. (1 boon next fight.)', 'crit'); }
+      if (opt === 'consecrate') { ps.forEach(p => { heal(p.char, rd(2, 6)); nextFight(p.char, 'Blessed', { atkBoon: 1 }); }); return S.addLog(room, '✨ Holy water hisses on the star. Sigmar\'s light returns — everyone heals 2d6. (1 boon next fight.)', 'heal'); }
+      if (opt === 'purge') { ps.forEach(p => { p.char.gold += 40; }); return S.addLog(room, '🔥 The shrine burns. In the ashes: the cult\'s silver, <strong>+40 each</strong>.', 'loot'); }
+      ps.forEach(p => { p.char.gold += 25; p.char.insanity = (p.char.insanity || 0) + 1; });
+      S.addLog(room, '💰 The warband pockets the offerings — +25 silver and <strong>1 Insanity</strong> each.', 'chaos');
+    },
+  },
+  lostPatrol: {
+    title: 'The Lost Patrol', icon: '🛡', minDepth: 20,
+    text: 'Three starving State troops huddle round a dead fire. Their sergeant is gone, their officer is worse.',
+    options: [
+      { id: 'supply', label: 'Share your supplies', desc: 'Pay 25 silver each (if you can): you gain +3 max HP for the rest of the run.' },
+      { id: 'rally', label: 'Rally them (State Soldier)', desc: 'They follow you: the whole warband fights the next battle with 2 boons.', needs: 'warrior' },
+      { id: 'strip', label: 'Take their weapons', desc: 'Each warrior gets a random weapon. They will not forget it.' },
+      { id: 'leave', label: 'Leave them', desc: 'Nothing gained, nothing lost.' },
+    ],
+    resolve(room, opt) {
+      const ps = alive(room);
+      if (opt === 'leave') return S.addLog(room, 'The warband leaves the patrol to their fire.', 'sys');
+      if (opt === 'supply') { ps.forEach(p => { if (p.char.gold < 25) return; p.char.gold -= 25; p.char.maxHealth += 3; heal(p.char, 3); S.addLog(room, `🛡 ${p.name} shares supplies — <strong>+3 max HP</strong>.`, 'heal'); }); return; }
+      if (opt === 'rally') { ps.forEach(p => nextFight(p.char, 'Rallied Patrol', { atkBoon: 2 })); return S.addLog(room, '📯 "On me!" The patrol falls in behind the warband. (2 boons next fight.)', 'crit'); }
+      ps.forEach(p => { const w = S.genWpn(room.gs.bossCount || 0); S.addToInventory(p.char, w.name, w); S.addLog(room, `⚔ ${p.name} takes a <strong>${w.name}</strong>. (In inventory.)`, 'loot'); nextFight(p.char, 'Ashamed', { bane: 1 }); });
+      S.addLog(room, 'The patrol watches you go with hollow eyes. (1 bane next fight.)', 'chaos');
+    },
+  },
+
   cursedChest: {
     title: 'The Iron-Bound Chest', icon: '⛓',
     text: 'A chest wrapped in chains and black candles sits in the gloom. Something inside hums.',
@@ -202,10 +303,14 @@ const CHOICE_EVENTS = {
 
 // Start a choice event: the room waits in phase 'choice' until everyone votes.
 function startChoiceEvent(room, key) {
-  const ev = CHOICE_EVENTS[key || pickRandom(Object.keys(CHOICE_EVENTS))];
-  const k = Object.keys(CHOICE_EVENTS).find(x => CHOICE_EVENTS[x] === ev);
+  const depth = room.gs.depth || 0;
+  const pool = Object.keys(CHOICE_EVENTS).filter(x => (CHOICE_EVENTS[x].minDepth || 0) <= depth);
+  const k = key || pickRandom(pool);
+  const ev = CHOICE_EVENTS[k];
+  // Career options only show when that career is in the warband.
+  const options = ev.options.filter(o => !o.needs || partyHas(room, o.needs)).map(({ id, label, desc }) => ({ id, label, desc }));
   room.gs.phase = 'choice';
-  room.gs.choice = { key: k, title: ev.title, icon: ev.icon, text: ev.text, options: ev.options, votes: {} };
+  room.gs.choice = { key: k, title: ev.title, icon: ev.icon, text: ev.text, options, votes: {} };
   S.addLog(room, `${ev.icon} <strong>${ev.title}.</strong> ${ev.text}`, 'sys');
 }
 

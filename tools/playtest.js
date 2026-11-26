@@ -4,9 +4,9 @@
 //   PORT=3000 node tools/playtest.js 8      (server must already be running)
 const WebSocket=require('ws');
 let PORT=process.env.PORT||3000;
-const CAREERS=['warrior','rogue','wizard','priest'];
-const EXPERT=['defender','ranger','paladin','assassin','elementalist','sorcerer','warlock','wizard','spellbinder','healer','druid'];
-const MASTER=['myrmidon','brute','warlord','champion','shadowblade','executioner','transmuter','necromancer','abjurer','archmage','healer_m','chaplain'];
+const CAREERS=['warrior','rogue','wizard','priest','witchhunter','slayer'];
+const EXPERT=['defender','ranger','paladin','assassin','elementalist','sorcerer','warlock','wizard','spellbinder','healer','druid','inquisitor','giantSlayer'];
+const MASTER=['myrmidon','brute','warlord','champion','shadowblade','executioner','transmuter','necromancer','abjurer','archmage','healer_m','chaplain','witchfinder','daemonSlayer'];
 const TRAD=['fire','life','death','shadow','battle','celestial','chaos','earth','storm','protection','illusion','nature','transformation','time'];
 const TALENTS=['taunt','taunt','warCry','battleOrders','metamagic','spellsurge','miracleHeal','resurrection','entangle','shieldBash','catchBreath','nimbleRecovery','spellRecovery','sharedRecovery','divineFavour','bloodOffering','catastrophe','divineSmite','massHeal','metamagic','overcast','pacedStrikes','rallyingCry','resurrection','battleOrders','vanish','curse','triage','darkPact','druidsFury','revelation','intercept','markHeretic','deadAim','smokeScreen','quickstrike','layOnHands','warCry','entangle','foresight','bladestorm','shadowStep','unstoppable'];
 const pick=a=>a[Math.floor(Math.random()*a.length)];
@@ -82,7 +82,7 @@ async function runGames(n, port){
   const results=[];
   for(let g=0;g<n;g++){
     const players=1+(g%4);
-    const comp=Array.from({length:players},(_,i)=>CAREERS[(g+i)%4]);
+    const comp=Array.from({length:players},(_,i)=>CAREERS[(g*2+i)%CAREERS.length]);
     const r=await run(players,comp);
     console.log(`game ${g+1}/${n} [${comp.join(', ')}] → ${r.outcome} at depth ${r.maxDepth} (${r.states} states)`);
     results.push(r);

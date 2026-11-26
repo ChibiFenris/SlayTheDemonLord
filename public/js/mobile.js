@@ -157,6 +157,7 @@ function mRenderGame(gs,players,me){
     const mine=t&&t.type==='player'&&t.id===myId;
     const text=mine?'Your turn':t&&t.type==='enemy'?`${t.name} is attacking…`:t?`Waiting for ${t.name}…`:'Waiting…';
     view.appendChild(mEl('div','m-turn '+(mine?'mine':t&&t.type==='enemy'?'foe':''),`<span>${text}${turnTimerHtml(gs)}</span><span class="m-round">Round ${gs.roundNumber||1}</span>`));
+    if(gs.practice) view.insertAdjacentHTML('beforeend',coachHtml(gs,me));
   }
 
   // Enemies
@@ -361,5 +362,5 @@ function renderMobileState(st){
   if(!isMobileUI()) return;
   const{gs,players}=st;
   const me=players.find(p=>p.id===myId);
-  if(me&&me.char&&gs.phase!=='lobby'&&gs.phase!=='gameover'&&gs.phase!=='victory') mRenderGame(gs,players,me);
+  if(me&&me.char&&gs.phase!=='lobby'&&gs.phase!=='gameover'&&gs.phase!=='victory'&&gs.phase!=='practiceDone') mRenderGame(gs,players,me);
 }

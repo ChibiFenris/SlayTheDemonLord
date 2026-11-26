@@ -697,3 +697,26 @@ body.ui-mobile .path-node{min-height:var(--tap);}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important;}
 }
+
+/* Practice fight coach */
+.coach{margin:0 0 10px;padding:10px 12px;border:1px solid var(--line-strong);border-left:3px solid var(--brass);background:rgba(184,149,90,.07);border-radius:2px;}
+.coach-h{font-family:var(--f-label);font-size:15px;color:var(--brass-bright);margin-bottom:3px;}
+.coach-b{font-size:15px;color:var(--bone-dim);line-height:1.45;}
+.practice-pick{margin-top:8px;}
+.practice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;}
+.practice-grid .btn{font-size:14px;padding:8px 6px;}
+/* Quick chat */
+.emote-bar{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;padding-top:8px;border-top:1px dotted var(--line);}
+.emote-bar .mini-btn{min-height:32px;}
+#emote-toasts{position:fixed;left:50%;top:72px;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;z-index:60;pointer-events:none;}
+.emote-toast{padding:7px 14px;background:rgba(18,14,11,.94);border:1px solid var(--line-strong);border-radius:2px;color:var(--bone);font-size:15px;box-shadow:0 4px 14px rgba(0,0,0,.5);animation:emoteIn .18s ease-out;}
+@keyframes emoteIn{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:none;}}
+@media (prefers-reduced-motion: reduce){.emote-toast{animation:none;}}
+/* Accounts */
+.account-box{margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:14px;color:var(--ash);}
+.acct-form summary{cursor:pointer;font-family:var(--f-label);color:var(--brass);}
+.acct-row{display:grid;grid-template-columns:1fr 110px;gap:6px;margin:8px 0;}
+.acct-in strong{color:var(--brass-bright);}
+.acct-note{color:var(--verdigris-bright);margin-top:4px;}
+/* End screen */
+.end-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}

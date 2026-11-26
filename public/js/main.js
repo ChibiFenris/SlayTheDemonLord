@@ -69,6 +69,8 @@ function renderState(st){
   sfxOnState(st);
   checkTips(st);
   tickTurnTimers();
+  renderEmoteBar(st);
+  showEmoteToasts(st.gs);
 }
 
 // ─── BOOT ─────────────────────────────────────────────────────────────────────

@@ -71,9 +71,10 @@ function renderMainState(st){
     mShowDeathScreen(players,gs.depth,gs);
     return;
   }
-  if(gs.phase==='gameover'){ show('screen-end'); el('end-title').className='end-title death'; el('end-title').textContent='The Warband Has Fallen'; const deathInfo=gs.deathCause?`<br><span class="end-cause">${gs.deathCause.replace(/<[^>]+>/g,' ').trim()}</span>`:''; el('end-sub').innerHTML=`Depth: <strong>${gs.depth}/30</strong>${deathInfo}`; updateAudio(gs,players); mHideDeathScreen(); showRenown(gs); return; }
-  if(gs.phase==='victory'){ show('screen-end'); el('end-title').className='end-title victory'; el('end-title').textContent='Victory!'; el('end-sub').innerHTML=`The warband conquers the depths!<br>Depth: ${gs.depth}/30`; updateAudio(gs,players); showRenown(gs); return; }
-  if(me.char&&me.char.pendingLevelUp&&me.char.pendingPathTier&&!pathPickPending&&gs.phase!=='aftermath'){ showPathPick(me); return; }
+  if(gs.phase==='gameover'){ show('screen-end'); el('end-title').className='end-title death'; el('end-title').textContent='The Warband Has Fallen'; const deathInfo=gs.deathCause?`<br><span class="end-cause">${gs.deathCause.replace(/<[^>]+>/g,' ').trim()}</span>`:''; el('end-sub').innerHTML=`Depth: <strong>${gs.depth}/30</strong>${deathInfo}`; updateAudio(gs,players); el('share-run').hidden=false; mHideDeathScreen(); showRenown(gs); return; }
+  if(gs.phase==='victory'){ show('screen-end'); el('end-title').className='end-title victory'; el('end-title').textContent='Victory!'; el('end-sub').innerHTML=`The warband conquers the depths!<br>Depth: ${gs.depth}/30`; el('share-run').hidden=false; updateAudio(gs,players); showRenown(gs); return; }
+  if(gs.phase==='practiceDone'){ show('screen-end'); el('end-title').className='end-title victory'; el('end-title').textContent='Practice Complete'; el('end-sub').innerHTML='You know the basics: attacks, boons and banes, your talents and the warning signs.<br>Return to Altdorf and gather a warband.'; el('end-renown').innerHTML=''; el('share-run').hidden=true; mHideDeathScreen(); updateAudio(gs,players); return; }
+  if(me.char&&me.char.pendingLevelUp&&me.char.pendingPathTier&&!pathPickPending&&gs.phase!=='aftermath'&&!gs.practice){ showPathPick(me); return; }
   if(pathPickPending) return;
 
   show('screen-game');
@@ -116,7 +117,7 @@ function renderLog(log){
 // ─── BATTLE ARENA ─────────────────────────────────────────────────────────────
 const ENEMY_TAG_LABEL={skaven:'🐀 Skaven',chaos:'☠ Chaos',undead:'💀 Undead',beast:'🐗 Beast',vermin:'🐀 Vermin'};
 const ENEMY_WEAKNESS={skaven:'⚡ Weak: Lightning',chaos:'✨ Weak: Holy',undead:'🔥 Weak: Fire',beast:'🌑 Weak: Dark','fire-weak':'🔥 Weak: Fire'};
-const TELEGRAPH_NAMES={warpGas:'Warp-Gas Globe',goreCharge:'Gore Charge',leap:'Leaping Maul',slam:'Bonebreaker Slam',stomp:'Primordial Stomp'};
+const TELEGRAPH_NAMES={warpGas:'Warp-Gas Globe',goreCharge:'Gore Charge',leap:'Leaping Maul',slam:'Bonebreaker Slam',stomp:'Primordial Stomp',warpStorm:'Warp Storm',hornCurse:'Curse of Horns',plagueWind:'Plague Wind',trollSmash:'Troll Smash',hellfire:'Hellfire',dragonBreath:'Dragon Breath'};
 // Status chips that matter for decisions: winding up, hidden, mutation.
 function enemyStateChips(e){
   const out=[];
@@ -565,6 +566,7 @@ function renderActions(gs,players,me){
 
   if(gs.phase==='combat'){
     heading.innerHTML='Combat'+turnTimerHtml(gs);
+    if(gs.practice) body.insertAdjacentHTML('beforeend',coachHtml(gs,me));
     const char=me.char;
     if(!char||!char.alive){ body.innerHTML='<div class="wait-msg">You have fallen...</div>'; return; }
     const hasActed=gs.playersActedThisRound&&gs.playersActedThisRound.includes(myId);
@@ -754,6 +756,7 @@ function buildChoice(gs,players){
 let _renownShown=null;
 function showRenown(gs){
   const box=el('end-renown'); if(!box) return;
+  if(gs.practice){ box.innerHTML='<div class="er-earned">Practice fights earn no Renown.</div>'; return; }
   const code=el('disp-code').textContent;
   const r=awardRun(gs,code);
   if(r) _renownShown=r;

@@ -58,7 +58,10 @@
         <input type="text" id="inp-code" class="code-input" placeholder="Room code" maxlength="4" autocapitalize="characters" autocomplete="off">
         <button class="btn btn-w" onclick="joinRoom()">Join room</button>
       </div>
+      <button class="btn btn-w" onclick="openPractice()">Practice fight</button>
+      <div class="practice-pick" id="practice-pick" hidden></div>
       <div class="err" id="lobby-err" role="alert"></div>
+      <div class="account-box" id="account-box"></div>
       <p class="renown-line" id="renown-line"></p>
       <div class="run-history" id="run-history" hidden></div>
       <div class="daily-board" id="daily-board" hidden></div>
@@ -140,7 +143,10 @@
     <div class="end-title" id="end-title">Game Over</div>
     <div class="end-sub" id="end-sub"></div>
     <div class="end-renown" id="end-renown"></div>
-    <button class="btn gold" onclick="leaveGame()">Return to Altdorf</button>
+    <div class="end-actions">
+      <button class="btn" id="share-run" onclick="shareRun()">Save run image</button>
+      <button class="btn gold" onclick="leaveGame()">Return to Altdorf</button>
+    </div>
   </div>
 </section>
 
@@ -154,6 +160,7 @@
 <script src="js/mobile.js"></script>
 <script src="js/sfx.js"></script>
 <script src="js/help.js"></script>
+<script src="js/social.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

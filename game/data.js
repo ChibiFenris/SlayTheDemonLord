@@ -6,6 +6,8 @@ const CAREERS = {
   warrior: { label:'State Soldier',    startHp:30, startAttrs:{str:12,agi:10,int:10,wil:10}, armorDef:3, weaponDmg:'1d6',   weaponStr:true,  spellcaster:false },
   rogue:   { label:'Roadwarden',       startHp:20, startAttrs:{str:10,agi:12,int:10,wil:10}, armorDef:0, weaponDmg:'1d6',   weaponStr:false, spellcaster:false },
   wizard:  { label:'Bright Wizard',    startHp:17, startAttrs:{str:10,agi:10,int:12,wil:10}, armorDef:1, weaponDmg:'1d6',   weaponStr:false, weaponIntBased:true,  spellcaster:true,  tradition:'fire' },
+  witchhunter:{ label:'Witch Hunter', startHp:24, startAttrs:{str:10,agi:12,int:10,wil:10}, armorDef:1, weaponDmg:'1d6',   weaponStr:false, weaponType:'piercing', spellcaster:false },
+  slayer:  { label:'Dwarf Slayer',     startHp:28, startAttrs:{str:12,agi:10,int:10,wil:10}, armorDef:0, weaponDmg:'1d8',   weaponStr:true,  weaponType:'slashing', spellcaster:false },
   priest:  { label:'Sigmarite Priest', startHp:25, startAttrs:{str:10,agi:10,int:10,wil:12}, armorDef:3, weaponDmg:'1d6',   weaponStr:false, weaponWilBased:true,  spellcaster:true,  tradition:'life' },
 };
 
@@ -40,9 +42,34 @@ const NOVICE_PATHS = {
              holyFervor:true,      // passive: every hit deals 1d3+WIL holy dmg and heals 1d3
              divineFavour:true,    // passive: start each combat with 1 free rank-0 casting
              desc:'Power 1: divine castings. Weapon Training: +1 boon on attacks. Holy Fervor: every weapon hit deals 1d3+WIL holy damage and heals you 1d3. Shared Recovery (1/combat). Divine Favour: free rank-0 at combat start.' },
+
+  // ── WITCH HUNTER (Order of the Silver Hammer) ────────────────────
+  witchhunter:{ hpGain:5, power:0,
+             condemn:true,          // active, free action, 1/combat: marked target — your attacks +1 boon, hits +1d6; passes on when it dies
+             silverShot:true,       // passive: +2 damage against undead, daemons and Chaos
+             firstVolley:true,      // passive: first attack each combat +1 boon
+             catchBreath:true,      // once/combat: heal 1d6 + best attribute
+             desc:'Condemn (free action, 1/combat): mark an enemy — your attacks on it get +1 boon and +1d6 damage; when it dies the mark passes to the next foe. Silver Shot: +2 damage against undead, daemons and Chaos. First Volley: +1 boon on your first attack each combat. Catch Breath (1/combat).' },
+
+  // ── DWARF SLAYER (cult of Grimnir) ───────────────────────────────
+  slayer:  { hpGain:6, power:0,
+             slayerOath:true,       // passive: +1d6 damage against elites and bosses
+             deathWish:true,        // passive: below half HP, attacks +1 boon and hits +2 damage
+             rage:true,             // passive: when hit, next attack +1 boon +1d6
+             catchBreath:true,      // once/combat: heal 1d6 + best attribute
+             desc:"Slayer's Oath: +1d6 damage against elites and bosses. Death Wish: below half HP your attacks get +1 boon and +2 damage. Rage: when you are hit, your next attack gets +1 boon and +1d6. No armour, ever. Catch Breath (1/combat)." },
 };
 
 const EXPERT_PATHS = {
+  // ── WITCH HUNTER: INQUISITOR ─────────────────────────────────────
+  inquisitor:  { label:'Inquisitor',  hpGain:5, power:0,
+    levelGains:{ 3:['markHeretic','burnTheWitch'], 4:['huntersMark','+1agi'], 5:['resonance','deadMansHand'], 6:['purgeTheWicked','+1agi'] },
+    desc:"Burner of Heretics. Mark Heretic: marked target gives +2 boons. Burn the Witch: your hits on a Condemned enemy apply Burn. Hunter's Mark: first hit marks, +2 dmg vs marked. Resonance: +1d6 against poisoned, bleeding or burning foes. Dead Man's Hand: kills heal you. Purge the Wicked." },
+  // ── SLAYER: GIANT SLAYER ─────────────────────────────────────────
+  giantSlayer: { label:'Giant Slayer', hpGain:6, power:0,
+    levelGains:{ 3:['bleedOnHit','rageTrigger'], 4:['combatExpertise','+1str'], 5:['combatProwess','relentless'], 6:['unstoppable','+1str'] },
+    desc:'Seeker of a glorious death. Bleed on Hit. Rage Trigger: any hit taken readies a raging strike. Combat Expertise: +1d6 vs stunned. Combat Prowess: +1d6 per hit. Relentless: each attack builds damage. Unstoppable: once per run, survive a killing blow.' },
+
   // ── MARTIAL: DEFENDER + FIGHTER ──────────────────────────────────
   defender:    { label:'Fighter',    hpGain:5, power:0,
     levelGains:{ 3:['bulwark','bleedOnHit'], 4:['pacedStrikes','pressTheAdvantage','+1str'], 5:['combatExpertise','weaponAptitude'], 6:['deepBleed','+1str'] },
@@ -156,6 +183,15 @@ const MASTER_PATHS = {
   healer_m:    { label:'High Healer', hpGain:4, power:2,
     levelGains:{ 7:['massHeal','overflowingGrace'], 8:['holyFervor','banish','+1wil'], 9:['miracleHeal','protectiveBlessing'], 10:['resurrection','sanctify','+1wil'] },
     desc:'Blessed & Anointed. +2 Power. Mass Heal. Overflowing Grace: Mass Heal removes debuffs. Holy Fervor: hits deal 1d3+WIL holy and heal you. Banish: chaos/undead loses next action 1x. Miracle Heal: full HP restore. Protective Blessing: +2 Def after heal. Resurrection: fatal hit = heal to half HP + 2 boons. Sanctify: killed chaos/undead cannot trigger death abilities.' },
+
+  // ── WITCH HUNTER: WITCHFINDER GENERAL ────────────────────────────
+  witchfinder: { label:'Witchfinder General', hpGain:4, power:0,
+    levelGains:{ 7:['judgement','quickstrike'], 8:['deadAim','+1agi'], 9:['exploitWeakness','inspire'], 10:['phantomStrike','+1agi'] },
+    desc:'Judge, jury and executioner. Judgement: Condemn twice per combat and Condemned foes take +2 more. Quickstrike. Dead Aim: next hit is a crit. Exploit Weakness. Inspire. Phantom Strike: first attack auto-hits.' },
+  // ── SLAYER: DAEMON SLAYER ────────────────────────────────────────
+  daemonSlayer:{ label:'Daemon Slayer', hpGain:5, power:0,
+    levelGains:{ 7:['frenzy','fortitude'], 8:['devastatingCharge','+1str'], 9:['sweepingBlow','endure'], 10:['killingMomentum','+1str'] },
+    desc:'The last Slayer standing. Frenzy: kills extend your rage. Fortitude. Devastating Charge: next hit +1d6 and knocks prone. Sweeping Blow: hits splash to other foes. Endure. Killing Momentum.' },
 
   // ── DIVINE: WAR PRIEST + TEMPLAR ─────────────────────────────────
   chaplain:    { label:'Templar',    hpGain:4, power:1,
@@ -449,16 +485,28 @@ const ENEMY_POOLS = {
      skavencunning:true, seethingRage:true, packBoss:true, telegraph:'warpGas'},
     {name:'Beastlord Kragthor',       type:'Beastmen Boss',threat:'Boss',hp:72,ac:14,atk:2,xp:5,gold:[25,70], tags:['beast'],
      stampede:true, bloodlust:true, belowRoar:true, telegraph:'goreCharge'},
+    {name:'Grey Seer Skrittar',       type:'Skaven Boss', threat:'Boss',hp:68,ac:14,atk:2,xp:5,gold:[30,80], tags:['skaven','chaos'],
+     skavencunning:true, telegraph:'warpStorm'},
+    {name:'Bray-Shaman Ghorros',      type:'Beastmen Boss',threat:'Boss',hp:72,ac:14,atk:2,xp:5,gold:[25,70], tags:['beast','chaos'],
+     bloodlust:true, telegraph:'hornCurse'},
   ],
   boss2: [
     {name:'Varghulf',            type:'Undead Boss', threat:'Boss',hp:115,ac:15,atk:4,xp:5,gold:[200,200],tags:['undead'],undead:true,lifeLeech:true,
      lifeLeechFrac:0.25, frenzyMulti:{threshold:0.5}, critMajorBleed:true, telegraph:'leap'},
     {name:'Bonebreaker Ratogre', type:'Skaven Boss', threat:'Boss',hp:105,ac:16,atk:3,xp:5,gold:[200,200],tags:['skaven'],insanityAtk:true,
      packLeader:true, skavenPackTactics:true, telegraph:'slam'},
+    {name:'Blight King Gutrot',  type:'Chaos Boss',  threat:'Boss',hp:110,ac:16,atk:3,xp:5,gold:[200,200],tags:['chaos','nurgle'],
+     fortitude:true, telegraph:'plagueWind'},
+    {name:'Gorgrund the Stone Troll',type:'Troll Boss',threat:'Boss',hp:118,ac:15,atk:3,xp:5,gold:[200,200],tags:['beast'],
+     regen:true, telegraph:'trollSmash'},
   ],
   boss3: [
     {name:'Saurian Ancient',type:'Ancient Boss',threat:'Boss',hp:200,ac:15,atk:5,xp:5,gold:[60,150],tags:['fire-weak'],
      regen:true, primordialRoar:true, crushingTail:true, extinctionPulse:true, ancientScales:true, telegraph:'stomp'},
+    {name:"Daemon Prince Vhar'kul",type:'Daemon Boss',threat:'Boss',hp:190,ac:16,atk:5,xp:5,gold:[60,150],tags:['chaos','daemon'],
+     insanityAtk:true, lifeLeech:true, lifeLeechFrac:0.2, telegraph:'hellfire'},
+    {name:'Skaldrak the Elder Wyrm',type:'Dragon Boss',threat:'Boss',hp:205,ac:17,atk:5,xp:5,gold:[60,150],tags:['beast'],
+     ancientScales:true, telegraph:'dragonBreath'},
   ],
 };
 

@@ -98,6 +98,12 @@ const TELEGRAPHS={
   goreCharge:{name:'Gore Charge',    warn:n=>`⚠ <strong>${n}</strong> lowers his horns and paws the ground — next turn he GORES the weakest warrior for triple damage! Taunt, heal or stun him.`},
   leap:      {name:'Leaping Maul',   warn:n=>`⚠ <strong>${n}</strong> crouches to spring — next turn it leaps on a random warrior for double damage. Taunt cannot stop it; a stun can.`},
   slam:      {name:'Bonebreaker Slam',warn:n=>`⚠ <strong>${n}</strong> raises both fists — next turn it SLAMS one warrior for triple damage and a stun! Taunt to choose who takes it, or stun it first.`},
+  warpStorm: {name:'Warp Storm',      warn:n=>`⚠ <strong>${n}</strong> gathers a storm of green warp lightning — next turn it strikes the whole warband! Stun him to stop it.`},
+  hornCurse: {name:'Curse of Horns',  warn:n=>`⚠ <strong>${n}</strong> raises a bloody totem and begins to chant — next turn he curses everyone and drinks their strength. Stun him to stop it.`},
+  plagueWind:{name:'Plague Wind',     warn:n=>`⚠ <strong>${n}</strong> breathes deep, his belly swelling with rot — next turn a plague wind poisons the whole warband. Stun him to stop it.`},
+  trollSmash:{name:'Troll Smash',     warn:n=>`⚠ <strong>${n}</strong> hefts a boulder overhead — next turn it crushes one warrior for triple damage. Taunt to choose who takes it, or stun it.`},
+  hellfire:  {name:'Hellfire',        warn:n=>`⚠ <strong>${n}</strong> spreads its wings and the air begins to burn — next turn hellfire engulfs the warband. Stun it to stop it.`},
+  dragonBreath:{name:'Dragon Breath', warn:n=>`⚠ <strong>${n}</strong> draws in a vast breath, smoke curling from its jaws — next turn it breathes fire on everyone. Stun it to stop it.`},
   stomp:     {name:'Primordial Stomp',warn:n=>`⚠ <strong>${n}</strong> rears up on its hind legs — next turn it stomps the whole warband and knocks everyone Prone! Stun it to stop it.`},
 };
 
@@ -206,6 +212,44 @@ function enemyPreTurn(room, ae, alive){
       if(gs.enemies.length<5&&aliveEnemies(gs).length<=alive.length){ summonEnemy(room,SUMMONS.clanrat); S.addLog(room,`🐀 A Clanrat scurries out of the gas!`,'chaos'); }
       return 'done';
     }
+    // Whole-party wind-ups deal fixed damage to everyone; smaller parties take less of it.
+    const aoeScale=alive.length>=3?1:alive.length===2?0.8:0.6;
+    const aoeHit=(base,extra)=>{
+      alive.forEach(p=>{
+        const dmg=Math.max(1,Math.round((base()+(gs.bossCount||0)*2)*aoeScale)-(charmKey(p.char)==='ironTooth'?1:0));
+        p.char.health=Math.max(0,p.char.health-dmg);
+        S.addLog(room,`&nbsp;↳ ${p.name} <strong class="num-dmg">−${dmg}</strong> → ${p.char.health}/${p.char.maxHealth} HP`,'dmg-taken');
+        if(extra&&p.char.health>0) extra(p);
+        S.checkDeath(room,p);
+      });
+    };
+    if(kind==='warpStorm'){
+      S.addLog(room,`⚡ Green lightning arcs through the warband!`,'chaos');
+      aoeHit(()=>rd(2,6),p=>{ if(Math.random()<0.4&&!resistsInsanity(p.char)) p.char.insanity=(p.char.insanity||0)+1; });
+      return 'done';
+    }
+    if(kind==='hornCurse'){
+      alive.forEach(p=>S.addBuff(p.char,'Cursed by Horns',{atkBane:1},2));
+      const h=Math.round(ae.maxHp*0.12); ae.hp=Math.min(ae.maxHp,ae.hp+h);
+      S.addLog(room,`🐐 Everyone is cursed — <strong>1 bane</strong> on attacks for 2 rounds — and ${ae.name} drinks their strength, healing <strong>${h}</strong> HP.`,'chaos');
+      return 'done';
+    }
+    if(kind==='plagueWind'){
+      const st=alive.length>=2?3:2;
+      alive.forEach(p=>{ if(!immuneToPoison(p.char)) p.char._poisonedStacks=(p.char._poisonedStacks||0)+st; S.addBuff(p.char,'Retching',{atkBane:1},1); });
+      S.addLog(room,`🤢 A choking green wind rolls over the warband — <strong>${st} poison</strong> and 1 bane for everyone!`,'chaos');
+      return 'done';
+    }
+    if(kind==='hellfire'){
+      S.addLog(room,`🔥 The air itself ignites!`,'chaos');
+      aoeHit(()=>rd(2,6)+2,p=>S.addBuff(p.char,'Burning',{dotDmg:rd(1,3)},2));
+      return 'done';
+    }
+    if(kind==='dragonBreath'){
+      S.addLog(room,`🐉 A torrent of dragonfire sweeps the warband!`,'chaos');
+      aoeHit(()=>rd(3,6),p=>S.addBuff(p.char,'Burning',{dotDmg:rd(1,4)},2));
+      return 'done';
+    }
     const taunter=alive.find(p=>(p.char.activeBuffs||[]).some(b=>b.taunting));
     // Single-target wind-ups hit hardest in big parties, where the damage is shared out over the run;
     // a lone warrior takes every one of them, so the multiplier scales with party size.
@@ -213,6 +257,7 @@ function enemyPreTurn(room, ae, alive){
     if(kind==='goreCharge'){ plan.targets=[taunter||alive.slice().sort((a,b)=>a.char.health-b.char.health)[0]]; plan.mult=big; plan.extraBoon=true; plan.ignoreTaunt=true; }
     if(kind==='leap'){ plan.targets=[pickRandom(alive)]; plan.mult=big-1; plan.ignoreTaunt=true; plan.onHit='leapBleed'; }
     if(kind==='slam'){ plan.targets=[taunter||pickRandom(alive)]; plan.mult=big; plan.ignoreTaunt=true; plan.onHit='slamStun'; }
+    if(kind==='trollSmash'){ plan.targets=[taunter||alive.slice().sort((a,b)=>b.char.health-a.char.health)[0]]; plan.mult=big; plan.onHit='prone'; }
     if(kind==='stomp'){ plan.targets=alive.slice(); plan.mult=1.5; plan.ignoreTaunt=true; plan.onHit='prone'; }
     plan.attacks=1;
   }
