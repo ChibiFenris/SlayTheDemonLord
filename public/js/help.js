@@ -12,6 +12,7 @@ const HELP_SECTIONS=[
   ['Cursed gear','Cursed items are strong but have a real drawback, and once equipped they stay on until you rest at a campfire or use a Sigmar\'s Token.'],
   ['Charms','You can wear one charm. Most trade a strength for a weakness — Lucky Hare\'s Foot gives +1 to hit but −1 Defence.'],
   ['Renown','Each run earns Renown for depth reached and bosses slain. Renown unlocks starting charms and the Grim and Doom difficulties.'],
+  ['Playing alone','Bosses are smaller and call fewer minions when you play solo. A Warrior or Wizard who starts a run alone also gains Lone Survivor: extra HP at the start and every level.'],
 ];
 const TIPS={
   combat:  ['Your first fight','Wait for your turn, then choose an action. Enemies show their Defence, attack and damage; tap or hover chips for details.'],

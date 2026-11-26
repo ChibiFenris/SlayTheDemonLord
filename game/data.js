@@ -20,11 +20,11 @@ const NOVICE_PATHS = {
              desc:'Weapon Training: +1 boon on attacks. Catch Breath: 1d6+STR heal (1/combat). Shield Bash: stun enemy 2 turns (1/combat). Taunt: for 2 rounds all enemies attack only you. Every hit causes Bleed.' },
 
   // ── ROGUE (Roadwarden) ────────────────────────────────────────────
-  rogue:   { hpGain:5, power:0,
-             trickery:true,         // first hit applies 4 poison, later hits 2
+  rogue:   { hpGain:4, power:0,
+             trickery:true,         // first hit applies 3 poison, later hits 2
              nimbleRecovery:true,   // once/combat: heal 1d6+AGI
              evasion:true,          // passive: all attackers subtract highest bane d6 from d20
-             desc:'Trickery: 4 poison on first hit, 2 on each after. Evasion: 1 bane on all attackers. Nimble Recovery: 1d6+AGI heal (1/combat).' },
+             desc:'Trickery: 3 poison on first hit, 2 on each after. Evasion: 1 bane on the first attack against you each round. Nimble Recovery: 1d6+AGI heal (1/combat).' },
 
   // ── MAGICIAN (Bright Wizard) ──────────────────────────────────────
   magician:{ hpGain:4, power:1,    // +1 Power (extra castings)
@@ -52,7 +52,7 @@ const EXPERT_PATHS = {
   // ── MARTIAL: RANGER + SCOUT ───────────────────────────────────────
   ranger:      { label:'Ranger',      hpGain:5, power:0,
     levelGains:{ 3:['quickStep','huntersMark'], 4:['fadePassive','evasion','+1agi'], 5:['skirmish'], 6:['smokeScreen','+1agi'] },
-    desc:"Hunter & Ghost. Quick Step +2 Def on miss. Hunter's Mark: first hit marks, +2 dmg vs marked. Fade: Quick Step active = 1 boon. Evasion: attackers subtract highest bane d6 from d20. Skirmish: hits on marked apply 2 poison. Smoke Screen (L6): 3 banes on all enemies for 2 rounds." },
+    desc:"Hunter & Ghost. Quick Step +2 Def on miss. Hunter's Mark: first hit marks, +2 dmg vs marked. Fade: Quick Step active = 1 boon. Evasion: first attacker each round subtracts highest bane d6 from d20. Skirmish: hits on marked apply 2 poison. Smoke Screen (L6): 3 banes on all enemies for 2 rounds." },
 
   // ── DIVINE HYBRID: ZEALOT + PALADIN ──────────────────────────────
   paladin:     { label:'Paladin',     hpGain:4, power:1,
@@ -105,7 +105,7 @@ const MASTER_PATHS = {
   // ── MARTIAL: TANK ────────────────────────────────────────────────
   myrmidon:    { label:'Sentinel',    hpGain:5, power:0,
     levelGains:{ 7:['shieldwall','shieldBash'], 8:['evasion','bodyguard','+1str'], 9:['toughness','fortressStance'], 10:['perfectDefence','+1str'] },
-    desc:'Sentinel — Fortress Guardian. Shieldwall +2 Def. Shield Bash: stun 1 turn. Evasion: bane on attackers. Bodyguard: redirect hit to self. Toughness -1 dmg. Fortress Stance: below 50% extra -1 dmg. Perfect Defence: negate one hit 1x.' },
+    desc:'Sentinel — Fortress Guardian. Shieldwall +2 Def. Shield Bash: stun 1 turn. Evasion: bane on the first attack each round. Bodyguard: redirect hit to self. Toughness -1 dmg. Fortress Stance: below 50% extra -1 dmg. Perfect Defence: negate one hit 1x.' },
 
   // ── MARTIAL: DAMAGE ───────────────────────────────────────────────
   brute:       { label:'Berserker',       hpGain:5, power:0,
@@ -125,7 +125,7 @@ const MASTER_PATHS = {
   // ── MARTIAL: SHADOW ───────────────────────────────────────────────
   shadowblade: { label:'Shadowblade', hpGain:5, power:0,
     levelGains:{ 7:['phantomStrike','shadowStep'], 8:['evasion','acrobaticRiposte','+1agi'], 9:['bladestorm','vanish'], 10:['swiftFeet','flicker','+1agi'] },
-    desc:'Unseen Blade. Phantom Strike: first attack auto-hits. Shadow Step: first attack extra boon. Evasion: attackers subtract bane d6. Acrobatic Riposte: miss = free counter. Bladestorm: 3 attacks. Vanish: kill = enemies bane vs you. Swift Feet: 2 boons on all attacks. Flicker: negate one hit 1x.' },
+    desc:'Unseen Blade. Phantom Strike: first attack auto-hits. Shadow Step: first attack extra boon. Evasion: first attacker each round subtracts bane d6. Acrobatic Riposte: miss = free counter. Bladestorm: 3 attacks. Vanish: kill = enemies bane vs you. Swift Feet: 2 boons on all attacks. Flicker: negate one hit 1x.' },
 
   // ── MARTIAL: ASSASSIN ─────────────────────────────────────────────
   executioner: { label:'Executioner', hpGain:5, power:0,

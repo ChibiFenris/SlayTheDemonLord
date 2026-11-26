@@ -96,6 +96,15 @@ const logHas=(room,re)=>room.gs.log.some(l=>re.test(l.msg));
 { const ws={readyState:1,send(){}}; S.handleMessage(ws,{type:'CREATE_ROOM',payload:{name:'C'}}); const room=[...S.rooms.values()].pop();
   S.handleMessage(ws,{type:'SELECT_CAREER',payload:{career:'rogue',startingCharm:'haresFoot'}});
   ok(room.players[0].char.equippedCharm&&room.players[0].char.equippedCharm.key==='haresFoot','starting charm is equipped'); }
+// 10b. Lone Survivor: solo Warrior/Wizard get it, a party and a solo Rogue don't
+{ const solo=c=>{ const ws={readyState:1,send(){}}; S.handleMessage(ws,{type:'CREATE_ROOM',payload:{name:'L'}}); const room=[...S.rooms.values()].pop();
+    S.handleMessage(ws,{type:'SELECT_CAREER',payload:{career:c}}); const hp=room.players[0].char.maxHealth, pw=room.players[0].char.power;
+    S.handleMessage(ws,{type:'PLAYER_READY',payload:{}}); const ch=room.players[0].char; return {room,ch,dHp:ch.maxHealth-hp,dPw:ch.power-pw}; };
+  const w=solo('warrior'), z=solo('wizard'), r=solo('rogue');
+  ok(w.ch.loneSurvivor&&w.dHp===6,'solo Warrior gets Lone Survivor (+6 HP)');
+  ok(z.ch.loneSurvivor&&z.dHp===5,'solo Wizard gets Lone Survivor (+5 HP)');
+  ok(!r.ch.loneSurvivor&&r.dHp===0,'solo Rogue does not get Lone Survivor');
+  const {room:pr}=mkRoom(['warrior','wizard']); ok(!pr.players.some(p=>p.char.loneSurvivor),'party members do not get Lone Survivor'); }
 // 11. Rejoin reclaims a seat
 { const ws1={readyState:1,send(){}}; S.handleMessage(ws1,{type:'CREATE_ROOM',payload:{name:'R'}}); const room=[...S.rooms.values()].pop();
   const pid=room.players[0].id; room.players[0].connected=false;

@@ -197,6 +197,17 @@ enemies.bind({ addLog, addBuff, addDebuff, checkDeath, resolveEnemyDeath, scaleE
 events.bind({ addLog, addBuff, checkDeath, addToInventory, makeCharm: gear.makeCharm, makeCursedItem: gear.makeCursedItem });
 
 // ─── CHARACTER BUILDER ───────────────────────────────────────────────────────
+// Lone Survivor: Warriors and Wizards who start a run alone get a little extra staying power.
+// Warrior: +6 max HP, Wizard: +5 max HP; both +1 HP per level.
+const LONE_SURVIVOR = { warrior:{hp:6, power:0}, wizard:{hp:5, power:0} };
+function applyLoneSurvivor(room, player){
+  const ls=LONE_SURVIVOR[player.career]; if(!ls||!player.char) return;
+  const c=player.char; c.loneSurvivor=true;
+  c.maxHealth+=ls.hp; c.health+=ls.hp;
+  if(ls.power){ c.power+=ls.power; c.maxPower=(c.maxPower||0)+ls.power; refreshCastingPools(c); }
+  addLog(room,`🕯 <strong>Lone Survivor</strong> — ${player.name} walks the dark road alone: +${ls.hp} max HP${ls.power?', +1 Power':''}.`,'loot');
+}
+
 function buildChar(career) {
   const c = CAREERS[career];
   const attrs = {...c.startAttrs};
@@ -430,7 +441,7 @@ function rollAttack(char, enemy, extraBoons=0) {
     }
     if (char.sharpeningStone) { const r=rd(1,6); dmg+=r; dmgParts.push(`+${r} sharpened`); }
     if (char.trickery) {
-      if (!char._trickeryFirstHit) { char._trickeryFirstHit=true; char._trickeryPoisonProc=4; }
+      if (!char._trickeryFirstHit) { char._trickeryFirstHit=true; char._trickeryPoisonProc=3; }
       else { char._trickeryPoisonProc=2; }
     }
     const dmgBuff=getBuffVal(char,'dmgBonus'); if(dmgBuff){dmg+=dmgBuff;dmgParts.push(`+${dmgBuff} buff`);}
@@ -489,7 +500,10 @@ function rollEnemyAttack(enemy, char, hasBoon=false, room=null) {
   if(skipDebuff){ skipDebuff.duration--; if(skipDebuff.duration<=0) enemy.activeDebuffs=enemy.activeDebuffs.filter(d=>!d.skipTurn); return {hit:false,crit:false,dmg:0,dmgRoll:0,critRoll:0,total:0,base:0,skipped:true}; }
   if((char.activeBuffs||[]).some(b=>b.immuneThisRound)){ return {hit:false,crit:false,dmg:0,dmgRoll:0,critRoll:0,total:0,base:0,skipped:true,immune:true}; }
   if(char.glamourVeil&&!char._glamourUsed){ char._glamourUsed=true; if(room) addLog(room,`🪞 <strong>Glamour Veil!</strong> ${enemy.name} strikes an illusion — the attack passes harmlessly through.`,'spell'); return {hit:false,crit:false,dmg:0,dmgRoll:0,critRoll:0,total:0,base:0,boonInfo:' (Glamour Veil)'}; }
-  const evasionBane=char.evasion?1:0;
+  // Evasion: only the first attack against the Roadwarden each round is hampered.
+  const _evRound=room&&room.gs?room.gs.roundNumber:null;
+  const evasionBane=char.evasion&&(_evRound===null||char._evadeRound!==_evRound)?1:0;
+  if(evasionBane&&_evRound!==null) char._evadeRound=_evRound;
   const poisonBane=(enemy&&enemy._poisonStacks&&enemy._poisonStacks>=5)?1:0; // Poison threshold: 5+ stacks
   const packScornBane=char._armorPackScorn&&enemy&&enemy.tags&&enemy.tags.includes('skaven')?1:0;
   const shroudBane=char._legShroudActive?1:0; // Shroud of Undeath: below 25% HP enemies have 1 bane
@@ -626,7 +640,7 @@ function checkLevelUp(char) {
         newSpells.forEach(sp=>{if(!char.knownSpells.find(k=>k.name===sp.name))char.knownSpells.push({...sp,heal:sp.type==='heal'});});
       });
     }
-    const hpGain=getPathHpGain(char, newLevel);
+    const hpGain=getPathHpGain(char, newLevel)+(char.loneSurvivor?1:0);
     char.maxHealth+=hpGain; char.health=Math.min(char.health+hpGain,char.maxHealth); gained+=hpGain;
   }
   return leveled ? {leveled:true,newLevel:char.level,hpGain:gained} : {leveled:false};
@@ -1408,6 +1422,7 @@ function fireEnemyTurn(room, ae) {
 
       const _pcView = {...p.char, defense: defTotal};
       const r = rollEnemyAttack(aeProxy, _pcView, hasExtraBoon || recklessBoon, room);
+      p.char._evadeRound = _pcView._evadeRound;
       ['activeDebuffs','_frenzyNextHit'].forEach(k=>{ ae[k]=aeProxy[k]; }); // state consumed on the proxy must persist
       p.char._foresightActive = _pcView._foresightActive; // Foresight is consumed on the copy — sync it back
 
@@ -1731,6 +1746,7 @@ function resolveEnemyDeath(room, deadEnemy) {
 
 // Everything that lasts "one combat" is cleared here (called when combat ends by victory or by fleeing)
 function resetCombatState(p){
+  p.char._evadeRound=null;
     resetGearCombatState(p.char);
     if(p.char._vigorBonus){ p.char.maxHealth-=p.char._vigorBonus; p.char.health=Math.min(p.char.health,p.char.maxHealth); p.char._vigorBonus=0; } // Vigor lasts one combat
     p.char.sharpeningStone=false;
@@ -2258,6 +2274,7 @@ function handleMessage(ws,msg){
     if(connected.length>=1&&connected.every(p=>p.ready)){
       room.gs.phase='path';
       addLog(room,'⚔ The warband descends into Reikland\'s darkness.');
+      if(connected.length===1) applyLoneSurvivor(room,connected[0]);
       showPathChoices(room);
     }
     broadcastState(ctx.roomCode); return;
