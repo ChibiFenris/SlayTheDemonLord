@@ -2,9 +2,9 @@
 // Player combat actions: attacking, casting spells and using talents.
 // Moved out of server.js unchanged. The server hands this module the helpers it
 // uses through bind() once everything is defined (see the bottom of server.js).
-let TRADITIONS, addBuff, addDebuff, addLog, advanceTurn, applyBleed, applyBurn, applyPoison, castingsLeft, charmKey, checkDeath, d, enemyOnWeaponHit, getTargetEnemy, hasRelic, maxCastings, modVal, rd, refreshCastingPools, regainCasting, resolveEnemyDeath, rollAttack, spendCasting, talentHeal, uniqRanks;
+let TRADITIONS, addBuff, addDebuff, addLog, advanceTurn, applyBleed, applyBurn, applyPoison, castingsLeft, charmKey, checkDeath, d, dark, enemyOnWeaponHit, foes, getTargetEnemy, hasRelic, labelOf, maxCastings, modVal, rd, refreshCastingPools, regainCasting, resolveEnemyDeath, rollAttack, spendCasting, talentHeal, uniqRanks;
 function bind(api) {
-  ({ TRADITIONS, addBuff, addDebuff, addLog, advanceTurn, applyBleed, applyBurn, applyPoison, castingsLeft, charmKey, checkDeath, d, enemyOnWeaponHit, getTargetEnemy, hasRelic, maxCastings, modVal, rd, refreshCastingPools, regainCasting, resolveEnemyDeath, rollAttack, spendCasting, talentHeal, uniqRanks } = api);
+  ({ TRADITIONS, addBuff, addDebuff, addLog, advanceTurn, applyBleed, applyBurn, applyPoison, castingsLeft, charmKey, checkDeath, d, dark, enemyOnWeaponHit, foes, getTargetEnemy, hasRelic, labelOf, maxCastings, modVal, rd, refreshCastingPools, regainCasting, resolveEnemyDeath, rollAttack, spendCasting, talentHeal, uniqRanks } = api);
 }
 // ─── COMBAT ACTIONS ──────────────────────────────────────────────────────────
 // Weapon attack against the current target. Returns true when the action used the turn; undefined aborts with no turn spent.
@@ -127,6 +127,8 @@ function actAttack({room,playerId,data,ws,player,gs,char}){
         if(char.deathWish && char.health < char.maxHealth/2){ finalDmg+=2; }
         // Relics on a hit
         if(hasRelic(char,'vampireFang')) char.health=Math.min(char.maxHealth,char.health+1);
+        if(foes.hasMutator(gs,'vampiricPact')) char.health=Math.min(char.maxHealth,char.health+2);
+        if((char.mutations||[]).includes('tentacle')&&d(4)===1){ const tl=rd(1,6); finalDmg+=tl; addLog(room,`🐙 ${player.name}'s tentacle lashes out — +${tl}!`,'chaos'); }
         if(r.crit&&hasRelic(char,'stormstone')){ const ss=rd(1,6); finalDmg+=ss; addLog(room,`⚡ <strong>Stormstone!</strong> +${ss} on the critical hit.`,'crit'); }
         if(hasRelic(char,'hunterTrophy')&&(targetEnemy.threat==='Boss'||targetEnemy.isElite)) finalDmg+=rd(1,6);
         // Combos: setting up a foe for the rest of the warband pays off.
@@ -319,6 +321,11 @@ function actCastSpell({room,playerId,data,ws,player,gs,char}){
     }
   }
 
+  // Dark lores leave their mark; Warded elites swallow the first spell aimed at them.
+  const _trad=Object.keys(TRADITIONS).find(k=>TRADITIONS[k].spells.some(s=>s.name===spell.name));
+  if(_trad==='chaos'&&d(4)===1) dark.gainCorruption(room,player,1,'the Chaos lore');
+  else if(_trad==='death'&&d(8)===1) dark.gainCorruption(room,player,1,'necromancy');
+  if(spell.type==='attack'&&!spell.aoe&&foes.wardStopsSpell(room,getTargetEnemy(gs))) return true;
   const arcaneFocusBoon=char._wpnArcaneFocus && char._wpnArcaneFocusMissed;
   const arcaneFocusIntBonus=arcaneFocusBoon?Math.max(0,modVal(char.attrs.int)):0;
   if(arcaneFocusBoon){ char._wpnArcaneFocusMissed=false; addLog(room,`✨ <strong>Arcane Focus!</strong> ${player.name}'s spell is empowered (+${arcaneFocusIntBonus} INT bonus dmg).`,'spell'); }
@@ -713,6 +720,31 @@ function actUseTalent({room,playerId,data,ws,player,gs,char}){
     addLog(room,`🛡 <strong>Block!</strong> ${player.name} raises their guard — damage taken is halved until their next turn.`,'spell');
     return false;
   }
+  // Engineer and Waywatcher actives.
+  if(t==='turret'||t==='grenade'||t==='arrowStorm'||t==='steamBarrage'){
+    const flag={turret:'_turretUsed',grenade:'_grenadeUsed',arrowStorm:'_arrowStormUsed',steamBarrage:'_steamBarrageUsed'}[t];
+    if(!char[t]){ addLog(room,`${player.name} can't do that.`,'sys'); return; }
+    if(char[flag]){ addLog(room,`${player.name}: ${labelOf(t)} is recharging.`,'sys'); return; }
+    char[flag]=true;
+    if(t==='turret'){
+      char._turretRounds=char.improvedTurret?4:3;
+      addLog(room,`🔧 <strong>Volley Gun!</strong> ${player.name} sets up a turret — it fires at the end of each round for ${char._turretRounds} rounds.`,'spell');
+      return false; // free action
+    }
+    const foesAlive=(gs.enemies||[]).filter(e=>e&&e.hp>0);
+    const names={grenade:'💣 Bomb',arrowStorm:'🏹 Arrow Storm',steamBarrage:'🚂 Steam Barrage'};
+    addLog(room,`<strong>${names[t]}!</strong> ${player.name} hits every enemy.`,'spell');
+    foesAlive.forEach(e=>{
+      let dmg=t==='steamBarrage'?rd(6,6):rd(t==='grenade'?2:1,6)+Math.max(0,modVal(t==='arrowStorm'?char.attrs.agi:char.attrs.int));
+      if(t==='grenade'&&char.bigBombs) dmg+=rd(1,6);
+      if(e.damageReduction) dmg=Math.max(1,dmg-e.damageReduction);
+      e.hp=Math.max(0,e.hp-dmg);
+      addLog(room,`&nbsp;↳ ${e.name} <strong class="num-dmg">−${dmg}</strong> → ${e.hp}/${e.maxHp} HP`,'dmg');
+      if(t==='grenade'&&char.bigBombs&&e.hp>0&&d(6)===6){ addDebuff(e,'Stunned',{skipTurn:true},1); addLog(room,`&nbsp;&nbsp;💫 ${e.name} is stunned by the blast!`,'crit'); }
+      if(e.hp<=0) resolveEnemyDeath(room,e);
+    });
+    return true;
+  }
   // Revive: every career can drag a fallen ally back into the fight. Uses your turn; long cooldown.
   if(t==='revive'){
     if(char._reviveUsed){ addLog(room,`${player.name}: Revive is recharging.`,'sys'); return; }
@@ -990,4 +1022,21 @@ function actUseTalent({room,playerId,data,ws,player,gs,char}){
   return acted;
 }
 
-module.exports = { bind, actAttack, actCastSpell, isUnholy, actUseTalent };
+
+// End of every round: Engineers' Volley Guns fire.
+function engineerRoundTick(room){
+  const gs=room.gs;
+  room.players.forEach(p=>{
+    const c=p.char; if(!c||!c.alive||!c._turretRounds) return;
+    const targets=(gs.enemies||[]).filter(e=>e&&e.hp>0); if(!targets.length){ c._turretRounds=0; return; }
+    c._turretRounds--;
+    const e=targets[Math.floor(Math.random()*targets.length)];
+    let dmg=rd(1,6)+Math.max(0,modVal(c.attrs.int))+Math.floor((c.level||1)/2)+(c.improvedTurret?rd(1,6):0);
+    if(e.damageReduction) dmg=Math.max(1,dmg-e.damageReduction);
+    e.hp=Math.max(0,e.hp-dmg);
+    addLog(room,`🔧 ${p.name}'s Volley Gun rattles at ${e.name} — <strong class="num-dmg">−${dmg}</strong> → ${e.hp}/${e.maxHp} HP${c._turretRounds?'':' (it runs dry)'}`,'dmg');
+    if(e.hp<=0) resolveEnemyDeath(room,e);
+  });
+}
+
+module.exports = { bind, actAttack, actCastSpell, isUnholy, actUseTalent, engineerRoundTick };

@@ -12,14 +12,7 @@ require('../game/persist').scheduleSave = () => {}; // simulations don't need sa
 const S = require('../server.js');
 const D = require('../game/data.js');
 
-const PATHS = {
-  warrior: { expert: ['defender', 'ranger', 'paladin'], master: ['myrmidon', 'brute', 'warlord', 'champion'] },
-  rogue:   { expert: ['ranger', 'assassin'],            master: ['shadowblade', 'executioner', 'warlord'] },
-  wizard:  { expert: ['elementalist', 'sorcerer', 'warlock', 'wizard', 'spellbinder'], master: ['transmuter', 'necromancer', 'abjurer', 'archmage'] },
-  priest:  { expert: ['healer', 'druid', 'paladin'],    master: ['healer_m', 'chaplain', 'champion'] },
-  witchhunter: { expert: ['inquisitor', 'ranger'],      master: ['witchfinder', 'champion'] },
-  slayer:  { expert: ['giantSlayer', 'defender'],      master: ['daemonSlayer', 'brute'] },
-};
+const PATHS = Object.fromEntries(Object.entries(D.CAREER_PATHS).map(([k,v])=>[k,{expert:Object.keys(v.expert),master:Object.keys(v.master)}]));
 const TRADS = Object.keys(D.TRADITIONS);
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const avgDice = s => { const m = /(\d+)d(\d+)/.exec(s || '1d6'); return m ? m[1] * (+m[2] + 1) / 2 : 3.5; };
@@ -62,11 +55,11 @@ function runGame(careers, opts = {}) {
       if (!c) return;
       if (c.pendingLevelUp) {
         const tier = c.pendingPathTier;
-        if (tier === 'tradition') { const t = pick(TRADS.filter(x => !(c.traditions || []).includes(x))); return send(sk, 'APPLY_PATH', { pathId: 'tradition:' + t }); }
+        if (tier === 'tradition') { const t = pick(TRADS.filter(x => D.traditionAllowed(c, x) && !(c.traditions || []).includes(x))); return send(sk, 'APPLY_PATH', { pathId: 'tradition:' + t }); }
         if (tier === 'expert') return send(sk, 'APPLY_PATH', { pathId: pick(PATHS[sk.career].expert) });
         if (tier === 'master') return send(sk, 'APPLY_PATH', { pathId: pick(PATHS[sk.career].master) });
       }
-      if (c.pendingStatBoost) return send(sk, 'CHOOSE_STAT', { attr: { warrior: 'str', rogue: 'agi', wizard: 'int', priest: 'wil' }[sk.career] });
+      if (c.pendingStatBoost) return send(sk, 'CHOOSE_STAT', { attr: { warrior: 'str', rogue: 'agi', wizard: 'int', priest: 'wil', engineer: 'int', waywatcher: 'agi', witchhunter: 'agi', slayer: 'str' }[sk.career] || 'str' });
       if (gs.phase === 'aftermath' && gs.aftermath && !gs.aftermath.ready.includes(myId)) return send(sk, 'CONTINUE_AFTERMATH');
       if (c.alive && gs.phase === 'relic' && gs.relic) {
         if (!gs.relic.picked.includes(myId) && c.relicOptions && c.relicOptions.length) return send(sk, 'PICK_RELIC', { key: c.relicOptions[0] });
@@ -132,7 +125,7 @@ function runGame(careers, opts = {}) {
       if (boss && c.shieldBash && !c._shieldBashUsed) return send(sk, 'USE_TALENT', { talent: 'shieldBash' });
       if (c.taunt && hurtAlly && hurtAlly.id !== myId && !((c._tauntReadyRound || 0) > gs.roundNumber)) return send(sk, 'USE_TALENT', { talent: 'taunt' });
       if (c.condemn && !c._condemnUsed && !c._condemnTargetId) return send(sk, 'USE_TALENT', { talent: 'condemn' });
-      for (const t of ['divineSmite', 'warCry', 'deadAim', 'curse', 'massHeal']) if (c[t] && !c[t + 'Used'] && !c['_' + t + 'Used']) return send(sk, 'USE_TALENT', { talent: t });
+      for (const t of ['turret', 'arrowStorm', 'grenade', 'steamBarrage', 'divineSmite', 'warCry', 'deadAim', 'curse', 'massHeal']) if (c[t] && !c[t + 'Used'] && !c['_' + t + 'Used']) return send(sk, 'USE_TALENT', { talent: t });
       const atkSpell = spells.filter(s => s.type === 'attack' && left(s) > 0).sort((a, b) => b.rank - a.rank)[0];
       if (atkSpell && (sk.career === 'wizard' || (sk.career === 'priest' && atkSpell.rank > 0))) return send(sk, 'CAST_SPELL', { spellName: atkSpell.name });
       return send(sk, 'ATTACK');
@@ -143,7 +136,7 @@ function runGame(careers, opts = {}) {
 
 (async () => {
   const N = +process.argv[2] || 40;
-  const setups = [['warrior'], ['rogue'], ['wizard'], ['priest'], ['witchhunter'], ['slayer'], ['warrior', 'rogue', 'wizard', 'priest']];
+  const setups = [['warrior'], ['rogue'], ['wizard'], ['priest'], ['witchhunter'], ['slayer'], ['engineer'], ['waywatcher'], ['warrior', 'rogue', 'wizard', 'priest']];
   const charmStats = {}, weaponStats = {};
   console.log(`Balance run: ${N} games per setup\n`);
   console.log('setup'.padEnd(34) + 'win%  avg depth  past boss1  past boss2  timeouts');

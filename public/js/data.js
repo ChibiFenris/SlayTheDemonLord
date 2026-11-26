@@ -1,6 +1,6 @@
 'use strict';
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
-const CAREER_LABELS={warrior:'State Soldier',rogue:'Roadwarden',wizard:'Bright Wizard',priest:'Sigmarite Priest',witchhunter:'Witch Hunter',slayer:'Dwarf Slayer'};
+const CAREER_LABELS={warrior:'State Soldier',rogue:'Roadwarden',wizard:'Bright Wizard',priest:'Sigmarite Priest',witchhunter:'Witch Hunter',slayer:'Dwarf Slayer',engineer:'Imperial Engineer',waywatcher:'Elf Waywatcher'};
 const XP_T=[0,0,2,10,19,24,29,34,51,68,84]; // default; refreshed from the server's XP_THRESHOLDS on load
 const LOCS=['The Reikland Road','Altdorf Sewers','The Grey Mountains','The Forest of Shadows','Bogenhafen Catacombs','Ruins of Mordheim','The Dark Moors','The Chaos Wastes','A Forsaken Temple','The River Reik','Skaven Under-warren','Corrupted Village','The Blighted Marshes','Chaos Shrine','The Final Abyss'];
 
@@ -49,7 +49,7 @@ const CAREER_DETAILS={
     name:'Witch Hunter',
     stats:'STR 10 · AGI 12 · INT 10 · WIL 10',
     armor:'Leather Coat (+1 Def)',
-    hp:'29 HP',
+    hp:'31 HP',
     defence:'13 Defence',
     weapon:'1d6+2 piercing (AGI)',
     role:'Hunter of the unholy. Condemns one foe each fight and punishes it hard. Deadly against undead and Chaos.',
@@ -67,7 +67,29 @@ const CAREER_DETAILS={
   },
 };
 
+Object.assign(CAREER_DETAILS,{
+  engineer:{
+    name:'Imperial Engineer',
+    stats:'STR 10 · AGI 10 · INT 12 · WIL 10',
+    armor:'Riveted Leathers (+2 Def, +1 Tinkerer)',
+    hp:'30 HP', defence:'13 Defence',
+    weapon:'1d12+2 piercing handgun (INT)',
+    role:'Back-row gadgeteer. Sets up a Volley Gun that keeps firing, lobs bombs into crowds and patches up with better draughts.',
+    level1:'Volley Gun (free action: a turret fires each round for 3 rounds, cooldown 8) · Bomb (2d6+INT to every enemy, cooldown 6) · Tinkerer (+1 Def, Healing Draughts +2) · Gunnery Drill (+1 boon on attacks) · Riveted Plate (10% less damage) · Catch Breath (cooldown 12)'
+  },
+  waywatcher:{
+    name:'Elf Waywatcher',
+    stats:'STR 10 · AGI 12 · INT 10 · WIL 10',
+    armor:'Woodland Cloak (+1 Def)',
+    hp:'24 HP', defence:'13 Defence',
+    weapon:'1d8+2 piercing longbow (AGI)',
+    role:'Back-row archer from Athel Loren. Deadly accurate from the back row and rains arrows on every foe at once.',
+    level1:'Hawk Eye (+2 to hit from the back row) · Arrow Storm (1d6+AGI to every enemy, cooldown 8) · Evasion · Nimble Recovery (cooldown 12)'
+  },
+});
 const NOVICE_INFO={
+  engineer:{name:'Engineer', gains:'Lv1: +4 Max HP. Volley Gun (free action): a turret fires at a foe at the end of each round for 3 rounds (cooldown 8). Bomb: 2d6+INT to every enemy (cooldown 6). Tinkerer: +1 Defence, Healing Draughts heal 2 more. Gunnery Drill: +1 boon on attacks. Riveted Plate: 10% less damage taken. Catch Breath (cooldown 12).'},
+  waywatcher:{name:'Waywatcher', gains:'Lv1: +4 Max HP. Hawk Eye: +2 to hit from the back row. Arrow Storm: 1d6+AGI to every enemy (cooldown 8). Evasion. Nimble Recovery (cooldown 12).'},
   warrior:{name:'Warrior',    gains:'Lv1: +5 Max HP. Weapon Training: +1 boon on all attacks. Catch Breath: heal 1d6+STR, cooldown 12. Shield Bash: stun one enemy for 2 turns, cooldown 8. Taunt: for 2 rounds all enemies attack only you (ready again after 3 rounds). Bleed on Hit: every weapon hit applies 1 Bleed stack.'},
   rogue:  {name:'Rogue',      gains:'Lv1: +4 Max HP. Trickery: first hit applies 3 poison stacks, subsequent hits apply 2 stacks. Evasion: the first attacker each round subtracts the highest bane d6 from d20. Nimble Recovery: heal 1d6+AGI, cooldown 12. Venom on First Hit: first attack applies 4 poison stacks.'},
   magician:{name:'Magician',  gains:'Lv1: +4 Max HP. +1 Power (extra casting slots). Burning Soul: fire spells deal +1d6 if target is already Burning. Burn on Spell: attack spells apply 1d6 Burn DoT. Spell Recovery: restore rank-0 castings, cooldown 12.'},
@@ -92,7 +114,13 @@ const EXPERT_INFO={
   druid:       {name:'Druid',     gains:'+4 HP, +1 Power. Lv3: Shared Recovery (all allies heal), Nature Bond (immune to poison, melee attackers get 1d6 poison). Lv4: Druid Fervor (hits deal 4+best(WIL/INT) nature dmg and heal same), Foresight (bless: next 2 attacks reroll take higher, 1×), +1 WIL. Lv5: Mass Heal (all allies 1d6), Entangle (root 1 enemy, 1×). Lv6: Druid\'s Fury (2 rounds: +1d6 dmg, +2 boons, 2 Bleed per hit, no action, 1×), Revelation (curse: next 2 attacks reroll take worse, 1×), +1 WIL.',desc:'Wild and Wise. Nature Bond makes you poison-immune and punishes melee attackers. Druid Fervor triggers on every weapon hit. Druid\'s Fury is a powerful no-action burst.'},
 };
 
+Object.assign(EXPERT_INFO,{
+  gunner:{name:'Master Gunner', gains:"+5 HP. Lv3: Weapon Aptitude (+2 to hit), First Volley (+1 boon first shot). Lv4: Hunter's Mark, +1 INT. Lv5: Combat Prowess (+1d6/hit), Dead Aim (next hit is a crit). Lv6: Killing Momentum (kill = free attack), +1 INT.", desc:'Engineer path. A crack shot with handgun and long gun.'},
+  sapper:{name:'Sapper', gains:'+6 HP. Lv3: Big Bombs (bombs +1d6, stun on a 6), Toughness (10% damage reduction). Lv4: Combat Expertise, +1 INT. Lv5: Improved Turret (Volley Gun lasts 4 rounds, +1d6), Quick Hands (items are free actions). Lv6: Ward (allies +1 Defence while you stand), +1 INT.', desc:'Engineer path. Bigger bangs and a sturdier gun.'},
+});
 const MASTER_INFO={
+  guildMaster:{name:'Guild Master', gains:'+5 HP. Lv7: Improved Turret, Big Bombs. Lv8: Weapon Master (damage never below half), +1 INT. Lv9: Fortress Stance, Toughness. Lv10: Steam Barrage (6d6 to every enemy, cooldown 9), +1 INT.', desc:'Engineer master. The Gunnery School\'s finest.'},
+  longRifle:{name:'Hochland Long Rifle', gains:'+5 HP. Lv7: Quick Strike (round-1 shot hits twice), Phantom Strike (first shot auto-hits). Lv8: Dead Aim, +1 AGI. Lv9: Bladestorm (hits fire a second shot), Killing Momentum. Lv10: Swift Feet (+2 boons on every attack), +1 INT.', desc:'Engineer master. One shot, one kill.'},
   witchfinder:{name:'Witchfinder General', gains:'+4 HP. Lv7: Judgement (Condemn twice per combat, Condemned foes take +2 more), Quickstrike. Lv8: Dead Aim (next hit is a crit), +1 AGI. Lv9: Exploit Weakness, Inspire. Lv10: Phantom Strike (first attack auto-hits), +1 AGI.',desc:'Witch Hunter master. Two condemnations a fight and executions on demand.'},
   daemonSlayer:{name:'Daemon Slayer',      gains:'+5 HP. Lv7: Frenzy (kills extend rage), Fortitude. Lv8: Devastating Charge (next hit +1d6 and Prone), +1 STR. Lv9: Sweeping Blow, Endure. Lv10: Killing Momentum, +1 STR.',desc:'Slayer master. The last Slayer standing.'},
   myrmidon:   {name:'Sentinel',      gains:'+5 HP. Lv7: Shieldwall (+2 Def), Shield Bash (stun, no action, 1×). Lv8: Evasion (bane on first attack each round; every attack while Taunting), Rebound (reflect half dmg to attacker), +1 STR. Lv9: Toughness (10% dmg reduction), Fortress Stance (below 50% HP = extra 10% reduction). Lv10: Perfect Defence (first damaging hit deals 0, 1×), +1 STR.',desc:'Fortress Guardian. Toughness and Fortress Stance stack for up to 20% damage reduction. Perfect Defence makes you completely untouchable for one round.'},
@@ -110,6 +138,14 @@ const MASTER_INFO={
 };
 
 const TALENT_DESCS={
+  turret:'Free action. Set up a Volley Gun that fires at a random enemy at the end of each round for 3 rounds (1d6 + INT + half your level). Cooldown 8.',
+  grenade:'Uses your turn. A bomb hits every enemy for 2d6+INT. Cooldown 6.',
+  tinkerer:'+1 Defence from riveted plates, and your Healing Draughts heal 2 more.',
+  hawkEye:'+2 to hit while you stand in the back row.',
+  arrowStorm:'Uses your turn. An arrow into every enemy for 1d6+AGI. Cooldown 8.',
+  bigBombs:'Your bombs deal +1d6 and stun an enemy on a 6.',
+  improvedTurret:'Your Volley Gun fires for 4 rounds and deals +1d6.',
+  steamBarrage:'Uses your turn. 6d6 to every enemy. Cooldown 9.',
   revive:'Uses your turn. Brings a fallen ally back into the fight at a quarter of their max HP. Only shows when someone has fallen.',
   block:'Active (free action, cooldown 5 rounds) — Every career can Block: all damage you take is halved until your next turn.',
   condemn:'Active (free action, cooldown 6 rounds; 3 with Judgement) — Name your target a heretic: your attacks on it get +1 boon and your hits deal +1d6. When it dies, the mark passes to the next enemy you attack.',
@@ -283,6 +319,8 @@ const ITEM_DESCS={
   '+1 Attribute':'Choose any attribute (STR/AGI/INT/WIL) to increase by 1.',
   'Troll Blood':'In combat: regenerate 3 HP a round for 3 rounds, but −2 Defence meanwhile.',
   'Dwarf Ale':'Heal 2d6 HP, but 1 bane on your next attack.',
+  'Sigmarite Incense':'Out of combat: remove 2 Corruption. Mutations stay.',
+  'Laudanum':'Remove 2 Insanity.',
   'Warpstone Dust':'In combat: +2 damage for the rest of the fight, and you gain 1 Corruption.',
   'Black Lotus Oil':'Your next 3 weapon hits each add 3 poison.',
   'Holy Water':'In combat: 3d6 holy damage to an undead or daemonic target. Does nothing to others.',
@@ -409,6 +447,10 @@ function cooldownText(c,k){ const n=cooldownLeft(c,k); return n==null?'Used':`Re
 const EXTRA_ACTIVES=[
   ['taunt','📯 Taunt','Enemies attack only you',(c,gs)=>(c._tauntReadyRound||0)>(gs.roundNumber||0)],
   ['block','🛡 Block','Free: halve damage until your turn',c=>!!c._blockUsed],
+  ['turret','🔧 Volley Gun','Free: turret fires each round',c=>!!c._turretUsed],
+  ['grenade','💣 Bomb','2d6+INT to every enemy',c=>!!c._grenadeUsed],
+  ['arrowStorm','🏹 Arrow Storm','1d6+AGI to every enemy',c=>!!c._arrowStormUsed],
+  ['steamBarrage','🚂 Steam Barrage','6d6 to every enemy',c=>!!c._steamBarrageUsed],
   ['revive','🙏 Revive','Raise a fallen ally at 25% HP',c=>!!c._reviveUsed,(gs,players)=>(players||[]).some(p=>p.char&&!p.char.alive&&p.id!==myId)],
   ['condemn','⚖ Condemn','Free: +1 boon, +1d6 on target',c=>!!c._condemnUsed],
   ['entangle','🌿 Entangle','Enemy loses next action',c=>c._entangleUsed],
@@ -534,3 +576,32 @@ function relicChipsHtml(c){
   if(!c.relics||!c.relics.length) return '';
   return `<div class="wide"><dt>Relics</dt><dd class="relic-chips">${c.relics.map(k=>{const r=RELICS_C[k]||{name:k,icon:'✨',desc:''};return `<span class="relic-chip" tabindex="0" title="${r.name}: ${r.desc}">${r.icon} ${r.name}</span>`;}).join('')}</dd></div>`;
 }
+
+// Paths open to each career (with their career names) and the lores each may learn: sent by the server.
+let CAREER_PATHS_C={}, TRADITION_ACCESS_C={}, MUTATIONS_C={}, DISORDERS_C={}, MUTATORS_C={}, AFFIXES_C={};
+function darkHtml(c){
+  const muts=(c.mutations||[]).map(k=>{const m=MUTATIONS_C[k]||{label:k,desc:''};return `<span class="chip chip-bad tip" tabindex="0">🧬 ${m.label}<span class="tiptext">${m.desc}</span></span>`;});
+  const dis=(c.disorders||[]).map(k=>{const m=DISORDERS_C[k]||{label:k,desc:''};return `<span class="chip chip-bad tip" tabindex="0">🌀 ${m.label}<span class="tiptext">${m.desc}</span></span>`;});
+  return {muts,dis,line:`☢ ${c.corruption||0} Corruption · 🌀 ${c.insanity||0}/${insanityLimit(c)} Insanity`};
+}
+function insanityLimit(c){ return 4+Math.max(0,Math.floor((((c.attrs&&c.attrs.wil)||10)-10)/2))+((c.career==='witchhunter'||c.career==='slayer')?1:0); }
+
+// One line of Warhammer flavour for each career's paths (the mechanics follow underneath).
+const PATH_FLAVOUR={
+  warrior:{ defender:'Wielder of the two-handed greatsword, sworn to stand where others break.', giantSlayer:'A brawler from the fighting pits of Nuln: bleeds, rages and refuses to go down.',
+    myrmidon:'One of the Emperor\'s own guard: an armoured wall nothing passes.', warlord:'An officer of the State Troops who wins fights by leading them.', champion:'A templar knight of Myrmidia\'s fiery order, sword in hand and faith at heart.' },
+  rogue:{ ranger:'A mounted scout of the Empire\'s roads, quick to strike and quicker to vanish.', assassin:'A blade for hire who knows exactly where to put the poison.',
+    shadowblade:'The terror of the coaching roads: unseen until the pistol is at your head.', executioner:'A killer of the Reikland underworld. Nobody survives the contract.' },
+  wizard:{ elementalist:'A journeyman of the Bright College, burning with Aqshy.', sorcerer:'A journeyman of the Celestial College, reading doom in the stars and calling the storm.', wizard:'A journeyman of the Grey College, all shadow and misdirection.', spellbinder:'A Battle Wizard who fights in the line, spell and blade together.', warlock:'A wizard who has strayed into forbidden lore. Powerful — and hunted.',
+    transmuter:'A Magister of the Gold College: alchemist, metallurgist, master of change.', necromancer:'A Magister of the Amethyst College, keeper of Shyish, the wind of death.', abjurer:'A Magister of the Light College, warding allies and smiting the daemon.', archmage:'A Patriarch of the Colleges of Magic — few in the Empire stand higher.' },
+  priest:{ paladin:'A Warrior Priest of Sigmar, hammer in hand and prayer on his lips.', healer:'A Hospitaller who tends the wounded of the faithful on the battlefield.', druid:'A keeper of the Old Faith, older than Sigmar, sworn to the green and the wild.',
+    chaplain:'A Templar of Sigmar, the Church\'s fist against the darkness.', healer_m:'An Arch-Lector of the Church of Sigmar, whose prayers turn back death itself.' },
+  witchhunter:{ inquisitor:'An Inquisitor of the Order of the Silver Hammer: mark the heretic, then burn them.', ranger:'A bounty hunter who brings in the guilty, one way or another.',
+    witchfinder:'A Witchfinder General, judge, jury and executioner.', champion:'A templar of the Silver Hammer who fights in the very front of the purge.' },
+  slayer:{ defender:'A Troll Slayer, newly shaven and seeking a worthy death.', giantSlayer:'A Giant Slayer: a dozen trolls were not enough to kill him.',
+    brute:'A Dragon Slayer, one of the very few to survive so long.', daemonSlayer:'A Daemon Slayer, the last and greatest of the doomed — if one ever lives that long.' },
+  engineer:{ gunner:'A graduate of the Imperial Gunnery School and a crack shot.', sapper:'A sapper who fixes anything and blows up everything else.',
+    guildMaster:'A Guild Master of the Engineers\' Guild of Nuln.', longRifle:'A marksman with a Hochland long rifle. One shot, one kill.' },
+  waywatcher:{ ranger:'A Waystalker of Athel Loren, hunting those who trespass in the forest.', assassin:'A shadow-walker who moves unseen through the trees.',
+    shadowblade:'A Shadow Warrior, grim and silent, striking from where no one looks.', executioner:'A Wardancer of Loec, all blades and acrobatics.' },
+};

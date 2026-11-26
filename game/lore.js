@@ -12,6 +12,7 @@ const BOSS_LINES = {
   'Gorgrund the Stone Troll': ['Gorgrund hungry. You small. Gorgrund still hungry after.', 'Gorgrund... just... wanted... lunch...'],
   'Saurian Ancient': ['(It regards you with eyes older than the Empire.)', '(It sinks slowly, as if returning to sleep.)'],
   "Daemon Prince Vhar'kul": ['I was mortal once. I begged too. It did not help me either.', 'This flesh fails. I do not. We will meet again, in the Realm of Chaos.'],
+  'Warboss Grubnak Skullsmasha': ['Oi! Humies! Yooz gonna make a lovely new hat for da boss!', 'Dat... wuz... a good scrap...'],
   'Skaldrak the Elder Wyrm': ['I burned this valley when your Sigmar was a boy. I will burn it again.', 'So... this is how the old ones end. Small teeth... many of them...'],
 };
 const intro = name => (BOSS_LINES[name] || [])[0] || null;

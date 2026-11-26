@@ -76,8 +76,10 @@ function applyNovicePath(char, pathId) {
     'toughness','bleedOnCrit','bleedOnHit','evasion','venomOnFirstHit','burningSoul','burnOnSpell',
     'holyFervor','divineFavour','bleedDeep','deepBleed','poisonBlade','curse','_curseUsed','druidFervor','druidsFury','weaponMaster',
     'condemn','silverShot','firstVolley','slayerOath','deathWish','rage',
+    'turret','grenade','tinkerer','hawkEye','arrowStorm',
   ];
   NOVICE_FLAGS.forEach(f=>{ if(np[f]) char[f]=true; });
+  if(np.tinkerer) char.defense+=1; // riveted plate
   if (char.spellcaster && char.tradition) {
     grantTradition(char, char.tradition);
   }

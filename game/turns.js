@@ -2,9 +2,9 @@
 // Combat flow: turn order, the party turn timer, enemy turns, rounds and deaths.
 // Moved out of server.js unchanged. The server hands this module the helpers it
 // uses through bind() once everything is defined (see the bottom of server.js).
-let SELF_TICK_DOTS, addBuff, addDebuff, addLog, aliveEnemies, applyPoison, broadcastState, charmKey, d, enemyAfterHit, enemyDamageMods, enemyPostTurn, enemyPreTurn, gearRoundTick, hasRelic, immuneToPoison, rd, resistsInsanity, resolveEnemyDeath, rollAttack, rollEnemyAttack, scaleEnemy, sortTurnOrder, tickBuffs, tickCooldowns, tickDebuffs, triggerGameover;
+let SELF_TICK_DOTS, addBuff, addDebuff, addLog, aliveEnemies, applyPoison, broadcastState, charmKey, d, dark, enemyAfterHit, enemyDamageMods, enemyPostTurn, enemyPreTurn, engineerRoundTick, gearRoundTick, hasRelic, immuneToPoison, rd, resolveEnemyDeath, rollAttack, rollEnemyAttack, scaleEnemy, sortTurnOrder, tickBuffs, tickCooldowns, tickDebuffs, triggerGameover;
 function bind(api) {
-  ({ SELF_TICK_DOTS, addBuff, addDebuff, addLog, aliveEnemies, applyPoison, broadcastState, charmKey, d, enemyAfterHit, enemyDamageMods, enemyPostTurn, enemyPreTurn, gearRoundTick, hasRelic, immuneToPoison, rd, resistsInsanity, resolveEnemyDeath, rollAttack, rollEnemyAttack, scaleEnemy, sortTurnOrder, tickBuffs, tickCooldowns, tickDebuffs, triggerGameover } = api);
+  ({ SELF_TICK_DOTS, addBuff, addDebuff, addLog, aliveEnemies, applyPoison, broadcastState, charmKey, d, dark, enemyAfterHit, enemyDamageMods, enemyPostTurn, enemyPreTurn, engineerRoundTick, gearRoundTick, hasRelic, immuneToPoison, rd, resolveEnemyDeath, rollAttack, rollEnemyAttack, scaleEnemy, sortTurnOrder, tickBuffs, tickCooldowns, tickDebuffs, triggerGameover } = api);
 }
 // ─── COMBAT FLOW: TURN ORDER ───────────────────────────────────────────────────────
 
@@ -138,6 +138,8 @@ function endRound(room) {
   if (!gs.inCombat || gs.phase === 'victory' || gs.phase === 'gameover' || gs.phase === 'dying') return;
   gs.totalRounds = (gs.totalRounds || 0) + 1;
   tickCooldowns(room);
+  dark.onRoundEnd(room);
+  engineerRoundTick(room);
   room.players.forEach(p => {
       if (!p.char || !p.char.alive) return;
       tickBuffs(p.char);
@@ -476,7 +478,7 @@ function fireEnemyTurn(room, ae) {
           if (ae.lifeLeechFrac && ae.lifeLeechFrac <= 0.25) { ae._leechAccum = (ae._leechAccum||0) + dmg; } // accumulate leech for sustain-type (Varghulf)
           else { const l = Math.floor(dmg * frac); ae.hp = Math.min(ae.maxHp, ae.hp+l); addLog(room, `🩸 ${ae.name} leeches <strong>${l}</strong> HP.`, 'chaos'); }
         }
-        if (p.char.alive && ae.insanityAtk && d(6) >= 4 && !resistsInsanity(p.char)) { p.char.insanity++; addLog(room, `${p.name} gains 1 Insanity!`, 'chaos'); }
+        if (p.char.alive && ae.insanityAtk && d(6) >= 4) dark.gainInsanity(room, p, 1, `the terror of ${ae.name}`);
         if (p.char.alive && ae.bloodOnHit && r.hit) { addBuff(p.char,'Bleed',{dotDmg:rd(1,3)},2); addLog(room,`🩸 <strong>Bloodgreed!</strong> ${ae.name} — 1 Bleed!`,'chaos'); }
         if (p.char.alive && ae.virulentBlade && r.hit) { p.char._poisonedStacks=(p.char._poisonedStacks||0)+3; addLog(room,`☠ <strong>Virulent Blade!</strong> ${ae.name}'s plague blade applies <strong>3 poison stacks</strong> to ${p.name}!`,'chaos'); }
         if (p.char.alive && ae.crushingTail && r.hit && Math.random()<0.20) { addBuff(p.char,'Stunned',{skipTurn:true},2); addLog(room,`🦎 <strong>Crushing Tail!</strong> ${p.name} is STUNNED by the Saurian's tail sweep!`,'chaos'); }
@@ -597,6 +599,7 @@ function checkDeath(room, player) {
     }
     player.char.alive=false; player.char.health=0; player.char._killedThisTurn=true;
     addLog(room,`💀 <strong>${player.name}</strong> has fallen!`,'death');
+    room.players.filter(o=>o!==player&&o.char&&o.char.alive).forEach(o=>dark.gainInsanity(room,o,1,`seeing ${player.name} fall`));
     if(player.char.unstoppable&&!player.char.unstoppableUsed){
       player.char.unstoppableUsed=true; player.char.alive=true; player.char.health=1;
       addLog(room,`💪 <strong>Unstoppable!</strong> ${player.name} survives the killing blow at 1 HP! (once per run)`,'crit');

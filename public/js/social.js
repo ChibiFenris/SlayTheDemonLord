@@ -7,6 +7,8 @@ const COACH_TALENT={
   wizard:['your spells','are in the spell list. Spells of the same rank share castings, and every pool refills at the start of each fight.'],
   priest:['Shared Recovery','heals the whole warband once per fight. Your weapon hits also heal you through Holy Fervor.'],
   witchhunter:['Condemn','is a free action: mark the enemy, then attack it for +1 boon and +1d6 damage. It does not use your turn.'],
+  engineer:['your Volley Gun','keeps shooting for 3 rounds after you set it up, and your Bomb hits every enemy at once. Stay in the back row.'],
+  waywatcher:['Arrow Storm','hits every enemy at once. Hawk Eye makes your shots from the back row more accurate.'],
   slayer:["Death Wish","makes you stronger below half HP, and Slayer's Oath adds 1d6 against elites and bosses. Rage readies a stronger hit each time you are struck."],
 };
 function coachHtml(gs,me){

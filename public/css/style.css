@@ -790,3 +790,5 @@ body.ui-mobile .path-node{min-height:var(--tap);}
 @media (prefers-reduced-motion: reduce){.shake,.shake-strong,.hit-flash,.kill-pulse,.boss-banner{animation:none}}
 .ach-list li:not(.got) strong{color:var(--ash);font-weight:600}
 .dpip.boss:not(.done):not(.cur){border-color:var(--blood-bright)}
+
+.dark-line{font-size:.85em;color:var(--ash)}

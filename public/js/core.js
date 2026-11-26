@@ -14,6 +14,12 @@ fetch('api/game-data').then(r=>r.json()).then(g=>{
   if(g.difficulties) GAME_DIFFICULTIES=g.difficulties;
   if(g.cooldowns) COOLDOWNS_C=g.cooldowns;
   if(g.relics) RELICS_C=g.relics;
+  if(g.careerPaths) CAREER_PATHS_C=g.careerPaths;
+  if(g.traditionAccess) TRADITION_ACCESS_C=g.traditionAccess;
+  if(g.mutations) MUTATIONS_C=g.mutations;
+  if(g.disorders) DISORDERS_C=g.disorders;
+  if(g.mutators) MUTATORS_C=g.mutators;
+  if(g.affixes) AFFIXES_C=g.affixes;
   renderProgressUI();
   if(lastState) renderState(lastState);
 }).catch(()=>{});

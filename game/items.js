@@ -2,9 +2,9 @@
 // Gear generation, the merchant, equipping and using items, enemy drops.
 // Moved out of server.js unchanged. The server hands this module the helpers it
 // uses through bind() once everything is defined (see the bottom of server.js).
-let ARMOR_BASES, CHARM_SHOP_KEYS, ENEMY_DROPS, LEGENDARY_ITEMS, SCROLL_SPELLS_SHOP, SHOP_CONSUMABLES, WEAPON_BASES, addBuff, addDebuff, addLog, applyCharm, broadcastState, charmKey, checkDeath, cleanseCurses, d, getTargetEnemy, isCursed, makeCharm, makeCursedItem, maxCastings, modVal, rd, resolveEnemyDeath, rollTraits, sendTo, uniqRanks, uuidv4;
+let ARMOR_BASES, CHARM_SHOP_KEYS, ENEMY_DROPS, LEGENDARY_ITEMS, SCROLL_SPELLS_SHOP, SHOP_CONSUMABLES, WEAPON_BASES, addBuff, addDebuff, addLog, applyCharm, broadcastState, charmKey, checkDeath, cleanseCurses, d, dark, getTargetEnemy, isCursed, makeCharm, makeCursedItem, maxCastings, modVal, rd, resolveEnemyDeath, rollTraits, sendTo, uniqRanks, uuidv4;
 function bind(api) {
-  ({ ARMOR_BASES, CHARM_SHOP_KEYS, ENEMY_DROPS, LEGENDARY_ITEMS, SCROLL_SPELLS_SHOP, SHOP_CONSUMABLES, WEAPON_BASES, addBuff, addDebuff, addLog, applyCharm, broadcastState, charmKey, checkDeath, cleanseCurses, d, getTargetEnemy, isCursed, makeCharm, makeCursedItem, maxCastings, modVal, rd, resolveEnemyDeath, rollTraits, sendTo, uniqRanks, uuidv4 } = api);
+  ({ ARMOR_BASES, CHARM_SHOP_KEYS, ENEMY_DROPS, LEGENDARY_ITEMS, SCROLL_SPELLS_SHOP, SHOP_CONSUMABLES, WEAPON_BASES, addBuff, addDebuff, addLog, applyCharm, broadcastState, charmKey, checkDeath, cleanseCurses, d, dark, getTargetEnemy, isCursed, makeCharm, makeCursedItem, maxCastings, modVal, rd, resolveEnemyDeath, rollTraits, sendTo, uniqRanks, uuidv4 } = api);
 }
 // ─── MERCHANT & ITEMS ───────────────────────────────────────────────────────
 function genLegendaryItem(bossIndex) {
@@ -285,7 +285,9 @@ function useItemLogic(room,player,itemName,inCombat=false){
   if(idx===-1) return false;
   let consumed=true;
   const _morr=charmKey(char)==='morrFeather'?2:0; // Morr's Raven Feather: draughts heal 2 less
-  if(itemName==='Healing Draught'){const h=Math.max(1,rd(1,6)+(char.level||1)-_morr);char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} drinks Healing Draught — +<strong>${h}</strong> HP.`,'heal');}
+  if(itemName==='Sigmarite Incense'){ if(inCombat){consumed=false;addLog(room,`${player.name}: burn the incense after the fight.`,'sys');} else { dark.loseCorruption(char,2); addLog(room,`🕯 ${player.name} burns Sigmarite Incense — <strong>−2 Corruption</strong> (${char.corruption}). Mutations remain.`,'heal'); } }
+  else if(itemName==='Laudanum'){ dark.loseInsanity(char,2); addLog(room,`💧 ${player.name} takes Laudanum — <strong>−2 Insanity</strong> (${char.insanity}).`,'heal'); }
+  else if(itemName==='Healing Draught'){const h=Math.max(1,rd(1,6)+(char.level||1)-_morr+(char.tinkerer?2:0));char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} drinks Healing Draught — +<strong>${h}</strong> HP.`,'heal');}
   else if(itemName==='Greater Healing Draught'){const h=Math.max(1,rd(2,6)+2*(char.level||1)-_morr);char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} drinks Greater Healing — +<strong>${h}</strong> HP.`,'heal');}
   else if(itemName==='Flask of Oil'||itemName==='Incendiary Flask'){const _te=getTargetEnemy(room.gs);if(inCombat&&_te){let dmg=rd(2,6);if(char._armorFireImmune){dmg+=rd(1,6);}// Dragonscale bonus
 _te._burnedThisRound=true;_te.hp=Math.max(0,_te.hp-dmg);addLog(room,`${player.name} throws Flask of Oil — <strong>${dmg}</strong> fire dmg!`,'spell');if(_te.hp<=0){resolveEnemyDeath(room,_te);return true;}}else{consumed=false;}}
@@ -329,7 +331,7 @@ _te._burnedThisRound=true;_te.hp=Math.max(0,_te.hp-dmg);addLog(room,`${player.na
   else if(itemName==='Dwarf Ale'){const h=Math.max(1,rd(2,6)-_morr);char.health=Math.min(char.maxHealth,char.health+h);addBuff(char,'Tipsy',{bane:1,consumeOnAttack:true},3);addLog(room,`🍺 <strong>Dwarf Ale!</strong> ${player.name} heals <strong>${h}</strong> — and their next swing will be a bit wobbly (1 bane).`,'heal');}
   else if(itemName==='Warpstone Dust'){
     if(!inCombat){consumed=false;addLog(room,`${player.name}: save the Warpstone Dust for a fight.`,'sys');}
-    else{addBuff(char,'Warpstone Dust',{dmgBonus:2},10);char.corruption=(char.corruption||0)+1;addLog(room,`☢ <strong>Warpstone Dust!</strong> ${player.name} snorts the glowing powder — +2 damage this fight, and 1 Corruption.`,'chaos');}
+    else{addBuff(char,'Warpstone Dust',{dmgBonus:2},10);addLog(room,`☢ <strong>Warpstone Dust!</strong> ${player.name} snorts the glowing powder — +2 damage this fight.`,'chaos');dark.gainCorruption(room,player,1,'warpstone');}
   }
   else if(itemName==='Black Lotus Oil'){char._lotusHits=3;addLog(room,`🪷 <strong>Black Lotus Oil!</strong> ${player.name} coats their blade — the next 3 hits each add 3 poison.`,'chaos');}
   else if(itemName==='Holy Water'){

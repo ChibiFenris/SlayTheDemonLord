@@ -19,13 +19,15 @@ function showPathPick(me){
   const titles={novice:'Choose Your Novice Path (Level 1)',expert:'Choose Your Expert Path (Level 3)',master:'Choose Your Master Path (Level 7)'};
   el('pp-heading').textContent=titles[tier]||'Choose Your Path';
   el('pp-sub').textContent=tier==='novice'?'Your career archetype — unlocks talents and abilities.'
-    :tier==='expert'?'Specialise your abilities. All paths available — choose freely.'
-    :'Your pinnacle. All master paths available.';
+    :tier==='expert'?`The careers open to a ${CAREER_LABELS[me.career]||'warrior'}.`
+    :`The heights a ${CAREER_LABELS[me.career]||'warrior'} can reach.`;
   const grid=el('pp-grid'); grid.innerHTML='';
   const infoMap=tier==='novice'?NOVICE_INFO:tier==='expert'?EXPERT_INFO:MASTER_INFO;
-  Object.entries(infoMap).forEach(([id,info])=>{
+  const allowed=(CAREER_PATHS_C[me.career]||{})[tier];
+  const flav=PATH_FLAVOUR[me.career]||{};
+  Object.entries(infoMap).filter(([id])=>tier==='novice'||!allowed||allowed[id]).map(([id,info])=>[id,allowed&&allowed[id]?{...info,name:allowed[id],desc:flav[id]||info.desc}:info]).forEach(([id,info])=>{
     const btn=document.createElement('button'); btn.className='pp-btn';
-    const hint=info.forCareers?`<span class="pp-hint">Suits: ${info.forCareers.join(', ')}</span>`:'';
+    const hint='';
     btn.innerHTML=`<span class="ppn">${info.name}</span><span class="ppd">${info.desc||''}</span><span class="ppb">${hint}${info.gains}</span>`;
     btn.onclick=()=>confirmPath(id,info.name,`${info.desc||''}<br><br>${info.gains}`);
     grid.appendChild(btn);
@@ -45,7 +47,9 @@ function applyPath(pathId){
 // ── Tradition picker helper ────────────────────────────────────────────────────
 function _buildTraditionButtons(grid, knownTraditions){
   grid.innerHTML='';
-  Object.entries(TRADITION_INFO).forEach(([id,info])=>{
+  const me=lastState&&lastState.players.find(p=>p.id===myId), c=me&&me.char;
+  const okLore=id=>{ if(!c) return true; if(id==='chaos') return c.expertPath==='warlock'; const l=TRADITION_ACCESS_C[c.career]; return !l||l.includes(id); };
+  Object.entries(TRADITION_INFO).filter(([id])=>okLore(id)).forEach(([id,info])=>{
     const already=knownTraditions.includes(id);
     const btn=document.createElement('button'); btn.className='pp-btn';
     btn.disabled=already;
@@ -120,7 +124,7 @@ function renderLog(log){
 // ─── BATTLE ARENA ─────────────────────────────────────────────────────────────
 const ENEMY_TAG_LABEL={skaven:'🐀 Skaven',chaos:'☠ Chaos',undead:'💀 Undead',beast:'🐗 Beast',vermin:'🐀 Vermin'};
 const ENEMY_WEAKNESS={skaven:'⚡ Weak: Lightning',chaos:'✨ Weak: Holy',undead:'🔥 Weak: Fire',beast:'🌑 Weak: Dark','fire-weak':'🔥 Weak: Fire'};
-const TELEGRAPH_NAMES={warpGas:'Warp-Gas Globe',goreCharge:'Gore Charge',leap:'Leaping Maul',slam:'Bonebreaker Slam',stomp:'Primordial Stomp',warpStorm:'Warp Storm',hornCurse:'Curse of Horns',plagueWind:'Plague Wind',trollSmash:'Troll Smash',hellfire:'Hellfire',dragonBreath:'Dragon Breath'};
+const TELEGRAPH_NAMES={bigChoppa:'Big Choppa',warpGas:'Warp-Gas Globe',goreCharge:'Gore Charge',leap:'Leaping Maul',slam:'Bonebreaker Slam',stomp:'Primordial Stomp',warpStorm:'Warp Storm',hornCurse:'Curse of Horns',plagueWind:'Plague Wind',trollSmash:'Troll Smash',hellfire:'Hellfire',dragonBreath:'Dragon Breath'};
 // Status chips that matter for decisions: winding up, hidden, mutation.
 function enemyStateChips(e){
   const out=[];
@@ -128,6 +132,9 @@ function enemyStateChips(e){
   if(e._hiding) out.push('<span class="e-status-chip e-chip-tag">🫥 Cowering — can\'t be targeted</span>');
   if(e._vanished) out.push('<span class="e-status-chip e-chip-tag">💨 Vanished</span>');
   if(e.mutationLabel) out.push(`<span class="e-status-chip e-chip-debuff" title="${e.mutationDesc||''}">🧬 ${e.mutationLabel}</span>`);
+  if(e.affixLabel) out.push(`<span class="e-status-chip e-chip-debuff" title="Elite: ${e.affixDesc||''}">★ ${e.affixLabel}</span>`);
+  if(e.phaseName) out.push(`<span class="e-status-chip e-chip-debuff" title="Phase two">🔥 ${e.phaseName}</span>`);
+  if(e.endlessTier) out.push(`<span class="e-status-chip" title="Endless: stronger for every boss past the third">♾ Tier ${e.endlessTier}</span>`);
   return out;
 }
 function enemyAbilityChips(e){
@@ -247,7 +254,9 @@ function buildCard(p,gs){
   div.className='panel pcard'+(c.alive?'':' is-dead');
   const hpPct=Math.max(0,c.health/c.maxHealth*100);
   const {next,pct:xpPct}=xpProgress(c);
-  const paths=[c.novicePath,c.expertPath,c.masterPath].filter(Boolean).map(labelFromKey).join(' › ');
+  const cp=CAREER_PATHS_C[p.career]||{};
+  const paths=[c.expertPath&&((cp.expert||{})[c.expertPath]||labelFromKey(c.expertPath)),c.masterPath&&((cp.master||{})[c.masterPath]||labelFromKey(c.masterPath))].filter(Boolean).join(' › ');
+  const dk=darkHtml(c);
   const defBuff=(c.activeBuffs||[]).filter(b=>b.defBonus).reduce((s,b)=>s+b.defBonus,0);
   const w=c.equippedWeapon, a=c.equippedArmor;
   const attr=(k,lbl)=>`<div class="attr"><span class="attr-l">${lbl}</span><span class="attr-v">${c.attrs[k]}</span><span class="attr-m">${modStr(c.attrs[k])}</span></div>`;
@@ -269,6 +278,8 @@ function buildCard(p,gs){
       <div class="wide"><dt>Weapon</dt><dd>${w?`${w.name} ${w.dice}+${w.bonus||0} ${w.dmgType==='blunt'?'🔨':'⚔'}`:'Unarmed'}</dd></div>
       <div class="wide"><dt>Armour</dt><dd>${a?`${a.name} +${a.defBonus}`:'None'}</dd></div>
       <div class="wide"><dt>Row</dt><dd>${c.row==='back'?'Back':'Front'}${p.id===myId&&c.alive?` <button class="mini-btn" onclick="setRow('${c.row==='back'?'front':'back'}')" title="Front: melee enemies can reach you. Back: only ranged enemies reach you, but melee weapons get 1 bane.">Move ${c.row==='back'?'forward':'back'}</button>`:''}</dd></div>${relicChipsHtml(c)}
+      <div class="wide"><dt>Taint</dt><dd class="dark-line" title="Corruption brings a mutation every 3 points. Insanity at its limit makes you snap: a short madness and a lasting disorder.">${dk.line}</dd></div>
+      ${dk.muts.length||dk.dis.length?`<div class="wide"><dt>Marks</dt><dd class="relic-chips">${dk.muts.join('')}${dk.dis.join('')}</dd></div>`:''}
       <div class="wide"><dt>Charm</dt><dd${c.equippedCharm?` title="${c.equippedCharm.desc.replace(/"/g,'&quot;')}"`:''}>${c.equippedCharm?c.equippedCharm.name:'None'}${c.equippedCharm&&p.id===myId?` <button class="mini-btn" onclick="unequipCharm()" title="Take the charm off and put it in your pack">Remove</button>`:''}</dd></div>
     </dl>
     ${statusChips(c)}
@@ -553,9 +564,13 @@ function buildRelicPanel(gs,players,me){
   }
   return box;
 }
+function mutatorsHtml(gs){
+  if(!(gs.mutators||[]).length) return '';
+  return `<div class="road-ahead"><div class="road-h">Endless mutators</div><div class="relic-chips">${gs.mutators.map(k=>{const m=MUTATORS_C[k]||{label:k,desc:''};return `<span class="relic-chip" tabindex="0" title="${m.desc}">♾ ${m.label}</span>`;}).join('')}</div></div>`;
+}
 function roadAheadHtml(gs){
-  const road=(gs.road||[]).filter(r=>r.depth>gs.depth+1); if(!road.length) return '';
-  return `<div class="road-ahead" aria-label="The road ahead"><div class="road-h">The road ahead</div>${road.map(r=>`<div class="road-step"><span class="road-d">Depth ${r.depth}</span>${r.choices.map(t=>`<span class="road-n${t==='cursed'?' cursed':''}${t==='boss'?' boss':''}" title="${PATH_NAMES[t]||t}">${PATH_ICONS[t]||'?'}</span>`).join('')}</div>`).join('')}</div>`;
+  const road=(gs.road||[]).filter(r=>r.depth>gs.depth+1); if(!road.length) return mutatorsHtml(gs);
+  return `<div class="road-ahead" aria-label="The road ahead"><div class="road-h">The road ahead</div>${road.map(r=>`<div class="road-step"><span class="road-d">Depth ${r.depth}</span>${r.choices.map(t=>`<span class="road-n${t==='cursed'?' cursed':''}${t==='boss'?' boss':''}" title="${PATH_NAMES[t]||t}">${PATH_ICONS[t]||'?'}</span>`).join('')}</div>`).join('')}</div>`+mutatorsHtml(gs);
 }
 
 // ─── ACTIONS ──────────────────────────────────────────────────────────────────

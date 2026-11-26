@@ -5,6 +5,7 @@
 const { d, rd } = require('./dice');
 const { aliveEnemies, alivePlayers, pickRandom } = require('./util');
 const { SUMMONS, ENEMY_POOLS } = require('./data');
+const foes = require('./foes');
 const { charmKey, armorTraits, immuneToPoison, weaponIsHoly, resistsInsanity } = require('./gear');
 
 const S = {};
@@ -47,6 +48,7 @@ function prepareEnemy(e, bossCount){
 }
 // Auras that depend on who else is alive: Skeleton shield wall, Plague Rat Lord.
 function refreshEnemyAuras(gs){
+  foes.refreshMobAura(gs);
   const alive=aliveEnemies(gs);
   const lord=alive.some(e=>e.ratLord);
   alive.forEach(e=>{
@@ -104,6 +106,7 @@ const TELEGRAPHS={
   trollSmash:{name:'Troll Smash',     warn:n=>`⚠ <strong>${n}</strong> hefts a boulder overhead — next turn it crushes one warrior for triple damage. Taunt to choose who takes it, or stun it.`},
   hellfire:  {name:'Hellfire',        warn:n=>`⚠ <strong>${n}</strong> spreads its wings and the air begins to burn — next turn hellfire engulfs the warband. Stun it to stop it.`},
   dragonBreath:{name:'Dragon Breath', warn:n=>`⚠ <strong>${n}</strong> draws in a vast breath, smoke curling from its jaws — next turn it breathes fire on everyone. Stun it to stop it.`},
+  bigChoppa: {name:'Big Choppa',      warn:n=>`⚠ <strong>${n}</strong> hefts a choppa the size of a door — next turn he cleaves one warrior for triple damage and Bleed! Taunt to choose who takes it, or stun him.`},
   stomp:     {name:'Primordial Stomp',warn:n=>`⚠ <strong>${n}</strong> rears up on its hind legs — next turn it stomps the whole warband and knocks everyone Prone! Stun it to stop it.`},
 };
 
@@ -114,6 +117,7 @@ const isBlocking = c => (c.activeBuffs||[]).some(b=>b.blocking);
 function enemyPreTurn(room, ae, alive){
   const gs=room.gs;
   const plan={};
+  if(foes.preTurn(room, ae, alive, plan)==='done') return 'done';
   // Hidden/vanished enemies come back at the start of their own turn.
   if(ae._vanished){ ae._vanished=false; ae._returnBoon=true; S.addLog(room,`🐀 <strong>${ae.name}</strong> darts out of the shadows!`,'chaos'); }
   if(ae.hideBehind){
@@ -156,8 +160,9 @@ function enemyPreTurn(room, ae, alive){
       const dmg=Math.max(1,rd(1,6)+(gs.bossCount||0)-(charmKey(p.char)==='ironTooth'?1:0));
       p.char.health=Math.max(0,p.char.health-dmg);
       let ins='';
-      if(Math.random()<0.5&&!resistsInsanity(p.char)){ p.char.insanity=(p.char.insanity||0)+1; ins=' and gains 1 Insanity'; }
+      const mad=Math.random()<0.5&&!resistsInsanity(p.char); if(mad) ins=' and Insanity';
       S.addLog(room,`&nbsp;↳ ${p.name} takes <strong class="num-dmg">−${dmg}</strong>${ins} → ${p.char.health}/${p.char.maxHealth} HP`,'dmg-taken');
+      if(mad) S.dark.gainInsanity(room,p,1);
       S.checkDeath(room,p);
     });
     return 'done';
@@ -228,7 +233,7 @@ function enemyPreTurn(room, ae, alive){
     };
     if(kind==='warpStorm'){
       S.addLog(room,`⚡ Green lightning arcs through the warband!`,'chaos');
-      aoeHit(()=>rd(2,6),p=>{ if(Math.random()<0.4&&!resistsInsanity(p.char)) p.char.insanity=(p.char.insanity||0)+1; });
+      aoeHit(()=>rd(2,6),p=>{ if(Math.random()<0.4) S.dark.gainInsanity(room,p,1,'the warp storm'); });
       return 'done';
     }
     if(kind==='hornCurse'){
@@ -260,6 +265,7 @@ function enemyPreTurn(room, ae, alive){
     if(kind==='goreCharge'){ plan.targets=[taunter||alive.slice().sort((a,b)=>a.char.health-b.char.health)[0]]; plan.mult=big; plan.extraBoon=true; plan.ignoreTaunt=true; }
     if(kind==='leap'){ plan.targets=[pickRandom(alive)]; plan.mult=big-1; plan.ignoreTaunt=true; plan.onHit='leapBleed'; }
     if(kind==='slam'){ plan.targets=[taunter||pickRandom(alive)]; plan.mult=big; plan.ignoreTaunt=true; plan.onHit='slamStun'; }
+    if(kind==='bigChoppa'){ plan.targets=[taunter||alive.slice().sort((a,b)=>a.char.health-b.char.health)[0]]; plan.mult=big; plan.onHit='leapBleed'; }
     if(kind==='trollSmash'){ plan.targets=[taunter||alive.slice().sort((a,b)=>b.char.health-a.char.health)[0]]; plan.mult=big; plan.onHit='prone'; }
     if(kind==='stomp'){ plan.targets=alive.slice(); plan.mult=1.5; plan.ignoreTaunt=true; plan.onHit='prone'; }
     plan.attacks=1;
@@ -325,6 +331,7 @@ function enemyOnWeaponHit(room, player, e, dmg){
     }
   }
   if(e.damageReduction&&dmg>0) dmg=Math.max(1,dmg-e.damageReduction);
+  if(dmg>0) foes.thornsOnHit(room,player,e);
   if(e.mutation==='acidBlood'&&dmg>0&&player.char.alive){
     const a=rd(1,4); player.char.health=Math.max(0,player.char.health-a);
     S.addLog(room,`🧪 <strong>Acid Blood!</strong> ${e.name}'s blood sprays ${player.name} — <strong class="num-dmg">−${a}</strong>`,'chaos'); S.checkDeath(room,player);

@@ -351,7 +351,7 @@ const CHOICE_EVENTS = {
       if (opt === 'smash') { ps.forEach(p => { hurt(room, p, rd(1, 6)); if (p.char.alive) nextFight(p.char, 'Righteous', { atkBoon: 1 }); }); return S.addLog(room, '🔨 The altar cracks. Something screams in the stone. (1 boon next fight.)', 'crit'); }
       if (opt === 'consecrate') { ps.forEach(p => { heal(p.char, rd(2, 6)); nextFight(p.char, 'Blessed', { atkBoon: 1 }); }); return S.addLog(room, '✨ Holy water hisses on the star. Sigmar\'s light returns — everyone heals 2d6. (1 boon next fight.)', 'heal'); }
       if (opt === 'purge') { ps.forEach(p => { p.char.gold += 40; }); return S.addLog(room, '🔥 The shrine burns. In the ashes: the cult\'s silver, <strong>+40 each</strong>.', 'loot'); }
-      ps.forEach(p => { p.char.gold += 25; p.char.insanity = (p.char.insanity || 0) + 1; });
+      ps.forEach(p => { p.char.gold += 25; S.dark.gainInsanity(room, p, 1); });
       S.addLog(room, '💰 The warband pockets the offerings — +25 silver and <strong>1 Insanity</strong> each.', 'chaos');
     },
   },
@@ -483,6 +483,7 @@ const CHOICE_EVENTS = {
         p.char.maxHealth = Math.max(1, p.char.maxHealth - 3); p.char.health = Math.min(p.char.health, p.char.maxHealth);
         S.addBuff(p.char, 'Corrupted', { bane: 1 }, 2);
         S.addLog(room, `💎 ${p.name}: +1 ${a.toUpperCase()}, −3 max HP, Corrupted.`, 'chaos');
+        S.dark.gainCorruption(room, p, 1, 'warpstone');
       });
     },
   },
@@ -555,7 +556,8 @@ const CHOICE_EVENTS = {
     resolve(room, opt) {
       if (opt === 'disrupt') { alive(room).forEach(p => hurt(room, p, rd(1, 6))); room.gs._nextCombatHalfHP = true; return S.addLog(room, '🔴 The circle shatters — the next enemies will enter at half HP.', 'spell'); }
       const p = pickRandom(alive(room)); p.char.power += 1; p.char.maxPower = (p.char.maxPower || 0) + 1; S.addBuff(p.char, 'Corrupted', { bane: 1 }, 2);
-      S.addLog(room, `🔴 ${p.name} drinks in the ritual's power — <strong>+1 Power</strong>, and Corruption.`, 'chaos');
+      S.addLog(room, `🔴 ${p.name} drinks in the ritual's power — <strong>+1 Power</strong>.`, 'chaos');
+      S.dark.gainCorruption(room, p, 2, 'the ritual');
     },
   },
 
@@ -645,6 +647,14 @@ const CHOICE_EVENTS = {
       S.addLog(room, '🔥 "Sigmar walks with honest folk." Aldric gives each of you Holy Water and tends your wounds (+10 HP).', 'heal');
     },
   },
+  // ── Endless: after each boss past the third, choose how the road changes ──
+  endlessMutator: {
+    title: 'The Road Twists', icon: '♾', requires: () => false, // only started by the game, never at random
+    text: 'Beyond the fallen boss the road forks into three — each darker in its own way. Choose how the descent changes from here on.',
+    options: [],
+    makeOptions(room) { return S.foes.mutatorOptions(room.gs).map(k => ({ id: k, label: S.foes.MUTATORS[k].label, desc: S.foes.MUTATORS[k].desc })); },
+    resolve(room, opt) { S.foes.applyMutator(room, opt); },
+  },
   // ── Party decisions ──────────────────────────────────────────────────────
   forkInTheRoad: {
     title: 'The Fork in the Road', icon: '🔀', minDepth: 3, requires: (gs, room) => alive(room).length >= 2,
@@ -674,7 +684,8 @@ function startChoiceEvent(room, key) {
   const k = key || pickRandom(pool);
   const ev = CHOICE_EVENTS[k];
   // Career options only show when that career is in the warband.
-  const options = ev.options.filter(o => !o.needs || partyHas(room, o.needs)).map(({ id, label, desc }) => ({ id, label, desc }));
+  const options = (ev.makeOptions ? ev.makeOptions(room) : ev.options).filter(o => !o.needs || partyHas(room, o.needs)).map(({ id, label, desc }) => ({ id, label, desc }));
+  if (!options.length) { room.gs.phase = 'event'; return; }
   room.gs.phase = 'choice';
   room.gs.choice = { key: k, title: ev.title, icon: ev.icon, text: ev.text, options, votes: {} };
   S.addLog(room, `${ev.icon} <strong>${ev.title}.</strong> ${ev.text}`, 'sys');

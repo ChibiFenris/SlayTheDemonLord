@@ -4,11 +4,12 @@
 //   PORT=3000 node tools/playtest.js 8      (server must already be running)
 const WebSocket=require('ws');
 let PORT=process.env.PORT||3000;
-const CAREERS=['warrior','rogue','wizard','priest','witchhunter','slayer'];
+const CAREERS=['warrior','rogue','wizard','priest','witchhunter','slayer','engineer','waywatcher'];
+const DATA=require('../game/data');
 const EXPERT=['defender','ranger','paladin','assassin','elementalist','sorcerer','warlock','wizard','spellbinder','healer','druid','inquisitor','giantSlayer'];
 const MASTER=['myrmidon','brute','warlord','champion','shadowblade','executioner','transmuter','necromancer','abjurer','archmage','healer_m','chaplain','witchfinder','daemonSlayer'];
 const TRAD=['fire','life','death','shadow','battle','celestial','chaos','earth','storm','protection','illusion','nature','transformation','time'];
-const TALENTS=['taunt','taunt','block','block','revive','condemn','deathWish','warCry','battleOrders','metamagic','spellsurge','miracleHeal','resurrection','entangle','shieldBash','catchBreath','nimbleRecovery','spellRecovery','sharedRecovery','divineFavour','bloodOffering','catastrophe','divineSmite','massHeal','metamagic','overcast','pacedStrikes','rallyingCry','resurrection','battleOrders','vanish','curse','triage','darkPact','druidsFury','revelation','intercept','markHeretic','deadAim','smokeScreen','quickstrike','layOnHands','warCry','entangle','foresight','bladestorm','shadowStep','unstoppable'];
+const TALENTS=['turret','grenade','arrowStorm','steamBarrage','taunt','taunt','block','block','revive','condemn','deathWish','warCry','battleOrders','metamagic','spellsurge','miracleHeal','resurrection','entangle','shieldBash','catchBreath','nimbleRecovery','spellRecovery','sharedRecovery','divineFavour','bloodOffering','catastrophe','divineSmite','massHeal','metamagic','overcast','pacedStrikes','rallyingCry','resurrection','battleOrders','vanish','curse','triage','darkPact','druidsFury','revelation','intercept','markHeretic','deadAim','smokeScreen','quickstrike','layOnHands','warCry','entangle','foresight','bladestorm','shadowStep','unstoppable'];
 const pick=a=>a[Math.floor(Math.random()*a.length)];
 function run(nPlayers, comp, seedLabel){ return new Promise(res=>{
   const bots=[]; let code=null; let done=false; let last=Date.now(); let lastSig=''; let maxDepth=0; let outcome='?'; let states=0;
@@ -44,7 +45,8 @@ function run(nPlayers, comp, seedLabel){ return new Promise(res=>{
       b.acted=key;
       setImmediate(()=>{ if(done) return;
         if(c.pendingLevelUp){ const t=c.pendingPathTier||'novice';
-          const id=t==='expert'?(pick(EXPERT)):t==='master'?(pick(MASTER)):t==='tradition'?'tradition:'+pick(TRAD):'warrior';
+          const cp=DATA.CAREER_PATHS[me.career]||{}; const lores=TRAD.filter(x=>DATA.traditionAllowed(c,x)&&!(c.traditions||[]).includes(x));
+          const id=t==='expert'?pick(Object.keys(cp.expert||{defender:1})):t==='master'?pick(Object.keys(cp.master||{myrmidon:1})):t==='tradition'?'tradition:'+pick(lores.length?lores:TRAD):'warrior';
           return act('APPLY_PATH',{pathId:id}); }
         if(c.pendingStatBoost) return act('CHOOSE_STAT',{attr:pick(['str','agi','int','wil'])});
         if(!c.alive) return;

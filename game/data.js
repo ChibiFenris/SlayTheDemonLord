@@ -6,7 +6,7 @@ const CAREERS = {
   warrior: { label:'State Soldier',    startHp:30, startAttrs:{str:12,agi:10,int:10,wil:10}, armorDef:3, weaponDmg:'1d6',   weaponStr:true,  spellcaster:false },
   rogue:   { label:'Roadwarden',       startHp:20, startAttrs:{str:10,agi:12,int:10,wil:10}, armorDef:0, weaponDmg:'1d6',   weaponStr:false, spellcaster:false },
   wizard:  { label:'Bright Wizard',    startHp:17, startAttrs:{str:10,agi:10,int:12,wil:10}, armorDef:1, weaponDmg:'1d6',   weaponStr:false, weaponIntBased:true,  spellcaster:true,  tradition:'fire' },
-  witchhunter:{ label:'Witch Hunter', startHp:24, startAttrs:{str:10,agi:12,int:10,wil:10}, armorDef:1, weaponDmg:'1d6',   weaponStr:false, weaponType:'piercing', spellcaster:false },
+  witchhunter:{ label:'Witch Hunter', startHp:26, startAttrs:{str:10,agi:12,int:10,wil:10}, armorDef:1, weaponDmg:'1d6',   weaponStr:false, weaponType:'piercing', spellcaster:false },
   slayer:  { label:'Dwarf Slayer',     startHp:28, startAttrs:{str:12,agi:10,int:10,wil:10}, armorDef:0, weaponDmg:'1d8',   weaponStr:true,  weaponType:'slashing', spellcaster:false },
   priest:  { label:'Sigmarite Priest', startHp:25, startAttrs:{str:10,agi:10,int:10,wil:12}, armorDef:3, weaponDmg:'1d6',   weaponStr:false, weaponWilBased:true,  spellcaster:true,  tradition:'life' },
 };
@@ -820,6 +820,114 @@ const ENEMY_DROPS = {
   'Warlock Engineer':  [{type:'consumable',name:'Warpstone Dust',chance:0.5}]
 };
 
+// ═════════════════════════════════════════════════════════════════════════════
+// New careers, career-specific paths, greenskins, corruption & insanity tables.
+// ═════════════════════════════════════════════════════════════════════════════
+Object.assign(CAREERS, {
+  engineer:   { label:'Imperial Engineer', startHp:26, startAttrs:{str:10,agi:10,int:12,wil:10}, armorDef:2, weaponDmg:'1d12', weaponStr:false, weaponIntBased:true, weaponType:'piercing', spellcaster:false, startRow:'back' },
+  waywatcher: { label:'Elf Waywatcher',    startHp:20, startAttrs:{str:10,agi:12,int:10,wil:10}, armorDef:1, weaponDmg:'1d8', weaponStr:false, weaponType:'piercing', spellcaster:false, startRow:'back' },
+});
+Object.assign(NOVICE_PATHS, {
+  // ── IMPERIAL ENGINEER (Imperial Gunnery School) ───────────────────
+  engineer: { hpGain:4, power:0,
+    turret:true,       // free action (cooldown 8): set up a Volley Gun that fires at the end of each round for 3 rounds
+    grenade:true,      // active (cooldown 6): a bomb that hits every enemy for 2d6+INT
+    tinkerer:true,     // passive: +1 Defence (riveted plate), Healing Draughts heal +2
+    weaponTraining:true, // Gunnery School drills: +1 boon on attacks
+    toughness:true,      // riveted plate: 10% less damage taken
+    catchBreath:true,
+    desc:'Volley Gun (free action, cooldown 8): set up a turret that fires at a foe at the end of each round for 3 rounds. Bomb (cooldown 6): 2d6+INT to every enemy. Tinkerer: +1 Defence and your Healing Draughts heal 2 more. Gunnery Drill: +1 boon on attacks. Riveted Plate: 10% less damage taken. Catch Breath (cooldown 12). Shoots a handgun with INT.' },
+  // ── ELF WAYWATCHER (Athel Loren) ──────────────────────────────────
+  waywatcher: { hpGain:4, power:0,
+    hawkEye:true,      // passive: +2 to hit from the back row
+    arrowStorm:true,   // active (cooldown 8): an arrow at every enemy for 1d6+AGI
+    evasion:true,
+    nimbleRecovery:true,
+    desc:'Hawk Eye: +2 to hit from the back row. Arrow Storm (cooldown 8): an arrow into every enemy for 1d6+AGI. Evasion: 1 bane on the first attack against you each round. Nimble Recovery (cooldown 12).' },
+});
+Object.assign(EXPERT_PATHS, {
+  gunner: { label:'Master Gunner', hpGain:5, power:0,
+    levelGains:{ 3:['weaponAptitude','firstVolley'], 4:['huntersMark','+1int'], 5:['combatProwess','deadAim'], 6:['killingMomentum','+1int'] },
+    desc:'Weapon Aptitude: +2 to hit. First Volley: +1 boon on your first shot. Hunter\'s Mark. Combat Prowess: +1d6 per hit. Dead Aim. Killing Momentum: kills give a free attack.' },
+  sapper: { label:'Sapper', hpGain:6, power:0,
+    levelGains:{ 3:['bigBombs','toughness'], 4:['combatExpertise','+1int'], 5:['improvedTurret','quickHands'], 6:['ward','+1int'] },
+    desc:'Big Bombs: bombs deal +1d6 and stun on a 6. Toughness: 10% damage reduction. Improved Turret: the Volley Gun fires for 4 rounds and hits harder. Quick Hands: items are free actions. Ward: allies +1 Defence while you stand.' },
+});
+Object.assign(MASTER_PATHS, {
+  guildMaster: { label:'Guild Master', hpGain:5, power:0,
+    levelGains:{ 7:['improvedTurret','bigBombs'], 8:['weaponMaster','+1int'], 9:['fortressStance','toughness'], 10:['steamBarrage','+1int'] },
+    desc:'Improved Turret and Big Bombs. Weapon Master: damage never rolls below half. Fortress Stance. Steam Barrage (cooldown 9): 6d6 to every enemy.' },
+  longRifle: { label:'Hochland Long Rifle', hpGain:5, power:0,
+    levelGains:{ 7:['quickstrike','phantomStrike'], 8:['deadAim','+1agi'], 9:['bladestorm','killingMomentum'], 10:['swiftFeet','+1int'] },
+    desc:'Quick Strike: round-1 attack hits twice. Phantom Strike: first shot auto-hits. Dead Aim. Bladestorm: hits fire a second shot. Swift Feet: +2 boons on every attack.' },
+});
+
+// Which expert and master paths each career may take, with the name the path
+// has for that career. Shared mechanics, different Warhammer careers.
+const CAREER_PATHS = {
+  warrior:     { expert:{ defender:'Greatsword', giantSlayer:'Pit Fighter' },
+                 master:{ myrmidon:'Reiksguard Knight', warlord:'Captain of the Empire', champion:'Knight of the Blazing Sun' } },
+  rogue:       { expert:{ ranger:'Outrider', assassin:'Cutthroat' },
+                 master:{ shadowblade:'Highwayman', executioner:'Master Assassin' } },
+  wizard:      { expert:{ elementalist:'Bright Journeyman', sorcerer:'Celestial Journeyman', wizard:'Grey Journeyman', spellbinder:'Battle Wizard', warlock:'Dark Magister' },
+                 master:{ transmuter:'Gold Magister', necromancer:'Amethyst Magister', abjurer:'Light Magister', archmage:'Patriarch of the Colleges' } },
+  priest:      { expert:{ paladin:'Warrior Priest', healer:'Hospitaller', druid:'Priest of the Old Faith' },
+                 master:{ chaplain:'Templar of Sigmar', healer_m:'Arch-Lector' } },
+  witchhunter: { expert:{ inquisitor:'Inquisitor', ranger:'Bounty Hunter' },
+                 master:{ witchfinder:'Witchfinder General', champion:'Templar of the Silver Hammer' } },
+  slayer:      { expert:{ defender:'Troll Slayer', giantSlayer:'Giant Slayer' },
+                 master:{ brute:'Dragon Slayer', daemonSlayer:'Daemon Slayer' } },
+  engineer:    { expert:{ gunner:'Master Gunner', sapper:'Sapper' },
+                 master:{ guildMaster:'Guild Master', longRifle:'Hochland Long Rifle' } },
+  waywatcher:  { expert:{ ranger:'Waystalker', assassin:'Shadow-walker' },
+                 master:{ shadowblade:'Shadow Warrior', executioner:'Wardancer' } },
+};
+const pathAllowed = (career, tier, id) => !!(CAREER_PATHS[career] && CAREER_PATHS[career][tier] && CAREER_PATHS[career][tier][id]);
+const pathLabel = (career, tier, id) => (CAREER_PATHS[career] && CAREER_PATHS[career][tier] && CAREER_PATHS[career][tier][id]) || ((tier === 'expert' ? EXPERT_PATHS : MASTER_PATHS)[id] || {}).label || id;
+
+// Lores of magic open to each career. The Dark Magister alone may touch Chaos.
+const TRADITION_ACCESS = {
+  wizard: ['fire','death','shadow','celestial','earth','storm','protection','illusion','nature','transformation','time','battle'],
+  priest: ['life','protection','battle','celestial','nature'],
+};
+function traditionAllowed(c, id) {
+  if (id === 'chaos') return c.expertPath === 'warlock';
+  const list = TRADITION_ACCESS[c.career];
+  return !list || list.includes(id);
+}
+
+// ── Greenskins ────────────────────────────────────────────────────────────
+ENEMY_POOLS.low.push(
+  {name:'Night Goblin', type:'Greenskin', threat:'Low', hp:11, ac:12, atk:1, xp:1, gold:[2,8], tags:['greenskin'], gobboMob:true},
+  {name:'Cave Squig',   type:'Greenskin', threat:'Low', hp:14, ac:11, atk:2, xp:1, gold:[0,4], tags:['greenskin','beast'], squigBounce:true},
+);
+ENEMY_POOLS.mid.push(
+  {name:'Orc Boy',      type:'Greenskin', threat:'Moderate', hp:34, ac:13, atk:3, xp:2, gold:[8,20], tags:['greenskin'], choppaCharge:true},
+  {name:'Goblin Fanatic', type:'Greenskin', threat:'Moderate', hp:18, ac:10, atk:3, xp:2, gold:[5,15], tags:['greenskin'], fanatic:true},
+  {name:'Night Goblin Shaman', type:'Greenskin', threat:'Moderate', hp:24, ac:12, atk:2, xp:2, gold:[10,25], tags:['greenskin'], gorkFoot:true},
+);
+ENEMY_POOLS.high.push(
+  {name:'Black Orc',    type:'Greenskin', threat:'High', hp:62, ac:17, atk:4, xp:4, gold:[15,40], tags:['greenskin'], damageReduction:1, disciplined:true, waaaghCry:true},
+);
+ENEMY_POOLS.boss2.push(
+  {name:'Warboss Grubnak Skullsmasha', type:'Greenskin Boss', threat:'Boss', hp:112, ac:16, atk:3, xp:5, gold:[200,200], tags:['greenskin'], damageReduction:1, telegraph:'bigChoppa'},
+);
+Object.assign(SUMMONS, {
+  orcBoy:     {name:'Orc Boy', type:'Greenskin', threat:'Moderate', hp:24, ac:13, atk:2, xp:0, gold:[0,0], tags:['greenskin'], choppaCharge:true},
+  nightGoblin:{name:'Night Goblin', type:'Greenskin', threat:'Low', hp:11, ac:12, atk:1, xp:0, gold:[0,0], tags:['greenskin'], gobboMob:true},
+  ungor:      {name:'Ungor Skirmisher', type:'Beastmen', threat:'Low', hp:12, ac:13, atk:2, xp:0, gold:[0,0], tags:['beast'], skirmisher:true},
+  stormvermin:{name:'Skaven Stormvermin', type:'Skaven', threat:'Moderate', hp:22, ac:15, atk:2, xp:0, gold:[0,0], tags:['skaven'], skavenDiscipline:true},
+});
+
+Object.assign(COOLDOWNS, {
+  turret:{flag:'_turretUsed',rounds:8}, grenade:{flag:'_grenadeUsed',rounds:6},
+  arrowStorm:{flag:'_arrowStormUsed',rounds:8}, steamBarrage:{flag:'_steamBarrageUsed',rounds:9},
+});
+SHOP_CONSUMABLES.push(
+  {name:'Sigmarite Incense', desc:'Out of combat: remove 2 Corruption', cost:30},
+  {name:'Laudanum',          desc:'Remove 2 Insanity', cost:20},
+);
+
 module.exports = {
   SUMMONS, WEAPON_TRAITS, ARMOR_TRAITS, CHARMS, CHARM_SHOP_KEYS, CURSED_GEAR, COOLDOWNS, cooldownFor,
   CAREERS,
@@ -840,4 +948,5 @@ module.exports = {
   SHOP_CONSUMABLES,
   SCROLL_SPELLS_SHOP,
   ENEMY_DROPS,
+  CAREER_PATHS, pathAllowed, pathLabel, TRADITION_ACCESS, traditionAllowed,
 };

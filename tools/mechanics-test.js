@@ -210,7 +210,7 @@ const logHas=(room,re)=>room.gs.log.some(l=>re.test(l.msg));
   ok(patchBytes<fullBytes/4,`patches are much smaller (${Math.round(patchBytes/1024)} KB vs ${Math.round(fullBytes/1024)} KB over 25 updates)`); }
 // 19. New classes
 { const {room}=mkRoom(['witchhunter','slayer']); const wh=room.players[0].char, sl=room.players[1].char;
-  ok(wh.condemn&&wh.silverShot&&wh.firstVolley&&wh.catchBreath&&wh.maxHealth===29,'Witch Hunter starts with Condemn, Silver Shot, First Volley (29 HP)');
+  ok(wh.condemn&&wh.silverShot&&wh.firstVolley&&wh.catchBreath&&wh.maxHealth===31,'Witch Hunter starts with Condemn, Silver Shot, First Volley (31 HP)');
   ok(sl.slayerOath&&sl.deathWish&&sl.rage&&sl.maxHealth===34&&sl.defense===10,'Dwarf Slayer starts with Oath, Death Wish, Rage (34 HP, Defence 10)');
   ok(wh.equippedWeapon.dmgType==='piercing'&&sl.equippedWeapon.dice==='1d8','new classes get their own weapons');
   combat(room,['Undead Skeleton','Skaven Clanrat']); room.gs.activeEnemyIdx=0;
@@ -232,7 +232,7 @@ const logHas=(room,re)=>room.gs.log.some(l=>re.test(l.msg));
   S.handleMessage(ws,{type:'SELECT_CAREER',payload:{career:'slayer'}}); ok(r2.players[0].char.novicePath==='slayer','choosing Slayer applies its novice path'); }
 // 20. New bosses: every boss pool has three, and each wind-up resolves
 { const D2=require('../game/data.js');
-  ok(D2.ENEMY_POOLS.boss1.length===4&&D2.ENEMY_POOLS.boss2.length===4&&D2.ENEMY_POOLS.boss3.length===3,'boss pools: 4 / 4 / 3');
+  ok(D2.ENEMY_POOLS.boss1.length===4&&D2.ENEMY_POOLS.boss2.length===5&&D2.ENEMY_POOLS.boss3.length===3,'boss pools: 4 / 5 / 3 (with the Warboss)');
   const kinds=['warpStorm','hornCurse','plagueWind','trollSmash','hellfire','dragonBreath'];
   let allOk=true;
   for(const k of kinds){
@@ -402,4 +402,52 @@ const logHas=(room,re)=>room.gs.log.some(l=>re.test(l.msg));
   const {room:rr}=mkRoom(['warrior']); rr.players[0].char.relics=Object.keys(S.relics.RELICS); rr.gs.phase='event';
   ok(!S.relics.offerRelics(rr,'path',false)&&rr.gs.phase==='event','with every relic taken, the relic screen is skipped');
   const leg=S.genLegendaryItem(4); ok(/\+2$/.test(leg.name),'legendaries from later loops are stronger'); }
+// 35. Career paths are limited and named for each career
+{ const {room}=mkRoom(['warrior']); const p=room.players[0], c=p.char; c.pendingLevelUp=true; c.pendingPathTier='expert';
+  S.handlePlayerAction(room,p.id,{action:'APPLY_PATH',data:{pathId:'elementalist'}});
+  ok(!c.expertPath,'a State Soldier cannot become a Bright Journeyman');
+  S.handlePlayerAction(room,p.id,{action:'APPLY_PATH',data:{pathId:'defender'}});
+  ok(c.expertPath==='defender'&&logHas(room,/Greatsword/),'but can become a Greatsword');
+  ok(D.pathLabel('slayer','master','daemonSlayer')==='Daemon Slayer'&&D.pathLabel('waywatcher','master','executioner')==='Wardancer','shared paths have career names');
+  Object.entries(D.CAREER_PATHS).forEach(([k,v])=>ok(Object.keys(v.expert).length>=2&&Object.keys(v.master).length>=2&&Object.keys(v.expert).every(x=>D.EXPERT_PATHS[x])&&Object.keys(v.master).every(x=>D.MASTER_PATHS[x]),k+' has at least two real expert and master paths'));
+  const pr={career:'priest',expertPath:'healer'}; ok(D.traditionAllowed(pr,'life')&&!D.traditionAllowed(pr,'fire')&&!D.traditionAllowed(pr,'chaos'),'priests learn prayers, not fire or Chaos');
+  ok(D.traditionAllowed({career:'wizard',expertPath:'warlock'},'chaos')&&!D.traditionAllowed({career:'wizard',expertPath:'wizard'},'chaos'),'only the Dark Magister touches Chaos'); }
+// 36. Engineer and Waywatcher
+{ const {room}=mkRoom(['engineer','waywatcher']); const en=room.players[0], wy=room.players[1];
+  ok(en.char.turret&&en.char.grenade&&en.char.row==='back'&&wy.char.hawkEye&&wy.char.row==='back','both new careers start in the back row with their kit');
+  ok(S.gear.hasRangedWeapon(en.char)&&S.gear.hasRangedWeapon(wy.char),'and shoot ranged weapons');
+  combat(room,['Skaven Clanrat','Skaven Stormvermin']);
+  room.gs.activeTurnIdx=room.gs.turnOrder.findIndex(t=>t.id===en.id);
+  S.handlePlayerAction(room,en.id,{action:'USE_TALENT',data:{talent:'turret'}});
+  ok(en.char._turretRounds===3&&en.char._turretUsed&&room.gs.turnOrder[room.gs.activeTurnIdx].id===en.id,'the Volley Gun is set up for 3 rounds, as a free action');
+  const hp0=room.gs.enemies.reduce((a,e)=>a+e.hp,0); S.engineerRoundTick(room); const hp1=room.gs.enemies.reduce((a,e)=>a+Math.max(0,e.hp),0);
+  ok(hp1<hp0&&en.char._turretRounds===2,'and fires at the end of the round');
+  room.gs.activeTurnIdx=room.gs.turnOrder.findIndex(t=>t.id===wy.id); const before=room.gs.enemies.map(e=>e.hp);
+  S.handlePlayerAction(room,wy.id,{action:'USE_TALENT',data:{talent:'arrowStorm'}});
+  ok(room.gs.enemies.every((e,i)=>e.hp<before[i]||e.hp<=0),'Arrow Storm hits every enemy'); }
+// 37. Corruption and Insanity
+{ const {room}=mkRoom(['warrior','priest']); const p=room.players[0], c=p.char;
+  S.dark.gainCorruption(room,p,3,'test'); ok(c.mutations.length===1,'3 Corruption brings a mutation');
+  S.dark.gainCorruption(room,p,6,'test'); ok(c.mutations.length===3,'up to three');
+  c.mutations=[]; const lim=S.dark.limit(c); S.dark.gainInsanity(room,p,lim-1); ok(c.insanity===lim-1&&!c.disorders.length,'Insanity builds up to the limit');
+  S.dark.gainInsanity(room,p,1); ok(c.insanity===0&&c.disorders.length===1&&logHas(room,/snaps!/),'at the limit you snap: a madness and a lasting disorder');
+  const w=room.players[1].char; w.alive=true; c.health=0; const ins=w.insanity||0; S.checkDeath(room,p); ok(w.insanity>ins||w.disorders.length,'seeing an ally fall costs Insanity');
+  const {room:r2}=mkRoom(['warrior']); const q=r2.players[0]; q.char.inventory.push({name:'Laudanum',qty:1},{name:'Sigmarite Incense',qty:1}); q.char.insanity=3; q.char.corruption=4;
+  S.useItemLogic(r2,q,'Laudanum',false); S.useItemLogic(r2,q,'Sigmarite Incense',false);
+  ok(q.char.insanity===1&&q.char.corruption===2,'Laudanum and Incense help'); }
+// 38. Boss phases, elite modifiers, greenskins
+{ const {room}=mkRoom(['warrior','priest']); const boss=JSON.parse(JSON.stringify(D.ENEMY_POOLS.boss2.find(b=>b.name==='Warboss Grubnak Skullsmasha')));
+  const b=S.scaleEnemy(boss,1,false,1); b.id='b1'; room.gs.enemies=[b]; room.gs.enemy=b; room.gs.inCombat=true; room.gs.phase='combat'; room.gs.roundNumber=1; S.startSpoils(room); S.buildTurnOrder(room);
+  b.hp=Math.floor(b.maxHp/2)-1; S.enemyPreTurn(room,b,room.players);
+  ok(b._phase2&&room.gs.enemies.filter(e=>e.name==='Orc Boy').length===2&&logHas(room,/WAAAGH/),'at half HP the Warboss calls the Waaagh! and Orc Boyz charge in (one per warrior, up to two)');
+  Object.keys(S.foes.BOSS_PHASES).forEach(n=>ok([...D.ENEMY_POOLS.boss1,...D.ENEMY_POOLS.boss2,...D.ENEMY_POOLS.boss3].some(x=>x.name===n),'phase for a real boss: '+n));
+  const e=S.scaleEnemy(JSON.parse(JSON.stringify(D.ENEMY_POOLS.mid[0])),1,true,1); ok(e.affix&&e.affixLabel,'elites get a modifier ('+e.affixLabel+')');
+  const g=S.scaleEnemy(JSON.parse(JSON.stringify(D.ENEMY_POOLS.high.find(x=>x.name==='Black Orc'))),1,false,2); S.addDebuff(g,'Stunned',{skipTurn:true},1); ok(!(g.activeDebuffs||[]).length,'Black Orcs shrug off stuns');
+  ['Night Goblin','Cave Squig','Orc Boy','Goblin Fanatic','Night Goblin Shaman','Black Orc','Warboss Grubnak Skullsmasha'].forEach(n=>ok(require('../public/tokens/index.json')[n],'token for '+n)); }
+// 39. Endless mutators
+{ const {room}=mkRoom(['warrior']); room.gs.endless=true; room.gs._pendingMutator=true; room.gs.phase='event'; S.showPathChoices(room);
+  ok(room.gs.phase==='choice'&&room.gs.choice.key==='endlessMutator'&&room.gs.choice.options.length===3,'after an Endless boss the warband picks one of three mutators');
+  const pick=room.gs.choice.options[0].id; S.events.voteChoice(room,room.players[0].id,pick);
+  ok(room.gs.mutators.includes(pick)&&room.gs.phase==='event','and it lasts the run');
+  S.foes.applyMutator(room,'horde'); room.gs.phase='event'; room.gs.depth=12; S._runNodeContent(room,room.gs,'combat',1); ok(room.gs.enemies.length>=2,'The Horde adds a foe to every fight'); }
 console.log(fails?fails+' FAILED':'all passed'); process.exit(fails?1:0);

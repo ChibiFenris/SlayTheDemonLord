@@ -113,6 +113,8 @@ function mTapEnemy(idx){
   if(enemy.damageReduction>0) rows.push(['Damage reduction','−'+enemy.damageReduction]);
   (enemy.tags||[]).forEach(t=>{ if(ENEMY_WEAKNESS[t]) rows.push(['Weakness',ENEMY_WEAKNESS[t].replace(/^\S+ Weak: /,'')]); });
   if(enemy.mutationLabel) rows.push(['Mutation',`${enemy.mutationLabel} — ${enemy.mutationDesc}`]);
+  if(enemy.affixLabel) rows.push(['Elite',`${enemy.affixLabel} — ${enemy.affixDesc}`]);
+  if(enemy.phaseName) rows.push(['Phase two',enemy.phaseName]);
   if(enemy._windup) rows.unshift(['⚠ Next turn',`${TELEGRAPH_NAMES[enemy._windup]||'Big attack'} — stun it to cancel`]);
   const abs=enemyAbilities(enemy).filter(([n])=>n!=='Mutation');
   const absHtml=abs.length?`<div class="m-sheet-sub">Abilities</div>`+abs.map(([n,d])=>`<div class="m-ability"><b>${n}</b><span>${d}</span></div>`).join(''):'';
@@ -172,6 +174,8 @@ function mRenderGame(gs,players,me){
       if(enemy._hiding) chips.push('<span class="chip">🫥 Cowering</span>');
       if(enemy._vanished) chips.push('<span class="chip">💨 Vanished</span>');
       if(enemy.mutationLabel) chips.push(`<span class="chip chip-warn">🧬 ${enemy.mutationLabel}</span>`);
+      if(enemy.affixLabel) chips.push(`<span class="chip chip-warn">★ ${enemy.affixLabel}</span>`);
+      if(enemy.phaseName) chips.push(`<span class="chip chip-warn">🔥 ${enemy.phaseName}</span>`);
       if(enemy._poisonStacks>0) chips.push(`<span class="chip chip-bad">☠ ${enemy._poisonStacks}</span>`);
       (enemy.activeDebuffs||[]).forEach(d=>chips.push(`<span class="chip chip-bad">${d.name} ${d.duration}r</span>`));
       (enemy.tags||[]).forEach(t=>{ if(ENEMY_WEAKNESS[t]) chips.push(`<span class="chip chip-warn">${ENEMY_WEAKNESS[t]}</span>`); });
@@ -207,7 +211,7 @@ function mRenderGame(gs,players,me){
       <div class="m-hp-row"><span class="m-hp-label">HP</span>${mBar(pct,'hp '+hpClass(pct))}<span class="m-hp-val">${c.health}/${c.maxHealth}</span></div>
       <div class="m-hp-row"><span class="m-hp-label">XP</span>${mBar(xp.pct,'xp')}<span class="m-hp-val">${c.level>=10?'Max':`${c.xp}/${xp.next}`}</span></div>
       ${c.equippedCharm?`<div class="m-stats">📿 ${c.equippedCharm.name} <button class="mini-btn" onclick="unequipCharm()">Remove</button></div>`:''}
-      <div class="m-stats">${c.row==='back'?'🏹 Back row':'🛡 Front row'} <button class="mini-btn" onclick="setRow('${c.row==='back'?'front':'back'}')">Move ${c.row==='back'?'forward':'back'}</button></div>${c.relics&&c.relics.length?`<div class="m-stats relic-chips">${c.relics.map(k=>{const r=RELICS_C[k]||{name:k,icon:'✨',desc:''};return `<span class="relic-chip" title="${r.name}: ${r.desc}">${r.icon} ${r.name}</span>`;}).join('')}</div>`:''}
+      <div class="m-stats">${c.row==='back'?'🏹 Back row':'🛡 Front row'} <button class="mini-btn" onclick="setRow('${c.row==='back'?'front':'back'}')">Move ${c.row==='back'?'forward':'back'}</button></div><div class="m-stats dark-line">${darkHtml(c).line}</div>${(c.mutations||[]).length||(c.disorders||[]).length?`<div class="m-stats relic-chips">${darkHtml(c).muts.join('')}${darkHtml(c).dis.join('')}</div>`:''}${c.relics&&c.relics.length?`<div class="m-stats relic-chips">${c.relics.map(k=>{const r=RELICS_C[k]||{name:k,icon:'✨',desc:''};return `<span class="relic-chip" title="${r.name}: ${r.desc}">${r.icon} ${r.name}</span>`;}).join('')}</div>`:''}
       <div class="m-stats">Def <b>${c.defense}</b>${c.power>0?` · Power <b>${c.power}</b>`:''} · STR <b>${c.attrs.str}</b> · AGI <b>${c.attrs.agi}</b> · INT <b>${c.attrs.int}</b> · WIL <b>${c.attrs.wil}</b></div>
       ${chips.length?`<div class="chip-row">${chips.join('')}</div>`:''}
       ${c.alive?'':'<div class="dead-label">Fallen</div>'}`);
