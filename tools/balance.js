@@ -59,7 +59,7 @@ function runGame(careers, opts = {}) {
         if (tier === 'expert') return send(sk, 'APPLY_PATH', { pathId: pick(PATHS[sk.career].expert) });
         if (tier === 'master') return send(sk, 'APPLY_PATH', { pathId: pick(PATHS[sk.career].master) });
       }
-      if (c.pendingStatBoost) return send(sk, 'CHOOSE_STAT', { attr: { warrior: 'str', rogue: 'agi', wizard: 'int', priest: 'wil', engineer: 'int', waywatcher: 'agi', witchhunter: 'agi', slayer: 'str' }[sk.career] || 'str' });
+      if (c.pendingStatBoost) return send(sk, 'CHOOSE_STAT', { attr: { empire: 'str', bretonnia: 'wil', dwarf: 'str', highelf: 'int', woodelf: 'agi' }[sk.career] || 'str' });
       if (gs.phase === 'aftermath' && gs.aftermath && !gs.aftermath.ready.includes(myId)) return send(sk, 'CONTINUE_AFTERMATH');
       if (gs.phase === 'campfire' && gs.campfire && c.alive && !gs.campfire.choices[myId]) { const o = c.campOptions || []; const up = c.health / c.maxHealth > 0.75 && o.length; return send(sk, 'CAMPFIRE', up ? { choice: 'upgrade', slot: (o.find(x => x.slot === 'weapon') || o[0]).slot } : { choice: 'rest' }); }
       if (c.alive && gs.phase === 'relic' && gs.relic) {
@@ -128,7 +128,7 @@ function runGame(careers, opts = {}) {
       if (c.condemn && !c._condemnUsed && !c._condemnTargetId) return send(sk, 'USE_TALENT', { talent: 'condemn' });
       for (const t of ['turret', 'arrowStorm', 'grenade', 'steamBarrage', 'divineSmite', 'warCry', 'deadAim', 'curse', 'massHeal']) if (c[t] && !c[t + 'Used'] && !c['_' + t + 'Used']) return send(sk, 'USE_TALENT', { talent: t });
       const atkSpell = spells.filter(s => s.type === 'attack' && left(s) > 0).sort((a, b) => b.rank - a.rank)[0];
-      if (atkSpell && (sk.career === 'wizard' || (sk.career === 'priest' && atkSpell.rank > 0))) return send(sk, 'CAST_SPELL', { spellName: atkSpell.name });
+      if (atkSpell && c.spellcaster && (atkSpell.rank > 0 || (c.equippedWeapon && c.equippedWeapon.stat === 'int'))) return send(sk, 'CAST_SPELL', { spellName: atkSpell.name });
       return send(sk, 'ATTACK');
     }
     socks.forEach(sk => { if (sk.last) schedule(); });
@@ -137,7 +137,7 @@ function runGame(careers, opts = {}) {
 
 (async () => {
   const N = +process.argv[2] || 40;
-  const setups = [['warrior'], ['rogue'], ['wizard'], ['priest'], ['witchhunter'], ['slayer'], ['engineer'], ['waywatcher'], ['warrior', 'rogue', 'wizard', 'priest']];
+  const setups = [['empire'], ['bretonnia'], ['dwarf'], ['highelf'], ['woodelf'], ['empire', 'dwarf', 'highelf', 'woodelf']];
   const charmStats = {}, weaponStats = {};
   console.log(`Balance run: ${N} games per setup\n`);
   console.log('setup'.padEnd(34) + 'win%  avg depth  past boss1  past boss2  timeouts');

@@ -2,14 +2,11 @@
 // ─── PRACTICE COACH ───────────────────────────────────────────────────────────
 // Tips shown above the actions during a practice fight, one lesson per round.
 const COACH_TALENT={
-  warrior:['Taunt','forces every enemy to attack you for 2 rounds, so your allies can act safely.'],
-  rogue:['Trickery','poisons whatever you hit. Poison ticks every round, and 5+ stacks give the enemy a bane.'],
-  wizard:['your spells','are in the spell list. Spells of the same rank share castings, and every pool refills at the start of each fight.'],
-  priest:['Shared Recovery','heals the whole warband once per fight. Your weapon hits also heal you through Holy Fervor.'],
-  witchhunter:['Condemn','is a free action: mark the enemy, then attack it for +1 boon and +1d6 damage. It does not use your turn.'],
-  engineer:['your Volley Gun','keeps shooting for 3 rounds after you set it up, and your Bomb hits every enemy at once. Stay in the back row.'],
-  waywatcher:['Arrow Storm','hits every enemy at once. Hawk Eye makes your shots from the back row more accurate.'],
-  slayer:["Death Wish","makes you stronger below half HP, and Slayer's Oath adds 1d6 against elites and bosses. Rage readies a stronger hit each time you are struck."],
+  empire:['Shield Bash','stuns an enemy so it loses its next turn. Use it on whatever hits hardest.'],
+  bretonnia:['Challenge','(Taunt) forces every enemy to attack you for 2 rounds, so your allies can act safely. Your faith (WIL) guides your sword.'],
+  dwarf:['your toughness','takes 10% off every hit, and nothing can stun you. Stand in front and hit hard.'],
+  highelf:['your spells','are in the spell list. Spells of the same rank share castings, and every pool refills at the start of each fight.'],
+  woodelf:['the back row','is home: Hawk Eye gives +1 to hit with your bow from there, and melee enemies can\'t reach you while someone stands in front.'],
 };
 function coachHtml(gs,me){
   const r=gs.roundNumber||1, t=COACH_TALENT[me.career]||['your talents','are listed with the actions.'];

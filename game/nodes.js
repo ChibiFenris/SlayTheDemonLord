@@ -115,7 +115,6 @@ function _runNodeContent(room, gs, nodeType, playerCount) {
     if(gs.curseStacks){ gs.enemies.forEach(e=>{ e.maxHp=Math.round(e.maxHp*(1+0.15*gs.curseStacks)); e.hp=e.maxHp; e.dmgBonus=(e.dmgBonus||0)+gs.curseStacks; e.dmgDisplay=`${e.dmgNum}d${e.dmgSides}${e.dmgBonus?'+'+e.dmgBonus:''}`; }); }
     // Relics that act when a fight begins.
     room.players.forEach(p=>{ const c=p.char; if(!c||!c.alive) return;
-      if(hasRelic(c,'pilgrimBoots')) c.health=Math.min(c.maxHealth,c.health+4);
     });
     if(room.players.some(p=>p.char&&p.char.alive&&hasRelic(p.char,'tollingBell'))) gs.enemies.forEach(e=>addDebuff(e,'Shaken',{bane:1,consumeOnAttack:true},2));
     if(gs._nextCombatHalfHP){ gs._nextCombatHalfHP=false; gs.enemies.forEach(e=>{e.hp=Math.ceil(e.hp/2); e.maxHp=e.hp;}); addLog(room,`🔴 Ritual disruption — enemies enter at half HP!`,'chaos'); }

@@ -1,7 +1,7 @@
 'use strict';
 // The public stats page: reads /api/stats (real runs) and /api/game-data (names).
 (function () {
-  const CAREERS = { warrior: 'State Soldier', rogue: 'Roadwarden', wizard: 'Bright Wizard', priest: 'Sigmarite Priest', witchhunter: 'Witch Hunter', slayer: 'Dwarf Slayer', engineer: 'Imperial Engineer', waywatcher: 'Elf Waywatcher' };
+  const CAREERS = { empire: 'Human (Empire)', bretonnia: 'Human (Bretonnia)', dwarf: 'Dwarf', highelf: 'High Elf', woodelf: 'Wood Elf', warrior: 'State Soldier', rogue: 'Roadwarden', wizard: 'Bright Wizard', priest: 'Sigmarite Priest', witchhunter: 'Witch Hunter', slayer: 'Dwarf Slayer', engineer: 'Imperial Engineer', waywatcher: 'Elf Waywatcher' };
   const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const box = document.getElementById('ledger');
   let GD = {};
@@ -45,15 +45,15 @@
       <div><b>${o.avgDepth}</b><span>average depth</span></div>
       <div><b>${st.deepestEndless || '—'}</b><span>deepest Endless run</span></div>
     </div><div class="cols">`;
-    html += section('Careers', 'Every run a career took part in, solo or in a party.', summaryRows(st.byClass, k => CAREERS[k] || k));
-    html += section('Careers alone', 'Runs with a single warrior.', summaryRows(st.soloByClass, k => CAREERS[k] || k));
+    html += section('Peoples', 'Every run a race took part in, solo or in a party.', summaryRows(st.byClass, k => CAREERS[k] || k));
+    html += section('Peoples alone', 'Runs with a single warrior.', summaryRows(st.soloByClass, k => CAREERS[k] || k));
     html += section('Warband size', '', summaryRows(st.byPartySize, k => k === '1' ? 'Alone' : `${k} warriors`));
     html += section('Difficulty and mode', '', summaryRows(Object.assign({}, st.byDifficulty, st.byMode), k => k));
     html += section('How far runs got', 'Where each run ended.', countRows(buckets, k => k === 'Victory' ? '🏆 Victory' : `Depth ${k}`));
     html += section('Where warbands fall', '', countRows(st.deathsByZone, k => k, 'death'));
     html += section('The deadliest foes', 'What dealt the final blow.', countRows(st.topKillers, k => k, 'death'));
-    html += section('Expert paths', 'How often each is chosen, and how those runs went.', pickRows(st.expertPaths, pathLabel('expert')));
-    html += section('Master paths', '', pickRows(st.masterPaths, pathLabel('master')));
+    html += section('Expert classes', 'How often each is chosen, and how those runs went.', pickRows(st.expertPaths, pathLabel('expert')));
+    html += section('Master classes', '', pickRows(st.masterPaths, pathLabel('master')));
     html += section('Relics carried', 'Relics held at the end of a run.', pickRows(st.relics, relicLabel));
     html += section('Claimed by the Dark Gods', 'Warriors who reached 9 Corruption.', pickRows(st.patrons, patronLabel));
     html += section('Recent runs', '', st.recent && st.recent.length ? `<ul class="recent">${st.recent.map(r => `<li class="${r.victory ? 'won' : 'lost'}"><strong>${r.victory ? 'Victory' : `Fell at depth ${r.depth}`}${r.endless ? ' · Endless' : ''}</strong> — ${r.players.map(p => esc(CAREERS[p.career] || p.career) + ' ' + (p.level || '')).join(', ')}${r.killer && !r.victory ? ` · slain by ${esc(r.killer)}` : ''}${r.chronicle ? `<small>${esc(r.chronicle)}</small>` : ''}</li>`).join('')}</ul>` : '<p class="empty">None yet.</p>', true);

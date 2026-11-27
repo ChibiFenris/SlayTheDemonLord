@@ -54,9 +54,10 @@ const PATRONS = {
 function patronFor(c) {
   if (Math.random() < 0.25) return pickRandom(Object.keys(PATRONS));
   if (c.spellcaster) return 'tzeentch';
-  if (c.career === 'warrior' || c.career === 'slayer') return 'khorne';
-  if (c.career === 'rogue' || c.career === 'waywatcher') return 'slaanesh';
-  return 'nurgle';
+  if (c.career === 'dwarf') return 'khorne';
+  if (c.career === 'highelf' || c.career === 'woodelf') return 'slaanesh'; // the elves' old curse
+  if (c.career === 'bretonnia') return 'nurgle';
+  return pickRandom(['khorne', 'nurgle']);
 }
 function claimByPatron(room, p) {
   const c = p.char; if (c.patron) return;
@@ -65,7 +66,7 @@ function claimByPatron(room, p) {
   room.gs.bossBanner = { name: `${PATRONS[k].icon} ${PATRONS[k].label}`, text: `${p.name} has been claimed by the Dark Gods.`, ts: Date.now() };
 }
 
-const limit = c => 4 + (c.patron === 'slaanesh' ? -1 : 0) + Math.max(0, Math.floor((((c.attrs && c.attrs.wil) || 10) - 10) / 2)) + (c.career === 'witchhunter' || c.career === 'slayer' ? 1 : 0);
+const limit = c => 4 + (c.patron === 'slaanesh' ? -1 : 0) + (c.virtue ? 1 : 0) + (c.stubborn ? 1 : 0) + Math.max(0, Math.floor((((c.attrs && c.attrs.wil) || 10) - 10) / 2)) + (c.condemn ? 1 : 0); // Bretonnian virtue, Dwarven stubbornness, a witch hunter's zeal
 const resists = c => S.resistsInsanity && S.resistsInsanity(c);
 
 function gainCorruption(room, p, n, source) {

@@ -16,11 +16,11 @@ function showPathPick(me){
     return;
   }
 
-  const titles={novice:'Choose Your Novice Path (Level 1)',expert:'Choose Your Expert Path (Level 3)',master:'Choose Your Master Path (Level 7)'};
+  const titles={novice:'Your People (Level 1)',expert:'Choose Your Expert Class (Level 3)',master:'Choose Your Master Class (Level 7)'};
   el('pp-heading').textContent=titles[tier]||'Choose Your Path';
   el('pp-sub').textContent=tier==='novice'?'Your career archetype — unlocks talents and abilities.'
-    :tier==='expert'?`The careers open to a ${CAREER_LABELS[me.career]||'warrior'}.`
-    :`The heights a ${CAREER_LABELS[me.career]||'warrior'} can reach.`;
+    :tier==='expert'?`The classes open to the ${CAREER_LABELS[me.career]||'warband'} — choose how you will fight.`
+    :`The heights the ${CAREER_LABELS[me.career]||'warband'} can reach. Masters bring the core of their craft with them.`;
   const grid=el('pp-grid'); grid.innerHTML='';
   const infoMap=tier==='novice'?NOVICE_INFO:tier==='expert'?EXPERT_INFO:MASTER_INFO;
   const allowed=(CAREER_PATHS_C[me.career]||{})[tier];
@@ -553,8 +553,8 @@ function buildCampfirePanel(gs,players,me){
   const grid=document.createElement('div'); grid.className='relic-grid';
   const opt=(icon,name,desc,data)=>{ const b=document.createElement('button'); b.className='relic-opt'; b.innerHTML=`<span class="relic-icon">${icon}</span><span class="relic-name">${name}</span><span class="relic-desc">${desc}</span>`; b.onclick=()=>send('PLAYER_ACTION',{action:'CAMPFIRE',data}); grid.appendChild(b); };
   opt('💤','Rest',`Heal half your HP (${c.health}/${c.maxHealth} now), lose 1 Insanity, loosen curses and get 1 boon in the next fight.`,{choice:'rest'});
-  (c.campOptions||[]).forEach(o=>opt(o.slot==='weapon'?'⚔':'🛡',`Upgrade ${escapeHtml(o.name)}`,`Work through the night instead of resting: ${o.what} (upgrade ${o.now+1} of 3). No healing.`,{choice:'upgrade',slot:o.slot}));
-  if(!(c.campOptions||[]).length) grid.insertAdjacentHTML('beforeend','<div class="hint">Your gear is fully upgraded (3 times each).</div>');
+  (c.campOptions||[]).forEach(o=>opt(o.slot==='weapon'?'⚔':'🛡',`Upgrade ${escapeHtml(o.name)}`,`Work through the night instead of resting: ${o.what} (upgrade ${o.now+1} of ${o.max||3}). No healing.`,{choice:'upgrade',slot:o.slot}));
+  if(!(c.campOptions||[]).length) grid.insertAdjacentHTML('beforeend','<div class="hint">Your gear can\'t be upgraded further (weapons 3 times, armour twice and only up to +5 Defence).</div>');
   box.appendChild(grid);
   box.insertAdjacentHTML('beforeend','<div class="hint">Everyone gets their abilities and castings back either way.</div>');
   return box;

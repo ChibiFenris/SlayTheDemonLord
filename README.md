@@ -86,14 +86,15 @@ Share this URL with your friends — that's your game server.
 - Rest nodes restore 60% HP and refresh all abilities
 - Levels 1, 3, and 7 trigger path selection screens
 
-## Careers
+## Races
 
-| Career | Stat shift | Abilities |
-|---|---|---|
-| State Soldier (Warrior) | STR+1 INT−1 | Weapon Training, Catch Your Breath |
-| Roadwarden (Rogue) | AGI+1 WIL−1 | Trickery (+1d6), Nimble Recovery |
-| Bright Wizard (Magician) | INT+1 STR−1 | Fire spells, Spell Recovery |
-| Sigmarite Priest (Priest) | WIL+1 AGI−1 | Life spells, Shared Recovery |
+| People | Attributes | Level 1 | Expert classes (level 3) | Master classes (level 7) |
+|---|---|---|---|---|
+| Human (Empire) | +1 to all | Drilled, Combined Arms, Shield Bash | State Greatsword, Witch Hunter, Imperial Engineer, Bright Wizard | Captain of the Empire, Witchfinder General, Master Engineer, Patriarch |
+| Human (Bretonnia) | +4 WIL | Virtue, The Charge, Lady's Blessing, Challenge | Knight Errant, Questing Knight, Damsel of the Lady, Herrimault | Grail Knight, Paladin of the Realm, Prophetess, Enchantress |
+| Dwarf | +4 STR | Dwarf-hard, Stubborn, Constitution | Troll Slayer, Ironbreaker, Thunderer, Runesmith | Daemon Slayer, Thane, Ironbeard Marksman, Runelord |
+| High Elf | +4 INT | Lore of Light, Valour of Ages | Swordmaster of Hoeth, Mage of Saphery, White Lion, Sword of Hoeth | Archmage, Loremaster of Hoeth, Phoenix Guard, Shadow Warrior |
+| Wood Elf | +4 AGI | Hawk Eye, longbow | Waystalker, Wardancer, Spellsinger, Deepwood Scout | Waywatcher, Wild Rider, Spellweaver, Shadowdancer |
 
 ---
 
@@ -176,7 +177,7 @@ Every finished run adds one line to `runs.jsonl` in the data folder: party, clas
 - **Enemy intents:** each enemy card says who it will attack next. **Combos:** stunned/skipped targets take +1d6 (Exploit), Condemned + burning +1d6 (Purge), poisoned + bleeding +2 (Festering).
 - **Recurring characters (`game/lore.js`, `events.js`):** Old Grete the merchant, Ulla Kranz and the Black Ravens (three meetings), Brother Aldric the witch hunter (two). How you treat them first changes later meetings. Bosses speak when they appear and when they die.
 - **Endless mode:** the host turns it on in the lobby. No final victory: a boss every 10 depths (the three boss tiers cycle), and each boss past the third adds a tier — foes get much more HP (growing faster each tier), +1.5 damage, +1 to hit and more silver per tier; shop and loot weapons get +1 per tier and armour +1 every other tier, legendaries +1 per tier, and the Weapon Enhancement cap rises. Runs end when the warband falls.
-- **Careers and paths:** eight careers, now including the **Imperial Engineer** (Volley Gun turret, bombs) and **Elf Waywatcher** (Hawk Eye, Arrow Storm). Each career only sees the expert and master paths that suit it, under Warhammer names (`CAREER_PATHS` in `game/data.js`): e.g. State Soldier → Greatsword / Pit Fighter → Reiksguard Knight / Captain of the Empire / Knight of the Blazing Sun; Bright Wizard → the Colleges of Magic; Slayer → Troll / Giant / Dragon / Daemon Slayer. Wizards and priests only learn their own lores; only the Dark Magister touches Chaos.
+- **Races and classes:** players choose a people, not a career: Human (Empire) +1 to every attribute, Human (Bretonnia) +4 WIL, Dwarf +4 STR, High Elf +4 INT, Wood Elf +4 AGI; each fights with its best attribute and has its own level-1 gifts. At level 3 each people picks one of four expert classes and at level 7 one of four master classes (`CAREER_PATHS` in `game/data.js`), e.g. Dwarf: Troll Slayer / Ironbreaker / Thunderer / Runesmith, then Daemon Slayer / Thane / Ironbeard Marksman / Runelord. Masters carry their own core abilities, classes that teach magic (`lores`) make you a spellcaster in your people's lores, and some come with gear (`gift`). The old careers remain only as archetype kits for the tests.
 - **Corruption and Insanity (`game/dark.js`):** Corruption from Cursed Paths, cursed gear, warpstone and dark lores gives a mutation every 3 points (max 3). Insanity from terror, bosses and fallen allies; at the limit you snap (short madness + lasting disorder). Sigmarite Incense and Laudanum at the merchant, campfires remove 1 Insanity.
 - **Boss phases, elite modifiers, greenskins (`game/foes.js`):** every boss changes at half HP (scaled down for solo players); elites roll one of nine modifiers; Night Goblins, Squigs, Fanatics, Orc Boyz, Shamans, Black Orcs and Warboss Grubnak join the road.
 - **Endless mutators:** after each Endless boss past the third the warband votes for one of three lasting changes.

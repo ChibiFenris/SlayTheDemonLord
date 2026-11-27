@@ -6,6 +6,9 @@ const S0 = require('../server.js');
 const S = { ...S0, ...S0.enemies, ...S0.gear };
 process.removeAllListeners('uncaughtException'); // let test errors fail the run
 const D = require('../game/data.js');
+// Many rule checks below were written against the old careers (warrior, priest...).
+// Those kits still exist as archetypes, so make them selectable inside the tests.
+Object.assign(D.CAREERS, D.LEGACY_CAREERS);
 const all=[...D.ENEMY_POOLS.low,...D.ENEMY_POOLS.mid,...D.ENEMY_POOLS.high];
 const tmpl=n=>all.find(e=>e.name===n);
 function mkRoom(careers){
@@ -402,16 +405,29 @@ const logHas=(room,re)=>room.gs.log.some(l=>re.test(l.msg));
   const {room:rr}=mkRoom(['warrior']); rr.players[0].char.relics=Object.keys(S.relics.RELICS); rr.gs.phase='event';
   ok(!S.relics.offerRelics(rr,'path',false)&&rr.gs.phase==='event','with every relic taken, the relic screen is skipped');
   const leg=S.genLegendaryItem(4); ok(/\+2$/.test(leg.name),'legendaries from later loops are stronger'); }
-// 35. Career paths are limited and named for each career
-{ const {room}=mkRoom(['warrior']); const p=room.players[0], c=p.char; c.pendingLevelUp=true; c.pendingPathTier='expert';
-  S.handlePlayerAction(room,p.id,{action:'APPLY_PATH',data:{pathId:'elementalist'}});
-  ok(!c.expertPath,'a State Soldier cannot become a Bright Journeyman');
-  S.handlePlayerAction(room,p.id,{action:'APPLY_PATH',data:{pathId:'defender'}});
-  ok(c.expertPath==='defender'&&logHas(room,/Greatsword/),'but can become a Greatsword');
-  ok(D.pathLabel('slayer','master','daemonSlayer')==='Daemon Slayer'&&D.pathLabel('waywatcher','master','executioner')==='Wardancer','shared paths have career names');
-  Object.entries(D.CAREER_PATHS).forEach(([k,v])=>ok(Object.keys(v.expert).length>=2&&Object.keys(v.master).length>=2&&Object.keys(v.expert).every(x=>D.EXPERT_PATHS[x])&&Object.keys(v.master).every(x=>D.MASTER_PATHS[x]),k+' has at least two real expert and master paths'));
-  const pr={career:'priest',expertPath:'healer'}; ok(D.traditionAllowed(pr,'life')&&!D.traditionAllowed(pr,'fire')&&!D.traditionAllowed(pr,'chaos'),'priests learn prayers, not fire or Chaos');
-  ok(D.traditionAllowed({career:'wizard',expertPath:'warlock'},'chaos')&&!D.traditionAllowed({career:'wizard',expertPath:'wizard'},'chaos'),'only the Dark Magister touches Chaos'); }
+// 35. Races and their classes
+{ const races=['empire','bretonnia','dwarf','highelf','woodelf'];
+  const {room}=mkRoom(races.slice(0,4)); const {room:r5}=mkRoom(['woodelf']); const by=k=>(room.players.find(p=>p.career===k)||r5.players[0]).char;
+  ok(['str','agi','int','wil'].every(a=>by('empire').attrs[a]===11),'Empire humans get +1 to every attribute');
+  ok(by('bretonnia').attrs.wil===14&&by('dwarf').attrs.str===14&&by('highelf').attrs.int===14&&by('woodelf').attrs.agi===14,'Bretonnia +4 WIL, Dwarf +4 STR, High Elf +4 INT, Wood Elf +4 AGI');
+  ok(by('bretonnia').equippedWeapon.stat==='wil'&&by('highelf').equippedWeapon.stat==='int'&&by('dwarf').equippedWeapon.stat==='str'&&by('woodelf').equippedWeapon.stat==='agi','each race fights with its best attribute');
+  ok(by('highelf').spellcaster&&by('highelf').knownSpells.length>0&&!by('dwarf').spellcaster,'High Elves start with magic, Dwarves do not');
+  ok(by('woodelf').row==='back'&&S.gear.hasRangedWeapon(by('woodelf')),'Wood Elves start in the back row with a bow');
+  ok(by('dwarf').stubborn&&by('bretonnia').virtue&&by('highelf').valourOfAges,'racial traits');
+  const dw=by('dwarf'); S.addBuff(dw,'Stunned',{skipTurn:true},1); ok(!(dw.activeBuffs||[]).some(b=>b.skipTurn),'Dwarves can\'t be stunned');
+  races.forEach(r=>{ const cp=D.CAREER_PATHS[r]; ok(Object.keys(cp.expert).length===4&&Object.keys(cp.master).length===4&&Object.keys(cp.expert).every(x=>D.EXPERT_PATHS[x])&&Object.keys(cp.master).every(x=>D.MASTER_PATHS[x]),`${r}: four real expert and four master classes`);
+    const sig=t=>Object.keys(cp[t]).map(id=>JSON.stringify((t==='expert'?D.EXPERT_PATHS:D.MASTER_PATHS)[id].levelGains)); ok(new Set(sig('expert')).size===4&&new Set(sig('master')).size===4,`${r}: no two classes at a tier play the same`); });
+  const p=room.players.find(x=>x.career==='dwarf'), c=p.char; c.pendingLevelUp=true; c.pendingPathTier='expert';
+  S.handlePlayerAction(room,p.id,{action:'APPLY_PATH',data:{pathId:'elementalist'}}); ok(!c.expertPath,'a Dwarf cannot become a Bright Wizard');
+  S.handlePlayerAction(room,p.id,{action:'APPLY_PATH',data:{pathId:'thunderer'}});
+  ok(c.expertPath==='thunderer'&&c.equippedWeapon.name==='Dwarf Handgun'&&S.gear.hasRangedWeapon(c)&&logHas(room,/Thunderer/),'a Thunderer gets a Dwarf handgun');
+  ok(D.pathLabel('woodelf','master','executioner')==='Shadowdancer'&&D.pathLabel('highelf','master','archmage')==='Archmage','shared mechanics have each people\'s names');
+  const e=room.players.find(x=>x.career==='empire'); e.char.pendingLevelUp=true; e.char.pendingPathTier='expert';
+  S.handlePlayerAction(room,e.id,{action:'APPLY_PATH',data:{pathId:'elementalist'}});
+  ok(e.char.spellcaster&&e.char.pendingPathTier==='tradition','a human who becomes a Bright Wizard learns magic');
+  S.handlePlayerAction(room,e.id,{action:'APPLY_PATH',data:{pathId:'tradition:life'}}); ok(!(e.char.traditions||[]).includes('life'),'but not the Lady\'s lore');
+  S.handlePlayerAction(room,e.id,{action:'APPLY_PATH',data:{pathId:'tradition:fire'}}); ok((e.char.traditions||[]).includes('fire')&&e.char.knownSpells.length>0,'the Lore of Fire is fine');
+  ok(!D.traditionAllowed({career:'highelf'},'chaos')&&D.traditionAllowed({career:'dwarf'},'earth')&&!D.traditionAllowed({career:'dwarf'},'fire'),'nobody learns Chaos; dwarves only know rune lores'); }
 // 36. Engineer and Waywatcher
 { const {room}=mkRoom(['engineer','waywatcher']); const en=room.players[0], wy=room.players[1];
   ok(en.char.turret&&en.char.grenade&&en.char.row==='back'&&wy.char.hawkEye&&wy.char.row==='back','both new careers start in the back row with their kit');

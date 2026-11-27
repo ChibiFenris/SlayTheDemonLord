@@ -69,7 +69,7 @@ const {
 const combatMod = require('./game/combat');
 const { rollD20boons, rollAttack, rollEnemyAttack, addBuff, addDebuff, tickBuffs, SELF_TICK_DOTS, tickDebuffs, getBuffVal, applyPoison, applyBleed, applyBurn, getDebuffVal } = combatMod;
 const pathsMod = require('./game/paths');
-const { checkLevelUp, getPathHpGain, applyLevelGains, applyTalentList, applyNovicePath, grantTradition, applyExpertPath, applyMasterPath, getTargetEnemy } = pathsMod;
+const { checkLevelUp, getPathHpGain, applyLevelGains, applyTalentList, applyNovicePath, grantTradition, applyExpertPath, applyMasterPath, teachLore, givePathGift, getTargetEnemy } = pathsMod;
 const nodesMod = require('./game/nodes');
 const { pickThreeNodes, restorePower, crossroadsFor, showPathChoices, resolvePath, startNodeContent, enterNode, _runNodeContent, resolveUnknownEvent, buildLootOptions, genSpecialWpn, genSpecialArmor } = nodesMod;
 const turnsMod = require('./game/turns');
@@ -258,7 +258,7 @@ function aftermathReady(room){
 }
 
 function resolveEnemyDeath(room, deadEnemy) {
-  room.players.forEach(p=>{ if(p.char&&p.char.alive&&hasRelic(p.char,'bloodChalice')&&(deadEnemy||room.gs.enemy)){ p.char.health=Math.min(p.char.maxHealth,p.char.health+2); } });
+  room.players.forEach(p=>{ if(p.char&&p.char.alive&&hasRelic(p.char,'bloodChalice')&&(deadEnemy||room.gs.enemy)) p.char._ledgerCharge=true; });
   room.players.forEach(p=>{ if(p.char&&p.char.activeBuffs){ const had=p.char.activeBuffs.some(b=>b.name==='Rattled');
     p.char.activeBuffs=p.char.activeBuffs.filter(b=>b.name!=='Rattled'); if(had) addLog(room,`${p.name} steels their nerve.`,'sys'); } });
   const gs=room.gs;
@@ -516,7 +516,7 @@ function handleMessageInner(ws,msg){
     if(room.gs.phase!=='lobby') return; // no class swaps mid-run
     player.career=payload.career; player.char=buildChar(payload.career); player.ready=false;
     const _careerToNovice={warrior:'warrior',rogue:'rogue',wizard:'magician',priest:'priest',witchhunter:'witchhunter',slayer:'slayer',engineer:'engineer',waywatcher:'waywatcher'}; // extend if new careers added
-    const _noviceId=_careerToNovice[payload.career]||'warrior';
+    const _noviceId=_careerToNovice[payload.career]||payload.career;
     applyNovicePath(player.char, _noviceId);
     player.char.pendingLevelUp=false; // novice already applied
     const sc=payload.startingCharm;
@@ -884,7 +884,7 @@ function unblockAfterDisconnect(room, player){
 
 // Hand every split-out module the helpers it uses. Runs once all of server.js
 // has been evaluated, so constants defined anywhere in this file are ready.
-const MODULE_API = { ARMOR_BASES, CAREERS, CHARMS, CHARM_SHOP_KEYS, DIFFICULTIES, ENEMY_DROPS, EXPERT_PATHS, LEGENDARY_ITEMS, LOOT_CONS_LIST, MASTER_PATHS, NODE_TYPES, NOVICE_PATHS, POISON_CAP, SCROLL_SPELLS_LIST, SCROLL_SPELLS_SHOP, SELF_TICK_DOTS, SHOP_CONSUMABLES, TRADITIONS, WEAPON_BASES, XP_THRESHOLDS, addBuff, addDebuff, addLog, advanceTurn, aliveEnemies, applyBleed, applyBurn, applyCharm, applyDailyToEnemies, applyPoison, armorTraits, broadcastState, buildPlayerShop, buildTurnOrder, campfire, castingsLeft, charmKey, checkDeath, cleanseCurses, d, dark, enemyAfterHit, enemyDamageMods, enemyDefence, enemyOnWeaponHit, enemyPostTurn, enemyPreTurn, engineerRoundTick, events, foes, gearRoundTick, gearVsEnemyAttack, getSpellsForPower, getTargetEnemy, hasRangedWeapon, hasRelic, immuneToPoison, isCursed, isEnemyHidden, labelOf, lore, makeCharm, makeCursedItem, maxCastings, modVal, onCombatStart, pickEnemy, pickRandom, rd, refreshCastingPools, regainCasting, relics, resolveEnemyDeath, restoreCastingPools, rollAttack, rollEnemyAttack, rollTraits, scaleEnemy, sendTo, sortTurnOrder, spendCasting, startSpoils, talentHeal, tickBuffs, tickCooldowns, tickDebuffs, triggerGameover, uniqRanks, uuidv4, weaponTraits, zones };
+const MODULE_API = { ARMOR_BASES, CAREERS, CHARMS, CHARM_SHOP_KEYS, DIFFICULTIES, ENEMY_DROPS, EXPERT_PATHS, LEGENDARY_ITEMS, LOOT_CONS_LIST, MASTER_PATHS, NODE_TYPES, NOVICE_PATHS, POISON_CAP, SCROLL_SPELLS_LIST, SCROLL_SPELLS_SHOP, SELF_TICK_DOTS, SHOP_CONSUMABLES, TRADITIONS, WEAPON_BASES, XP_THRESHOLDS, addBuff, addDebuff, addLog, advanceTurn, aliveEnemies, applyBleed, applyBurn, applyCharm, applyDailyToEnemies, applyPoison, armorTraits, broadcastState, buildPlayerShop, buildTurnOrder, campfire, castingsLeft, charmKey, checkDeath, cleanseCurses, d, dark, enemyAfterHit, enemyDamageMods, enemyDefence, enemyOnWeaponHit, enemyPostTurn, enemyPreTurn, engineerRoundTick, events, foes, gearRoundTick, gearVsEnemyAttack, getSpellsForPower, getTargetEnemy, hasRangedWeapon, hasRelic, immuneToPoison, isCursed, isEnemyHidden, labelOf, lore, makeCharm, makeCursedItem, maxCastings, modVal, onCombatStart, pickEnemy, pickRandom, rd, refreshCastingPools, regainCasting, relics, resolveEnemyDeath, restoreCastingPools, rollAttack, rollEnemyAttack, rollTraits, scaleEnemy, sendTo, sortTurnOrder, spendCasting, startSpoils, talentHeal, tickBuffs, tickCooldowns, tickDebuffs, traditionAllowed, triggerGameover, uniqRanks, uuidv4, weaponTraits, zones };
 [combatMod, pathsMod, nodesMod, turnsMod, itemsMod, actionsMod].forEach(m => m.bind(MODULE_API));
 
 // Start the server when run directly (node server.js). Tests require() this file

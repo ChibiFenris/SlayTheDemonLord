@@ -4,7 +4,7 @@
 //   PORT=3000 node tools/playtest.js 8      (server must already be running)
 const WebSocket=require('ws');
 let PORT=process.env.PORT||3000;
-const CAREERS=['warrior','rogue','wizard','priest','witchhunter','slayer','engineer','waywatcher'];
+const CAREERS=['empire','bretonnia','dwarf','highelf','woodelf'];
 const DATA=require('../game/data');
 const EXPERT=['defender','ranger','paladin','assassin','elementalist','sorcerer','warlock','wizard','spellbinder','healer','druid','inquisitor','giantSlayer'];
 const MASTER=['myrmidon','brute','warlord','champion','shadowblade','executioner','transmuter','necromancer','abjurer','archmage','healer_m','chaplain','witchfinder','daemonSlayer'];

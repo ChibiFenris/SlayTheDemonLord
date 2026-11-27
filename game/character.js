@@ -9,9 +9,9 @@ const { refreshCastingPools } = require('./castings');
 const S = {};
 function bind(api) { Object.assign(S, api); }
 
-// Lone Survivor: Warriors, Wizards, Priests and Witch Hunters who start a run alone get a little extra staying power.
-// Warrior: +6 max HP, the others +5 max HP; all +1 HP per level.
-const LONE_SURVIVOR = { warrior:{hp:6, power:0}, wizard:{hp:5, power:0}, priest:{hp:5, power:0}, witchhunter:{hp:6, power:0}, engineer:{hp:5, power:0}, waywatcher:{hp:4, power:0} };
+// Lone Survivor: anyone who starts a run alone gets a little extra staying power.
+const LONE_SURVIVOR = { empire:{hp:10, power:0}, bretonnia:{hp:9, power:0}, dwarf:{hp:9, power:0}, highelf:{hp:9, power:0}, woodelf:{hp:8, power:0},
+  warrior:{hp:6, power:0}, wizard:{hp:5, power:0}, priest:{hp:5, power:0}, witchhunter:{hp:6, power:0}, engineer:{hp:5, power:0}, waywatcher:{hp:4, power:0} }; // (old careers: tests)
 function applyLoneSurvivor(room, player){
   const ls=LONE_SURVIVOR[player.career]; if(!ls||!player.char) return;
   const c=player.char; c.loneSurvivor=true;
@@ -27,8 +27,8 @@ function buildChar(career) {
   const wpnDmgStr=c.weaponDmg||'1d6'; const wpnBonusParts=wpnDmgStr.split('+'); const wpnDicePart=wpnBonusParts[0]; const wpnStartBonus=parseInt(wpnBonusParts[1]||'0')||0;
   const _wpnStat=c.weaponIntBased?'int':c.weaponWilBased?'wil':c.weaponStr?'str':'agi';
   const _wpnType=c.weaponType||(c.weaponStr||c.weaponIntBased?'blunt':'slashing');
-  const startWpn = {id:'w_start_'+uuidv4(),name:'Starting Weapon',dice:wpnDicePart,stat:_wpnStat,bonus:wpnStartBonus,dmgType:_wpnType,type:'weapon',desc:`${wpnDmgStr}+${wpnStartBonus} — starting gear`};
-  const startArmor = c.armorDef>0 ? {id:'a_start_'+uuidv4(),name:'Starting Armour',defBonus:c.armorDef,type:'armor',desc:`+${c.armorDef} Defense`} : null;
+  const startWpn = {id:'w_start_'+uuidv4(),name:c.weaponName||'Starting Weapon',dice:wpnDicePart,stat:_wpnStat,bonus:wpnStartBonus,dmgType:_wpnType,type:'weapon',desc:`${wpnDmgStr}+${wpnStartBonus} — starting gear`};
+  const startArmor = c.armorDef>0 ? {id:'a_start_'+uuidv4(),name:c.armorName||'Starting Armour',defBonus:c.armorDef,type:'armor',desc:`+${c.armorDef} Defense`} : null;
   return {
     career, attrs,
     health:c.startHp, maxHealth:c.startHp,

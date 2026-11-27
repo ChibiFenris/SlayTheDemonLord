@@ -126,7 +126,8 @@ function actAttack({room,playerId,data,ws,player,gs,char}){
         if(char.slayerOath && (targetEnemy.threat==='Boss'||targetEnemy.isElite)){ const so=rd(1,6); finalDmg+=so; addLog(room,`🪓 <strong>Slayer's Oath!</strong> +${so} dmg against a worthy foe.`,'crit'); }
         if(char.deathWish && char.health < char.maxHealth/2){ finalDmg+=2; }
         // Relics on a hit
-        if(hasRelic(char,'vampireFang')) char.health=Math.min(char.maxHealth,char.health+1);
+        if(hasRelic(char,'vampireFang')&&targetEnemy.hp>finalDmg) applyBleed(targetEnemy,room);
+        if(char._ledgerCharge&&hasRelic(char,'bloodChalice')){ char._ledgerCharge=false; const lg=rd(1,6); finalDmg+=lg; addLog(room,`📜 <strong>Executioner's Ledger!</strong> +${lg} damage.`,'crit'); }
         if(foes.hasMutator(gs,'vampiricPact')) char.health=Math.min(char.maxHealth,char.health+2);
         if((char.mutations||[]).includes('tentacle')&&d(4)===1){ const tl=rd(1,6); finalDmg+=tl; addLog(room,`🐙 ${player.name}'s tentacle lashes out — +${tl}!`,'chaos'); }
         if(r.crit&&hasRelic(char,'stormstone')){ const ss=rd(1,6); finalDmg+=ss; addLog(room,`⚡ <strong>Stormstone!</strong> +${ss} on the critical hit.`,'crit'); }

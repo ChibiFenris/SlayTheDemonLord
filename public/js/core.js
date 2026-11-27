@@ -55,7 +55,7 @@ document.addEventListener('mousemove', function(e) {
 });
 
 // ─── WS ───────────────────────────────────────────────────────────────────────
-let ws=null,myId=null,lastState=null,selectedCareer='warrior',pathPickPending=false,reconnectTimer=null;
+let ws=null,myId=null,lastState=null,selectedCareer='empire',pathPickPending=false,reconnectTimer=null;
 
 function connect(){
   clearTimeout(reconnectTimer);
@@ -164,7 +164,7 @@ function buildCareerGrid(){
   const grid=el('career-grid'); if(!grid||grid.children.length>0) return;
   Object.entries(CAREER_DETAILS).forEach(([key,info])=>{
     const btn=document.createElement('button');
-    btn.className='cbtn'+(key==='warrior'?' sel':'');
+    btn.className='cbtn'+(key==='empire'?' sel':'');
     btn.dataset.career=key;
     btn.innerHTML=`
       <span class="cbtn-head"><span class="cn">${info.name}</span><span class="cmeta">${info.hp} · ${info.defence}</span></span>

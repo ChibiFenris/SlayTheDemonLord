@@ -59,7 +59,7 @@ function renderHistory(){
   const h=getHistory();
   if(!h.length){ box.hidden=true; return; }
   box.hidden=false;
-  const names={warrior:'Warrior',rogue:'Roadwarden',wizard:'Wizard',priest:'Priest',witchhunter:'Witch Hunter',slayer:'Slayer',engineer:'Engineer',waywatcher:'Waywatcher'};
+  const names={empire:'Empire',bretonnia:'Bretonnian',dwarf:'Dwarf',highelf:'High Elf',woodelf:'Wood Elf',warrior:'Warrior',rogue:'Roadwarden',wizard:'Wizard',priest:'Priest',witchhunter:'Witch Hunter',slayer:'Slayer',engineer:'Engineer',waywatcher:'Waywatcher'};
   const diffs=['','Grim','Doom'];
   const when=t=>{ const d=Math.round((Date.now()-t)/86400000); return d<=0?'today':d===1?'yesterday':`${d} days ago`; };
   box.innerHTML='<div class="rh-title">Recent runs</div>'+h.slice(0,6).map(r=>`
@@ -83,7 +83,7 @@ function loadDaily(){
 function renderDaily(){
   const board=el('daily-board');
   if(board&&dailyInfo){
-    const names={warrior:'Warrior',rogue:'Roadwarden',wizard:'Wizard',priest:'Priest',witchhunter:'Witch Hunter',slayer:'Slayer',engineer:'Engineer',waywatcher:'Waywatcher'};
+    const names={empire:'Empire',bretonnia:'Bretonnian',dwarf:'Dwarf',highelf:'High Elf',woodelf:'Wood Elf',warrior:'Warrior',rogue:'Roadwarden',wizard:'Wizard',priest:'Priest',witchhunter:'Witch Hunter',slayer:'Slayer',engineer:'Engineer',waywatcher:'Waywatcher'};
     board.hidden=false;
     board.innerHTML=`<div class="rh-title">Today's Daily Run</div>
       <div class="daily-mods">${dailyInfo.mods.map(m=>`<span class="daily-mod"><strong>${m.name}</strong> ${m.desc}</span>`).join('')}</div>
@@ -166,7 +166,7 @@ const ACHIEVEMENTS=[
   {key:'mutant',    title:'the Mutant',         desc:'Carry three mutations at once.',         test:(gs,me)=>!!me&&(me.char.mutations||[]).length>=3},
   {key:'unbroken',  title:'the Unbroken',       desc:'Win a run without ever snapping.',       test:(gs,me)=>gs.phase==='victory'&&!!me&&!(me.char.disorders||[]).length},
   {key:'daily',     title:'Daily Wanderer',     desc:'Finish a Daily Run.',                    test:(gs)=>!!gs.dailyKey},
-  {key:'allCareers',title:'Jack of All Trades', desc:'Finish a run with every career.',        test:()=>{ const seen=new Set(getHistory().map(r=>r.career)); return ['warrior','rogue','wizard','priest','witchhunter','slayer','engineer','waywatcher'].every(k=>seen.has(k)); }},
+  {key:'allCareers',title:'Friend of All Peoples', desc:'Finish a run as every race.',        test:()=>{ const seen=new Set(getHistory().map(r=>r.career)); return ['empire','bretonnia','dwarf','highelf','woodelf'].every(k=>seen.has(k)); }},
 ];
 function getAch(){ try{ return JSON.parse(store.get(ACH_KEY)||'{}')||{}; }catch(e){ return {}; } }
 function setAch(a){ store.set(ACH_KEY,JSON.stringify(a)); }

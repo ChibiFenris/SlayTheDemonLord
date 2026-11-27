@@ -1,93 +1,57 @@
 'use strict';
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
-const CAREER_LABELS={warrior:'State Soldier',rogue:'Roadwarden',wizard:'Bright Wizard',priest:'Sigmarite Priest',witchhunter:'Witch Hunter',slayer:'Dwarf Slayer',engineer:'Imperial Engineer',waywatcher:'Elf Waywatcher'};
+const CAREER_LABELS={empire:'Human (Empire)',bretonnia:'Human (Bretonnia)',dwarf:'Dwarf',highelf:'High Elf',woodelf:'Wood Elf'};
 const XP_T=[0,0,2,10,19,24,29,34,51,68,84]; // default; refreshed from the server's XP_THRESHOLDS on load
 const LOCS=['The Reikland Road','Altdorf Sewers','The Grey Mountains','The Forest of Shadows','Bogenhafen Catacombs','Ruins of Mordheim','The Dark Moors','The Chaos Wastes','A Forsaken Temple','The River Reik','Skaven Under-warren','Corrupted Village','The Blighted Marshes','Chaos Shrine','The Final Abyss'];
 
 const CAREER_DETAILS={
-  warrior:{
-    name:'State Soldier',
-    stats:'STR 12 · AGI 10 · INT 10 · WIL 10',
-    armor:'Chainmail (+3 Def)',
-    hp:'35 HP',
-    defence:'13 Defence',
-    weapon:'1d6+2 slashing (STR)',
-    role:'Iron tank. Highest HP and armour. Hits hard and soaks punishment. Bleed on every hit.',
-    level1:'Weapon Training (+1 boon attacks) · Catch Breath (heal 1d6+STR, cooldown 12) · Shield Bash (stun, cooldown 8) · Taunt (enemies attack only you, 2 rounds) · Bleed on Hit'
+  empire:{
+    name:'Human (Empire)',
+    stats:'STR 11 · AGI 11 · INT 11 · WIL 11 (+1 to all)',
+    armor:'State Troop Mail (+3 Def)', hp:'35 HP', defence:'14 Defence',
+    weapon:'Hand Weapon 1d8+1 (STR)',
+    role:'Sigmar\'s people: good at everything. Becomes a Greatsword, Witch Hunter, Engineer or Bright Wizard — the widest choice of any people.',
+    level1:'Drilled (+1 boon on attacks) · Combined Arms (each hit: +1 boon next attack) · Shield Bash (cooldown 8) · Catch Breath (cooldown 12)'
   },
-  rogue:{
-    name:'Roadwarden',
-    stats:'STR 10 · AGI 12 · INT 10 · WIL 10',
-    armor:'No armour (Defence = AGI)',
-    hp:'24 HP',
-    defence:'12 Defence',
-    weapon:'1d6+2 slashing (AGI)',
-    role:'Evasive poisoner. Hardest to hit. Opens with venom and blunts the first attack each round.',
-    level1:'Trickery (3 poison first hit, 2 all hits) · Evasion (1 bane on the first attack each round) · Nimble Recovery (heal 1d6+AGI, cooldown 12)'
+  bretonnia:{
+    name:'Human (Bretonnia)',
+    stats:'STR 10 · AGI 10 · INT 10 · WIL 14 (+4 WIL)',
+    armor:'Knightly Plate (+4 Def)', hp:'31 HP', defence:'14 (+2) Defence',
+    weapon:'Knightly Sword 1d8+4 (WIL)',
+    role:'Knights of the Lady: faith guides the blade. Charges, holy smites, a healing Damsel or a greenwood outlaw.',
+    level1:'Knightly Virtue (steadier mind) · The Charge (+1 boon on your first attack) · Lady\'s Blessing (+2 Defence) · Challenge (Taunt) · Catch Breath (cooldown 12)'
   },
-  wizard:{
-    name:'Bright Wizard',
-    stats:'STR 10 · AGI 10 · INT 12 · WIL 10',
-    armor:'Cloth Robes (+1 Def)',
-    hp:'21 HP',
-    defence:'11 Defence',
-    weapon:'1d6+2 blunt (INT)',
-    role:'Fire spellcaster. Low HP, devastating fire spells. Burn on every attack spell.',
-    level1:'+1 Power (casting slots) · Burning Soul (+1d6 if target burning) · Burn on Spell (attack spells apply Burn DoT) · Spell Recovery (cooldown 12)'
+  dwarf:{
+    name:'Dwarf',
+    stats:'STR 14 · AGI 10 · INT 10 · WIL 10 (+4 STR)',
+    armor:'Dwarf Mail (+3 Def)', hp:'34 HP', defence:'13 Defence',
+    weapon:'Dwarf Axe 1d8+4 (STR)',
+    role:'Stubborn, tough and hard-hitting. Slayers, Ironbreakers, Thunderers with handguns, or Runesmiths.',
+    level1:'Dwarf-hard (10% less damage) · Stubborn (never stunned) · Dwarf Constitution (immune to bleed and poison) · Catch Breath (cooldown 12)'
   },
-  priest:{
-    name:'Sigmarite Priest',
-    stats:'STR 10 · AGI 10 · INT 10 · WIL 12',
-    armor:'Chainmail (+3 Def)',
-    hp:'29 HP',
-    defence:'13 Defence',
-    weapon:'1d6+2 blunt (WIL)',
-    role:'Support striker. Every weapon hit heals you and deals holy damage. Strong group healer.',
-    level1:'+1 Power (divine slots) · Weapon Training (+1 boon attacks) · Holy Fervor (hits deal 1d3+WIL holy and heal you 1d3) · Shared Recovery (cooldown 12) · Divine Favour (cooldown 14)'
+  highelf:{
+    name:'High Elf',
+    stats:'STR 10 · AGI 10 · INT 14 · WIL 10 (+4 INT)',
+    armor:'Ithilmar Scale (+3 Def)', hp:'27 HP', defence:'13 Defence',
+    weapon:'Ithilmar Blade 1d6+4 (INT)',
+    role:'Born to magic; even their swordsmen fight with the mind. Starts with the Lore of Light. Swordmasters, Mages, White Lions, Swords of Hoeth.',
+    level1:'Power 1 and the Lore of Light · Valour of Ages (+1 boon vs elites and bosses) · Spell Recovery (cooldown 12)'
   },
-  witchhunter:{
-    name:'Witch Hunter',
-    stats:'STR 10 · AGI 12 · INT 10 · WIL 10',
-    armor:'Leather Coat (+1 Def)',
-    hp:'31 HP',
-    defence:'13 Defence',
-    weapon:'1d6+2 piercing (AGI)',
-    role:'Hunter of the unholy. Condemns one foe each fight and punishes it hard. Deadly against undead and Chaos.',
-    level1:'Condemn (free action: mark a foe, +1 boon and +1d6 on hits; passes on when it dies) · Silver Shot (+2 dmg vs undead, daemons, Chaos) · First Volley (+1 boon on first attack) · Catch Breath (cooldown 12)'
-  },
-  slayer:{
-    name:'Dwarf Slayer',
-    stats:'STR 12 · AGI 10 · INT 10 · WIL 10',
-    armor:'No armour, ever (Defence = AGI)',
-    hp:'34 HP',
-    defence:'10 Defence',
-    weapon:'1d8+2 slashing (STR)',
-    role:'Glass-cannon berserker. Easy to hit, hard to kill, and hits harder the closer to death and the bigger the foe.',
-    level1:"Slayer's Oath (+1d6 vs elites and bosses) · Death Wish (below half HP: +1 boon, +2 dmg) · Rage (when hit, next attack +1 boon +1d6) · Catch Breath (cooldown 12)"
+  woodelf:{
+    name:'Wood Elf',
+    stats:'STR 10 · AGI 14 · INT 10 · WIL 10 (+4 AGI)',
+    armor:'Woodland Cloak (no armour)', hp:'22 HP', defence:'14 Defence',
+    weapon:'Asrai Longbow 1d8+4 (AGI)',
+    role:'Archers and dancers of Athel Loren. Shoots from the back row. Waystalkers, Wardancers, Spellsingers, Deepwood Scouts.',
+    level1:'Hawk Eye (+1 to hit from the back row) · Nimble Recovery (cooldown 12)'
   },
 };
-
-Object.assign(CAREER_DETAILS,{
-  engineer:{
-    name:'Imperial Engineer',
-    stats:'STR 10 · AGI 10 · INT 12 · WIL 10',
-    armor:'Riveted Leathers (+2 Def, +1 Tinkerer)',
-    hp:'30 HP', defence:'13 Defence',
-    weapon:'1d12+2 piercing handgun (INT)',
-    role:'Back-row gadgeteer. Sets up a Volley Gun that keeps firing, lobs bombs into crowds and patches up with better draughts.',
-    level1:'Volley Gun (free action: a turret fires each round for 3 rounds, cooldown 8) · Bomb (2d6+INT to every enemy, cooldown 6) · Tinkerer (+1 Def, Healing Draughts +2) · Gunnery Drill (+1 boon on attacks) · Riveted Plate (10% less damage) · Catch Breath (cooldown 12)'
-  },
-  waywatcher:{
-    name:'Elf Waywatcher',
-    stats:'STR 10 · AGI 12 · INT 10 · WIL 10',
-    armor:'Woodland Cloak (+1 Def)',
-    hp:'24 HP', defence:'13 Defence',
-    weapon:'1d8+2 piercing longbow (AGI)',
-    role:'Back-row archer from Athel Loren. Deadly accurate from the back row and rains arrows on every foe at once.',
-    level1:'Hawk Eye (+2 to hit from the back row) · Arrow Storm (1d6+AGI to every enemy, cooldown 8) · Evasion · Nimble Recovery (cooldown 12)'
-  },
-});
 const NOVICE_INFO={
+  empire:{name:'Human (Empire)', gains:'Lv1: +5 Max HP. Drilled: +1 boon on attacks. Combined Arms: each hit gives +1 boon on your next attack. Shield Bash (cooldown 8). Catch Breath (cooldown 12).'},
+  bretonnia:{name:'Human (Bretonnia)', gains:'Lv1: +5 Max HP. Knightly Virtue: Insanity limit +1. The Charge: +1 boon on your first attack. Lady\'s Blessing: +2 Defence. Challenge (Taunt). Catch Breath (cooldown 12).'},
+  dwarf:{name:'Dwarf', gains:'Lv1: +6 Max HP. Dwarf-hard: 10% less damage. Stubborn: never stunned, Insanity limit +1. Dwarf Constitution: immune to bleed and poison. Catch Breath (cooldown 12).'},
+  highelf:{name:'High Elf', gains:'Lv1: +4 Max HP. Power 1 and the Lore of Light. Valour of Ages: +1 boon vs elites and bosses. Spell Recovery (cooldown 12).'},
+  woodelf:{name:'Wood Elf', gains:'Lv1: +4 Max HP. Hawk Eye: +1 to hit from the back row. Nimble Recovery (cooldown 12).'},
   engineer:{name:'Engineer', gains:'Lv1: +4 Max HP. Volley Gun (free action): a turret fires at a foe at the end of each round for 3 rounds (cooldown 8). Bomb: 2d6+INT to every enemy (cooldown 6). Tinkerer: +1 Defence, Healing Draughts heal 2 more. Gunnery Drill: +1 boon on attacks. Riveted Plate: 10% less damage taken. Catch Breath (cooldown 12).'},
   waywatcher:{name:'Waywatcher', gains:'Lv1: +4 Max HP. Hawk Eye: +2 to hit from the back row. Arrow Storm: 1d6+AGI to every enemy (cooldown 8). Evasion. Nimble Recovery (cooldown 12).'},
   warrior:{name:'Warrior',    gains:'Lv1: +5 Max HP. Weapon Training: +1 boon on all attacks. Catch Breath: heal 1d6+STR, cooldown 12. Shield Bash: stun one enemy for 2 turns, cooldown 8. Taunt: for 2 rounds all enemies attack only you (ready again after 3 rounds). Bleed on Hit: every weapon hit applies 1 Bleed stack.'},
@@ -118,7 +82,26 @@ Object.assign(EXPERT_INFO,{
   gunner:{name:'Master Gunner', gains:"+5 HP. Lv3: Weapon Aptitude (+2 to hit), First Volley (+1 boon first shot). Lv4: Hunter's Mark, +1 INT. Lv5: Combat Prowess (+1d6/hit), Dead Aim (next hit is a crit). Lv6: Killing Momentum (kill = free attack), +1 INT.", desc:'Engineer path. A crack shot with handgun and long gun.'},
   sapper:{name:'Sapper', gains:'+6 HP. Lv3: Big Bombs (bombs +1d6, stun on a 6), Toughness (10% damage reduction). Lv4: Combat Expertise, +1 INT. Lv5: Improved Turret (Volley Gun lasts 4 rounds, +1d6), Quick Hands (items are free actions). Lv6: Ward (allies +1 Defence while you stand), +1 INT.', desc:'Engineer path. Bigger bangs and a sturdier gun.'},
 });
+Object.assign(EXPERT_INFO,{
+  witchHunter:{name:'Witch Hunter', gains:'+5 HP. Lv3: Condemn (free action: +1 boon, +1d6 on hits vs your target), Silver Shot, First Volley. Lv4: Mark Heretic, +1 AGI. Lv5: Burn the Witch, Resonance. Lv6: Purge the Wicked, +1 WIL.'},
+  empEngineer:{name:'Imperial Engineer', gains:'+5 HP. Lv3: Volley Gun (free-action turret), Bomb (hits every enemy). Lv4: Big Bombs, +1 INT. Lv5: Improved Turret, Quick Hands. Lv6: Tinkerer (+1 Def, better draughts), +1 INT.'},
+  knightErrant:{name:'Knight Errant', gains:'+6 HP. Lv3: Devastating Charge (+1d6 and Prone), Press the Advantage. Lv4: Shield Bash, +1 WIL. Lv5: Combat Prowess (+1d6/hit), Weapon Aptitude (+2 to hit). Lv6: Sweeping Blow, +1 STR.'},
+  questingKnight:{name:'Questing Knight', gains:'+5 HP. Lv3: Holy Fervor (hits deal holy damage and heal 1d3), Vigil. Lv4: Divine Smite (+3d6), +1 WIL. Lv5: Blessed Blade, Combat Expertise. Lv6: Wrath of the Lady (Smite for 6d6), +1 WIL.'},
+  herrimault:{name:'Herrimault', gains:'+5 HP. Lv3: Trickery (poison on hit), Smoke Screen. Lv4: Venom on First Hit, +1 AGI. Lv5: Skirmish, Hunter\'s Mark. Lv6: Exploit Weakness, +1 WIL.'},
+  trollSlayer:{name:'Troll Slayer', gains:'+7 HP. Lv3: Slayer\'s Oath (+1d6 vs elites/bosses), Death Wish, Rage. Lv4: Rage Trigger, +1 STR. Lv5: Relentless, Combat Prowess. Lv6: Unstoppable (survive death once), +1 STR.'},
+  ironbreaker:{name:'Ironbreaker', gains:'+7 HP. Lv3: Taunt, Shieldwall (+2 Def), Bulwark (+5 HP, +2 Def). Lv4: Rebound (throw back half of every hit), +1 STR. Lv5: Fortress Stance, Intercept. Lv6: Perfect Defence, +1 STR.'},
+  thunderer:{name:'Thunderer', gains:'+5 HP and a Dwarf Handgun (1d10+1, STR, ranged). Lv3: Weapon Aptitude (+2 to hit), First Volley. Lv4: Dead Aim, +1 STR. Lv5: Combat Prowess, Quick Hands. Lv6: Killing Momentum, +1 AGI.'},
+  runesmith:{name:'Runesmith', gains:'+5 HP, +1 Power and a rune lore (Protection, Earth or Battle). Lv3: Ward (allies +1 Def), Counterspell. Lv4: Blessed Blade, +1 INT. Lv5: Overcast, Force of Will. Lv6: Shieldwall, +1 WIL.'},
+  swordmaster:{name:'Swordmaster of Hoeth', gains:'+5 HP. Lv3: Acrobatic Riposte (enemy miss = free counter), Quick Strike. Lv4: Bladestorm (an extra strike per hit), +1 INT. Lv5: Weapon Master, Swift Feet (+2 boons). Lv6: Flicker (negate a hit), +1 AGI.'},
+  whiteLion:{name:'White Lion of Chrace', gains:'+6 HP. Lv3: Rebound bodyguard (throw back half of every hit), Bleed on Hit. Lv4: Taunt, +1 STR. Lv5: Combat Prowess, Fortitude (immune to bleed and poison). Lv6: Sweeping Blow, +1 STR.'},
+  wardancer:{name:'Wardancer', gains:'+5 HP. Lv3: Bladestorm (an extra strike per hit), Fade. Lv4: Quick Step (+2 Def after a miss), +1 AGI. Lv5: Flurry Bleed, Acrobatic Riposte. Lv6: Flicker, +1 AGI.'},
+});
 const MASTER_INFO={
+  thane:{name:'Thane', gains:'+6 HP. Lv7: Warlord Aura (allies +1 boon), Battle Orders. Lv8: War Cry, +1 STR. Lv9: Intercept, Sweeping Blow. Lv10: Killing Momentum, +1 WIL.'},
+  runelord:{name:'Runelord', gains:'+5 HP, +2 Power and a rune lore. Lv7: Spell Surge, Ward. Lv8: Overcast, +1 INT. Lv9: Anvil of Doom (Catastrophe: 10d6 to every enemy), Esoteric Knowledge. Lv10: Force of Will, +1 WIL.'},
+  phoenixGuard:{name:'Phoenix Guard', gains:'+6 HP. Lv7: Taunt, Shieldwall, Perfect Defence. Lv8: Rebound, +1 INT. Lv9: Toughness, Endure. Lv10: Flicker, +1 WIL.'},
+  wayMaster:{name:'Waywatcher', gains:'+5 HP. Lv7: Arrow Storm (every enemy), Phantom Strike (first shot always hits). Lv8: Dead Aim, +1 AGI. Lv9: Bladestorm (a second arrow per hit), Killing Momentum. Lv10: Swift Feet, +1 AGI.'},
+  spellweaver:{name:'Spellweaver', gains:'+4 HP, +2 Power and a lore. Lv7: Druid\'s Fury, Nature Bond. Lv8: Entangle, +1 INT. Lv9: Lingering Magic, Overcast. Lv10: Catastrophe, +1 WIL.'},
   guildMaster:{name:'Guild Master', gains:'+5 HP. Lv7: Improved Turret, Big Bombs. Lv8: Weapon Master (damage never below half), +1 INT. Lv9: Fortress Stance, Toughness. Lv10: Steam Barrage (6d6 to every enemy, cooldown 9), +1 INT.', desc:'Engineer master. The Gunnery School\'s finest.'},
   longRifle:{name:'Hochland Long Rifle', gains:'+5 HP. Lv7: Quick Strike (round-1 shot hits twice), Phantom Strike (first shot auto-hits). Lv8: Dead Aim, +1 AGI. Lv9: Bladestorm (hits fire a second shot), Killing Momentum. Lv10: Swift Feet (+2 boons on every attack), +1 INT.', desc:'Engineer master. One shot, one kill.'},
   witchfinder:{name:'Witchfinder General', gains:'+4 HP. Lv7: Judgement (Condemn twice per combat, Condemned foes take +2 more), Quickstrike. Lv8: Dead Aim (next hit is a crit), +1 AGI. Lv9: Exploit Weakness, Inspire. Lv10: Phantom Strike (first attack auto-hits), +1 AGI.',desc:'Witch Hunter master. Two condemnations a fight and executions on demand.'},
@@ -589,22 +572,16 @@ function insanityLimit(c){ return 4+(c.patron==='slaanesh'?-1:0)+Math.max(0,Math
 
 // One line of Warhammer flavour for each career's paths (the mechanics follow underneath).
 const PATH_FLAVOUR={
-  warrior:{ defender:'Wielder of the two-handed greatsword, sworn to stand where others break.', giantSlayer:'A brawler from the fighting pits of Nuln: bleeds, rages and refuses to go down.',
-    myrmidon:'One of the Emperor\'s own guard: an armoured wall nothing passes.', warlord:'An officer of the State Troops who wins fights by leading them.', champion:'A templar knight of Myrmidia\'s fiery order, sword in hand and faith at heart.' },
-  rogue:{ ranger:'A mounted scout of the Empire\'s roads, quick to strike and quicker to vanish.', assassin:'A blade for hire who knows exactly where to put the poison.',
-    shadowblade:'The terror of the coaching roads: unseen until the pistol is at your head.', executioner:'A killer of the Reikland underworld. Nobody survives the contract.' },
-  wizard:{ elementalist:'A journeyman of the Bright College, burning with Aqshy.', sorcerer:'A journeyman of the Celestial College, reading doom in the stars and calling the storm.', wizard:'A journeyman of the Grey College, all shadow and misdirection.', spellbinder:'A Battle Wizard who fights in the line, spell and blade together.', warlock:'A wizard who has strayed into forbidden lore. Powerful — and hunted.',
-    transmuter:'A Magister of the Gold College: alchemist, metallurgist, master of change.', necromancer:'A Magister of the Amethyst College, keeper of Shyish, the wind of death.', abjurer:'A Magister of the Light College, warding allies and smiting the daemon.', archmage:'A Patriarch of the Colleges of Magic — few in the Empire stand higher.' },
-  priest:{ paladin:'A Warrior Priest of Sigmar, hammer in hand and prayer on his lips.', healer:'A Hospitaller who tends the wounded of the faithful on the battlefield.', druid:'A keeper of the Old Faith, older than Sigmar, sworn to the green and the wild.',
-    chaplain:'A Templar of Sigmar, the Church\'s fist against the darkness.', healer_m:'An Arch-Lector of the Church of Sigmar, whose prayers turn back death itself.' },
-  witchhunter:{ inquisitor:'An Inquisitor of the Order of the Silver Hammer: mark the heretic, then burn them.', ranger:'A bounty hunter who brings in the guilty, one way or another.',
-    witchfinder:'A Witchfinder General, judge, jury and executioner.', champion:'A templar of the Silver Hammer who fights in the very front of the purge.' },
-  slayer:{ defender:'A Troll Slayer, newly shaven and seeking a worthy death.', giantSlayer:'A Giant Slayer: a dozen trolls were not enough to kill him.',
-    brute:'A Dragon Slayer, one of the very few to survive so long.', daemonSlayer:'A Daemon Slayer, the last and greatest of the doomed — if one ever lives that long.' },
-  engineer:{ gunner:'A graduate of the Imperial Gunnery School and a crack shot.', sapper:'A sapper who fixes anything and blows up everything else.',
-    guildMaster:'A Guild Master of the Engineers\' Guild of Nuln.', longRifle:'A marksman with a Hochland long rifle. One shot, one kill.' },
-  waywatcher:{ ranger:'A Waystalker of Athel Loren, hunting those who trespass in the forest.', assassin:'A shadow-walker who moves unseen through the trees.',
-    shadowblade:'A Shadow Warrior, grim and silent, striking from where no one looks.', executioner:'A Wardancer of Loec, all blades and acrobatics.' },
+  empire:{ defender:'A State Greatsword: two-handed blade, veteran\'s nerve, and a wall the enemy bleeds against.', witchHunter:'A templar of the Order of the Silver Hammer, pistol and torch in hand.', empEngineer:'A graduate of the Imperial Gunnery School, never far from a volley gun or a bomb.', elementalist:'An apprentice of the Bright College, burning with Aqshy.',
+    warlord:'An officer of the State Troops who wins fights by leading them.', witchfinder:'A Witchfinder General: judge, jury and executioner.', guildMaster:'A Master Engineer of Nuln: turrets, bombs and the Steam Barrage.', archmage:'A Patriarch of the Colleges of Magic.' },
+  bretonnia:{ knightErrant:'A young knight out to prove himself: the lance charge breaks lines.', questingKnight:'A knight who has forsaken the lance to seek the Grail, greatsword blessed by the Lady.', healer:'A Damsel of the Lady, trained in the Grail chapels to heal the faithful.', herrimault:'An outlaw of the greenwood, robbing the rich with poison and smoke.',
+    champion:'A Grail Knight, who has drunk from the Grail and fights with the Lady\'s own strength.', myrmidon:'A Paladin of the Realm: armoured, unbreakable, the knight who holds the line.', healer_m:'A Prophetess of the Lady, whose prayers turn back death itself.', abjurer:'An Enchantress, keeper of the Lady\'s wards.' },
+  dwarf:{ trollSlayer:'A Dwarf who has sworn the Slayer Oath and seeks a glorious death.', ironbreaker:'A tunnel fighter in gromril armour: nothing gets past.', thunderer:'A Dwarf handgunner. Takes up a handgun and shoots from the back row.', runesmith:'A Runesmith: strikes runes of warding and power instead of casting spells.',
+    daemonSlayer:'A Daemon Slayer, the last and greatest of the doomed.', thane:'A Thane of the hold, whose presence steadies the whole warband.', longRifle:'An Ironbeard marksman with a long rifle. One shot, one kill.', runelord:'A Runelord, master of the anvil and its doom.' },
+  highelf:{ swordmaster:'A Swordmaster of Hoeth: every enemy miss earns a counter-cut.', sorcerer:'A Mage of Saphery, reading the storms of magic.', whiteLion:'A White Lion of Chrace, axe-wielding bodyguard in a lion\'s pelt.', spellbinder:'A Sword of Hoeth, weaving spells into every swing.',
+    archmage:'An Archmage of Saphery, among the greatest wizards in the world.', transmuter:'A Loremaster of Hoeth, master of both blade and elements.', phoenixGuard:'A Phoenix Guard, a silent guardian who has seen their own death.', shadowblade:'A Shadow Warrior of Nagarythe, striking unseen.' },
+  woodelf:{ ranger:'A Waystalker of Athel Loren, hunting trespassers in the forest.', wardancer:'A Wardancer of Loec, all blades and acrobatics.', druid:'A Spellsinger, weaving the magic of the wildwood.', assassin:'A Deepwood Scout with poisoned arrows.',
+    wayMaster:'A Waywatcher, the finest archer of the Wood Elves.', brute:'A Wild Rider of Kurnous, hunter-god\'s fury in every blow.', spellweaver:'A Spellweaver, mistress of the forest\'s deepest magic.', executioner:'A Shadowdancer, who leaves no survivors.' },
 };
 
 // ─── ZONES ────────────────────────────────────────────────────────────────────

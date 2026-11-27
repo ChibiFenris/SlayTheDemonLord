@@ -26,10 +26,11 @@ function rollAttack(char, enemy, extraBoons=0) {
   const _charmAtk=(CHARMS[_ch]&&CHARMS[_ch].atkMod)||0;
   const traitAtk=(_wt.includes('balanced')?1:0)-(_wt.includes('clumsy')?1:0)+_charmAtk-(_at.includes('heavy')&&wpnStat==='agi'?1:0)
     +((wpn&&wpn.special&&wpn.special.key==='flailSwing'&&enemy&&enemy.ac>=15)?2:0);
-  const atkMod=modVal(char.attrs[wpnStat])+char.weaponAtkBonus+warCryBonus+traitAtk+(char.hawkEye&&char.row==='back'?2:0); // Waywatcher: Hawk Eye
+  const atkMod=modVal(char.attrs[wpnStat])+char.weaponAtkBonus+warCryBonus+traitAtk+(char.hawkEye&&char.row==='back'?(char.career==='woodelf'?1:2):0); // Hawk Eye (+1 for Wood Elves, who already shoot with +4 AGI)
   let boons=0, banes=0;
   if(_wt.includes('unwieldy')&&!char._unwieldyUsed){ char._unwieldyUsed=true; banes++; }
   if(char.row==='back'&&!hasRangedWeapon(char)) banes++; // swinging a melee weapon from the back row
+  if(char.valourOfAges&&enemy&&(enemy.isElite||enemy.threat==='Boss'||enemy.threat==='Elite')) boons++; // High Elf: Valour of Ages
 
   const _isChaos=enemy&&(enemy.chaos||(enemy.tags&&enemy.tags.includes('chaos')));
   if(_ch==='witchSeal'){ if(_isChaos) boons++; else banes++; }
@@ -207,7 +208,7 @@ function rollEnemyAttack(enemy, char, hasBoon=false, room=null) {
 // ─── BUFF / DEBUFF SYSTEM ────────────────────────────────────────────────────
 let _buffId=0;
 function addBuff(char, name, effects, duration=1){
-  if(effects&&effects.skipTurn&&(char.mutations||[]).includes('ironSkull')) return; // Horned Skull: can't be stunned
+  if(effects&&effects.skipTurn&&((char.mutations||[]).includes('ironSkull')||(char.relics||[]).includes('pilgrimBoots')||char.stubborn)) return; // Horned Skull, Iron-shod Boots, Dwarven stubbornness: can't be stunned
   if(!char.activeBuffs) char.activeBuffs=[];
   char.activeBuffs.push({id:_buffId++, name, duration, ...effects});
 }

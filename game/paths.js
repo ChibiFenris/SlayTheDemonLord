@@ -2,9 +2,9 @@
 // Levelling up and the novice, expert and master paths.
 // Moved out of server.js unchanged. The server hands this module the helpers it
 // uses through bind() once everything is defined (see the bottom of server.js).
-let EXPERT_PATHS, MASTER_PATHS, NOVICE_PATHS, TRADITIONS, XP_THRESHOLDS, getSpellsForPower, isEnemyHidden, refreshCastingPools;
+let EXPERT_PATHS, MASTER_PATHS, NOVICE_PATHS, TRADITIONS, XP_THRESHOLDS, getSpellsForPower, isEnemyHidden, refreshCastingPools, traditionAllowed;
 function bind(api) {
-  ({ EXPERT_PATHS, MASTER_PATHS, NOVICE_PATHS, TRADITIONS, XP_THRESHOLDS, getSpellsForPower, isEnemyHidden, refreshCastingPools } = api);
+  ({ EXPERT_PATHS, MASTER_PATHS, NOVICE_PATHS, TRADITIONS, XP_THRESHOLDS, getSpellsForPower, isEnemyHidden, refreshCastingPools, traditionAllowed } = api);
 }
 // ─── LEVEL UP & PATHS ────────────────────────────────────────────────────────
 
@@ -76,7 +76,7 @@ function applyNovicePath(char, pathId) {
     'toughness','bleedOnCrit','bleedOnHit','evasion','venomOnFirstHit','burningSoul','burnOnSpell',
     'holyFervor','divineFavour','bleedDeep','deepBleed','poisonBlade','curse','_curseUsed','druidFervor','druidsFury','weaponMaster',
     'condemn','silverShot','firstVolley','slayerOath','deathWish','rage',
-    'turret','grenade','tinkerer','hawkEye','arrowStorm',
+    'turret','grenade','tinkerer','hawkEye','arrowStorm','virtue','stubborn','valourOfAges','shieldwall','fortitude','pressTheAdvantage',
   ];
   NOVICE_FLAGS.forEach(f=>{ if(np[f]) char[f]=true; });
   if(np.tinkerer) char.defense+=1; // riveted plate
@@ -103,9 +103,8 @@ function applyExpertPath(char, pathId) {
   if (ep.power) { char.power+=ep.power; char.maxPower+=ep.power; refreshCastingPools(char); }
   if (ep.levelGains&&ep.levelGains[3]) applyTalentList(char, ep.levelGains[3]);
   const pathsWithTradition = ['cleric','druid','oracle','paladin','wizard','warlock','sorcerer','spellbinder','evoker','elementalist','healer','zealot','witch'];
-  if (pathsWithTradition.includes(pathId)) {
-    char.pendingLevelUp=true; char.pendingPathTier='tradition'; char.pendingSpellChoices=1;
-  }
+  givePathGift(char, ep);
+  if (ep.lores || pathsWithTradition.includes(pathId)) teachLore(char);
   if (pathId==='elementalist' && char.traditions.includes('fire')) {
     const fw=TRADITIONS.fire?.spells.find(s=>s.name==='Firewall')||{name:'Firewall',rank:1,type:'attack',dmg:'4d6',applyBurn:true,burnDiceOverride:2,desc:'Rank 1. 4d6 + INT to one enemy. Burn 2d6 (loses 1 die each round). Fire: ×2 vs Undead.'};
     if(!char.knownSpells.find(k=>k.name==='Firewall')) char.knownSpells.push({...fw,heal:false});
@@ -119,9 +118,26 @@ function applyMasterPath(char, pathId) {
   if (mp.power) { char.power+=mp.power; char.maxPower+=mp.power; refreshCastingPools(char); }
   if (mp.levelGains&&mp.levelGains[7]) applyTalentList(char, mp.levelGains[7]);
   const masterWithTradition = ['archmage','arcanist','abjurer','conjurer','transmuter','stormbringer','thaumaturge','highpriest','chaplain','templar','exorcist','healer_m','necromancer'];
-  if (masterWithTradition.includes(pathId)) {
-    char.pendingLevelUp=true; char.pendingPathTier='tradition'; char.pendingSpellChoices=1;
-  }
+  givePathGift(char, mp);
+  if (mp.lores || masterWithTradition.includes(pathId)) teachLore(char);
+}
+
+// A class that teaches magic: the character becomes a spellcaster and picks a
+// lore their people may learn. If none is left to learn, they get +1 Power instead.
+function teachLore(char) {
+  char.spellcaster = true;
+  if (!char.power) { char.power = 1; char.maxPower = Math.max(char.maxPower || 0, 1); }
+  const left = Object.keys(TRADITIONS).filter(t => traditionAllowed(char, t) && !(char.traditions || []).includes(t));
+  if (!left.length) { char.power += 1; char.maxPower = (char.maxPower || 0) + 1; refreshCastingPools(char); return; }
+  char.pendingLevelUp=true; char.pendingPathTier='tradition'; char.pendingSpellChoices=1;
+}
+// Some classes come with their own gear (a Thunderer's handgun...). It is equipped at once.
+function givePathGift(char, path) {
+  const g = path && path.gift; if (!g || g.type !== 'weapon') return;
+  const w = { id: 'wg' + Math.random().toString(36).slice(2, 9), name: g.name, dice: g.dice, stat: g.stat, bonus: g.bonus || 0, dmgType: g.dmgType || 'slashing', type: 'weapon', cost: 40, sellCost: 3,
+    desc: `${g.dice}+${g.bonus || 0} · ${String(g.stat).toUpperCase()} · ${g.dmgType || 'slashing'} — a gift of your class` };
+  char.inventory.push({ name: w.name, qty: 1, type: 'weapon', itemObj: w, sellCost: 3 });
+  if (!(char._curseLock && char._curseLock.weapon)) char.equippedWeapon = w;
 }
 
 function getTargetEnemy(gs) {
@@ -138,4 +154,4 @@ function getTargetEnemy(gs) {
   return gs.enemy||null;
 }
 
-module.exports = { bind, checkLevelUp, getPathHpGain, applyLevelGains, applyTalentList, applyNovicePath, grantTradition, applyExpertPath, applyMasterPath, getTargetEnemy };
+module.exports = { bind, checkLevelUp, getPathHpGain, applyLevelGains, applyTalentList, applyNovicePath, grantTradition, applyExpertPath, applyMasterPath, teachLore, givePathGift, getTargetEnemy };

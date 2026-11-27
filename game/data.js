@@ -862,36 +862,132 @@ Object.assign(MASTER_PATHS, {
     desc:'Quick Strike: round-1 attack hits twice. Phantom Strike: first shot auto-hits. Dead Aim. Bladestorm: hits fire a second shot. Swift Feet: +2 boons on every attack.' },
 });
 
-// Which expert and master paths each career may take, with the name the path
-// has for that career. Shared mechanics, different Warhammer careers.
+// ═════════════════════════════════════════════════════════════════════════════
+// RACES. A character starts as one of five peoples of the Old World; their
+// class comes at level 3 (expert) and level 7 (master). The old careers above
+// stay as archetype kits only (the tests still use them); players pick a race.
+// ═════════════════════════════════════════════════════════════════════════════
+const LEGACY_CAREERS = { ...CAREERS };
+Object.keys(CAREERS).forEach(k => { delete CAREERS[k]; });
+Object.assign(CAREERS, {
+  // Human (Empire): +1 to every attribute — good at everything, master of nothing.
+  empire:    { label:'Human (Empire)',    race:true, weaponName:'Hand Weapon', armorName:'State Troop Mail', startHp:30, startAttrs:{str:11,agi:11,int:11,wil:11}, armorDef:3, weaponDmg:'1d8', weaponStr:true,  weaponType:'slashing', spellcaster:false },
+  // Human (Bretonnia): +4 WIL — knights and damsels of the Lady; faith drives the blade.
+  bretonnia: { label:'Human (Bretonnia)', race:true, weaponName:'Knightly Sword', armorName:'Knightly Plate', startHp:26, startAttrs:{str:10,agi:10,int:10,wil:14}, armorDef:4, weaponDmg:'1d8', weaponWilBased:true, weaponType:'slashing', spellcaster:false },
+  // Dwarf: +4 STR — stubborn, tough and hard-hitting.
+  dwarf:     { label:'Dwarf',             race:true, weaponName:'Dwarf Axe', armorName:'Dwarf Mail', startHp:28, startAttrs:{str:14,agi:10,int:10,wil:10}, armorDef:3, weaponDmg:'1d8', weaponStr:true,  weaponType:'slashing', spellcaster:false },
+  // High Elf: +4 INT — born to magic; even their blades are guided by the mind.
+  highelf:   { label:'High Elf',          race:true, weaponName:'Ithilmar Blade', armorName:'Ithilmar Scale', startHp:23, startAttrs:{str:10,agi:10,int:14,wil:10}, armorDef:3, weaponDmg:'1d6', weaponIntBased:true, weaponType:'slashing', spellcaster:true, tradition:'celestial' },
+  // Wood Elf: +4 AGI — archers and dancers of Athel Loren.
+  woodelf:   { label:'Wood Elf',          race:true, weaponName:'Asrai Longbow', armorName:'Woodland Cloak', startHp:19, startAttrs:{str:10,agi:14,int:10,wil:10}, armorDef:0, weaponDmg:'1d8', weaponStr:false, weaponType:'piercing', spellcaster:false, startRow:'back' },
+});
+// What every member of a people knows at level 1.
+Object.assign(NOVICE_PATHS, {
+  empire:    { hpGain:5, power:0, weaponTraining:true, pressTheAdvantage:true, catchBreath:true, shieldBash:true,
+    desc:'Drilled: +1 boon on attacks. Combined Arms: each hit gives +1 boon on your next attack. Shield Bash (cooldown 8). Catch Breath (cooldown 12). +1 to every attribute.' },
+  bretonnia: { hpGain:5, power:0, virtue:true, taunt:true, firstVolley:true, shieldwall:true, catchBreath:true,
+    desc:'Knightly Virtue: your Insanity limit is 1 higher. The Charge: +1 boon on your first attack each fight. Lady\'s Blessing: +2 Defence. Challenge (Taunt): enemies attack only you for 2 rounds. Catch Breath (cooldown 12). Your blade is guided by WIL.' },
+  dwarf:     { hpGain:6, power:0, toughness:true, stubborn:true, fortitude:true, catchBreath:true,
+    desc:'Dwarf-hard: 10% less damage taken. Stubborn: you can never be stunned, and you keep a cooler head (Insanity limit +1). Dwarf Constitution: immune to bleed and poison. Catch Breath (cooldown 12).' },
+  highelf:   { hpGain:4, power:1, spellRecovery:true, valourOfAges:true,
+    desc:'Power 1 and the Lore of Light (Celestial). Valour of Ages: +1 boon against elites and bosses. Spell Recovery (cooldown 12). Your blade is guided by INT.' },
+  woodelf:   { hpGain:4, power:0, hawkEye:true, nimbleRecovery:true,
+    desc:'Hawk Eye: +1 to hit from the back row. Nimble Recovery (cooldown 12). Starts with a longbow; no armour, but quick (Defence from AGI).' },
+});
+
+// ── The forty classes (new ones; the rest reuse existing paths) ───────────
+// `gift` hands over a piece of gear; `lores` marks a class that teaches magic.
+Object.assign(EXPERT_PATHS, {
+  witchHunter:   { label:'Witch Hunter', hpGain:5, power:0,
+    levelGains:{ 3:['condemn','silverShot','firstVolley'], 4:['markHeretic','+1agi'], 5:['burnTheWitch','resonance'], 6:['purgeTheWicked','+1wil'] },
+    desc:'Condemn a foe (free action): +1 boon and +1d6 on hits against it. Silver Shot vs undead, daemons and Chaos. Burn the Witch: hits on the Condemned set them alight.' },
+  empEngineer:   { label:'Imperial Engineer', hpGain:5, power:0,
+    levelGains:{ 3:['turret','grenade'], 4:['bigBombs','+1int'], 5:['improvedTurret','quickHands'], 6:['tinkerer','+1int'] },
+    desc:'Volley Gun turret (free action) and Bombs that hit every enemy. Big Bombs stun; the Improved Turret fires longer and harder. Tinkerer: +1 Defence, better draughts.' },
+  knightErrant:  { label:'Knight Errant', hpGain:6, power:0,
+    levelGains:{ 3:['devastatingCharge','pressTheAdvantage'], 4:['shieldBash','+1wil'], 5:['combatProwess','weaponAptitude'], 6:['sweepingBlow','+1str'] },
+    desc:'The lance charge: Devastating Charge knocks foes Prone. Every hit sets up the next (Press the Advantage). Later, Sweeping Blow cuts through whole lines.' },
+  questingKnight:{ label:'Questing Knight', hpGain:5, power:0,
+    levelGains:{ 3:['holyFervor','vigil'], 4:['divineSmite','+1wil'], 5:['blessedBlade','combatExpertise'], 6:['wrathOfSigmar','+1wil'] },
+    desc:'Faith made steel: Holy Fervor adds holy damage to every hit, Divine Smite strikes for +3d6, and in time Wrath of the Lady smites for 6d6.' },
+  herrimault:    { label:'Herrimault', hpGain:5, power:0,
+    levelGains:{ 3:['trickery','smokeScreen'], 4:['venomOnFirstHit','+1agi'], 5:['skirmish','huntersMark'], 6:['exploitWeakness','+1wil'] },
+    desc:'An outlaw of the greenwood: poisoned blades, smoke to blind the enemy, and marks for the kill.' },
+  trollSlayer:   { label:'Troll Slayer', hpGain:7, power:0,
+    levelGains:{ 3:['slayerOath','deathWish','rage'], 4:['rageTrigger','+1str'], 5:['relentless','combatProwess'], 6:['unstoppable','+1str'] },
+    desc:'Shaven, tattooed and seeking death: +1d6 against elites and bosses, stronger below half HP, rage when struck. Unstoppable: once a run, survive a killing blow.' },
+  ironbreaker:   { label:'Ironbreaker', hpGain:7, power:0,
+    levelGains:{ 3:['taunt','shieldwall','bulwark'], 4:['bodyguard','+1str'], 5:['fortressStance','intercept'], 6:['perfectDefence','+1str'] },
+    desc:'A wall of gromril: Taunt, Shieldwall and Bulwark; Rebound throws back half of every blow; Intercept softens every enemy hit at once.' },
+  thunderer:     { label:'Thunderer', hpGain:5, power:0,
+    gift:{ type:'weapon', name:'Dwarf Handgun', dice:'1d10', stat:'str', bonus:1, dmgType:'piercing' },
+    levelGains:{ 3:['weaponAptitude','firstVolley'], 4:['deadAim','+1str'], 5:['combatProwess','quickHands'], 6:['killingMomentum','+1agi'] },
+    desc:'Takes up a Dwarf handgun (1d10+STR, shoots from the back row). Weapon Aptitude, Dead Aim and Killing Momentum turn every shot into a kill.' },
+  runesmith:     { label:'Runesmith', hpGain:5, power:1, lores:true,
+    levelGains:{ 3:['ward','counterspell'], 4:['blessedBlade','+1int'], 5:['overcast','forceOfWill'], 6:['shieldwall','+1wil'] },
+    desc:'Strikes runes instead of casting spells: learns the rune lores (Protection, Earth or Battle). Ward shields the whole warband; Counterspell stops an enemy power.' },
+  swordmaster:   { label:'Swordmaster of Hoeth', hpGain:5, power:0,
+    levelGains:{ 3:['acrobaticRiposte','quickstrike'], 4:['bladestorm','+1int'], 5:['weaponMaster','swiftFeet'], 6:['flicker','+1agi'] },
+    desc:'The blade-dance of Hoeth: every enemy miss earns a free counter, Quick Strike hits twice on round one, and Bladestorm adds an extra cut to each hit.' },
+  whiteLion:     { label:'White Lion of Chrace', hpGain:6, power:0,
+    levelGains:{ 3:['bodyguard','bleedOnHit'], 4:['taunt','+1str'], 5:['combatProwess','fortitude'], 6:['sweepingBlow','+1str'] },
+    desc:'Axe-wielding bodyguards in lion pelts: guard an ally, cleave and bleed, and shrug off poison and bleeding (Fortitude).' },
+  wardancer:     { label:'Wardancer', hpGain:5, power:0,
+    levelGains:{ 3:['bladestorm','fadePassive'], 4:['quickStep','+1agi'], 5:['flurryBleed','acrobaticRiposte'], 6:['flicker','+1agi'] },
+    desc:'The dance of Loec: twin blades, an extra strike with every hit, bleeding flurries and counters when the enemy misses.' },
+});
+Object.assign(MASTER_PATHS, {
+  thane:      { label:'Thane', hpGain:6, power:0,
+    levelGains:{ 7:['warlordAura','battleOrders'], 8:['warCry','+1str'], 9:['intercept','sweepingBlow'], 10:['killingMomentum','+1wil'] },
+    desc:'A lord of the hold: the whole warband fights better near you (Warlord Aura), Battle Orders give an ally a free action, War Cry lifts everyone.' },
+  runelord:   { label:'Runelord', hpGain:5, power:2, lores:true,
+    levelGains:{ 7:['spellsurge','ward'], 8:['overcast','+1int'], 9:['catastrophe','esotericKnowledge'], 10:['forceOfWill','+1wil'] },
+    desc:'A master of the anvil: more rune lore, Spell Surge, Overcast, and the Anvil of Doom (Catastrophe: 10d6 to every enemy).' },
+  phoenixGuard:{ label:'Phoenix Guard', hpGain:6, power:0,
+    levelGains:{ 7:['taunt','shieldwall','perfectDefence'], 8:['bodyguard','+1int'], 9:['toughness','endure'], 10:['flicker','+1wil'] },
+    desc:'Silent guardians who have seen their own deaths: Taunt, Shieldwall and Perfect Defence, Rebound and Endure.' },
+  wayMaster:  { label:'Waywatcher', hpGain:5, power:0,
+    levelGains:{ 7:['arrowStorm','phantomStrike'], 8:['deadAim','+1agi'], 9:['bladestorm','killingMomentum'], 10:['swiftFeet','+1agi'] },
+    desc:'The finest archers in Athel Loren: Arrow Storm hits every enemy, the first shot always lands, every hit looses a second arrow.' },
+  spellweaver:{ label:'Spellweaver', hpGain:4, power:2, lores:true,
+    levelGains:{ 7:['druidsFury','natureBond'], 8:['entangle','+1int'], 9:['lingeringMagic','overcast'], 10:['catastrophe','+1wil'] },
+    desc:'Mistress of the forest\'s magic: more lore, Druid\'s Fury, Entangle, Lingering Magic doubles every damage-over-time.' },
+});
+// Masters stand on their own: whatever you were as an expert, a master gets the core of their craft.
+MASTER_PATHS.witchfinder.levelGains[7] = [...new Set(['condemn', ...MASTER_PATHS.witchfinder.levelGains[7]])];
+MASTER_PATHS.guildMaster.levelGains[7] = [...new Set(['turret', 'grenade', ...MASTER_PATHS.guildMaster.levelGains[7]])];
+MASTER_PATHS.daemonSlayer.levelGains[7] = [...new Set(['slayerOath', 'deathWish', 'rage', ...MASTER_PATHS.daemonSlayer.levelGains[7]])];
+MASTER_PATHS.longRifle.gift = { type:'weapon', name:'Ironbeard Long Rifle', dice:'1d12', stat:'str', bonus:2, dmgType:'piercing' };
+['elementalist', 'sorcerer', 'healer', 'druid', 'spellbinder'].forEach(k => { EXPERT_PATHS[k].lores = true; });
+['archmage', 'transmuter', 'healer_m', 'abjurer'].forEach(k => { MASTER_PATHS[k].lores = true; });
+
+// Each people's four expert and four master classes, with their names.
 const CAREER_PATHS = {
-  warrior:     { expert:{ defender:'Greatsword', giantSlayer:'Pit Fighter' },
-                 master:{ myrmidon:'Reiksguard Knight', warlord:'Captain of the Empire', champion:'Knight of the Blazing Sun' } },
-  rogue:       { expert:{ ranger:'Outrider', assassin:'Cutthroat' },
-                 master:{ shadowblade:'Highwayman', executioner:'Master Assassin' } },
-  wizard:      { expert:{ elementalist:'Bright Journeyman', sorcerer:'Celestial Journeyman', wizard:'Grey Journeyman', spellbinder:'Battle Wizard', warlock:'Dark Magister' },
-                 master:{ transmuter:'Gold Magister', necromancer:'Amethyst Magister', abjurer:'Light Magister', archmage:'Patriarch of the Colleges' } },
-  priest:      { expert:{ paladin:'Warrior Priest', healer:'Hospitaller', druid:'Priest of the Old Faith' },
-                 master:{ chaplain:'Templar of Sigmar', healer_m:'Arch-Lector' } },
-  witchhunter: { expert:{ inquisitor:'Inquisitor', ranger:'Bounty Hunter' },
-                 master:{ witchfinder:'Witchfinder General', champion:'Templar of the Silver Hammer' } },
-  slayer:      { expert:{ defender:'Troll Slayer', giantSlayer:'Giant Slayer' },
-                 master:{ brute:'Dragon Slayer', daemonSlayer:'Daemon Slayer' } },
-  engineer:    { expert:{ gunner:'Master Gunner', sapper:'Sapper' },
-                 master:{ guildMaster:'Guild Master', longRifle:'Hochland Long Rifle' } },
-  waywatcher:  { expert:{ ranger:'Waystalker', assassin:'Shadow-walker' },
-                 master:{ shadowblade:'Shadow Warrior', executioner:'Wardancer' } },
+  empire:    { expert:{ defender:'State Greatsword', witchHunter:'Witch Hunter', empEngineer:'Imperial Engineer', elementalist:'Bright Wizard' },
+               master:{ warlord:'Captain of the Empire', witchfinder:'Witchfinder General', guildMaster:'Master Engineer', archmage:'Patriarch of the Colleges' } },
+  bretonnia: { expert:{ knightErrant:'Knight Errant', questingKnight:'Questing Knight', healer:'Damsel of the Lady', herrimault:'Herrimault' },
+               master:{ champion:'Grail Knight', myrmidon:'Paladin of the Realm', healer_m:'Prophetess of the Lady', abjurer:'Enchantress' } },
+  dwarf:     { expert:{ trollSlayer:'Troll Slayer', ironbreaker:'Ironbreaker', thunderer:'Thunderer', runesmith:'Runesmith' },
+               master:{ daemonSlayer:'Daemon Slayer', thane:'Thane', longRifle:'Ironbeard Marksman', runelord:'Runelord' } },
+  highelf:   { expert:{ swordmaster:'Swordmaster of Hoeth', sorcerer:'Mage of Saphery', whiteLion:'White Lion of Chrace', spellbinder:'Sword of Hoeth' },
+               master:{ archmage:'Archmage', transmuter:'Loremaster of Hoeth', phoenixGuard:'Phoenix Guard', shadowblade:'Shadow Warrior' } },
+  woodelf:   { expert:{ ranger:'Waystalker', wardancer:'Wardancer', druid:'Spellsinger', assassin:'Deepwood Scout' },
+               master:{ wayMaster:'Waywatcher', brute:'Wild Rider of Kurnous', spellweaver:'Spellweaver', executioner:'Shadowdancer' } },
 };
 const pathAllowed = (career, tier, id) => !!(CAREER_PATHS[career] && CAREER_PATHS[career][tier] && CAREER_PATHS[career][tier][id]);
 const pathLabel = (career, tier, id) => (CAREER_PATHS[career] && CAREER_PATHS[career][tier] && CAREER_PATHS[career][tier][id]) || ((tier === 'expert' ? EXPERT_PATHS : MASTER_PATHS)[id] || {}).label || id;
+const pathTeachesLore = (tier, id) => !!((tier === 'expert' ? EXPERT_PATHS : MASTER_PATHS)[id] || {}).lores;
 
-// Lores of magic open to each career. The Dark Magister alone may touch Chaos.
+// The lores of magic each people may learn. Nobody walks the Chaos lore.
 const TRADITION_ACCESS = {
-  wizard: ['fire','death','shadow','celestial','earth','storm','protection','illusion','nature','transformation','time','battle'],
-  priest: ['life','protection','battle','celestial','nature'],
+  empire:    ['fire','celestial','storm','death','shadow','battle','illusion','time','earth','transformation','nature','protection'],
+  bretonnia: ['life','protection','nature','celestial'],
+  dwarf:     ['protection','earth','battle'],
+  highelf:   ['celestial','storm','fire','protection','time','illusion','life','shadow'],
+  woodelf:   ['nature','transformation','illusion','shadow','life'],
 };
 function traditionAllowed(c, id) {
-  if (id === 'chaos') return c.expertPath === 'warlock';
+  if (id === 'chaos') return false;
   const list = TRADITION_ACCESS[c.career];
   return !list || list.includes(id);
 }
@@ -948,5 +1044,5 @@ module.exports = {
   SHOP_CONSUMABLES,
   SCROLL_SPELLS_SHOP,
   ENEMY_DROPS,
-  CAREER_PATHS, pathAllowed, pathLabel, TRADITION_ACCESS, traditionAllowed,
+  CAREER_PATHS, pathAllowed, pathLabel, pathTeachesLore, TRADITION_ACCESS, traditionAllowed, LEGACY_CAREERS,
 };
