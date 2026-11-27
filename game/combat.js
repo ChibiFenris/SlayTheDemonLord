@@ -1,5 +1,6 @@
 'use strict';
 const heirlooms = require('./heirlooms');
+const affixes = require('./affixes');
 // Attack and damage rolls, buffs and debuffs, damage over time.
 // Moved out of server.js unchanged. The server hands this module the helpers it
 // uses through bind() once everything is defined (see the bottom of server.js).
@@ -29,6 +30,7 @@ function rollAttack(char, enemy, extraBoons=0) {
     +((wpn&&wpn.special&&wpn.special.key==='flailSwing'&&enemy&&enemy.ac>=15)?2:0);
   const atkMod=modVal(char.attrs[wpnStat])+char.weaponAtkBonus+warCryBonus+traitAtk+(char.hawkEye&&char.row==='back'?(char.career==='woodelf'?1:2):0)+heirlooms.attackMods(char).atk; // Hawk Eye (+1 for Wood Elves, who already shoot with +4 AGI)
   let boons=0, banes=0;
+  const _ax=affixes.attackMods(char); boons+=_ax.boons; banes+=_ax.banes;
   if(_wt.includes('unwieldy')&&!char._unwieldyUsed){ char._unwieldyUsed=true; banes++; }
   if(char.row==='back'&&!hasRangedWeapon(char)) banes++; // swinging a melee weapon from the back row
   if(char.valourOfAges&&enemy&&(enemy.isElite||enemy.threat==='Boss'||enemy.threat==='Elite')) boons++; // High Elf: Valour of Ages
@@ -73,7 +75,7 @@ function rollAttack(char, enemy, extraBoons=0) {
   if(_fs){ const r2=rollD20boons(boons,banes); if(r2.final>final){ ({base,final,boonDie,baneDie}=r2); } _fs.foresightRerolls--; if(_fs.foresightRerolls<=0) char.activeBuffs=char.activeBuffs.filter(b=>b!==_fs); }
   char.activeBuffs=(char.activeBuffs||[]).filter(b=>!b.consumeOnAttack);
   const _keen=_wt.includes('keen')||(wpn&&wpn.special&&wpn.special.key==='twinBlades')||_hm.keen;
-  const fumble=base===1&&!forceCrit, crit=forceCrit||base===20||(_keen&&base>=19);
+  const fumble=(base===1||(_ax.fumbleOn2&&base===2))&&!forceCrit, crit=forceCrit||base===20||(_keen&&base>=19);
   const phantomThisHit=char.phantomStrike&&!char._phantomStrikeUsed;
   if(phantomThisHit) char._phantomStrikeUsed=true;
   const _arcaneIgnoreAC=char.arcaneStrike&&(Math.random()<(0.04*(1+Math.max(0,modVal(char.attrs.int)))));
@@ -210,6 +212,7 @@ function rollEnemyAttack(enemy, char, hasBoon=false, room=null) {
 // ─── BUFF / DEBUFF SYSTEM ────────────────────────────────────────────────────
 let _buffId=0;
 function addBuff(char, name, effects, duration=1){
+  if(effects&&effects.skipTurn&&affixes.resistStun(char)) return; // Steadfast armour
   if(effects&&effects.skipTurn&&((char.mutations||[]).includes('ironSkull')||(char.relics||[]).includes('pilgrimBoots')||char.stubborn)) return; // Horned Skull, Iron-shod Boots, Dwarven stubbornness: can't be stunned
   if(!char.activeBuffs) char.activeBuffs=[];
   char.activeBuffs.push({id:_buffId++, name, duration, ...effects});

@@ -1,6 +1,7 @@
 'use strict';
 const heirlooms = require('./heirlooms');
 const armour = require('./armour');
+const affixes = require('./affixes');
 // The road: path votes, room contents, unknown-room encounters and loot rooms.
 // Moved out of server.js unchanged. The server hands this module the helpers it
 // uses through bind() once everything is defined (see the bottom of server.js).
@@ -122,7 +123,7 @@ function _runNodeContent(room, gs, nodeType, playerCount) {
       c._devastatingChargeProc=!!c.devastatingCharge; // Devastating Charge: first hit each fight
       c._overcastFired=0;                              // Overcast: first attack spell(s) each fight
       c._vengeanceLowFired=false; c._lastRitesFired=false; c.rageTriggerActive=false;
-      heirlooms.fightStart(c);
+      heirlooms.fightStart(c); affixes.fightStart(c,src=>dark.gainCorruption(room,p,1,src));
     });
     if(room.players.some(p=>p.char&&p.char.alive&&hasRelic(p.char,'tollingBell'))) gs.enemies.forEach(e=>addDebuff(e,'Shaken',{bane:1,consumeOnAttack:true},2));
     if(gs._nextCombatHalfHP){ gs._nextCombatHalfHP=false; gs.enemies.forEach(e=>{e.hp=Math.ceil(e.hp/2); e.maxHp=e.hp;}); addLog(room,`🔴 Ritual disruption — enemies enter at half HP!`,'chaos'); }
@@ -138,6 +139,7 @@ function _runNodeContent(room, gs, nodeType, playerCount) {
       const r1=p.char.knownSpells&&p.char.knownSpells.find(sp=>sp.rank===1);
       if(r1){ if(!p.char.castingPools) refreshCastingPools(p.char); p.char.castingPools['R'+r1.rank]=(p.char.castingPools['R'+r1.rank]||0)+1; addLog(room,`📚 <strong>Prepared Spell!</strong> ${p.name} has ${r1.name} ready — one free cast this combat.`,'spell'); }
     });
+    room.players.filter(p=>p.char&&p.char.alive&&p.char.equippedCharm&&p.char.equippedCharm.key==='hourglass'&&p.char.castingPools&&p.char.castingPools.R1!==undefined).forEach(p=>{ p.char.castingPools.R1++; });
     room.players.filter(p=>p.char&&p.char.alive&&hasRelic(p.char,'quicksilver')&&p.char.castingPools).forEach(p=>{ Object.keys(p.char.castingPools).forEach(k=>{ p.char.castingPools[k]++; }); });
     room.players.filter(p=>p.char&&p.char.alive&&p.char._legPrimordialStaff).forEach(p=>{
       if(!p.char.castingPools) refreshCastingPools(p.char);

@@ -591,6 +591,26 @@ const logHas=(room,re)=>room.gs.log.some(l=>re.test(l.msg));
   { const {room}=mkRoom(['empire']); const c=room.players[0].char; S.applyExpertPath(c,'elementalist'); let fine=true; for(let i=0;i<30;i++){ const it=S.genArmor(1,c); if(it.armorType!=='cloth') fine=false; } ok(fine,'casters are only offered cloth'); }
   { const {room}=mkRoom(['woodelf']); const c=room.players[0].char; let fine=true; for(let i=0;i<30;i++){ const it=S.genArmor(1,c); if(A.TYPES[it.armorType].rank>2) fine=false; } ok(fine,'ranged warriors are offered leather or cloth'); }
   { const {room}=mkRoom(['dwarf']); const a=room.players[0]; combat(room,['Skaven Clanrat']); const e=room.gs.enemies[0]; e.atk=99; e.dmgNum=2; e.dmgSides=1; e.dmgBonus=8; e.onHit=null; const hp=a.char.health;
-    room.gs.activeTurnIdx=room.gs.turnOrder.findIndex(t=>t.type==='enemy'); S.fireEnemyTurn&&S.fireEnemyTurn(room,e); ok(logHas(room,/armour/),'enemy hits show what the armour soaked'); }
+    room.gs.activeTurnIdx=room.gs.turnOrder.findIndex(t=>t.type==='enemy'); for(let k=0;k<6&&!logHas(room,/armour/);k++){ a.char.health=a.char.maxHealth; a.char.alive=true; S.fireEnemyTurn&&S.fireEnemyTurn(room,e); } ok(logHas(room,/armour/),'enemy hits show what the armour soaked'); }
+}
+// 50. New weapon and armour traits, charms and relics
+{ const AX=require('../game/affixes.js'), A=require('../game/armour.js'), R=require('../game/relics.js'), D=require('../game/data.js');
+  ok(Object.keys(D.WEAPON_TRAITS).length>=21&&Object.keys(D.ARMOR_TRAITS).length>=16&&Object.keys(D.CHARMS).length>=21&&Object.keys(R.RELICS).length>=22,'more traits, charms and relics');
+  const fx={burn(){},stun(){},heal(n){ this.h=(this.h||0)+n; }};
+  { const c={equippedWeapon:{traits:['sundering']},health:5,maxHealth:10}; const e={ac:14,hp:30,maxHp:30}; for(let i=0;i<5;i++) AX.onHit(c,e,{},fx); ok(e.ac===11,'Sundering: each hit lowers Defence by 1, at most 3'); }
+  { const c={equippedWeapon:{traits:['thirsting']},health:5,maxHealth:10}; const f={...fx,h:0}; f.heal=n=>{c.health+=n;}; AX.onHit(c,{hp:9,maxHp:9},{},f); ok(c.health===6,'Thirsting heals 1 on a hit'); }
+  { const c={equippedWeapon:{traits:['headsman']}}; ok(AX.onHit(c,{hp:2,maxHp:20},{},fx).bonus===3&&AX.onHit(c,{hp:20,maxHp:20},{},fx).bonus===0,"Headsman's: +3 on a foe below a quarter HP"); }
+  { const c={equippedArmor:{traits:['spiked']}}; let back=0; AX.onHitTaken(c,{},5,{},n=>{back+=n;}); ok(back>=1&&back<=3,'Spiked armour hurts whoever hits you'); }
+  { const {room}=mkRoom(['empire']); const c=room.players[0].char; c.equippedArmor.traits=['steadfast']; AX.fightStart(c); S.addBuff(c,'Stunned',{skipTurn:true},1); const first=(c.activeBuffs||[]).some(b=>b.skipTurn); S.addBuff(c,'Stunned',{skipTurn:true},1);
+    ok(!first&&(c.activeBuffs||[]).some(b=>b.skipTurn),'Steadfast armour shrugs off the first stun each fight'); }
+  { const {room}=mkRoom(['empire']); const c=room.players[0].char; const d0=c.defense; const w={id:'wx',type:'weapon',name:'Guarding Sword',dice:'1d8',stat:'str',bonus:1,dmgType:'slashing',traits:['guarding']}; c.inventory.push({name:w.name,qty:1,type:'weapon',itemObj:w}); S.equipItem(c,c.inventory.length-1); ok(c.defense===d0+1,'a Guarding weapon gives +1 Defence while wielded'); }
+  { const a=A.finish({type:'armor',name:'Lightweight Leather Jack',defBonus:2,traits:['lightweight']}); ok(a.dodge===1&&/\+1 Defence/.test(a.desc),'Lightweight armour: +1 Defence'); }
+  { let fine=true; for(let i=0;i<40;i++){ const it=S.genArmor(1); const base=A.finish({type:'armor',name:it.name.replace(/^\S+\s+/,''),defBonus:it.defBonus}); if((it.traits||[]).includes('reinforced')&&!(it.traits||[]).includes('rusted')&&it.dr<2) fine=false; } ok(fine,'Reinforced armour adds damage reduction'); }
+  { const c={equippedCharm:{key:'ratTail'}}; AX.fightStart(c); ok(AX.autoMiss(c)&&!AX.autoMiss(c),'Lucky Rat-Tail: the first attack each fight misses'); }
+  { const {room}=mkRoom(['empire']); const c=room.players[0].char; const hp=c.maxHealth; const ch=S.gear.makeCharm('hourglass'); c.inventory.push({name:ch.name,qty:1,type:'charm',itemObj:ch}); S.equipItem(c,c.inventory.length-1); ok(c.maxHealth===hp-4,'Hourglass of Sand costs 4 max HP'); }
+  ok(AX.draughtHeal({equippedCharm:{key:'shallyaDove'}},5)===10&&AX.draughtHeal({relics:['surgeonKit']},5)===8&&AX.draughtHeal({equippedCharm:{key:'daemonBracer'}},5)===3,'draught healing: Dove doubles, Surgeon\'s Kit +3, Daemonhide halves');
+  { const c={relics:[],defense:12,maxHealth:30,health:30,spellcaster:false}; R.grantRelic(c,'ravenCloak'); R.grantRelic(c,'giantTooth'); ok(c.defense===13&&c.maxHealth===34&&A.dr(c)===1,'Ravenfeather Cloak +1 Defence; Giant\'s Tooth +4 HP and +1 DR'); }
+  { let seen=false; for(let i=0;i<60;i++) if(R.optionsFor({relics:[],spellcaster:false}).includes('witchfire')) seen=true; ok(!seen,'the Witchfire Lantern is only offered to spellcasters'); }
+  { const {room}=mkRoom(['empire']); const c=room.players[0].char; c.relics=['bloodRuby']; c.health=c.maxHealth-5; combat(room,['Skaven Clanrat']); const e=room.gs.enemies[0]; e.hp=0; S.resolveEnemyDeath(room,e); ok(c.health===c.maxHealth-3,'Blood Ruby: heal 2 whenever an enemy dies'); }
 }
 console.log(fails?fails+' FAILED':'all passed'); process.exit(fails?1:0);

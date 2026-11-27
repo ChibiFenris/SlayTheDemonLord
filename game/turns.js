@@ -1,6 +1,7 @@
 'use strict';
 const heirlooms = require('./heirlooms');
 const armour = require('./armour');
+const affixes = require('./affixes');
 // Combat flow: turn order, the party turn timer, enemy turns, rounds and deaths.
 // Moved out of server.js unchanged. The server hands this module the helpers it
 // uses through bind() once everything is defined (see the bottom of server.js).
@@ -393,7 +394,7 @@ function fireEnemyTurn(room, ae) {
     const defTotal    = Math.max(5, p.char.defense + auraBonus + shieldBonus + aegisBonus + wardBonus - ignoresDef);
 
     for (let atk_i = 0; atk_i < baseAttacks; atk_i++) {
-      if (!p.char.alive) break;
+      if (!p.char.alive || ae.hp <= 0) break; // thorns or a rebound can kill the attacker mid-swing
 
       const atkBase  = ae.atk;
       const atkBonus = ae._packBonus || 0;
@@ -412,6 +413,7 @@ function fireEnemyTurn(room, ae) {
         }
       }
 
+      if (affixes.autoMiss(p.char)) { addLog(room, `🐀 <strong>Lucky Rat-Tail!</strong> ${ae.name}'s blow somehow misses ${p.name}.`, 'spell'); continue; }
       const _pcView = {...p.char, defense: defTotal};
       const r = rollEnemyAttack(aeProxy, _pcView, hasExtraBoon || recklessBoon, room);
       p.char._evadeRound = _pcView._evadeRound;
@@ -423,6 +425,7 @@ function fireEnemyTurn(room, ae) {
         if (ae.recklessCharge && recklessBoon)                        { dmg += rd(1,6); }
         if (ae._rageActive)                                           { dmg += rd(1,6); }
         dmg = enemyDamageMods(room, ae, p, dmg, r, plan);
+        { const ax = affixes.onHitTaken(p.char, ae, dmg, r, n => { ae.hp = Math.max(0, ae.hp - n); }); dmg = ax.dmg; if (ax.notes.length) addLog(room, `🛡 ${p.name}: ${ax.notes.join(', ')}${ae.hp<=0?` — ${ae.name} falls!`:''}`, 'spell'); if (ae.hp <= 0) resolveEnemyDeath(room, ae); }
         // Armour soaks the blow (up to half of it) — unless a Hellblade cuts straight through.
         const _soak = ae.hellblade ? {dmg, soaked:0} : armour.soak(p.char, dmg); dmg = _soak.dmg;
         const isImmune = (p.char.activeBuffs||[]).some(b=>b.immune);

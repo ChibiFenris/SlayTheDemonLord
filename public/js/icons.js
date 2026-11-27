@@ -17,7 +17,8 @@ function iconArmor(name){ for(const [re,f] of _aRules) if(re.test(name||'')) ret
 // Any inventory entry, shop item or loot option.
 function iconItem(it){
   if(!it) return null;
-  const o=it.itemObj||it, name=it.name||o.name||'';
+  const o=it.itemObj||it; let name=it.name||o.name||'';
+  if(o.traits&&o.traits.length) name=name.replace(/^\S+\s+/,''); // drop the trait word ("Headsman's Sword" is still a sword)
   const type=o.type||it.type;
   if(type==='weapon') return iconWeapon(name);
   if(type==='armor') return iconArmor(name);
@@ -41,3 +42,6 @@ function armourLine(o){
   return `${ARMOUR_LABEL[o.armorType]||o.armorType} · DR ${o.dr}${dg?` · ${dg>0?'+':'−'}${Math.abs(dg)} Defence`:''}`;
 }
 const armourDR=c=>(c&&c.equippedArmor&&c.equippedArmor.dr)||0;
+// Charms added later.
+Object.assign(ICONS.charms,{ulricFang:'icons/wm-mark-ghur.webp',shallyaDove:'icons/tw-blessings-shallya.webp',ratTail:'icons/wm-spot-rat-skull.webp',orcTooth:'icons/tw-misc-orc.webp',
+  hourglass:'icons/wm-the-tower.webp',verenaScales:'icons/tw-blessings-verena.webp',huntersHorn:'icons/tw-trappings-silver-horn.webp',thornCrown:'icons/wm-spot-hedgecraft.webp',daemonBracer:'icons/wm-spot-daemon.webp'});

@@ -281,8 +281,8 @@ function mRenderGame(gs,players,me){
         };
         opt('💰',`${gs.lootRoom.coins} silver`,'Coin from the cache.','coins');
         opt(iconImg(iconItem({name:consName}),'ico-loot')||'🧪',consName,o.scrollSpell?o.scrollSpell.desc:ITEM_DESCS[o.consumable]||'','consumable');
-        opt(iconImg(iconWeapon(o.weapon.name),'ico-loot'),o.weapon.name,`${o.weapon.dice}+${o.weapon.bonus} · ${o.weapon.stat.toUpperCase()}${traitText(o.weapon)}`,'weapon');
-        opt(iconImg(iconArmor(o.armor.name),'ico-loot'),o.armor.name,`${armourLine(o.armor)}${traitText(o.armor)}`,'armor');
+        opt(iconImg(iconItem(o.weapon),'ico-loot'),o.weapon.name,`${o.weapon.dice}+${o.weapon.bonus} · ${o.weapon.stat.toUpperCase()}${traitText(o.weapon)}`,'weapon');
+        opt(iconImg(iconItem(o.armor),'ico-loot'),o.armor.name,`${armourLine(o.armor)}${traitText(o.armor)}`,'armor');
         if(o.charm) opt(iconImg(iconItem({type:'charm',...o.charm}),'ico-loot')||'📿',o.charm.name,o.charm.desc,'charm');
         if(o.heirloom) opt(iconImg(iconItem(o.heirloom),'ico-loot')||'🏺',o.heirloom.name,o.heirloom.desc,'heirloom');
         act.appendChild(grid);

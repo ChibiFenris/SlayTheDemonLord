@@ -7,6 +7,7 @@ function bind(api) {
   ({ ARMOR_BASES, CHARM_SHOP_KEYS, ENEMY_DROPS, LEGENDARY_ITEMS, SCROLL_SPELLS_SHOP, SHOP_CONSUMABLES, WEAPON_BASES, addBuff, addDebuff, addLog, applyCharm, broadcastState, charmKey, checkDeath, cleanseCurses, d, dark, getTargetEnemy, isCursed, makeCharm, makeCursedItem, maxCastings, modVal, rd, resolveEnemyDeath, rollTraits, sendTo, uniqRanks, uuidv4 } = api);
 }
 const armour = require('./armour');
+const affixes = require('./affixes');
 // ─── MERCHANT & ITEMS ───────────────────────────────────────────────────────
 function genLegendaryItem(bossIndex) {
   const key = bossIndex===0?'boss1':bossIndex===1?'boss2':'boss3';
@@ -149,6 +150,7 @@ function equipItem(char, inventoryIndex) {
       applyWpnSpecial(char, char.equippedWeapon.special, false);
       char.inventory.push({name:char.equippedWeapon.name,qty:1,type:'weapon',itemObj:char.equippedWeapon,sellCost:3});
     }
+    char.defense+=affixes.weaponDefence(item)-affixes.weaponDefence(char.equippedWeapon);
     char.equippedWeapon=item; char.inventory.splice(inventoryIndex,1);
     applyWpnSpecial(char, item.special, true);
     const specNote=item.special?` [${item.special.desc.split('.')[0]}]`:'';
@@ -292,7 +294,7 @@ function useItemLogic(room,player,itemName,inCombat=false){
   const _morr=charmKey(char)==='morrFeather'?2:0; // Morr's Raven Feather: draughts heal 2 less
   if(itemName==='Sigmarite Incense'){ if(inCombat){consumed=false;addLog(room,`${player.name}: burn the incense after the fight.`,'sys');} else { dark.loseCorruption(char,2); addLog(room,`🕯 ${player.name} burns Sigmarite Incense — <strong>−2 Corruption</strong> (${char.corruption}). Mutations remain.`,'heal'); } }
   else if(itemName==='Laudanum'){ dark.loseInsanity(char,2); addLog(room,`💧 ${player.name} takes Laudanum — <strong>−2 Insanity</strong> (${char.insanity}).`,'heal'); }
-  else if(itemName==='Healing Draught'){const h=Math.max(1,rd(1,6)+(char.level||1)-_morr+(char.tinkerer?2:0));char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} drinks Healing Draught — +<strong>${h}</strong> HP.`,'heal');}
+  else if(itemName==='Healing Draught'){const h=affixes.draughtHeal(char,Math.max(1,rd(1,6)+(char.level||1)-_morr+(char.tinkerer?2:0)));char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} drinks Healing Draught — +<strong>${h}</strong> HP.`,'heal');}
   else if(itemName==='Greater Healing Draught'){const h=Math.max(1,rd(2,6)+2*(char.level||1)-_morr);char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} drinks Greater Healing — +<strong>${h}</strong> HP.`,'heal');}
   else if(itemName==='Flask of Oil'||itemName==='Incendiary Flask'){const _te=getTargetEnemy(room.gs);if(inCombat&&_te){let dmg=rd(2,6);if(char._armorFireImmune){dmg+=rd(1,6);}// Dragonscale bonus
 _te._burnedThisRound=true;_te.hp=Math.max(0,_te.hp-dmg);addLog(room,`${player.name} throws Flask of Oil — <strong>${dmg}</strong> fire dmg!`,'spell');if(_te.hp<=0){resolveEnemyDeath(room,_te);return true;}}else{consumed=false;}}

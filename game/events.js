@@ -307,7 +307,7 @@ const CHOICE_EVENTS = {
       let bought = 0;
       alive(room).forEach(p => {
         if (p.char.gold < price) return;
-        const item = S.makeCursedItem(pickRandom(['khornateAxe', 'nurgleMask', 'shroudFlies', 'warpAmulet', 'tzeentchLens']));
+        const item = S.makeCursedItem(pickRandom(['khornateAxe', 'nurgleMask', 'shroudFlies', 'warpAmulet', 'tzeentchLens', 'daemonBracer']));
         p.char.gold -= price; S.addToInventory(p.char, item.name, item); bought++;
         S.addLog(room, `🕯 ${p.name} buys <strong>${item.name}</strong> for ${price} silver — cursed, but strong. (In inventory.)`, 'chaos');
       });
@@ -387,7 +387,7 @@ const CHOICE_EVENTS = {
       if (opt === 'leave') return S.addLog(room, 'The warband leaves the chest to its whispering.', 'sys');
       alive(room).forEach(p => {
         if (d(2) === 1) {
-          const item = S.makeCursedItem(pickRandom(['khornateAxe', 'nurgleMask', 'shroudFlies', 'warpAmulet', 'tzeentchLens']));
+          const item = S.makeCursedItem(pickRandom(['khornateAxe', 'nurgleMask', 'shroudFlies', 'warpAmulet', 'tzeentchLens', 'daemonBracer']));
           S.addToInventory(p.char, item.name, item);
           S.addLog(room, `⛓ ${p.name} pulls out <strong>${item.name}</strong> — cursed, but strong. (In inventory.)`, 'chaos');
         } else { const n = rd(1, 6); S.addLog(room, `💥 A needle-trap stabs ${p.name} — <strong class="num-dmg">−${n}</strong>.`, 'dmg'); hurt(room, p, n); }

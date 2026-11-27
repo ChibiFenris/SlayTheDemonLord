@@ -26,6 +26,14 @@ const RELICS = {
   mirrorShard:   { name: 'Mirror Shard',        icon: '🪞', desc: '15% chance to reflect half the damage of a hit back at the attacker.' },
   phoenixFeather:{ name: 'Phoenix Feather',     icon: '🪶', desc: 'Once per run, survive a killing blow with 1 HP.' },
   quicksilver:   { name: 'Quicksilver Vial',    icon: '⚗', desc: '+1 casting of each rank at the start of every fight.' },
+  battleStandard:{ name: 'Tattered Standard',   icon: '🚩', desc: '2 boons on your first attack every fight.' },
+  surgeonKit:    { name: "Surgeon's Kit",       icon: '🩹', desc: 'Healing draughts heal you 3 more.' },
+  ravenCloak:    { name: 'Ravenfeather Cloak',  icon: '🐦', desc: '+1 Defence.' },
+  giantTooth:    { name: "Giant's Tooth",       icon: '🦷', desc: '+4 max HP and +1 damage reduction.' },
+  witchfire:     { name: 'Witchfire Lantern',   icon: '🏮', desc: 'Your damage spells deal +2 damage.' },
+  bloodRuby:     { name: 'Blood Ruby',          icon: '💎', desc: 'Whenever an enemy dies, heal 2 HP.' },
+  goldenTooth:   { name: 'Golden Tooth',        icon: '🪙', desc: '+25% silver from every fight.' },
+  thornSeed:     { name: 'Thornseed of Athel Loren', icon: '🌿', desc: 'Enemies that hit you take 2 damage.' },
 };
 
 const hasRelic = (c, k) => !!(c && c.relics && c.relics.includes(k));
@@ -35,6 +43,8 @@ function applyOnPick(c, k) {
   if (k === 'grimoire') { c.power += 1; c.maxPower = (c.maxPower || 0) + 1; S.refreshCastingPools(c); }
   if (k === 'whetstone') c.weaponDmgBonus = (c.weaponDmgBonus || 0) + 1;
   if (k === 'horseshoe') c.weaponAtkBonus = (c.weaponAtkBonus || 0) + 1;
+  if (k === 'ravenCloak') c.defense += 1;
+  if (k === 'giantTooth') { c.maxHealth += 4; c.health = Math.min(c.maxHealth, c.health + 4); }
 }
 
 function grantRelic(c, k) {
@@ -44,7 +54,7 @@ function grantRelic(c, k) {
 }
 
 function optionsFor(c) {
-  const pool = Object.keys(RELICS).filter(k => !hasRelic(c, k) && !(k === 'grimoire' && !c.spellcaster) && !(k === 'quicksilver' && !c.spellcaster));
+  const pool = Object.keys(RELICS).filter(k => !hasRelic(c, k) && !(k === 'grimoire' && !c.spellcaster) && !(k === 'quicksilver' && !c.spellcaster) && !(k === 'witchfire' && !c.spellcaster));
   const out = [];
   while (out.length < 3 && pool.length) out.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
   return out;

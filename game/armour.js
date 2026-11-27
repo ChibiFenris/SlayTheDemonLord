@@ -18,6 +18,7 @@ const MAX_QUALITY = 4;
 // Everyone knows how to keep their guard up: Defence is AGI + this, adjusted by armour.
 const GUARD = 3;
 
+const affixes = require('./affixes');
 // The heaviest armour each class is trained for (1 cloth, 2 leather, 4 plate).
 const ROLE = {
   // Empire
@@ -64,7 +65,7 @@ function finish(item) {
     const q = Math.max(0, Math.round(((item.defBonus || OLD_BASE[item.armorType]) - OLD_BASE[item.armorType]) * 0.75));
     item.dr = T.dr + Math.min(MAX_QUALITY, q) + (item.legendary ? 1 : 0);
   }
-  item.dodge = T.dodge;
+  item.dodge = T.dodge + affixes.armourTraitDefence(item);
   const head = summary(item);
   const rest = String(item.desc || '').replace(/^\+\d+ Defen[cs]e/, '').replace(/^(Cloth|Leather|Mail|Shield|Plate) · DR \d+( · [+−]\d+ Defence)?/, '').trim();
   item.desc = head + (rest ? (rest.startsWith('—') || rest.startsWith('·') ? ' ' : ' — ') + rest : '');
@@ -72,12 +73,13 @@ function finish(item) {
 }
 function summary(item) {
   const T = TYPES[item.armorType] || TYPES.mail;
-  return `${T.label} · DR ${item.dr}${T.dodge ? ` · ${T.dodge > 0 ? '+' : '−'}${Math.abs(T.dodge)} Defence` : ''}`;
+  const dg = item.dodge != null ? item.dodge : T.dodge;
+  return `${T.label} · DR ${item.dr}${dg ? ` · ${dg > 0 ? '+' : '−'}${Math.abs(dg)} Defence` : ''}`;
 }
 
 // Damage reduction worn right now (Hellblade-style attacks ignore it).
-const dr = c => (c && c.equippedArmor ? (finish(c.equippedArmor).dr || 0) : 0);
-const dodgeOf = item => (item ? (TYPES[finish(item).armorType] || TYPES.mail).dodge : 0);
+const dr = c => (c && c.equippedArmor ? (finish(c.equippedArmor).dr || 0) : 0) + (c ? affixes.extraDR(c) : 0);
+const dodgeOf = item => (item ? finish(item).dodge : 0);
 // What armour takes off a landed blow: its DR, but never more than half the blow.
 function soak(c, dmg) {
   const r = dr(c); if (!r || dmg <= 0) return { dmg, soaked: 0 };

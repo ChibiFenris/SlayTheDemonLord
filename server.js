@@ -38,6 +38,7 @@ app.use('/tokens', express.static(path.join(__dirname, 'public', 'tokens'), {
 app.use(express.static(path.join(__dirname, 'public')));
 
 const rooms = new Map();
+const affixes = require('./game/affixes');
 const persist = require('./game/persist');
 const runlog = require('./game/runlog');
 const rng = require('./game/rng');
@@ -259,6 +260,7 @@ function aftermathReady(room){
 }
 
 function resolveEnemyDeath(room, deadEnemy) {
+  room.players.forEach(p=>{ if(p.char&&p.char.alive) affixes.onEnemyDeath(p.char); }); // Blood Ruby
   room.players.forEach(p=>{ if(p.char&&p.char.alive&&hasRelic(p.char,'bloodChalice')&&(deadEnemy||room.gs.enemy)) p.char._ledgerCharge=true; });
   room.players.forEach(p=>{ if(p.char&&p.char.activeBuffs){ const had=p.char.activeBuffs.some(b=>b.name==='Rattled');
     p.char.activeBuffs=p.char.activeBuffs.filter(b=>b.name!=='Rattled'); if(had) addLog(room,`${p.name} steels their nerve.`,'sys'); } });
@@ -326,7 +328,7 @@ function resolveEnemyDeath(room, deadEnemy) {
   sp.enemies.push(e.name);
   survivors.forEach(p=>{
     sp.xp[p.id]=(sp.xp[p.id]||0)+xpEach;
-    sp.silver[p.id]=(sp.silver[p.id]||0)+(charmKey(p.char)==='ranaldCoin'?Math.floor(goldEach*1.5):goldEach);
+    sp.silver[p.id]=(sp.silver[p.id]||0)+Math.floor((charmKey(p.char)==='ranaldCoin'?goldEach*1.5:goldEach)*affixes.silverMult(p.char));
     if(_combatOver) resetCombatState(p);
   });
   rollEnemyDrop(e, room);

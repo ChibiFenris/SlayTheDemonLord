@@ -300,8 +300,8 @@ function buildCard(p,gs){
       <div title="Defence is how hard you are to hit: an enemy must roll this or more (d20 + its attack). It comes from AGI, talents and buffs; heavy armour lowers it a little."><dt>Defence</dt><dd>${c.defense}${defBuff?` <small>(+${defBuff})</small>`:''}</dd></div>
       <div><dt>Power</dt><dd>${c.power}</dd></div>
       <div><dt>Silver</dt><dd class="silver">${c.gold} ss</dd></div>
-      <div class="wide"><dt>Weapon</dt><dd>${w?`${iconImg(iconWeapon(w.name),'ico-inv')}${w.name} ${w.dice}+${w.bonus||0} ${w.dmgType==='blunt'?'🔨':'⚔'}`:'Unarmed'}</dd></div>
-      <div class="wide"><dt>Armour</dt><dd title="When a blow lands, your armour takes its DR off the damage — but never more than half of the blow.">${a?`${iconImg(iconArmor(a.name),'ico-inv')}${a.name}<small class="armour-sub">${armourLine(a)}</small>`:'None'}</dd></div>
+      <div class="wide"><dt>Weapon</dt><dd>${w?`${iconImg(iconItem(w),'ico-inv')}${w.name} ${w.dice}+${w.bonus||0} ${w.dmgType==='blunt'?'🔨':'⚔'}`:'Unarmed'}</dd></div>
+      <div class="wide"><dt>Armour</dt><dd title="When a blow lands, your armour takes its DR off the damage — but never more than half of the blow.">${a?`${iconImg(iconItem(a),'ico-inv')}${a.name}<small class="armour-sub">${armourLine(a)}</small>`:'None'}</dd></div>
       <div class="wide"><dt>Row</dt><dd>${c.row==='back'?'Back':'Front'}${p.id===myId&&c.alive?` <button class="mini-btn" onclick="setRow('${c.row==='back'?'front':'back'}')" title="Front: melee enemies can reach you. Back: only ranged enemies reach you, but melee weapons get 1 bane.">Move ${c.row==='back'?'forward':'back'}</button>`:''}</dd></div>${relicChipsHtml(c)}
       <div class="wide"><dt>Taint</dt><dd class="dark-line" title="Corruption brings a mutation every 3 points. Insanity at its limit makes you snap: a short madness and a lasting disorder.">${dk.line}</dd></div>
       ${dk.muts.length||dk.dis.length?`<div class="wide"><dt>Marks</dt><dd class="relic-chips">${dk.muts.join('')}${dk.dis.join('')}</dd></div>`:''}
@@ -702,7 +702,7 @@ function renderActions(gs,players,me){
       : _dtype==='slashing'&&_te&&_te.ac<=14
       ? ' [×1.5 vs light armour!]'
       : '';
-    const _atkLabel=`${iconImg(_wpn?iconWeapon(_wpn.name):ICONS.weaponDefault,'ico-btn')||_dtIcon} Attack${_bonus}`;
+    const _atkLabel=`${iconImg(_wpn?iconItem(_wpn):ICONS.weaponDefault,'ico-btn')||_dtIcon} Attack${_bonus}`;
     const _atkTip=`${_dtIcon} ${_dtype==='blunt'?'Blunt — ×1.5 dmg vs AC ≥ 16 (heavy armour)':'Slashing — ×1.5 dmg vs AC ≤ 14 (light/no armour)'}. ${wpnStr}.`;
     addBtn(g,_atkLabel,wpnStr,'am-',()=>send('PLAYER_ACTION',{action:'ATTACK'}),false,_atkTip);
     const noSpells=char.equippedCharm&&char.equippedCharm.key==='brassSkull'; // Brass Skull of Khorne forbids spells
@@ -790,8 +790,8 @@ function renderLoot(gs,me){
   const consDesc=o.scrollSpell?o.scrollSpell.desc:ITEM_DESCS[o.consumable]||o.consumable;
   lootOpt(opts,'💰',`${loot.coins} Silver`,'Coin from the cache.',()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'coins'}}));
   lootOpt(opts,iconImg(iconItem({name:consName}),'ico-loot')||'🧪',consName,consDesc,()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'consumable'}}));
-  lootOpt(opts,iconImg(iconWeapon(o.weapon.name),'ico-loot'),o.weapon.name,`${o.weapon.dice}+${o.weapon.bonus} · ${o.weapon.stat.toUpperCase()}${traitText(o.weapon)}`,()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'weapon'}}));
-  lootOpt(opts,iconImg(iconArmor(o.armor.name),'ico-loot'),o.armor.name,`${armourLine(o.armor)}${traitText(o.armor)}`,()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'armor'}}));
+  lootOpt(opts,iconImg(iconItem(o.weapon),'ico-loot'),o.weapon.name,`${o.weapon.dice}+${o.weapon.bonus} · ${o.weapon.stat.toUpperCase()}${traitText(o.weapon)}`,()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'weapon'}}));
+  lootOpt(opts,iconImg(iconItem(o.armor),'ico-loot'),o.armor.name,`${armourLine(o.armor)}${traitText(o.armor)}`,()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'armor'}}));
   if(o.charm) lootOpt(opts,iconImg(iconItem({type:'charm',...o.charm}),'ico-loot')||'📿',o.charm.name,o.charm.desc,()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'charm'}}));
   if(o.heirloom) lootOpt(opts,iconImg(iconItem(o.heirloom),'ico-loot')||'🏺',o.heirloom.name,o.heirloom.desc,()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'heirloom'}}),'heirloom');
 }

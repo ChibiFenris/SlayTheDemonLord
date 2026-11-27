@@ -6,6 +6,7 @@ const { alivePlayers, pickRandom } = require('./util');
 const { CHARMS, WEAPON_TRAITS, ARMOR_TRAITS, CURSED_GEAR } = require('./data');
 const heirlooms = require('./heirlooms');
 const armour = require('./armour');
+const affixes = require('./affixes');
 
 // ═════════════════════════════════════════════════════════════════════════════
 // ITEM TRAITS, CHARMS AND CURSED GEAR
@@ -33,7 +34,7 @@ function isCursed(item){ return !!(item&&(item.cursed||(item.special&&/^Cursed/.
 // Roll 0–2 traits onto a freshly generated weapon or armour piece.
 function rollTraits(item, kind){
   const table=kind==='weapon'?WEAPON_TRAITS:ARMOR_TRAITS;
-  const r=Math.random(); const n=r<0.5?0:r<0.85?1:2;
+  const r=Math.random(); const n=r<0.35?0:r<0.8?1:2; // about two in three items carry at least one trait
   const traits=[];
   for(let i=0;i<n;i++){
     const good=Math.random()<0.65;
@@ -42,16 +43,13 @@ function rollTraits(item, kind){
   }
   if(!traits.length) return armour.finish(item);
   item.traits=traits;
-  if(kind==='armor'){
-    if(traits.includes('reinforced')) item.defBonus+=1;
-    if(traits.includes('rusted')) item.defBonus=Math.max(1,item.defBonus-1);
-  }
   const lead=table[traits[0]].label;
   item.name=`${lead} ${item.name}`;
   const tdesc=traits.map(t=>`${table[t].label} (${table[t].desc})`).join(', ');
   item.desc=(kind==='armor'?`+${item.defBonus} Defense`:item.desc.split(' — ')[0])+(item.special?` — ${item.special.desc}`:'')+` · Traits: ${tdesc}`;
   if(item.cost) item.cost=Math.max(5,item.cost+traits.reduce((a,t)=>a+(table[t].good?8:-6),0));
-  return armour.finish(item);
+  if(kind==='armor'){ item.dodge=null; armour.finish(item); if(traits.includes('reinforced')) item.dr+=1; if(traits.includes('rusted')) item.dr=Math.max(1,item.dr-1); item.desc=item.desc.replace(/^[A-Z][a-z]+ · DR \d+( · [+−]\d+ Defence)?/,armour.summary(item)); return item; }
+  return item;
 }
 function makeCharm(key){
   const C=CHARMS[key];
@@ -68,7 +66,7 @@ function applyCharm(c, charm, on){
   if(!charm) return;
   const C=CHARMS[charm.key]||{};
   const s=on?1:-1;
-  heirlooms.applyCharm(c, charm, on);
+  heirlooms.applyCharm(c, charm, on); affixes.applyCharm(c, charm, on);
   if(C.defMod) c.defense+=s*C.defMod;
   if(charm.key==='warpAmulet'){ c.power=Math.max(0,(c.power||0)+s); }
   if(charm.key==='tzeentchLens'){
@@ -107,6 +105,7 @@ function gearVsEnemyAttack(enemy, c, room){
   if(c.equippedArmor&&c.equippedArmor.special&&c.equippedArmor.special.key==='shroudFlies') banes++;
   if(armorTraits(c).includes('creaking')&&room&&room.gs&&room.gs.roundNumber===1) atk+=1;
   banes+=heirlooms.banesAgainst(c);
+  { const ax=affixes.vsEnemyAttack(c,enemy,room); atk+=ax.atk; banes+=ax.banes; }
   if(enemy.skirmisher&&c.equippedWeapon&&c.equippedWeapon.special&&RANGED_KEYS.includes(c.equippedWeapon.special.key)) banes++;
   return {atk,banes};
 }

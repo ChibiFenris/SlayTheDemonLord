@@ -1,4 +1,5 @@
 'use strict';
+const affixes = require('./affixes');
 const heirlooms = require('./heirlooms');
 // Player combat actions: attacking, casting spells and using talents.
 // Moved out of server.js unchanged. The server hands this module the helpers it
@@ -130,6 +131,7 @@ function actAttack({room,playerId,data,ws,player,gs,char}){
         }
         if(char.silverShot && isUnholy(targetEnemy)){ finalDmg+=2; }
         { const hb=heirlooms.onHit(char,targetEnemy,r,{poison:n=>applyPoison(targetEnemy,n,room),burn:n=>applyBurn(targetEnemy,n,room)},playerId); if(hb.bonus){ finalDmg+=hb.bonus; if(hb.notes.length) addLog(room,`🏺 <strong>${hb.notes.join(', ')}</strong>`,'crit'); } } // heirlooms
+        { const ax=affixes.onHit(char,targetEnemy,r,{burn:n=>applyBurn(targetEnemy,n,room),stun:()=>addDebuff(targetEnemy,'Stunned',{skipTurn:true},1),heal:n=>{char.health=Math.min(char.maxHealth,char.health+n);}}); finalDmg=Math.max(1,finalDmg+ax.bonus); if(ax.notes.length) addLog(room,`⚔ <strong>${ax.notes.join(', ')}</strong>`,'crit'); } // weapon traits and charms
         if(char.valourOfAges && (targetEnemy.threat==='Boss'||targetEnemy.threat==='Elite'||targetEnemy.isElite)){ finalDmg+=2; } // High Elf: Valour of Ages
         if(char.slayerOath && (targetEnemy.threat==='Boss'||targetEnemy.isElite)){ const so=rd(1,6); finalDmg+=so; addLog(room,`🪓 <strong>Slayer's Oath!</strong> +${so} dmg against a worthy foe.`,'crit'); }
         if(char.deathWish && char.health < char.maxHealth/2){ finalDmg+=2; }
@@ -558,6 +560,7 @@ function actCastSpell({room,playerId,data,ws,player,gs,char}){
       total=roll+b+intMod+burnBonus+(arcaneFocusIntBonus||0)+ocBonus;
       if(char._agaricBoost){ char._agaricBoost=false; const ab=rd(1,6); total+=ab; addLog(room,`🍄 Fly Agaric visions — +${ab} damage!`,'spell'); }
       if(char._legPrimordialStaff && spell.rank===0) total*=2;
+      total=Math.max(1,total+affixes.spellDamage(char)); // Witchfire Lantern, Stifling armour
       // overload is now a USE_TALENT active (see USE_TALENT handler)
       if(char._uncontrolledPowerArmed){ char._uncontrolledPowerArmed=false; total*=2; const bk=rd(1,6); char.health=Math.max(0,char.health-bk); addLog(room,`🌪 <strong>Uncontrolled Power!</strong> ${player.name} takes ${bk} backlash!`,'chaos'); }
       if(char.resonance&&((spellTarget._poisonStacks||0)>0||(spellTarget.activeDebuffs||[]).some(d=>d.name==='Bleed'||d.name==='Burn'))){ total+=rd(1,6); addLog(room,`💥 <strong>Resonance!</strong> +1d6 on afflicted target.`,'spell'); }

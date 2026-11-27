@@ -754,15 +754,35 @@ const WEAPON_TRAITS = {
   unwieldy: {label:'Unwieldy', good:false, desc:'1 bane on your first attack each fight'},
   clumsy:   {label:'Clumsy',   good:false, desc:'−1 to hit'},
   brittle:  {label:'Brittle',  good:false, desc:'each fumble permanently costs 1 damage'},
+  sundering:{label:'Sundering',good:true,  desc:'each hit lowers the target\'s Defence by 1 for the fight (up to −3)'},
+  thirsting:{label:'Thirsting',good:true,  desc:'heal 1 HP whenever you hit'},
+  flaming:  {label:'Flaming',  good:true,  desc:'critical hits set the target Burning'},
+  crushing: {label:'Crushing', good:true,  desc:'critical hits stun the target for a turn'},
+  headsman: {label:"Headsman's",good:true, desc:'+3 damage against enemies below a quarter of their HP'},
+  baneforged:{label:'Bane-forged',good:true,desc:'+2 damage against skaven and greenskins'},
+  rending:  {label:'Rending',  good:true,  desc:'critical hits deal +1d6'},
+  guarding: {label:'Guarding', good:true,  desc:'+1 Defence while you wield it'},
+  cumbersome:{label:'Cumbersome',good:false,desc:'−1 Defence while you wield it'},
+  illomened:{label:'Ill-omened',good:false,desc:'you fumble on a 1 or a 2'},
+  tainted:  {label:'Tainted',  good:false, desc:'+1 damage, but each fight has a 1-in-6 chance to give you Corruption'},
 };
 const ARMOR_TRAITS = {
-  reinforced:{label:'Reinforced',good:true,  desc:'+1 Defence'},
+  reinforced:{label:'Reinforced',good:true,  desc:'+1 damage reduction'},
   padded:    {label:'Padded',    good:true,  desc:'crits against you deal no extra dice'},
   sanctified:{label:'Sanctified',good:true,  desc:'heal 1 HP at the end of each round'},
   warded:    {label:'Warded',    good:true,  desc:'immune to Insanity'},
   heavy:     {label:'Heavy',     good:false, desc:'−1 to hit with AGI weapons, −3 to flee'},
-  rusted:    {label:'Rusted',    good:false, desc:'−1 Defence'},
+  rusted:    {label:'Rusted',    good:false, desc:'−1 damage reduction'},
   creaking:  {label:'Creaking',  good:false, desc:'enemies have +1 to hit you in round 1'},
+  spiked:    {label:'Spiked',    good:true,  desc:'enemies that hit you take 1d3 damage'},
+  lightweight:{label:'Lightweight',good:true,desc:'+1 Defence'},
+  hallowed:  {label:'Hallowed',  good:true,  desc:'undead and daemons have 1 bane against you'},
+  camouflaged:{label:'Camouflaged',good:true,desc:'in the back row, enemies have 1 bane against you for the first two rounds'},
+  steadfast: {label:'Steadfast', good:true,  desc:'shrug off the first stun each fight'},
+  runewarded:{label:'Rune-warded',good:true, desc:'−2 damage from archers, gunners and spellcasters'},
+  illfitting:{label:'Ill-fitting',good:false,desc:'−1 Defence'},
+  shoddy:    {label:'Shoddy',    good:false, desc:'each critical hit against you permanently costs 1 damage reduction'},
+  stifling:  {label:'Stifling',  good:false, desc:'your spells deal 1 less damage'},
 };
 
 // ─── CHARMS (one trinket slot; most trade a strength for a weakness) ───────
@@ -777,11 +797,20 @@ const CHARMS = {
   morrFeather:{name:"Morr's Raven Feather",  desc:'Undead have 1 bane against you, but healing draughts heal 2 less.'},
   grailToken: {name:"Grail Pilgrim's Token", desc:'Heal 1 HP at the end of each round, but −1 to hit.', atkMod:-1},
   brassSkull: {name:'Brass Skull of Khorne', desc:'+1d3 damage on weapon hits, but you cannot cast spells.'},
+  ulricFang:  {name:"Ulric's Fang",          desc:'In the front row: +1 damage and +1 Defence. In the back row: −1 to both.'},
+  shallyaDove:{name:'Dove of Shallya',       desc:'Healing draughts heal you double, but −1 weapon damage.'},
+  ratTail:    {name:'Lucky Rat-Tail',        desc:'The first attack against you each fight always misses, but −1 to hit.', atkMod:-1},
+  orcTooth:   {name:'Orc-Tooth Necklace',    desc:'+1d6 damage on your first hit each fight, but enemies have +1 to hit you in round 1.'},
+  hourglass:  {name:'Hourglass of Sand',     desc:'+1 rank 1 casting at the start of every fight, but −4 max HP.'},
+  verenaScales:{name:"Verena's Scales",      desc:'Below half HP: 1 boon on your attacks. Above half HP: −1 damage.'},
+  huntersHorn:{name:"Hunter's Horn",         desc:'2 boons on your first attack each fight, but −2 Defence in round 1.'},
+  thornCrown: {name:'Crown of Thorns',       desc:'Every hit you take gives your next attack +1 boon, but you take +1 damage from hits.'},
   // cursed charms
   warpAmulet: {name:'Warpstone Amulet',      desc:'Cursed. +1 Power, but each spell you cast has a 1-in-6 chance to give you Corruption.', cursed:true},
   tzeentchLens:{name:"Tzeentch's Lens",      desc:'Cursed. Reroll your first missed attack each fight, but −25% max HP while worn.', cursed:true},
+  daemonBracer:{name:'Daemonhide Bracer',    desc:'Cursed. +2 damage reduction, but healing draughts heal you half as much.', cursed:true},
 };
-const CHARM_SHOP_KEYS = ['haresFoot','ironTooth','witchSeal','gamblerDie','boneRosary','wolfTotem','ranaldCoin','morrFeather','grailToken','brassSkull'];
+const CHARM_SHOP_KEYS = ['haresFoot','ironTooth','witchSeal','gamblerDie','boneRosary','wolfTotem','ranaldCoin','morrFeather','grailToken','brassSkull','ulricFang','shallyaDove','ratTail','orcTooth','hourglass','verenaScales','huntersHorn','thornCrown'];
 
 // Cursed weapons/armour: strong, but the downside is real and you can't swap them out
 // until you rest at a campfire or use a Sigmar's Token.
