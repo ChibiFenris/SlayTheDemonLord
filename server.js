@@ -392,7 +392,7 @@ function resetCombatState(p){
     p.char._evilEyeUsed=false;
     p.char._foresightUsed=false;
     p.char._revelationUsed=false;
-    p.char._shieldBashUsed=false; p.char._curseUsed=false; p.char._arcaneSurgeUsed=false; p.char._glamourUsed=false; p.char._misdirectArmed=false; p.char._volatileFormUsed=false; p.char._tauntReadyRound=0; if(p.char.activeBuffs) p.char.activeBuffs=p.char.activeBuffs.filter(b=>!b.taunting); p.char._entangleUsed=false; p.char._freeCastArmed=false;
+    p.char._shieldBashUsed=false; p.char._curseUsed=false; p.char._arcaneSurgeUsed=false; p.char._glamourUsed=false; p.char._misdirectArmed=false; p.char._volatileFormUsed=false; p.char._tauntReadyRound=0; if(p.char.activeBuffs){ p.char.activeBuffs.filter(b=>b.taunting&&b.defBonus).forEach(b=>{ p.char.defense-=b.defBonus; }); p.char.activeBuffs=p.char.activeBuffs.filter(b=>!b.taunting); } p.char._entangleUsed=false; p.char._freeCastArmed=false;
       p.char._smokeScreenUsed=false;
       p.char._quickstrikeUsed=false;
       p.char._shadowOpeningUsed=false;

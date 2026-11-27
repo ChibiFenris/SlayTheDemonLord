@@ -283,7 +283,7 @@ function useItemLogic(room,player,itemName,inCombat=false){
   const char=player.char;
   const idx=char.inventory.findIndex(i=>i.name===itemName);
   if(idx===-1) return false;
-  let consumed=true;
+  let consumed=true, scrollRead=false;
   const _morr=charmKey(char)==='morrFeather'?2:0; // Morr's Raven Feather: draughts heal 2 less
   if(itemName==='Sigmarite Incense'){ if(inCombat){consumed=false;addLog(room,`${player.name}: burn the incense after the fight.`,'sys');} else { dark.loseCorruption(char,2); addLog(room,`🕯 ${player.name} burns Sigmarite Incense — <strong>−2 Corruption</strong> (${char.corruption}). Mutations remain.`,'heal'); } }
   else if(itemName==='Laudanum'){ dark.loseInsanity(char,2); addLog(room,`💧 ${player.name} takes Laudanum — <strong>−2 Insanity</strong> (${char.insanity}).`,'heal'); }
@@ -360,6 +360,11 @@ _te._burnedThisRound=true;_te.hp=Math.max(0,_te.hp-dmg);addLog(room,`${player.na
   else if(itemName.startsWith('Scroll:')){
     const spell=char.scrollSpells[itemName];
     if(!spell){addLog(room,`${player.name}: scroll crumbles.`,'sys');return false;}
+    // The scroll is spent as soon as it is read (Esoteric Knowledge keeps it once).
+    if(!inCombat&&spell.type!=='heal'){ /* not read: falls through to the 'only in combat' message below */ }
+    else if(inCombat&&char._esotericScrollArmed){ char._esotericScrollArmed=false; addLog(room,`📜 <strong>Esoteric Knowledge!</strong> ${player.name} reads the scroll without spending it.`,'spell'); }
+    else { char.inventory[idx].qty--; if(char.inventory[idx].qty<=0) char.inventory.splice(idx,1); }
+    if(inCombat||spell.type==='heal'){ consumed=false; scrollRead=true; }
     if(spell.type==='heal'){const[n,sh]=spell.dmgDice.split('d').map(Number);const roll=rd(n,sh);const wilBonus=Math.max(0,modVal(char.attrs.wil));const faithBonus=char._wpnChannelFaith?wilBonus:0;const amt=roll+4+faithBonus;char.health=Math.min(char.maxHealth,char.health+amt);addLog(room,`${player.name} reads ${itemName} — ${n}d${sh}(${roll})+4${faithBonus?'+'+faithBonus+' faith':''} = +<strong>${amt}</strong> HP.`,'heal');}
     else if(inCombat){
       const _te=getTargetEnemy(room.gs);
@@ -379,7 +384,7 @@ _te._burnedThisRound=true;_te.hp=Math.max(0,_te.hp-dmg);addLog(room,`${player.na
       }
       if(spell.sigmarsShield){ room.players.filter(p=>p.char&&p.char.alive).forEach(p=>{ addBuff(p.char,"Sigmar's Shield",{defBonus:2},2); p.char.defense+=2; }); addLog(room,`🛡 <strong>Sigmar's Shield!</strong> All allies +2 Defence for 2 rounds!`,'spell'); return; }
       if(spell.plagueWind){ (gs.enemies||[]).filter(e=>e&&e.hp>0).forEach(e=>{ e._poisonStacks=(e._poisonStacks||0)+3; addLog(room,`☠ Plague Wind poisons ${e.name} — 3 stacks!`,'spell'); }); addLog(room,`☠ <strong>Plague Wind!</strong> All enemies gain 3 poison stacks!`,'spell'); return; }
-      if(spell.battleHymn){ room.players.filter(p=>p.char&&p.char.alive).forEach(p=>addBuff(p.char,'Battle Hymn',{atkBonus:2},2)); addLog(room,`📣 <strong>Battle Hymn!</strong> All allies +2 ATK for 2 rounds!`,'spell'); return; }
+      if(spell.battleHymn){ room.players.filter(p=>p.char&&p.char.alive).forEach(p=>addBuff(p.char,'Battle Hymn',{atkBonus:2},2)); addLog(room,`📣 <strong>Battle Hymn!</strong> All allies +2 ATK for 2 rounds!`,'spell'); return true; }
       if(spell.veilShadows){
         alive2.forEach(e=>{ addDebuff(e,'Veiled',{bane:2},1); });
         addLog(room,`${player.name} reads <strong>Veil of Shadows</strong> — all enemies have 2 banes on attack rolls this round!`,'spell');
@@ -450,7 +455,7 @@ _te._burnedThisRound=true;_te.hp=Math.max(0,_te.hp-dmg);addLog(room,`${player.na
     else{consumed=false; addLog(room,`${player.name}: ${itemName} can only be used in combat.`,'sys');}
   } else {consumed=false;}
   if(consumed){char.inventory[idx].qty--;if(char.inventory[idx].qty<=0)char.inventory.splice(idx,1);}
-  return consumed;
+  return consumed||scrollRead;
 }
 
 // ─── ENEMY DROP WEAPONS ─────────────────────────────────────────────────────

@@ -531,16 +531,19 @@ function actCastSpell({room,playerId,data,ws,player,gs,char}){
         const _alreadyBurning=(spellTarget.activeDebuffs||[]).some(d=>d.name==='Burn');
         if(_alreadyBurning) burnBonus=rd(1,6);
       }
+      // Overcast (passive): the first attack spell each combat (two with Double Charge) burns a second casting for +2d6.
+      // Overcharge (active) arms the same +2d6 for the next spell without the extra casting.
+      let ocBonus=0;
       const overcastBuff=(char.activeBuffs||[]).find(b=>b.overcastDmg);
-      if(overcastBuff){
-        const oc=rd(2,6); total+=oc;
-        char.activeBuffs=char.activeBuffs.filter(b=>!b.overcastDmg);
-        char.overcastUsed=false; // reset for next combat
-        if(char.castingPools&&char.castingPools['R'+spell.rank]>0) char.castingPools['R'+spell.rank]--;
-        addLog(room,`💥 Overcast! +${oc} extra damage!`,'crit');
+      const passiveOc=!overcastBuff&&char.overcast&&(char._overcastFired||0)<(char.doubleCharge?2:1)&&char.castingPools&&(char.castingPools['R'+spell.rank]||0)>0;
+      if(overcastBuff||passiveOc){
+        ocBonus=rd(2,6);
+        if(overcastBuff) char.activeBuffs=char.activeBuffs.filter(b=>!b.overcastDmg);
+        else { char._overcastFired=(char._overcastFired||0)+1; char.castingPools['R'+spell.rank]--; }
+        addLog(room,`💥 ${overcastBuff?'Overcharge':'Overcast'}! +${ocBonus} extra damage!`,'crit');
         if(char.forceOfWill && spellTarget && d(20)>=11){ addDebuff(spellTarget,'Stunned',{skipTurn:true},1); addLog(room,`🧠 <strong>Force of Will!</strong> ${spellTarget.name} is stunned by the overcast!`,'crit'); }
       }
-      total=roll+b+intMod+burnBonus+(arcaneFocusIntBonus||0);
+      total=roll+b+intMod+burnBonus+(arcaneFocusIntBonus||0)+ocBonus;
       if(char._agaricBoost){ char._agaricBoost=false; const ab=rd(1,6); total+=ab; addLog(room,`🍄 Fly Agaric visions — +${ab} damage!`,'spell'); }
       if(char._legPrimordialStaff && spell.rank===0) total*=2;
       // overload is now a USE_TALENT active (see USE_TALENT handler)
@@ -714,12 +717,12 @@ function isUnholy(e){
 function actUseTalent({room,playerId,data,ws,player,gs,char}){
   let acted=false;
   const t=data.talent;
-  // Block: a free action every career has. Halves the damage you take until your next turn.
+  // Block: every career can brace behind their guard. Uses your turn; halves damage until your next turn.
   if(t==='block'){
     if(char._blockUsed){ addLog(room,`${player.name}: Block is recharging.`,'sys'); return; }
     char._blockUsed=true; addBuff(char,'Blocking',{blocking:true},3);
     addLog(room,`🛡 <strong>Block!</strong> ${player.name} raises their guard — damage taken is halved until their next turn.`,'spell');
-    return false;
+    return true;
   }
   // Engineer and Waywatcher actives.
   if(t==='turret'||t==='grenade'||t==='arrowStorm'||t==='steamBarrage'){
@@ -730,7 +733,7 @@ function actUseTalent({room,playerId,data,ws,player,gs,char}){
     if(t==='turret'){
       char._turretRounds=char.improvedTurret?4:3;
       addLog(room,`🔧 <strong>Volley Gun!</strong> ${player.name} sets up a turret — it fires at the end of each round for ${char._turretRounds} rounds.`,'spell');
-      return false; // free action
+      return true;
     }
     const foesAlive=(gs.enemies||[]).filter(e=>e&&e.hp>0);
     const names={grenade:'💣 Bomb',arrowStorm:'🏹 Arrow Storm',steamBarrage:'🚂 Steam Barrage'};
@@ -757,7 +760,7 @@ function actUseTalent({room,playerId,data,ws,player,gs,char}){
     addLog(room,`🙏 <strong>Revive!</strong> ${player.name} hauls ${tgt.name} back to their feet — <strong class="num-heal">${tgt.char.health} HP</strong>.`,'heal');
     return true;
   }
-  // Condemn is a free action: marking a target doesn't use your turn.
+  // Condemn: name one heretic. Uses your turn.
   if(t==='condemn'){
     if(!char.condemn){ addLog(room,`${player.name} cannot Condemn.`,'sys'); return; }
     if(char._condemnUsed){ addLog(room,`${player.name}: Condemn is recharging.`,'sys'); return; }
@@ -766,15 +769,17 @@ function actUseTalent({room,playerId,data,ws,player,gs,char}){
     (te.activeDebuffs=te.activeDebuffs||[]).filter(d=>d.condemned).forEach(d=>{ d.duration=0; });
     addDebuff(te,'Condemned',{condemned:true},99);
     addLog(room,`⚖ <strong>Condemn!</strong> ${player.name} names ${te.name} a heretic — +1 boon and +1d6 on every hit${char.judgement?' (+2 Judgement)':''}.`,'crit');
-    return false;
+    return true;
   }
+  // Another living warrior: the chosen target, else (for Battle Orders) one who has already acted, else the most wounded.
+  const _pickAlly=(preferActed)=>{ const others=room.players.filter(p=>p.id!==playerId&&p.char&&p.char.alive); if(!others.length) return null; const tp=data.targetId&&others.find(p=>p.id===data.targetId); if(tp) return tp; if(preferActed){ const a=others.find(p=>(gs.playersActedThisRound||[]).includes(p.id)); if(a) return a; } return others.slice().sort((a,b)=>a.char.health/a.char.maxHealth-b.char.health/b.char.maxHealth)[0]; };
   const _lowestAlly=()=>{ const tp=data.targetId&&room.players.find(p=>p.id===data.targetId&&p.char&&p.char.alive); if(tp) return tp; return room.players.filter(p=>p.char&&p.char.alive).sort((a,b)=>a.char.health/a.char.maxHealth-b.char.health/b.char.maxHealth)[0]; };
   if(t==='taunt'){
     if(!char.taunt){addLog(room,`${player.name} does not have Taunt.`,'sys');return;}
     if((char._tauntReadyRound||0)>gs.roundNumber){addLog(room,`${player.name}: Taunt is ready again in round ${char._tauntReadyRound}.`,'sys');return;}
     char._tauntReadyRound=gs.roundNumber+3;
-    addBuff(char,'Taunting',{taunting:true},2);
-    addLog(room,`📯 <strong>Taunt!</strong> ${player.name} roars a challenge — all enemies attack only ${player.name} for 2 rounds!`,'crit');
+    addBuff(char,'Taunting',{taunting:true,defBonus:2},2); char.defense+=2;
+    addLog(room,`📯 <strong>Taunt!</strong> ${player.name} roars a challenge and braces — all enemies attack only ${player.name} for 2 rounds, and ${player.name} has <strong>+2 Defence</strong> while they do.`,'crit');
     acted=true;
   }
   else if(t==='metamagic'||t==='spellsurge'){
@@ -782,9 +787,9 @@ function actUseTalent({room,playerId,data,ws,player,gs,char}){
     if(!char[t]||char[usedKey]){addLog(room,`${player.name}: ${t==='metamagic'?'Metamagic':'Spell Surge'} is not available.`,'sys');return;}
     char[usedKey]=true; char._freeCastArmed=true;
     addLog(room,`✨ <strong>${t==='metamagic'?'Metamagic':'Spell Surge'}!</strong> ${player.name}'s next spell costs no casting.`,'spell');
-    return; // no action cost
+    acted=true;
   }
-  if(t==='miracleHeal'){
+  else if(t==='miracleHeal'){
     if(!char.miracleHeal||char.miracleUsed){addLog(room,`${player.name}: Miracle Heal is not available.`,'sys');return;}
     const mt=_lowestAlly(); if(!mt) return; char.miracleUsed=true;
     mt.char.health=mt.char.maxHealth; addLog(room,`🌟 <strong>Miracle Heal!</strong> ${player.name} restores ${mt.name} to full HP!`,'heal');
@@ -840,23 +845,16 @@ function actUseTalent({room,playerId,data,ws,player,gs,char}){
     } else {
       addLog(room,`${player.name} calls Divine Smite but misses (d20:${smiteRoll.base}+${smiteRoll.atkMod} vs Def${_te.ac}).`,'sys');
     }
-    if(_te.hp<=0){resolveEnemyDeath(room,_te);return;}}
+    if(_te.hp<=0) resolveEnemyDeath(room,_te);
+    acted=true;}
   else if(t==='overcharge'){
     if(!char.overcharge){addLog(room,`${player.name}: no Overcharge.`,'sys');return;}
     if(char._overchargeUsed){addLog(room,`${player.name}: Overcharge already used this combat.`,'sys');return;}
     char._overchargeUsed=true;
     // Arm the overcast buff — next rank-0 spell deals +2d6 and doesn't spend a casting
-    addBuff(char,'Overcharge (+2d6)',{overcastDmg:true},1);
-    addLog(room,`⚡ <strong>${player.name} Overcharges!</strong> Next rank-0 spell: +2d6 damage, free cast!`,'crit');
+    addBuff(char,'Overcharge (+2d6)',{overcastDmg:true},99); char._freeCastArmed=true;
+    addLog(room,`⚡ <strong>${player.name} Overcharges!</strong> Their next spell costs no casting and deals +2d6 damage.`,'crit');
     acted=true;
-  }
-  else if(t==='overcast'){
-    if(!char.overcast){addLog(room,`${player.name}: no Overcast.`,'sys');return;}
-    const maxOvercast=(char.doubleCharge?2:1);
-    if(char.overcastUsed&&(char._doubleChargeCount||0)>=maxOvercast){addLog(room,`${player.name}: Overcast already armed (${maxOvercast} uses max).`,'sys');return;}
-    char.overcastUsed=true;
-    addBuff(char,'Overcast (+2d6)',{overcastDmg:true},1);
-    addLog(room,`${player.name} arms <strong>Overcast</strong> — next spell spends 2 castings, deals +2d6!`,'spell');
   }
   else if(t==='bloodOffering'){
     if(!char.bloodOffering){addLog(room,`${player.name}: no Blood Offering.`,'sys');return;}
@@ -950,19 +948,15 @@ function actUseTalent({room,playerId,data,ws,player,gs,char}){
   else if(t==='warCry'){
     if(char._warCryUsed){addLog(room,`${player.name}: War Cry already used.`,'sys');return;}
     char._warCryUsed=true;
-    room.players.filter(p=>p.char&&p.char.alive).forEach(p=>addBuff(p.char,'War Cry',{atkBonus:2},1));
-    addLog(room,`👑 <strong>War Cry!</strong> All allies gain +2 ATK for this round!`,'crit');
-  }
-  else if(t==='devastatingCharge'){
-    if(char._devastatingChargeUsed){addLog(room,`${player.name}: Devastating Charge already used.`,'sys');return;}
-    if(gs.roundNumber!==1){addLog(room,`${player.name}: Devastating Charge is only usable on round 1!`,'sys');return;}
-    char._devastatingChargeUsed=true; char._devastatingChargeArmed=true;
-    addLog(room,`🐎 <strong>Devastating Charge!</strong> ${player.name} arms a devastating charge — next attack +1d6 and Prone!`,'crit');
+    room.players.filter(p=>p.char&&p.char.alive).forEach(p=>addBuff(p.char,'War Cry',{atkBonus:3,dmgBonus:3},2));
+    addLog(room,`👑 <strong>War Cry!</strong> ${player.name} and every ally gain +3 to hit and +3 damage for 2 rounds!`,'crit');
   }
   else if(t==='counterspell'){
-    if(char._counterspellUsed){addLog(room,`${player.name}: Counterspell already used.`,'sys');return;}
-    char._counterspellUsed=true; char._counterspellActive=true;
-    addLog(room,`🔵 <strong>Counterspell!</strong> ${player.name} readies a counterspell — the next enemy on-hit ability will be negated!`,'spell');
+    if(char._counterspellUsed){addLog(room,`${player.name}: Counterspell is recharging.`,'sys');return;}
+    char._counterspellUsed=true;
+    const csAlly=_pickAlly();
+    [player,csAlly].filter(Boolean).forEach(p=>addBuff(p.char,'Counterspell Ward',{counterspellWard:true},3));
+    addLog(room,`🚫 <strong>Counterspell!</strong> ${player.name} weaves a ward around ${csAlly?`themselves and ${csAlly.name}`:'themselves'} — the next enemy hit on each carries no poison, bleed, stun or curse.`,'spell');
   }
   else if(t==='banish'){
     if(char._banishUsed){addLog(room,`${player.name}: Banish already used.`,'sys');return;}
@@ -976,20 +970,18 @@ function actUseTalent({room,playerId,data,ws,player,gs,char}){
     char._overloadUsed=true;
     addBuff(char,'Overload',{overloadReady:true},99);
     addLog(room,`💥 <strong>Overload!</strong> ${player.name} primes their magic — next spell will cast twice!`,'spell');
-    acted=false;
   }
   else if(t==='druidsFury'&&!char._druidsFuryUsed&&char.druidsFury){
     char._druidsFuryUsed=true;
     addBuff(char,'Druids Fury',{druidsFuryActive:true,druidsFuryRounds:2,atkBoon:2},2);
     addLog(room,`🌿 <strong>Druids Fury!</strong> ${player.name} channels the wild — +1d6 dmg, +2 boons and 2 Bleed per hit for 2 rounds!`,'crit');
-    acted=false;
   }
   else if(t==='darkPact'){
     if(char._darkPactUsed){addLog(room,`${player.name}: Dark Pact already used this combat.`,'sys');return;}
     char._darkPactUsed=true; char._darkPactArmed=true;
     const bk=rd(1,6); char.health=Math.max(0,char.health-bk);
-    addLog(room,`🩸 <strong>Dark Pact!</strong> ${player.name} loses ${bk} HP — next spell costs no casting! (no action cost)`, 'chaos');
-    acted=false; // no action cost
+    char._freeCastArmed=true;
+    addLog(room,`🩸 <strong>Dark Pact!</strong> ${player.name} loses ${bk} HP — their next spell costs no casting.`, 'chaos');
   }
   else if(t==='uncontrolledPower'){
     if(char._uncontrolledPowerUsed){addLog(room,`${player.name}: Uncontrolled Power already used.`,'sys');return;}
@@ -1001,26 +993,27 @@ function actUseTalent({room,playerId,data,ws,player,gs,char}){
     char._esotericKnowledgeUsed=true; char._esotericScrollArmed=true;
     addLog(room,`📜 <strong>Esoteric Knowledge!</strong> ${player.name} can use a scroll spell this combat without consuming it!`,'spell');
   }
-  else if(t==='doubleCharge'){
-    if(char._doubleChargeUsed){addLog(room,`${player.name}: Double Charge is recharging.`,'sys');return;}
-    if(char.overcastUsed){addLog(room,`${player.name}: Overcast already armed this round.`,'sys');return;}
-    char._doubleChargeCount=(char._doubleChargeCount||0)+1; char._doubleChargeUsed=true; char.overcastUsed=false;
-    addLog(room,`🌀 <strong>Double Charge!</strong> ${player.name} rearms Overcast!`,'spell');
-  }
   else if(t==='intercept'){
-    if(char._interceptUsed){addLog(room,`${player.name}: Intercept already used.`,'sys');return;}
-    char._interceptUsed=true; char._interceptActive=true;
-    addLog(room,`⚡ <strong>Intercept!</strong> ${player.name} will redirect the next attack aimed at an ally!`,'sys');
+    if(char._interceptUsed){addLog(room,`${player.name}: Intercept is recharging.`,'sys');return;}
+    char._interceptUsed=true;
+    const icAlly=_pickAlly();
+    [player,icAlly].filter(Boolean).forEach(p=>addBuff(p.char,'Intercept',{interceptGuard:true},2));
+    addLog(room,`🛡 <strong>Intercept!</strong> ${player.name} steps into the line of blows — for 2 rounds, enemies roll damage twice against ${icAlly?`${player.name} and ${icAlly.name}`:player.name} and keep the lower.`,'spell');
   }
   else if(t==='battleOrders'){
-    if(char._battleOrdersUsed){addLog(room,`${player.name}: Battle Orders already used.`,'sys');return;}
+    if(char._battleOrdersUsed){addLog(room,`${player.name}: Battle Orders is recharging.`,'sys');return;}
     char._battleOrdersUsed=true;
-    const ally=room.players.find(p=>p.id!==playerId&&p.char&&p.char.alive&&gs.playersActedThisRound.includes(p.id));
-    if(!ally){addLog(room,`${player.name}: No acted allies to grant an extra action.`,'sys');return;}
-    gs.playersActedThisRound=gs.playersActedThisRound.filter(id=>id!==ally.id);
-    addLog(room,`⚡ <strong>Battle Orders!</strong> ${player.name} commands ${ally.name} — they may act again!`,'crit');
+    const boAlly=_pickAlly(true);
+    [player,boAlly].filter(Boolean).forEach(p=>addBuff(p.char,'Battle Orders',{atkBoon:1,dmgBonus:2,consumeOnAttack:true},3));
+    let extra='';
+    if(boAlly&&gs.playersActedThisRound.includes(boAlly.id)){ gs.playersActedThisRound=gs.playersActedThisRound.filter(id=>id!==boAlly.id); extra=` ${boAlly.name} has already moved, so they may act again this round.`; }
+    addLog(room,`⚔ <strong>Battle Orders!</strong> ${player.name} barks commands — ${boAlly?`${player.name} and ${boAlly.name} each get`:`${player.name} gets`} 1 boon and +2 damage on their next attack.${extra}`,'crit');
   }
-  return acted;
+  else {
+    addLog(room,`${player.name}: ${labelOf(t)} isn't ready.`,'sys');
+    return;
+  }
+  return true; // every ability takes your turn
 }
 
 

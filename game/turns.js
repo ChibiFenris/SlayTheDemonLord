@@ -463,6 +463,12 @@ function fireEnemyTurn(room, ae) {
           addLog(room,`🐾 <strong>Bloodscent!</strong> ${p.name}'s wounds ignite the warband — all allies gain 1 boon!`,'chaos');
         }
         p.char.health = Math.max(0, p.char.health - dmg); // APPLY DAMAGE
+        // Bloodied (a quarter of max HP or less), first time this fight: Vengeance and Last Rites answer.
+        if(p.char.health>0&&p.char.health<=p.char.maxHealth/4){
+          if(p.char.vengeancePassive&&!p.char._vengeanceLowFired){ p.char._vengeanceLowFired=true; p.char._vengeanceReady=true; addLog(room,`⚔ <strong>Vengeance!</strong> ${p.name} is bloodied — 2 boons on their next attack.`,'crit'); }
+          const _lr=!p.char._lastRitesFired&&room.players.find(q=>q.char&&q.char.alive&&q.char.lastRites);
+          if(_lr){ p.char._lastRitesFired=true; const h=rd(1,6)+Math.max(0,((_lr.char.attrs&&_lr.char.attrs.wil)||10)-10); p.char.health=Math.min(p.char.maxHealth,p.char.health+h); addLog(room,`⛪ <strong>Last Rites!</strong> ${_lr.name}'s prayer steadies ${p.name} — <strong class="num-heal">+${h} HP</strong>.`,'heal'); }
+        }
         if(dmg>0) gs._anyPlayerHitThisTurn=true;
         checkDeath(room, p);
         if(!p.char.alive && !p.char.pendingRevive){ p.char.pendingRevive=true; }
@@ -473,19 +479,24 @@ function fireEnemyTurn(room, ae) {
 
         // ── On-hit abilities (skip if player already dead) ───────────────
         if (!p.char.alive) { checkDeath(room, p); }
-        if (p.char.alive && ae.lifeLeech) {
-          const frac = ae.lifeLeechFrac || 0.25;
-          if (ae.lifeLeechFrac && ae.lifeLeechFrac <= 0.25) { ae._leechAccum = (ae._leechAccum||0) + dmg; } // accumulate leech for sustain-type (Varghulf)
-          else { const l = Math.floor(dmg * frac); ae.hp = Math.min(ae.maxHp, ae.hp+l); addLog(room, `🩸 ${ae.name} leeches <strong>${l}</strong> HP.`, 'chaos'); }
+        // Counterspell: a ward on this warrior swallows the blow's special effects.
+        const _csWard=p.char.alive&&(p.char.activeBuffs||[]).find(x=>x.counterspellWard);
+        if(_csWard){ p.char.activeBuffs=p.char.activeBuffs.filter(x=>x!==_csWard); p.char._hitSinceTurn=true; addLog(room,`🚫 <strong>Counterspell!</strong> The ward around ${p.name} flares — ${ae.name}'s blow carries no curse, poison or other effect.`,'spell'); }
+        else {
+          if (p.char.alive && ae.lifeLeech) {
+            const frac = ae.lifeLeechFrac || 0.25;
+            if (ae.lifeLeechFrac && ae.lifeLeechFrac <= 0.25) { ae._leechAccum = (ae._leechAccum||0) + dmg; } // accumulate leech for sustain-type (Varghulf)
+            else { const l = Math.floor(dmg * frac); ae.hp = Math.min(ae.maxHp, ae.hp+l); addLog(room, `🩸 ${ae.name} leeches <strong>${l}</strong> HP.`, 'chaos'); }
+          }
+          if (p.char.alive && ae.insanityAtk && d(6) >= 4) dark.gainInsanity(room, p, 1, `the terror of ${ae.name}`);
+          if (p.char.alive && ae.bloodOnHit && r.hit) { addBuff(p.char,'Bleed',{dotDmg:rd(1,3)},2); addLog(room,`🩸 <strong>Bloodgreed!</strong> ${ae.name} — 1 Bleed!`,'chaos'); }
+          if (p.char.alive && ae.virulentBlade && r.hit) { p.char._poisonedStacks=(p.char._poisonedStacks||0)+3; addLog(room,`☠ <strong>Virulent Blade!</strong> ${ae.name}'s plague blade applies <strong>3 poison stacks</strong> to ${p.name}!`,'chaos'); }
+          if (p.char.alive && ae.crushingTail && r.hit && Math.random()<0.20) { addBuff(p.char,'Stunned',{skipTurn:true},2); addLog(room,`🦎 <strong>Crushing Tail!</strong> ${p.name} is STUNNED by the Saurian's tail sweep!`,'chaos'); }
+          if (ae.critMajorBleed && r.hit) { addBuff(p.char,'Bleed',{dotDmg:rd(1,3)},2); addLog(room, `🩸 <strong>Frenzied Rending!</strong> ${p.name} is Bleeding (1d3/round for 2 rounds)!`, 'chaos'); }
+          if (p.char.alive && ae.skavencunning && r.hit) { p.char._poisonedStacks=(p.char._poisonedStacks||0)+2; addLog(room,`🐀 <strong>Skaven Cunning!</strong> ${ae.name} poisons ${p.name} — 2 poison stacks!`,'chaos'); }
+          if (p.char.alive && ae.poisonBlade) { p.char._poisonedStacks=(p.char._poisonedStacks||0)+ae.poisonBlade; addLog(room,`☠ <strong>Poison Blade!</strong> ${ae.name} poisons ${p.name} — <strong>${ae.poisonBlade}</strong> poison stacks!`,'chaos'); }
+          enemyAfterHit(room, ae, p, dmg, r, plan);
         }
-        if (p.char.alive && ae.insanityAtk && d(6) >= 4) dark.gainInsanity(room, p, 1, `the terror of ${ae.name}`);
-        if (p.char.alive && ae.bloodOnHit && r.hit) { addBuff(p.char,'Bleed',{dotDmg:rd(1,3)},2); addLog(room,`🩸 <strong>Bloodgreed!</strong> ${ae.name} — 1 Bleed!`,'chaos'); }
-        if (p.char.alive && ae.virulentBlade && r.hit) { p.char._poisonedStacks=(p.char._poisonedStacks||0)+3; addLog(room,`☠ <strong>Virulent Blade!</strong> ${ae.name}'s plague blade applies <strong>3 poison stacks</strong> to ${p.name}!`,'chaos'); }
-        if (p.char.alive && ae.crushingTail && r.hit && Math.random()<0.20) { addBuff(p.char,'Stunned',{skipTurn:true},2); addLog(room,`🦎 <strong>Crushing Tail!</strong> ${p.name} is STUNNED by the Saurian's tail sweep!`,'chaos'); }
-        if (ae.critMajorBleed && r.hit) { addBuff(p.char,'Bleed',{dotDmg:rd(1,3)},2); addLog(room, `🩸 <strong>Frenzied Rending!</strong> ${p.name} is Bleeding (1d3/round for 2 rounds)!`, 'chaos'); }
-        if (p.char.alive && ae.skavencunning && r.hit) { p.char._poisonedStacks=(p.char._poisonedStacks||0)+2; addLog(room,`🐀 <strong>Skaven Cunning!</strong> ${ae.name} poisons ${p.name} — 2 poison stacks!`,'chaos'); }
-        if (p.char.alive && ae.poisonBlade) { p.char._poisonedStacks=(p.char._poisonedStacks||0)+ae.poisonBlade; addLog(room,`☠ <strong>Poison Blade!</strong> ${ae.name} poisons ${p.name} — <strong>${ae.poisonBlade}</strong> poison stacks!`,'chaos'); }
-        enemyAfterHit(room, ae, p, dmg, r, plan);
         if (p.char.rage && dmg > 0 && !p.char.rageBoon) { p.char.rageBoon=true; addLog(room,`🔥 ${p.name} RAGES — next attack +1 boon +1d6!`,'crit'); }
         checkDeath(room, p);
 
@@ -585,8 +596,8 @@ function checkDeath(room, player) {
       addLog(room,`🕯 <strong>Morr turns away.</strong> ${player.name} should have died — and stands at 1 HP.`,'heal');
       return;
     }
-    if(room.players.some(p=>p.char&&p.char.alive&&p.char.grace&&!p.char._graceUsed&&p.id!==player.id)){
-      const graceUser=room.players.find(p=>p.char&&p.char.alive&&p.char.grace&&!p.char._graceUsed&&p.id!==player.id);
+    if(room.players.some(p=>p.char&&p.char.alive&&p.char.grace&&!p.char._graceUsed)){
+      const graceUser=room.players.find(p=>p.char&&p.char.alive&&p.char.grace&&!p.char._graceUsed);
       if(graceUser){ graceUser.char._graceUsed=true; player.char.health=1; addLog(room,`🕊 <strong>Grace!</strong> ${graceUser.name}'s faith catches ${player.name} — survives at 1 HP!`,'heal'); return; }
     }
     if((player.char.activeBuffs||[]).some(b=>b.resurrectionShield)){
@@ -605,8 +616,8 @@ function checkDeath(room, player) {
       addLog(room,`💪 <strong>Unstoppable!</strong> ${player.name} survives the killing blow at 1 HP! (once per run)`,'crit');
     }
     room.players.filter(p=>p.char&&p.char.alive&&p.char.vengeancePassive&&p.id!==player.id).forEach(p=>{ p.char._vengeanceReady=true; });
-    if(room.players.some(p=>p.char&&p.char.alive&&p.char.lastRites)){ room.players.filter(p=>p.char&&p.char.alive).forEach(p=>{ p.char.health=Math.min(p.char.maxHealth,p.char.health+1); }); addLog(room,`⛪ <strong>Last Rites!</strong> A warrior falls — survivors steel themselves (+1 HP each).`,'heal'); }
-    else if(player.char._legShroud&&!player.char._legShroudUsed){
+    // Last Rites now answers when a warrior is bloodied (see enemy hits), not when they fall.
+    if(player.char._legShroud&&!player.char._legShroudUsed){
       player.char._legShroudUsed=true; player.char.alive=true;
       player.char.health=rd(1,6);
       addLog(room,`🌑 <strong>Shroud of Undeath!</strong> ${player.name} rises from death at ${player.char.health} HP!`,'chaos');

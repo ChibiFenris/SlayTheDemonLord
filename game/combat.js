@@ -40,7 +40,7 @@ function rollAttack(char, enemy, extraBoons=0) {
   if (char.swiftFeet) boons+=2;
   if (char.vigil && char.health===char.maxHealth) boons++;
   if (char._vengeanceReady){ char._vengeanceReady=false; boons+=2; } // vengeancePassive: 2 boons after ally falls
-  if (char.rage&&char.rageBoon) { boons++; } // rage boon — dmg applied on hit, flag cleared there
+  if ((char.rage||char.rageTrigger)&&char.rageBoon) { boons++; } // rage boon — dmg applied on hit, flag cleared there
   if (char.stimulantBoon>0) { boons++; char.stimulantBoon--; }
   if (extraBoons) boons+=extraBoons;
   // activeBuffs: atkBoon bonuses (from Shrine Blessing, Well Rested, etc.)
@@ -81,7 +81,7 @@ function rollAttack(char, enemy, extraBoons=0) {
   let dmg=0, dmgParts=[];
   if (hit) {
     const weapRoll=rd(num,sides);
-    if(warCryDmgBonus>0){dmg+=warCryDmgBonus;dmgParts.push(`+${warCryDmgBonus} war cry`);}    const statBonus=Math.max(0,modVal(char.attrs[wpnStat]));
+    if(warCryDmgBonus>0){dmg+=warCryDmgBonus;dmgParts.push(`+${warCryDmgBonus} buffs`);}    const statBonus=Math.max(0,modVal(char.attrs[wpnStat]));
     dmg=weapRoll+statBonus+wpnDmgBonus;
     dmgParts.push(`${num}d${sides}(${weapRoll})`);
     if(statBonus)  dmgParts.push(`+${statBonus} stat`);
@@ -101,7 +101,7 @@ function rollAttack(char, enemy, extraBoons=0) {
       if (!char._trickeryFirstHit) { char._trickeryFirstHit=true; char._trickeryPoisonProc=3; }
       else { char._trickeryPoisonProc=2; }
     }
-    const dmgBuff=getBuffVal(char,'dmgBonus'); if(dmgBuff){dmg+=dmgBuff;dmgParts.push(`+${dmgBuff} buff`);}
+    // dmgBonus buffs are already counted above (warCryDmgBonus)
     if(_wt.includes('vicious')){ dmg+=1; dmgParts.push('+1 vicious'); }
     if(_wt.includes('notched')){ dmg-=1; dmgParts.push('−1 notched'); }
     if(_wt.includes('blessed')&&enemy&&(enemy.undead||_isChaos||(enemy.tags&&enemy.tags.includes('undead')))){ dmg+=2; dmgParts.push('+2 blessed'); }
@@ -131,7 +131,7 @@ function rollAttack(char, enemy, extraBoons=0) {
     }
     const pacedBuff=(char.activeBuffs||[]).find(b=>b.pacedDmg);
     if(pacedBuff){ const pr=rd(3,6);dmg+=pr;dmgParts.push(`+${pr} Paced Strikes`); char.activeBuffs=char.activeBuffs.filter(b=>!b.pacedDmg); }
-    if(char.rage&&char.rageBoon){ const rb=rd(1,6);dmg+=rb;dmgParts.push(`+${rb} rage`);char.rageBoon=false; } // consume rage proc
+    if((char.rage||char.rageTrigger)&&char.rageBoon){ const rb=rd(1,6);dmg+=rb;dmgParts.push(`+${rb} rage`);char.rageBoon=false; } // consume rage proc
     const corrodedBuff=(char.activeBuffs||[]).find(b=>b.dmgPenalty);
     if(corrodedBuff&&dmg>0){ dmg=Math.max(0,dmg-corrodedBuff.dmgPenalty); }
     if(char._wpnRuneStrikeActive && enemy && enemy.damageReduction){ dmg+=enemy.damageReduction; dmgParts.push(`+${enemy.damageReduction} rune`); char._wpnRuneStrikeActive=false; }
@@ -194,7 +194,7 @@ function rollEnemyAttack(enemy, char, hasBoon=false, room=null) {
     dmgRoll=rd(enemy.dmgNum,enemy.dmgSides);
     dmg=dmgRoll+enemy.dmgBonus;
     if (crit2) { critRoll=rd(enemy.dmgNum,enemy.dmgSides); dmg+=critRoll; }
-    if((enemy.activeDebuffs||[]).some(d=>d.rerollDmgLower)){ const alt=rd(enemy.dmgNum,enemy.dmgSides)+enemy.dmgBonus; dmg=Math.min(dmg,alt); }
+    if((enemy.activeDebuffs||[]).some(d=>d.rerollDmgLower)||(char.activeBuffs||[]).some(b=>b.interceptGuard)){ const alt=rd(enemy.dmgNum,enemy.dmgSides)+enemy.dmgBonus; dmg=Math.min(dmg,alt); }
     if (char.toughness) dmg=Math.max(0,Math.floor(dmg*0.9));
     dmg=Math.max(1,dmg);
   }
@@ -220,6 +220,7 @@ function addDebuff(enemy, name, effects, duration=1){
 function tickBuffs(char){
   if(!char.activeBuffs) return;
   char.activeBuffs.filter(b=>b.regenHp&&b.duration>0).forEach(b=>{ char.health=Math.min(char.maxHealth,char.health+(b.regenHp||0)); });
+  if(char.alive!==false) char.activeBuffs.filter(b=>b.regenPerRound&&b.duration>0).forEach(b=>{ const [n,sd]=String(b.regenDice||'1d6').split('d').map(Number); char.health=Math.min(char.maxHealth,char.health+rd(n||1,sd||6)); }); // Triage, Sacred Ground
   // Tick DoT buffs on players (Bleed applied by enemies — fortitude blocks Bleed)
   char.activeBuffs.filter(b=>b.dotDmg&&b.duration>0&&!(char.fortitude&&b.name==='Bleed')).forEach(b=>{ char.health=Math.max(0,char.health-b.dotDmg); });
   char.activeBuffs=char.activeBuffs.filter(b=>{

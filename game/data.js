@@ -45,11 +45,11 @@ const NOVICE_PATHS = {
 
   // ── WITCH HUNTER (Order of the Silver Hammer) ────────────────────
   witchhunter:{ hpGain:5, power:0,
-             condemn:true,          // active, free action, cooldown 6: marked target — your attacks +1 boon, hits +1d6; passes on when it dies
+             condemn:true,          // active, uses your turn, cooldown 6: marked target — your attacks +1 boon, hits +1d6; passes on when it dies
              silverShot:true,       // passive: +2 damage against undead, daemons and Chaos
              firstVolley:true,      // passive: first attack each combat +1 boon
              catchBreath:true,      // once/combat: heal 1d6 + best attribute
-             desc:'Condemn (free action, cooldown 6): mark an enemy — your attacks on it get +1 boon and +1d6 damage; when it dies the mark passes to the next foe. Silver Shot: +2 damage against undead, daemons and Chaos. First Volley: +1 boon on your first attack each combat. Catch Breath (cooldown 12).' },
+             desc:'Condemn (cooldown 6): mark an enemy — your attacks on it get +1 boon and +1d6 damage; when it dies the mark passes to the next foe. Silver Shot: +2 damage against undead, daemons and Chaos. First Volley: +1 boon on your first attack each combat. Catch Breath (cooldown 12).' },
 
   // ── DWARF SLAYER (cult of Grimnir) ───────────────────────────────
   slayer:  { hpGain:6, power:0,
@@ -104,7 +104,7 @@ const EXPERT_PATHS = {
   // ── ARCANE: WITCH + WARLOCK ───────────────────────────────────────
   warlock:     { label:'Warlock',     hpGain:4, power:1,
     levelGains:{ 3:['curse','evilEye'], 4:['bloodOffering','+1int'], 5:['massHeal','hex'], 6:['darkPact','+1int'] },
-    desc:'Chaos Witch. Curse: all attacks vs target +1 boon and +1 dmg until death. Evil Eye: 2 banes for 3 rounds. Blood Offering: lose 1d6 HP to regain all castings. Mass Heal. Hex: +4 dmg to cursed/Evil Eye targets. Dark Pact: lose 1d6 HP, next spell free (no action cost).' },
+    desc:'Chaos Witch. Curse: all attacks vs target +1 boon and +1 dmg until death. Evil Eye: 2 banes for 3 rounds. Blood Offering: lose 1d6 HP to regain all castings. Mass Heal. Hex: +4 dmg to cursed/Evil Eye targets. Dark Pact: lose 1d6 HP, next spell free.' },
 
   // ── ARCANE: CONTROL ──────────────────────────────────────────────
   wizard:      { label:'Illusionist', hpGain:4, power:1,
@@ -142,7 +142,7 @@ const MASTER_PATHS = {
   // ── MARTIAL: COMMANDER ────────────────────────────────────────────
   warlord:     { label:'Warlord',     hpGain:5, power:0,
     levelGains:{ 7:['rallyingCry','battleOrders'], 8:['warlordAura','devastatingCharge','+1str'], 9:['sweepingBlow','intercept'], 10:['killingMomentum','+1wil'] },
-    desc:'Battlefield Commander. Rallying Cry heals all. Battle Orders: give ally free action. Warlord Aura (L8): all allies +1 boon. Devastating Charge: +1d6 + Prone. Sweeping Blow: hits all enemies 75% dmg. Intercept (L9, cooldown 8): enemy hits trigger damage die reroll take lower. Killing Momentum: kill = free attack.' },
+    desc:'Battlefield Commander. Rallying Cry heals all. Battle Orders: you and an ally get a boon and +2 damage. Warlord Aura (L8): all allies +1 boon. Devastating Charge: +1d6 + Prone. Sweeping Blow: hits all enemies 75% dmg. Intercept (L9, cooldown 8): enemy hits trigger damage die reroll take lower. Killing Momentum: kill = free attack.' },
 
   // ── MARTIAL: LEGEND ───────────────────────────────────────────────
   champion:    { label:'Champion',    hpGain:5, power:0,
@@ -545,19 +545,19 @@ const LOOT_CONS_LIST=['Healing Draught','Greater Healing Draught','Incendiary Fl
 
 const WEAPON_BASES=[
   {name:'Reiklander Sword', dice:'1d6', stat:'str', dmgType:'slashing', special:{key:'bladeguard',  desc:'Passive: +1 Defense while equipped. Blade catches enemy weapons — lost if you are stunned.'}},
-  {name:'War Axe',          dice:'2d6', stat:'str', dmgType:'slashing', special:{key:'cleave',      desc:'Active: killing an enemy arms a cleave — your next attack this round deals +1d6 damage.'}},
+  {name:'War Axe',          dice:'2d6', stat:'str', dmgType:'slashing', special:{key:'cleave',      desc:'Passive: killing an enemy arms a cleave — your next attack this round deals +1d6 damage.'}},
   {name:'Halberd',          dice:'2d6', stat:'str', dmgType:'slashing', special:{key:'reach',       desc:'Passive: +1 boon on round 1 attacks. Your reach means charging enemies cannot use Reckless Charge vs you.'}},
-  {name:'Duelling Sabre',   dice:'1d6', stat:'agi', dmgType:'slashing', special:{key:'riposte',     desc:'Active: when an enemy misses you, immediately make one free counterattack with 1 boon (once/round).'}},
+  {name:'Duelling Sabre',   dice:'1d6', stat:'agi', dmgType:'slashing', special:{key:'riposte',     desc:'Passive: when an enemy misses you, immediately make one free counterattack with 1 boon (once/round).'}},
   {name:'Silvered Rapier',  dice:'1d6', stat:'agi', dmgType:'slashing', special:{key:'silverEdge',  desc:'Passive: blessed silver edge — all attacks ignore damage reduction on undead enemies.'}},
   {name:'Runestaff',        dice:'1d6', stat:'int', dmgType:'slashing', special:{key:'arcaneFocus', desc:'Passive: rank 0 spells deal +INT mod bonus damage. Missing with a weapon attack gives 1 boon on your next spell.'}},
-  {name:'Engraved Blade',   dice:'2d6', stat:'int', dmgType:'slashing', special:{key:'spellblade',  desc:'Active (1/combat): channel a rank-0 spell into a weapon strike — deals weapon damage and spell damage simultaneously.'}},
+  {name:'Engraved Blade',   dice:'2d6', stat:'int', dmgType:'slashing', special:{key:'spellblade',  desc:'Once per combat, automatically: channel a rank-0 spell into a weapon strike — deals weapon damage and spell damage simultaneously.'}},
   {name:"Sigmar's Mace",    dice:'1d6', stat:'wil', dmgType:'slashing', special:{key:'blessedStrike',desc:"Passive: Sigmar's blessing — +1d6 bonus damage vs undead and Chaos. These attacks always ignore enemy damage reduction."}},
-  {name:'Consecrated Blade',dice:'2d6', stat:'wil', dmgType:'slashing', special:{key:'smiteTheFallen',desc:'Active (1/combat): after landing a hit, expend 1 spell casting to add 3d6 holy bonus damage to that strike.'}},
-  {name:'Warhammer',        dice:'2d6', stat:'str', dmgType:'blunt',    special:{key:'sunder',      desc:'Active: on a crit, the crushing blow cracks enemy armour — target loses 2 AC for the rest of combat.'}},
-  {name:'Pistol',           dice:'1d6', stat:'agi', dmgType:'blunt',    special:{key:'openingShot', desc:'Active: your round-1 shot has 2 boons and ignores damage reduction. Spend the next round reloading.'}},
+  {name:'Consecrated Blade',dice:'2d6', stat:'wil', dmgType:'slashing', special:{key:'smiteTheFallen',desc:'Once per combat, automatically: after landing a hit, expend 1 spell casting to add 3d6 holy bonus damage to that strike.'}},
+  {name:'Warhammer',        dice:'2d6', stat:'str', dmgType:'blunt',    special:{key:'sunder',      desc:'Passive: on a crit, the crushing blow cracks enemy armour — target loses 2 AC for the rest of combat.'}},
+  {name:'Pistol',           dice:'1d6', stat:'agi', dmgType:'blunt',    special:{key:'openingShot', desc:'Passive: your round-1 shot has 2 boons and ignores damage reduction. Spend the next round reloading.'}},
   {name:'Crossbow',         dice:'1d6', stat:'agi', dmgType:'blunt',    special:{key:'marksmanship',desc:'Passive: 1 boon on all round-1 attacks. On a crit, the bolt pins the target — 1 bane on their next attack.'}},
   {name:'Alchemical Rod',   dice:'1d6', stat:'int', dmgType:'blunt',    special:{key:'unstableCharge',desc:'Passive: on a crit, the unstable charge detonates — target takes 1d6 acid damage at the start of their next turn.'}},
-  {name:'Arcane Hammer',    dice:'2d6', stat:'int', dmgType:'blunt',    special:{key:'runeStrike',  desc:'Active (1/combat): overcharge the rune — next hit ignores all enemy damage reduction and defensive buff bonuses.'}},
+  {name:'Arcane Hammer',    dice:'2d6', stat:'int', dmgType:'blunt',    special:{key:'runeStrike',  desc:'Once per combat, automatically: overcharge the rune — next hit ignores all enemy damage reduction and defensive buff bonuses.'}},
   {name:'Blessed Staff',    dice:'1d6', stat:'wil', dmgType:'blunt',    special:{key:'channelFaith',desc:'Passive: divine focus — adds your WIL modifier to all healing spells cast with this staff.'}},
   {name:'War Censer',       dice:'2d6', stat:'wil', dmgType:'blunt',    special:{key:'holySmoke',   desc:'Passive: burning incense coats each hit with 1 poison stack from the sacred fumes.'}},
   {name:'Paired Daggers',dice:'2d4',stat:'agi',dmgType:'slashing',special:{key:'twinBlades',desc:'Passive: two quick blades — you crit on 19–20.'}},
@@ -794,16 +794,16 @@ const CURSED_GEAR = {
 
 const ENEMY_DROPS = {
   'Skaven Clanrat':    [{type:'weapon',name:'Clanrat Blade',    dice:'1d6',stat:'agi',dmgType:'slashing',bonus:1,special:{key:'holySmoke',desc:'Passive: each hit applies 1 poison stack from filth-coated blade.'},chance:0.10}],
-  'Beastman Gor':      [{type:'weapon',name:'Gor Cleaver',      dice:'1d6',stat:'str',dmgType:'slashing',bonus:1,special:{key:'cleave',  desc:'Active: after a kill, next attack this round deals +1d6 dmg.'},chance:0.10},{type:'charm',key:'wolfTotem',chance:0.08}],
+  'Beastman Gor':      [{type:'weapon',name:'Gor Cleaver',      dice:'1d6',stat:'str',dmgType:'slashing',bonus:1,special:{key:'cleave',  desc:'Passive: after a kill, next attack this round deals +1d6 dmg.'},chance:0.10},{type:'charm',key:'wolfTotem',chance:0.08}],
   'Undead Skeleton':   [{type:'armor', name:'Bone-Laced Mail',  def:2, special:{key:'dwarfForged',desc:'Passive: Gromril is the hardest metal in the world — cannot be stunned more than once per combat. -1 to all incoming damage.'},chance:0.10}],
-  'Mutant Thug':       [{type:'weapon',name:'Chaos Cudgel',     dice:'1d6',stat:'str',dmgType:'blunt',  bonus:1,special:{key:'sunder',   desc:'Active: on a crit, target loses 2 AC for the rest of combat.'},chance:0.10},{type:'charm',key:'gamblerDie',chance:0.08}],
+  'Mutant Thug':       [{type:'weapon',name:'Chaos Cudgel',     dice:'1d6',stat:'str',dmgType:'blunt',  bonus:1,special:{key:'sunder',   desc:'Passive: on a crit, target loses 2 AC for the rest of combat.'},chance:0.10},{type:'charm',key:'gamblerDie',chance:0.08}],
   'Chaos Marauder':    [{type:'armor', name:'Marauder Hide',    def:2, special:{key:'chaosWard',desc:'Passive: warded against corruption — -2 damage from all Chaos enemies. +1 boon on WIL checks vs Chaos.'},chance:0.10},{type:'charm',key:'witchSeal',chance:0.08}],
   'Skaven Stormvermin':[{type:'weapon',name:'Stormvermin Halberd',dice:'2d6',stat:'str',dmgType:'slashing',bonus:2,special:{key:'reach',desc:'Passive: +1 boon on round 1 attacks. Your reach means charging enemies cannot use Reckless Charge vs you.'},chance:0.12}],
   'Wight':             [{type:'armor', name:'Wight Shroud',     def:2, special:{key:'lastTarget',desc:'Passive: your shadowy movement draws less attention — enemies always attack other allies before you.'},chance:0.12},{type:'charm',key:'ironTooth',chance:0.08}],
   'Plague Monk':       [{type:'weapon',name:'Plague Censer',    dice:'2d6',stat:'wil',dmgType:'blunt',  bonus:2,special:{key:'holySmoke',desc:'Passive: each hit applies 1 poison stack from sacred incense.'},chance:0.12}],
   'Chaos Warrior':     [{type:'armor', name:'Chaos Plate',      def:4, special:{key:'chaosWard',desc:'Passive: warded against corruption — -2 damage from all Chaos enemies. +1 boon on WIL checks vs Chaos.'},chance:0.12}],
-  'Vampire Count':     [{type:'weapon',name:'Vampiric Blade',   dice:'2d6',stat:'agi',dmgType:'slashing',bonus:2,special:{key:'riposte', desc:'Active: when an enemy misses you, make a free counterattack with 1 boon. Once/round.'},chance:0.12},{type:'charm',key:'grailToken',chance:0.08}],
-  'Bloodletter':       [{type:'weapon',name:"Bloodletter's Axe",dice:'2d6',stat:'str',dmgType:'slashing',bonus:3,special:{key:'cleave',  desc:'Active: after a kill, next attack this round deals +1d6 dmg.'},chance:0.12},{type:'charm',key:'brassSkull',chance:0.1}],
+  'Vampire Count':     [{type:'weapon',name:'Vampiric Blade',   dice:'2d6',stat:'agi',dmgType:'slashing',bonus:2,special:{key:'riposte', desc:'Passive: when an enemy misses you, make a free counterattack with 1 boon. Once/round.'},chance:0.12},{type:'charm',key:'grailToken',chance:0.08}],
+  'Bloodletter':       [{type:'weapon',name:"Bloodletter's Axe",dice:'2d6',stat:'str',dmgType:'slashing',bonus:3,special:{key:'cleave',  desc:'Passive: after a kill, next attack this round deals +1d6 dmg.'},chance:0.12},{type:'charm',key:'brassSkull',chance:0.1}],
   'Skaven Warlord':    [{type:'weapon',name:'Warlord Blade',    dice:'2d6',stat:'agi',dmgType:'slashing',bonus:3,special:{key:'bladeguard',desc:'Passive: +1 Defense while equipped. Blade catches enemy weapons — lost if you are stunned.'},chance:0.15},{type:'charm',key:'ranaldCoin',chance:0.1}],
   'Ghoul':             [{type:'charm',key:'boneRosary',chance:0.12}],
   'Zombie':            [{type:'weapon',name:'Rotting Flail',dice:'2d6',stat:'str',dmgType:'blunt',bonus:1,chance:0.08,special:{key:'flailSwing',desc:'Passive: +2 to hit against Defence 15 or higher. On a fumble the head swings back — you take 1d6.'}}],
@@ -830,13 +830,13 @@ Object.assign(CAREERS, {
 Object.assign(NOVICE_PATHS, {
   // ── IMPERIAL ENGINEER (Imperial Gunnery School) ───────────────────
   engineer: { hpGain:4, power:0,
-    turret:true,       // free action (cooldown 8): set up a Volley Gun that fires at the end of each round for 3 rounds
+    turret:true,       // uses your turn (cooldown 8): set up a Volley Gun that fires at the end of each round for 3 rounds
     grenade:true,      // active (cooldown 6): a bomb that hits every enemy for 2d6+INT
     tinkerer:true,     // passive: +1 Defence (riveted plate), Healing Draughts heal +2
     weaponTraining:true, // Gunnery School drills: +1 boon on attacks
     toughness:true,      // riveted plate: 10% less damage taken
     catchBreath:true,
-    desc:'Volley Gun (free action, cooldown 8): set up a turret that fires at a foe at the end of each round for 3 rounds. Bomb (cooldown 6): 2d6+INT to every enemy. Tinkerer: +1 Defence and your Healing Draughts heal 2 more. Gunnery Drill: +1 boon on attacks. Riveted Plate: 10% less damage taken. Catch Breath (cooldown 12). Shoots a handgun with INT.' },
+    desc:'Volley Gun (cooldown 8): set up a turret that fires at a foe at the end of each round for 3 rounds. Bomb (cooldown 6): 2d6+INT to every enemy. Tinkerer: +1 Defence and your Healing Draughts heal 2 more. Gunnery Drill: +1 boon on attacks. Riveted Plate: 10% less damage taken. Catch Breath (cooldown 12). Shoots a handgun with INT.' },
   // ── ELF WAYWATCHER (Athel Loren) ──────────────────────────────────
   waywatcher: { hpGain:4, power:0,
     hawkEye:true,      // passive: +2 to hit from the back row
@@ -900,10 +900,10 @@ Object.assign(NOVICE_PATHS, {
 Object.assign(EXPERT_PATHS, {
   witchHunter:   { label:'Witch Hunter', hpGain:5, power:0,
     levelGains:{ 3:['condemn','silverShot','firstVolley'], 4:['markHeretic','+1agi'], 5:['burnTheWitch','resonance'], 6:['purgeTheWicked','+1wil'] },
-    desc:'Condemn a foe (free action): +1 boon and +1d6 on hits against it. Silver Shot vs undead, daemons and Chaos. Burn the Witch: hits on the Condemned set them alight.' },
+    desc:'Condemn a foe: +1 boon and +1d6 on hits against it. Silver Shot vs undead, daemons and Chaos. Burn the Witch: hits on the Condemned set them alight.' },
   empEngineer:   { label:'Imperial Engineer', hpGain:5, power:0,
     levelGains:{ 3:['turret','grenade'], 4:['bigBombs','+1int'], 5:['improvedTurret','quickHands'], 6:['tinkerer','+1int'] },
-    desc:'Volley Gun turret (free action) and Bombs that hit every enemy. Big Bombs stun; the Improved Turret fires longer and harder. Tinkerer: +1 Defence, better draughts.' },
+    desc:'Volley Gun turret and Bombs that hit every enemy. Big Bombs stun; the Improved Turret fires longer and harder. Tinkerer: +1 Defence, better draughts.' },
   knightErrant:  { label:'Knight Errant', hpGain:6, power:0,
     levelGains:{ 3:['devastatingCharge','pressTheAdvantage'], 4:['shieldBash','+1wil'], 5:['combatProwess','weaponAptitude'], 6:['sweepingBlow','+1str'] },
     desc:'The lance charge: Devastating Charge knocks foes Prone. Every hit sets up the next (Press the Advantage). Later, Sweeping Blow cuts through whole lines.' },
@@ -939,7 +939,7 @@ Object.assign(EXPERT_PATHS, {
 Object.assign(MASTER_PATHS, {
   thane:      { label:'Thane', hpGain:6, power:0,
     levelGains:{ 7:['warlordAura','battleOrders'], 8:['warCry','+1str'], 9:['intercept','sweepingBlow'], 10:['killingMomentum','+1wil'] },
-    desc:'A lord of the hold: the whole warband fights better near you (Warlord Aura), Battle Orders give an ally a free action, War Cry lifts everyone.' },
+    desc:'A lord of the hold: the whole warband fights better near you (Warlord Aura), Battle Orders spur you and an ally on, War Cry lifts everyone.' },
   runelord:   { label:'Runelord', hpGain:5, power:2, lores:true,
     levelGains:{ 7:['spellsurge','ward'], 8:['overcast','+1int'], 9:['catastrophe','esotericKnowledge'], 10:['forceOfWill','+1wil'] },
     desc:'A master of the anvil: more rune lore, Spell Surge, Overcast, and the Anvil of Doom (Catastrophe: 10d6 to every enemy).' },

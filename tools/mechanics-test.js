@@ -220,7 +220,8 @@ const logHas=(room,re)=>room.gs.log.some(l=>re.test(l.msg));
   const pIdx=room.gs.turnOrder.findIndex(t=>t.id===room.players[0].id); room.gs.activeTurnIdx=pIdx;
   const before=room.gs.activeTurnIdx;
   S.handlePlayerAction(room,room.players[0].id,{action:'USE_TALENT',data:{talent:'condemn'}});
-  ok(wh._condemnTargetId===room.gs.enemies[0].id&&room.gs.activeTurnIdx===before,'Condemn marks the target and does not use the turn');
+  ok(wh._condemnTargetId===room.gs.enemies[0].id&&(room.gs.activeTurnIdx!==before||room.gs.playersActedThisRound.includes(room.players[0].id)),'Condemn marks the target and uses the turn');
+  room.gs.activeTurnIdx=pIdx; room.gs.playersActedThisRound=[];
   ok((room.gs.enemies[0].activeDebuffs||[]).some(d=>d.condemned),'the Condemned enemy shows the mark');
   S.handlePlayerAction(room,room.players[0].id,{action:'USE_TALENT',data:{talent:'condemn'}});
   ok(wh._condemnUsed===true&&(room.gs.log.slice(-1)[0].msg||'').includes('recharging'),'Condemn cannot be used again while recharging');
@@ -329,7 +330,7 @@ const logHas=(room,re)=>room.gs.log.some(l=>re.test(l.msg));
   const wi=room.gs.turnOrder.findIndex(t=>t.id===room.players[0].id); room.gs.activeTurnIdx=wi;
   S.handlePlayerAction(room,room.players[0].id,{action:'USE_TALENT',data:{talent:'block'}});
   ok(S.isBlocking(c)&&c._blockUsed,'Block raises your guard and starts its cooldown');
-  ok(room.gs.activeTurnIdx===wi,'Block is a free action');
+  ok(room.gs.activeTurnIdx!==wi||room.gs.playersActedThisRound.includes(room.players[0].id),'Block uses your turn');
   S.tickCooldowns(room); ok(c._cd.block===5,'Block recharges in 5 rounds'); }
 // 30. Relics
 { const {room}=mkRoom(['warrior','priest']); const c=room.players[0].char, hp=c.maxHealth;
@@ -435,7 +436,7 @@ const logHas=(room,re)=>room.gs.log.some(l=>re.test(l.msg));
   combat(room,['Skaven Clanrat','Skaven Stormvermin']);
   room.gs.activeTurnIdx=room.gs.turnOrder.findIndex(t=>t.id===en.id);
   S.handlePlayerAction(room,en.id,{action:'USE_TALENT',data:{talent:'turret'}});
-  ok(en.char._turretRounds===3&&en.char._turretUsed&&room.gs.turnOrder[room.gs.activeTurnIdx].id===en.id,'the Volley Gun is set up for 3 rounds, as a free action');
+  ok(en.char._turretRounds===3&&en.char._turretUsed&&(room.gs.turnOrder[room.gs.activeTurnIdx].id!==en.id||room.gs.playersActedThisRound.includes(en.id)),'the Volley Gun is set up for 3 rounds and uses the turn');
   const hp0=room.gs.enemies.reduce((a,e)=>a+e.hp,0); S.engineerRoundTick(room); const hp1=room.gs.enemies.reduce((a,e)=>a+Math.max(0,e.hp),0);
   ok(hp1<hp0&&en.char._turretRounds===2,'and fires at the end of the round');
   room.gs.activeTurnIdx=room.gs.turnOrder.findIndex(t=>t.id===wy.id); const before=room.gs.enemies.map(e=>e.hp);
@@ -495,4 +496,36 @@ const logHas=(room,re)=>room.gs.log.some(l=>re.test(l.msg));
 // 43. Stats
 { S.runlog._resetStats(); const st=S.runlog.stats(); ok(st&&typeof st.runs==='number'&&st.overall&&Array.isArray(st.relics)&&st.byClass,'the stats page has its numbers');
   ok(require('fs').existsSync(require('path').join(__dirname,'..','public','stats.html')),'and its page'); }
+// 44. Every active ability uses your turn; team abilities also cover you when alone
+{ const src=require('fs').readFileSync(require('path').join(__dirname,'..','public','js','data.js'),'utf8')+require('fs').readFileSync(require('path').join(__dirname,'..','public','js','desktop.js'),'utf8');
+  const listed=k=>{ const i=src.indexOf(k); return i; };
+  const ea=src.slice(src.indexOf('const EXTRA_ACTIVES'),src.indexOf('];',src.indexOf('const EXTRA_ACTIVES')));
+  const at=src.slice(src.indexOf('const ACTIVE_TALENTS'),src.indexOf('];',src.indexOf('const ACTIVE_TALENTS')));
+  const actives=[...new Set([...ea.matchAll(/\['(\w+)',/g),...at.matchAll(/\['(\w+)',/g)].map(m=>m[1]))];
+  ok(!actives.includes('devastatingCharge')&&!actives.includes('overcast')&&!actives.includes('doubleCharge'),'passives are not offered as actions');
+  const bad=[];
+  actives.filter(k=>k!=='revive').forEach(k=>{
+    const {room}=mkRoom(['wizard']); const p=room.players[0], c=p.char;
+    combat(room,['Undead Skeleton','Skaven Clanrat']);
+    c[k]=true; if(k==='devastatingCharge') return;
+    const idx=room.gs.turnOrder.findIndex(t=>t.id===p.id); room.gs.activeTurnIdx=idx; room.gs.playersActedThisRound=[];
+    S.handlePlayerAction(room,p.id,{action:'USE_TALENT',data:{talent:k}});
+    if(!(room.gs.activeTurnIdx!==idx||room.gs.playersActedThisRound.includes(p.id)||!room.gs.inCombat)) bad.push(k);
+  });
+  ok(!bad.length,'all '+(actives.length-1)+' active abilities use the turn'+(bad.length?' — free: '+bad.join(', '):''));
+  const solo=(k,setup)=>{ const {room}=mkRoom(['warrior']); const p=room.players[0], c=p.char; combat(room,['Skaven Clanrat']); c[k]=true; if(setup) setup(c,room);
+    room.gs.activeTurnIdx=room.gs.turnOrder.findIndex(t=>t.id===p.id); S.handlePlayerAction(room,p.id,{action:'USE_TALENT',data:{talent:k}}); return {room,c}; };
+  { const {c}=solo('battleOrders'); ok((c.activeBuffs||[]).some(b=>b.name==='Battle Orders'&&b.dmgBonus===2),'Battle Orders helps you when alone'); }
+  { const {c}=solo('intercept'); ok((c.activeBuffs||[]).some(b=>b.interceptGuard),'Intercept guards you when alone'); }
+  { const {c}=solo('counterspell'); ok((c.activeBuffs||[]).some(b=>b.counterspellWard),'Counterspell wards you when alone'); }
+  { const {room,c}=solo('taunt'); const d0=c.defense; ok((c.activeBuffs||[]).some(b=>b.taunting&&b.defBonus===2),'Taunt gives +2 Defence, so it is useful alone');
+    S.resetCombatState(room.players[0]); ok(c.defense===d0-2,'and the Defence goes away when the fight ends'); }
+  { const {room}=mkRoom(['warrior','priest']); const [a,b]=room.players; combat(room,['Skaven Clanrat']); a.char.counterspell=true;
+    room.gs.activeTurnIdx=room.gs.turnOrder.findIndex(t=>t.id===a.id); S.handlePlayerAction(room,a.id,{action:'USE_TALENT',data:{talent:'counterspell'}});
+    ok([a,b].every(p=>(p.char.activeBuffs||[]).some(x=>x.counterspellWard)),'Counterspell wards you and an ally'); }
+  { const c={health:5,maxHealth:40,alive:true,activeBuffs:[{name:'Triage Regen',regenPerRound:true,regenDice:'1d6',duration:2}]}; S.tickBuffs(c); ok(c.health>5,'Triage regeneration actually heals'); }
+  { const {room}=mkRoom(['warrior']); const p=room.players[0]; p.char.grace=true; room.gs.inCombat=true; p.char.health=0; S.checkDeath(room,p); ok(p.char.alive&&p.char.health===1,'Grace saves you as well as allies'); }
+  { const {room}=mkRoom(['warrior']); const p=room.players[0]; p.char.devastatingCharge=true; room.gs.phase='path'; S.enterNode(room,'combat');
+    ok(room.gs.inCombat&&p.char._devastatingChargeProc===true,'Devastating Charge is ready on its own when a fight starts'); }
+}
 console.log(fails?fails+' FAILED':'all passed'); process.exit(fails?1:0);

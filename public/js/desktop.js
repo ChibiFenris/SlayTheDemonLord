@@ -343,14 +343,14 @@ const ACTIVE_TALENTS=[
   ['shieldBash','Shield Bash','_shieldBashUsed'],['divineSmite','Divine Smite','divineSmiteUsed'],
   ['massHeal','Mass Heal','massHealUsed'],['resurrection','Resurrection','resurrectionUsed'],
   ['rallyingCry','Rallying Cry','rallyingUsed'],['metamagic','Metamagic','metamagicUsed'],
-  ['catastrophe','Catastrophe','catastropheUsed'],['bloodOffering','Blood Offering',null],['overcast','Overcast',null],
+  ['catastrophe','Catastrophe','catastropheUsed'],['bloodOffering','Blood Offering',null],
 ];
 const PASSIVE_TALENTS=[
   'weaponTraining','trickery','combatProwess','combatExpertise','shieldwall','toughness','quickstrike','evasion',
   'deathblow','shadowstep','burningSoul','firewall','holyFervor','warlordAura','sweepingBlow','phantomStrike',
   'bladestorm','holyAura','rage','quickStep','utilityFocus','elementalAttunement','volatileForm','assassination',
   'swiftFeet','arcaneSurge','spellLeech','pacedStrikes','unstoppable','quickHands','acrobaticRiposte',
-  'protectiveBlessing','forceOfWill',
+  'protectiveBlessing','forceOfWill','overcast','doubleCharge','devastatingCharge',
 ];
 // Every passive the character has: the list above plus any described talent that isn't an active.
 function passiveKeys(c){
@@ -451,19 +451,19 @@ function openItemPopout(invIdx, triggerEl){
       .replace(/([A-Z])/g,' $1')
       .replace(/^./,s=>s.toUpperCase())
       .replace('Bladeguard','Bladeguard — Passive')
-      .replace('Cleave','Cleave — Active')
+      .replace('Cleave','Cleave — Passive')
       .replace('Reach','Reach — Passive')
-      .replace('Riposte','Riposte — Active')
+      .replace('Riposte','Riposte — Passive')
       .replace('Silver Edge','Silver Edge — Passive')
       .replace('Arcane Focus','Arcane Focus — Passive')
-      .replace('Spellblade','Spellblade — Active')
+      .replace('Spellblade','Spellblade — Passive')
       .replace('Blessed Strike','Blessed Strike — Passive')
-      .replace('Smite The Fallen','Smite the Fallen — Active')
-      .replace('Sunder','Sunder — Active')
-      .replace('Opening Shot','Opening Shot — Active')
+      .replace('Smite The Fallen','Smite the Fallen — Passive')
+      .replace('Sunder','Sunder — Passive')
+      .replace('Opening Shot','Opening Shot — Passive')
       .replace('Marksmanship','Marksmanship — Passive')
       .replace('Unstable Charge','Unstable Charge — Passive')
-      .replace('Rune Strike','Rune Strike — Active')
+      .replace('Rune Strike','Rune Strike — Passive')
       .replace('Channel Faith','Channel Faith — Passive')
       .replace('Holy Smoke','Holy Smoke — Passive');
     specialHtml=`<div class="ip-special"><div class="ip-special-name">${spName}${legendary?' <span class="legendary-tag">✦ Legendary</span>':''}</div><div class="ip-special-desc">${obj.special.desc.replace(/^(Passive|Active|Legendary):\s*/,'')}</div></div>`;
@@ -707,7 +707,6 @@ function renderActions(gs,players,me){
     if(char.resurrection&&!char.resurrectionUsed)addBtn(g,'✝ Resurrection','Shield weakest ally','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'resurrection'}}),false,TALENT_DESCS.resurrection);
     if(char.rallyingCry&&!char.rallyingUsed)     addBtn(g,'📯 Rallying Cry','Heal all 1d6+attr','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'rallyingCry'}}),false,TALENT_DESCS.rallyingCry);
     if(char.bloodOffering)                        addBtn(g,'🩸 Blood Offering','−1d6 HP → castings','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'bloodOffering'}}),false,TALENT_DESCS.bloodOffering);
-    if(char.overcast&&!char.overcastUsed)         addBtn(g,'💥 Overcast','Next spell +2d6','as-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'overcast'}}),false,TALENT_DESCS.overcast);
     if(char.metamagic&&!char.metamagicUsed)       addBtn(g,'🔮 Metamagic','Next spell free','as-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'metamagic'}}),false,TALENT_DESCS.metamagic);
     if(char.catastrophe&&!char.catastropheUsed)   addBtn(g,'💥 Catastrophe','10d6 all enemies','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'catastrophe'}}),false,TALENT_DESCS.catastrophe);
     EXTRA_ACTIVES.forEach(([k,lbl,sub,used,show])=>{ if(show&&!show(gs,players)) return; if(char[k]&&!used(char,gs)) addBtn(g,lbl,sub,'at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:k}}),false,TALENT_DESCS[k]||sub); });
