@@ -193,7 +193,7 @@ function renderBattle(gs,players,me){
     const c=p.char,isMe=p.id===myId;
     const acted=hasActedThisRound(gs,p.id);
     const hp=Math.max(0,c.health/c.maxHealth*100);
-    const src=tokenSrc(p.career);
+    const src=playerToken(p);
     const tokCls=['tok',!c.alive?'fallen':acted?'acted':'',isMe?'mine':'',p.frame?'frame-'+p.frame:''].join(' ').trim();
     const badge=!c.alive?'<span class="tok-badge tb-f">Fallen</span>':acted?'<span class="tok-badge tb-a">Acted ✓</span>':'';
     const row=document.createElement('div'); row.className='token-row';

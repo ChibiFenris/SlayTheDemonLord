@@ -4,6 +4,8 @@
 let TOKEN_FILES={};
 fetch('tokens/index.json',{cache:'no-cache'}).then(r=>r.json()).then(d=>{ TOKEN_FILES=d; if(lastState) renderState(lastState); }).catch(()=>{});
 function tokenSrc(name){ const f=TOKEN_FILES[name]; return f?'tokens/'+f:null; }
+// A warrior's portrait: their master or expert class if it has its own art, otherwise their people.
+function playerToken(p){ const c=(p&&p.char)||{}; return tokenSrc(p.career+'/'+c.masterPath)||tokenSrc(p.career+'/'+c.expertPath)||tokenSrc(p.career); }
 
 // Rules tables come from the server so client and server always agree.
 fetch('api/game-data').then(r=>r.json()).then(g=>{

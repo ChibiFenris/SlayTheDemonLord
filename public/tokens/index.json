@@ -55,5 +55,12 @@
  "dwarf": "dwarf.webp",
  "highelf": "highelf.webp",
  "empire": "warrior.webp",
- "woodelf": "waywatcher.webp"
+ "woodelf": "waywatcher.webp",
+ "highelf/swordmaster": "highelf-swordmaster.webp",
+ "highelf/spellbinder": "highelf-swordmaster.webp",
+ "highelf/sorcerer": "highelf-mage.webp",
+ "highelf/archmage": "highelf-mage.webp",
+ "highelf/transmuter": "highelf-mage.webp",
+ "highelf/whiteLion": "highelf-phoenix.webp",
+ "highelf/phoenixGuard": "highelf-phoenix.webp"
 }

@@ -112,7 +112,7 @@ async function makeRunImage(){
   const diff=['Standard','Grim','Doom'][gs.difficulty||0];
   g.fillStyle=tok('--ash'); g.font='28px "Alegreya", serif';
   g.fillText(`${gs.bossCount||0} boss${(gs.bossCount||0)===1?'':'es'} slain · ${diff}${gs.dailyKey?' · Daily Run '+gs.dailyKey:''}`,60,226);
-  const imgs=await Promise.all(party.map(p=>loadImg(tokenSrc(p.career))));
+  const imgs=await Promise.all(party.map(p=>loadImg(playerToken(p))));
   party.forEach((p,i)=>{
     const x=60+i*275, y=270;
     if(imgs[i]) g.drawImage(imgs[i],x,y,150,150);

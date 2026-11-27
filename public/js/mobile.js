@@ -200,7 +200,7 @@ function mRenderGame(gs,players,me){
   {
     const c=char, pct=c.health/c.maxHealth*100, xp=xpProgress(c);
     const acted=hasActedThisRound(gs,me.id);
-    const tok=tokenSrc(me.career);
+    const tok=playerToken(me);
     const chips=[...(c.conditions||[]).map(cd=>`<span class="chip chip-bad">${cd}</span>`),...(c.activeBuffs||[]).map(b=>`<span class="chip chip-good">${b.name} ${b.duration}r</span>`)];
     const card=mEl('div','m-me'+(c.alive?'':' is-dead'),`
       <div class="m-me-head">
