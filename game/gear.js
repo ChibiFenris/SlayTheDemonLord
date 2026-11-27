@@ -25,7 +25,7 @@ function weaponIsHoly(c){
   return weaponTraits(c).includes('blessed')||['blessedStrike','silverEdge','smiteTheFallen','channelFaith','holySmoke'].includes(k);
 }
 function resistsInsanity(c){ return armorTraits(c).includes('warded')||!!c._armorWitchCoat; }
-function immuneToPoison(c){ return !!(c.equippedArmor&&c.equippedArmor.special&&c.equippedArmor.special.key==='nurgleMask'); }
+function immuneToPoison(c){ return !!(c._nurgleMark||(c.equippedArmor&&c.equippedArmor.special&&c.equippedArmor.special.key==='nurgleMask')); }
 function isCursed(item){ return !!(item&&(item.cursed||(item.special&&/^Cursed/.test(item.special.desc||'')))); }
 
 // Roll 0–2 traits onto a freshly generated weapon or armour piece.

@@ -450,4 +450,33 @@ const logHas=(room,re)=>room.gs.log.some(l=>re.test(l.msg));
   const pick=room.gs.choice.options[0].id; S.events.voteChoice(room,room.players[0].id,pick);
   ok(room.gs.mutators.includes(pick)&&room.gs.phase==='event','and it lasts the run');
   S.foes.applyMutator(room,'horde'); room.gs.phase='event'; room.gs.depth=12; S._runNodeContent(room,room.gs,'combat',1); ok(room.gs.enemies.length>=2,'The Horde adds a foe to every fight'); }
+// 40. Zones
+{ const Z=require('../game/zones'); ok(Z.zoneFor(1).id==='drakwald'&&Z.zoneFor(10).id==='drakwald'&&Z.zoneFor(11).id==='undercity'&&Z.zoneFor(25).id==='wastes'&&Z.zoneFor(31).id==='drakwald','three regions of ten depths, looping in Endless');
+  let fav=0; for(let i=0;i<300;i++){ const e=S.pickEnemy(5,false,false,1,0); if((e.tags||[]).some(t=>['beast','greenskin'].includes(t))) fav++; } ok(fav>160,`the Drakwald is mostly beastmen and greenskins (${fav}/300)`);
+  let sk=0; for(let i=0;i<300;i++){ const e=S.pickEnemy(15,false,false,1,1); if((e.tags||[]).some(t=>['skaven','undead'].includes(t))) sk++; } ok(sk>160,`the Undercity is mostly Skaven and undead (${sk}/300)`);
+  const {room}=mkRoom(['warrior']); room.gs.phase='path'; S.enterNode(room,'loot'); ok(room.gs.zoneId==='drakwald'&&logHas(room,/The Drakwald/),'entering a region announces it');
+  room.gs.depth=10; room.gs.phase='path'; S.enterNode(room,'loot'); ok(room.gs.zoneId==='undercity'&&room.gs.bossBanner&&/Undercity/.test(room.gs.bossBanner.name),'and the next one'); }
+// 41. Patron gods
+{ const {room}=mkRoom(['warrior']); const p=room.players[0], c=p.char;
+  c.mutations=['a','b','c']; S.dark.gainCorruption(room,p,9,'test');
+  ok(c.patron&&S.dark.PATRONS[c.patron]&&logHas(room,/is claimed!/),'at 9 Corruption a Dark God claims you ('+c.patron+')');
+  const pat=c.patron; S.dark.gainCorruption(room,p,3,'test'); ok(c.patron===pat,'only once');
+  const k={career:'warrior',attrs:{str:10,agi:10,int:10,wil:10},maxHealth:30,health:30,defense:10,block:true}; S.dark.PATRONS.khorne.apply(k); ok(k.block===false&&k.weaponDmgBonus===2,'Khorne: more damage, no Block');
+  const n={maxHealth:30,health:30,defense:12}; S.dark.PATRONS.nurgle.apply(n); ok(S.gear.immuneToPoison(n)&&n.defense===10,'Nurgle: poison-proof but slower');
+  const sl={career:'rogue',attrs:{agi:12,wil:10},defense:12,baseAgiDef:12}; const lim=S.dark.limit(sl); sl.patron='slaanesh'; ok(S.dark.limit(sl)===lim-1,'Slaanesh: a lower Insanity limit');
+  ok(S.events.CHOICE_EVENTS.aldricHunt.requires(room.gs,room),'and the witch hunters come for the marked'); }
+// 42. Campfire
+{ const {room}=mkRoom(['warrior','priest']); const [a,b]=room.players; a.char.health=5; room.gs.phase='path'; S.enterNode(room,'rest');
+  ok(room.gs.phase==='campfire'&&a.char.campOptions.length===2,'a campfire lets each warrior choose');
+  const w=a.char.equippedWeapon, bonus=w.bonus;
+  S.handlePlayerAction(room,b.id,{action:'CAMPFIRE',data:{choice:'rest'}}); ok(room.gs.phase==='campfire','it waits for everyone');
+  b.char.health=1;
+  S.handlePlayerAction(room,a.id,{action:'CAMPFIRE',data:{choice:'upgrade',slot:'weapon'}});
+  ok(room.gs.phase==='event'&&w.bonus===bonus+1&&w.upgrades===1&&a.char.health===5,'upgrading hones the weapon instead of healing');
+  ok(b.char.health>1,'resting heals');
+  for(let i=0;i<3;i++){ room.gs.phase='path'; S.enterNode(room,'rest'); S.handlePlayerAction(room,a.id,{action:'CAMPFIRE',data:{choice:'upgrade',slot:'weapon'}}); S.handlePlayerAction(room,b.id,{action:'CAMPFIRE',data:{choice:'rest'}}); }
+  ok(w.upgrades===3,'up to three upgrades per item'); room.gs.phase='path'; S.enterNode(room,'rest'); ok(!a.char.campOptions.some(o=>o.slot==='weapon'),'then it is maxed out'); }
+// 43. Stats
+{ S.runlog._resetStats(); const st=S.runlog.stats(); ok(st&&typeof st.runs==='number'&&st.overall&&Array.isArray(st.relics)&&st.byClass,'the stats page has its numbers');
+  ok(require('fs').existsSync(require('path').join(__dirname,'..','public','stats.html')),'and its page'); }
 console.log(fails?fails+' FAILED':'all passed'); process.exit(fails?1:0);

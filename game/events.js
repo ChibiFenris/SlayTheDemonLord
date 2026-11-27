@@ -655,6 +655,22 @@ const CHOICE_EVENTS = {
     makeOptions(room) { return S.foes.mutatorOptions(room.gs).map(k => ({ id: k, label: S.foes.MUTATORS[k].label, desc: S.foes.MUTATORS[k].desc })); },
     resolve(room, opt) { S.foes.applyMutator(room, opt); },
   },
+  // Brother Aldric comes for anyone the Dark Gods have claimed.
+  aldricHunt: {
+    title: 'The Witch Hunter Returns', icon: '🔥', minDepth: 5, requires: (gs, room) => alive(room).some(p => p.char.patron) && !flag(gs, 'aldricHunt'),
+    text: 'Brother Aldric blocks the road with a dozen zealots and a cart of kindling. "I can smell the mark of the Dark Gods on you. Come quietly, or burn here."',
+    options: [
+      { id: 'fight', label: 'Fight them', desc: 'An elite fight against Aldric\'s zealots.' },
+      { id: 'repent', label: 'Submit to his purge', desc: 'Every marked warrior loses 3 Corruption but suffers the lash: −4 max HP. The mark itself stays.' },
+      { id: 'bribe', label: 'Pay him off', desc: '−40 silver from every warrior. Even zealots need coin.' },
+    ],
+    resolve(room, opt) {
+      const gs = room.gs, ps = alive(room); setFlag(gs, 'aldricHunt', opt);
+      if (opt === 'fight') { S.addLog(room, '🔥 "Then burn!" The zealots charge.', 'dmg'); return S.startFight(room, 'elite'); }
+      if (opt === 'bribe') { ps.forEach(p => { p.char.gold = Math.max(0, p.char.gold - 40); }); return S.addLog(room, '💰 Aldric weighs the purses, spits, and lets you pass. "Next time, I won\'t be bought."', 'sys'); }
+      ps.filter(p => p.char.patron).forEach(p => { S.dark.loseCorruption(p.char, 3); p.char.maxHealth = Math.max(5, p.char.maxHealth - 4); p.char.health = Math.min(p.char.health, p.char.maxHealth); S.addLog(room, `🔥 ${p.name} endures the purge: −3 Corruption, −4 max HP.`, 'chaos'); });
+    },
+  },
   // ── Party decisions ──────────────────────────────────────────────────────
   forkInTheRoad: {
     title: 'The Fork in the Road', icon: '🔀', minDepth: 3, requires: (gs, room) => alive(room).length >= 2,
@@ -679,7 +695,7 @@ function startChoiceEvent(room, key) {
   const ok = x => (CHOICE_EVENTS[x].minDepth || 0) <= depth && (!CHOICE_EVENTS[x].requires || CHOICE_EVENTS[x].requires(room.gs, room));
   const pool = Object.keys(CHOICE_EVENTS).filter(ok);
   // A recurring character whose next meeting is due shows up more often than a random event.
-  const story = pool.filter(x => /^(ravens|aldric)[23]$/.test(x));
+  const story = pool.filter(x => /^(ravens|aldric)[23]$|^aldricHunt$/.test(x));
   if (!key && story.length && Math.random() < 0.5) key = pickRandom(story);
   const k = key || pickRandom(pool);
   const ev = CHOICE_EVENTS[k];

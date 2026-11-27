@@ -84,7 +84,8 @@ function renderMainState(st){
   show('screen-game');
   updateAudio(gs,players);
   if(me.char&&me.char.pendingStatBoost&&!el('stat-choice-modal')) showStatChoiceModal(me.char.attrs);
-  el('g-loc').textContent=LOCS[Math.min(gs.depth,LOCS.length-1)];
+  el('g-loc').textContent=placeName(gs);
+  { const z=zoneOf(gs); document.body.dataset.zone=(gs.phase!=='lobby'&&z)?z.id:''; const zl=el('g-zone'); if(zl) zl.textContent=z?`${z.icon} ${z.name}`:''; }
   el('g-depth').textContent=gs.depth;
   const dm=el('g-depth-max'); if(dm) dm.textContent=gs.endless?' · Endless':'/30';
   const dt=el('g-depth-track'); dt.innerHTML='';
@@ -94,7 +95,7 @@ function renderMainState(st){
   const sb=el('g-state');
   const phMap={combat:'s-combat',merchant:'s-event',loot:'s-event',aftermath:'s-event',choice:'s-event',path:'s-explore',event:'s-explore'};
   sb.className='state-badge '+(phMap[gs.phase]||'s-explore');
-  sb.textContent=gs.phase==='combat'?'In Combat':gs.phase==='aftermath'?(gs.aftermath&&gs.aftermath.outcome==='fled'?'Escaped':'Victory'):gs.phase==='choice'?'Encounter':gs.phase==='merchant'?'Merchant':gs.phase==='loot'?'Loot Room':'Travelling';
+  sb.textContent=gs.phase==='combat'?'In Combat':gs.phase==='aftermath'?(gs.aftermath&&gs.aftermath.outcome==='fled'?'Escaped':'Victory'):gs.phase==='choice'?'Encounter':gs.phase==='merchant'?'Merchant':gs.phase==='loot'?'Loot Room':gs.phase==='campfire'?'Campfire':gs.phase==='relic'?'Relics':'Travelling';
 
   renderLog(gs.log);
   renderBattle(gs,players,me);
@@ -539,6 +540,25 @@ function showOverlay(players,onPick){
 }
 function closeOverlay(){ const o=el('ov'); if(o)o.remove(); }
 
+// ─── CAMPFIRE ─────────────────────────────────────────────────────────────────
+function buildCampfirePanel(gs,players,me){
+  const box=document.createElement('div'); box.className='relic-panel';
+  const mine=gs.campfire.choices&&gs.campfire.choices[myId], c=me.char;
+  if(!c.alive){ box.innerHTML='<div class="acted-msg">You have fallen; the others decide.</div>'; return box; }
+  if(mine){
+    const left=players.filter(p=>p.char&&p.char.alive&&p.connected&&!gs.campfire.choices[p.id]).map(p=>escapeHtml(p.name));
+    box.innerHTML=`<div class="acted-msg">You chose to <strong>${mine.choice==='rest'?'rest':'upgrade your '+(mine.slot==='armor'?'armour':'weapon')}</strong>.${left.length?` Waiting for ${left.join(', ')}…`:''}</div>`;
+    return box;
+  }
+  const grid=document.createElement('div'); grid.className='relic-grid';
+  const opt=(icon,name,desc,data)=>{ const b=document.createElement('button'); b.className='relic-opt'; b.innerHTML=`<span class="relic-icon">${icon}</span><span class="relic-name">${name}</span><span class="relic-desc">${desc}</span>`; b.onclick=()=>send('PLAYER_ACTION',{action:'CAMPFIRE',data}); grid.appendChild(b); };
+  opt('💤','Rest',`Heal half your HP (${c.health}/${c.maxHealth} now), lose 1 Insanity, loosen curses and get 1 boon in the next fight.`,{choice:'rest'});
+  (c.campOptions||[]).forEach(o=>opt(o.slot==='weapon'?'⚔':'🛡',`Upgrade ${escapeHtml(o.name)}`,`Work through the night instead of resting: ${o.what} (upgrade ${o.now+1} of 3). No healing.`,{choice:'upgrade',slot:o.slot}));
+  if(!(c.campOptions||[]).length) grid.insertAdjacentHTML('beforeend','<div class="hint">Your gear is fully upgraded (3 times each).</div>');
+  box.appendChild(grid);
+  box.insertAdjacentHTML('beforeend','<div class="hint">Everyone gets their abilities and castings back either way.</div>');
+  return box;
+}
 // ─── RELICS ───────────────────────────────────────────────────────────────────
 function buildRelicPanel(gs,players,me){
   const box=document.createElement('div'); box.className='relic-panel';
@@ -596,6 +616,12 @@ function renderActions(gs,players,me){
     body.appendChild(nodes);
     if(myVote) body.insertAdjacentHTML('beforeend',`<div class="acted-msg">Voted: <strong>${PATH_NAMES[myVote]||myVote}</strong> — waiting...</div>`);
     body.insertAdjacentHTML('beforeend',roadAheadHtml(gs));
+    return;
+  }
+
+  if(gs.phase==='campfire'&&gs.campfire){
+    heading.textContent='The campfire';
+    body.appendChild(buildCampfirePanel(gs,players,me));
     return;
   }
 

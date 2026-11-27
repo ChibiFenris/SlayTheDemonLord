@@ -180,13 +180,17 @@ Every finished run adds one line to `runs.jsonl` in the data folder: party, clas
 - **Corruption and Insanity (`game/dark.js`):** Corruption from Cursed Paths, cursed gear, warpstone and dark lores gives a mutation every 3 points (max 3). Insanity from terror, bosses and fallen allies; at the limit you snap (short madness + lasting disorder). Sigmarite Incense and Laudanum at the merchant, campfires remove 1 Insanity.
 - **Boss phases, elite modifiers, greenskins (`game/foes.js`):** every boss changes at half HP (scaled down for solo players); elites roll one of nine modifiers; Night Goblins, Squigs, Fanatics, Orc Boyz, Shamans, Black Orcs and Warboss Grubnak join the road.
 - **Endless mutators:** after each Endless boss past the third the warband votes for one of three lasting changes.
+- **Zones (`game/zones.js`):** the road runs through the Drakwald (beastmen, greenskins), the Altdorf Undercity (Skaven, undead) and the Chaos Wastes (Chaos, daemons), ten depths each; each region's factions turn up far more often, it has its own place names, a tint, and its own explore/battle/elite/boss music picked from the existing tracks (`ZONE_TRACKS` in `public/js/data.js`). Endless loops the regions.
+- **Campfire (`game/campfire.js`):** each warrior chooses to rest (heal half, −1 Insanity, loosen curses, boon next fight) or upgrade their equipped weapon (+1 damage) or armour (+1 Defence), three times per item. Everyone gets abilities and castings back.
+- **Dark Gods:** at 9 Corruption Khorne, Nurgle, Tzeentch or Slaanesh claims the character with a mark and a matching curse; Brother Aldric then comes hunting.
+- **Stats page:** `/stats` (the Ledger of the Road) shows real-run win rates by career and party size, where runs end, the deadliest foes, path and relic picks and Dark God marks, from `/api/stats`.
 - **Renown unlocks:** bronze (80), silver (200) and gold (300) portrait frames; start every run with a relic (150).
 - **Achievements:** 14, each with a title you can wear. Kept in the browser and on your account if signed in.
 - **Hall of fame:** `/api/halloffame` lists the best runs ever, shown in the lobby. Every run also gets a one-line chronicle on the end screen, in the history and on the share image.
 
 ## Code layout
 
-`server.js` sets up the web server, rooms, messages and run records. Game rules live in `game/`:
+`server.js` sets up the web server, rooms and messages. Game rules live in `game/`: `castings.js` (spell pools), `spawn.js` (picking and scaling enemies), `character.js` (building characters), `records.js` (daily run, run logging), `zones.js`, `campfire.js`,
 `combat.js` (rolls, buffs, damage over time), `actions.js` (attacks, spells, talents), `turns.js` (turn order, enemy turns, deaths), `nodes.js` (the road and its rooms), `items.js` (gear, merchant, items), `paths.js` (levelling), `enemies.js` and `events.js` (enemy specials and choice events), `relics.js`, `lore.js` (boss lines, the merchant), `foes.js` (boss phases, elite modifiers, greenskins, mutators), `dark.js` (corruption and insanity), `rng.js` (per-room seeded randomness), `statesync.js` (sending players only what changed), `accounts.js`, `runlog.js`, `persist.js` and `data.js` (all the tables).
 
 Every room has its own seeded random generator, so a run can be replayed from its seed. Browsers receive small state patches after the first full state; bots and tools that don't ask for patches still get full states.

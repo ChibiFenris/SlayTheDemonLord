@@ -103,7 +103,7 @@ function preTurn(room, ae, alive, plan) {
   // Squigs bounce about: a third of the time they miss everything.
   if (ae.squigBounce) {
     if (d(3) === 1) { S.addLog(room, `🍄 The <strong>${ae.name}</strong> bounces off a wall and lands nowhere near anyone.`, 'sys'); return 'done'; }
-    plan.mult = Math.max(plan.mult || 1, 1.5);
+    plan.mult = Math.max(plan.mult || 1, 1.3);
   }
   // Orc Boyz charge in with their choppas on their first turn.
   if (ae.choppaCharge && !ae._charged) { ae._charged = true; plan.extraBoon = true; plan.mult = Math.max(plan.mult || 1, 1.5); S.addLog(room, `🪓 <strong>${ae.name}</strong> charges in, choppa swinging!`, 'chaos'); }
@@ -135,7 +135,7 @@ function refreshMobAura(gs) {
   const greens = aliveFoes(gs).filter(x => (x.tags || []).includes('greenskin')).length;
   aliveFoes(gs).forEach(e => {
     if (!e.gobboMob) return;
-    const want = Math.min(3, Math.max(0, greens - 1)), delta = want - (e._mobAura || 0);
+    const want = Math.min(2, Math.max(0, greens - 1)), delta = want - (e._mobAura || 0);
     if (delta) { e.atk = (e.atk || 0) + delta; e.dmgBonus = (e.dmgBonus || 0) + delta; e._mobAura = want; refreshDmg(e); }
   });
 }

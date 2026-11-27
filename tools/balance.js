@@ -61,6 +61,7 @@ function runGame(careers, opts = {}) {
       }
       if (c.pendingStatBoost) return send(sk, 'CHOOSE_STAT', { attr: { warrior: 'str', rogue: 'agi', wizard: 'int', priest: 'wil', engineer: 'int', waywatcher: 'agi', witchhunter: 'agi', slayer: 'str' }[sk.career] || 'str' });
       if (gs.phase === 'aftermath' && gs.aftermath && !gs.aftermath.ready.includes(myId)) return send(sk, 'CONTINUE_AFTERMATH');
+      if (gs.phase === 'campfire' && gs.campfire && c.alive && !gs.campfire.choices[myId]) { const o = c.campOptions || []; const up = c.health / c.maxHealth > 0.75 && o.length; return send(sk, 'CAMPFIRE', up ? { choice: 'upgrade', slot: (o.find(x => x.slot === 'weapon') || o[0]).slot } : { choice: 'rest' }); }
       if (c.alive && gs.phase === 'relic' && gs.relic) {
         if (!gs.relic.picked.includes(myId) && c.relicOptions && c.relicOptions.length) return send(sk, 'PICK_RELIC', { key: c.relicOptions[0] });
         if (gs.relic.prize && !gs.relic.prize.votes[myId]) return send(sk, 'VOTE_PRIZE', { choice: 'need' });

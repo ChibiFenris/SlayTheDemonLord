@@ -18,30 +18,61 @@ function readRuns() {
   catch (e) { return []; }
 }
 
-// Aggregate numbers for balancing from real play.
+// Aggregate numbers for balancing from real play (cached for a minute).
+let statsCache = null, statsAt = 0;
 function stats() {
-  const runs = readRuns();
+  if (statsCache && Date.now() - statsAt < 60000) return statsCache;
+  const runs = readRuns().filter(r => Array.isArray(r.players));
   const pct = (n, d) => d ? Math.round(100 * n / d) : 0;
+  const summary = rs => ({
+    runs: rs.length,
+    winPct: pct(rs.filter(r => r.victory).length, rs.length),
+    pastBoss1Pct: pct(rs.filter(r => r.bosses >= 1).length, rs.length),
+    pastBoss2Pct: pct(rs.filter(r => r.bosses >= 2).length, rs.length),
+    avgDepth: rs.length ? +(rs.reduce((a, r) => a + (r.depth || 0), 0) / rs.length).toFixed(1) : 0,
+  });
   const group = key => {
     const out = {};
-    runs.forEach(r => { const ks = key(r); (Array.isArray(ks) ? ks : [ks]).forEach(k => { (out[k] = out[k] || []).push(r); }); });
-    return Object.fromEntries(Object.entries(out).map(([k, rs]) => [k, {
-      runs: rs.length,
-      winPct: pct(rs.filter(r => r.victory).length, rs.length),
-      pastBoss1Pct: pct(rs.filter(r => r.bosses >= 1).length, rs.length),
-      avgDepth: +(rs.reduce((a, r) => a + r.depth, 0) / rs.length).toFixed(1),
-    }]));
+    runs.forEach(r => { const ks = key(r); (Array.isArray(ks) ? ks : [ks]).filter(k => k != null).forEach(k => { (out[k] = out[k] || []).push(r); }); });
+    return Object.fromEntries(Object.entries(out).map(([k, rs]) => [k, summary(rs)]));
   };
+  const count = (list) => { const m = {}; list.forEach(k => { if (k) m[k] = (m[k] || 0) + 1; }); return Object.entries(m).sort((a, b) => b[1] - a[1]); };
   const killers = {};
   runs.filter(r => !r.victory && r.killer).forEach(r => { killers[r.killer] = (killers[r.killer] || 0) + 1; });
-  return {
+  // Per-player rows for things a character picks (paths, relics, patrons).
+  const pl = runs.flatMap(r => r.players.map(p => ({ ...p, victory: r.victory, depth: r.depth, bosses: r.bosses })));
+  const pickStats = key => {
+    const out = {};
+    pl.forEach(p => { const ks = [].concat(key(p) || []); ks.forEach(k => { (out[k] = out[k] || []).push(p); }); });
+    return Object.entries(out).map(([k, ps]) => ({ key: k, picks: ps.length, winPct: pct(ps.filter(p => p.victory).length, ps.length), avgDepth: +(ps.reduce((a, p) => a + (p.depth || 0), 0) / ps.length).toFixed(1) })).sort((a, b) => b.picks - a.picks);
+  };
+  const zoneOf = d => ['The Drakwald', 'The Altdorf Undercity', 'The Chaos Wastes'][Math.floor(Math.max(0, (d || 1) - 1) / 10) % 3];
+  const depthBuckets = {};
+  runs.forEach(r => { const b = r.victory ? 'Victory' : r.depth > 30 ? '31+' : `${Math.floor(((r.depth || 1) - 1) / 5) * 5 + 1}–${Math.floor(((r.depth || 1) - 1) / 5) * 5 + 5}`; depthBuckets[b] = (depthBuckets[b] || 0) + 1; });
+  statsCache = {
+    generated: new Date().toISOString(),
     runs: runs.length,
+    overall: summary(runs),
+    deepestEndless: runs.filter(r => r.endless).reduce((a, r) => Math.max(a, r.depth || 0), 0),
     byClass: group(r => [...new Set(r.players.map(p => p.career))]),
+    soloByClass: group(r => r.players.length === 1 ? r.players[0].career : null),
     byPartySize: group(r => String(r.players.length)),
     byDifficulty: group(r => ['Standard', 'Grim', 'Doom'][r.difficulty || 0]),
-    topKillers: Object.entries(killers).sort((a, b) => b[1] - a[1]).slice(0, 10),
+    byMode: group(r => r.endless ? 'Endless runs' : r.daily ? 'Daily runs' : 'Regular runs'),
+    depthBuckets,
+    deathsByZone: count(runs.filter(r => !r.victory).map(r => zoneOf(r.depth))),
+    topKillers: Object.entries(killers).sort((a, b) => b[1] - a[1]).slice(0, 12),
+    expertPaths: pickStats(p => p.expert ? `${p.career}:${p.expert}` : null).slice(0, 30),
+    masterPaths: pickStats(p => p.master ? `${p.career}:${p.master}` : null).slice(0, 30),
+    relics: pickStats(p => p.relicKeys || []).slice(0, 20),
+    patrons: pickStats(p => p.patron),
+    recent: runs.slice(-12).reverse().map(r => ({ ts: r.ts, victory: !!r.victory, depth: r.depth, bosses: r.bosses, endless: !!r.endless, killer: r.killer || null,
+      players: r.players.map(p => ({ career: p.career, level: p.level })), chronicle: r.chronicle || null })),
   };
+  statsAt = Date.now();
+  return statsCache;
 }
+function _resetStats() { statsCache = null; }
 
 // ── Daily Run ────────────────────────────────────────────────────────────────
 // Every day picks one blessing and one hardship; everyone who plays the Daily
@@ -97,4 +128,4 @@ function hallOfFame(n = 10) {
 }
 function _resetHof() { hofCache = null; }
 
-module.exports = { hallOfFame, _resetHof, appendRun, readRuns, stats, todayKey, dailyMods, addDailyScore, dailyBoard, DAILY_BLESSINGS, DAILY_HARDSHIPS };
+module.exports = { _resetStats, hallOfFame, _resetHof, appendRun, readRuns, stats, todayKey, dailyMods, addDailyScore, dailyBoard, DAILY_BLESSINGS, DAILY_HARDSHIPS };

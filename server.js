@@ -21,10 +21,11 @@ app.get('/api/game-data', (req, res) => {
   const cooldowns = Object.fromEntries(Object.entries(COOLDOWNS).map(([k, d]) => [k, { rounds: d.rounds, judgement: d.judgement || null }]));
   Object.values(TRADITIONS).forEach(t => (t.spells || []).forEach(s => { spellElements[s.name] = t.elemType || 'arcane'; }));
   const charms = {}; CHARM_SHOP_KEYS.forEach(k => { charms[k] = { name: CHARMS[k].name, desc: CHARMS[k].desc }; });
-  res.json({ xpThresholds: XP_THRESHOLDS, castingsTable: CASTINGS_TABLE, spellElements, charms, cooldowns, relics: relics.RELICS, careerPaths: CAREER_PATHS, traditionAccess: require('./game/data').TRADITION_ACCESS, mutations: dark.MUTATIONS, disorders: dark.DISORDERS, mutators: foes.MUTATORS, affixes: Object.fromEntries(Object.entries(foes.ELITE_AFFIXES).map(([k,v])=>[k,{label:v.label,desc:v.desc}])),
+  res.json({ xpThresholds: XP_THRESHOLDS, castingsTable: CASTINGS_TABLE, spellElements, charms, cooldowns, relics: relics.RELICS, zones: zones.ZONES.map(z=>({id:z.id,name:z.name,icon:z.icon,places:z.places})), careerPaths: CAREER_PATHS, traditionAccess: require('./game/data').TRADITION_ACCESS, mutations: dark.MUTATIONS, patrons: Object.fromEntries(Object.entries(dark.PATRONS).map(([k,v])=>[k,{label:v.label,icon:v.icon,desc:v.desc}])), disorders: dark.DISORDERS, mutators: foes.MUTATORS, affixes: Object.fromEntries(Object.entries(foes.ELITE_AFFIXES).map(([k,v])=>[k,{label:v.label,desc:v.desc}])),
     difficulties: DIFFICULTIES.map(x => ({ id: x.id, name: x.name, hp: x.hp, dmg: x.dmg, reward: x.reward })) });
 });
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.get('/stats', (req, res) => res.sendFile(path.join(__dirname, 'public', 'stats.html')));
 app.set('trust proxy', 1);
 // Music and portraits rarely change: let browsers cache them for a week.
 app.use('/music', express.static(path.join(__dirname, 'public', 'music'), { maxAge: '7d' }));
@@ -60,7 +61,7 @@ function sendTo(ws, msg) { if (ws && ws.readyState === 1) ws.send(JSON.stringify
 const { d, rd, modVal } = require('./game/dice');
 const {
   CAREERS, NOVICE_PATHS, EXPERT_PATHS, MASTER_PATHS, CASTINGS_TABLE, TRADITIONS, CAREER_PATHS, pathAllowed, pathLabel, traditionAllowed,
-  ENEMY_POOLS, XP_THRESHOLDS, POISON_CAP, NODE_TYPES, SCROLL_SPELLS_LIST, LOOT_CONS_LIST,
+  XP_THRESHOLDS, POISON_CAP, NODE_TYPES, SCROLL_SPELLS_LIST, LOOT_CONS_LIST,
   WEAPON_BASES, ARMOR_BASES, LEGENDARY_ITEMS, SHOP_CONSUMABLES, SCROLL_SPELLS_SHOP, ENEMY_DROPS,
   CHARMS, CHARM_SHOP_KEYS, COOLDOWNS, cooldownFor, } = require('./game/data');
 
@@ -104,134 +105,19 @@ function publicState(room) {
   };
 }
 
-// ─── SPELL CASTINGS (shared per rank, refilled each fight) ─────────────────
-function maxCastings(power, rank) {
-  const row = CASTINGS_TABLE[Math.min(power, 10)] || CASTINGS_TABLE[0];
-  return row[Math.min(rank, 3)] || 0;
-}
-
-// Spells of the same rank share one casting pool (castingPools.R0..R3).
-function uniqRanks(spells){ const seen=new Set(); return (spells||[]).filter(sp=>!seen.has(sp.rank)&&seen.add(sp.rank)); }
-
-function refreshCastingPools(char) {
-  if (!char.castingPools) char.castingPools = {};
-  char.knownSpells.forEach(sp => {
-    if (char.castingPools['R'+sp.rank] === undefined) {
-      char.castingPools['R'+sp.rank] = maxCastings(char.power, sp.rank);
-    }
-  });
-}
-
-function restoreCastingPools(char) {
-  char.castingPools = {};
-  char.knownSpells.forEach(sp => {
-    char.castingPools['R'+sp.rank] = maxCastings(char.power, sp.rank);
-  });
-}
-
-function castingsLeft(char, spellName, rank) {
-  if (!char.castingPools) refreshCastingPools(char);
-  const v = char.castingPools['R'+rank];
-  return v !== undefined ? v : maxCastings(char.power, rank);
-}
-
-function spendCasting(char, spellName, rank) {
-  if (!char.castingPools) refreshCastingPools(char);
-  if (char.castingPools['R'+rank] === undefined) {
-    char.castingPools['R'+rank] = maxCastings(char.power, rank);
-  }
-  if (char.castingPools['R'+rank] > 0) {
-    char.castingPools['R'+rank]--;
-    return true;
-  }
-  return false;
-}
-
-function regainCasting(char, maxRank) {
-  if (!char.castingPools) refreshCastingPools(char);
-  let bestSpell = null, bestRank = 99;
-  char.knownSpells.forEach(sp => {
-    if (sp.rank <= maxRank && sp.rank < bestRank) {
-      const max = maxCastings(char.power, sp.rank);
-      if ((char.castingPools['R'+sp.rank] || 0) < max) {
-        bestSpell = sp; bestRank = sp.rank;
-      }
-    }
-  });
-  if (bestSpell) { char.castingPools['R'+bestSpell.rank]++; return bestRank; }
-  return -1;
-}
-
-// ─── SPELL TRADITIONS ─────────────────────────────────────────────────────────
-
-function getSpellsForPower(traditionId, power) {
-  const t = TRADITIONS[traditionId];
-  if (!t) return [];
-  return t.spells.filter(s => s.rank === 0 || s.rank <= power);
-}
-
-// ─── ENEMY SCALING & SELECTION ──────────────────────────────────────────────
-
-function enemyDmgDice(threat, isElite, bossCount) {
-  if (threat === 'Boss') {
-    if (bossCount === 0) return {n:1,s:6,b:3}; // Boss 1: 1d6+3
-    if (bossCount === 1) return {n:2,s:6,b:3}; // Boss 2: 2d6+3 (avg 10, harder)
-    return {n:2,s:6,b:4};                       // Boss 3 (Saurian): 2d6+4 (final boss, hardest)
-  }
-  if (bossCount === 0) return {n:1,s:6,b:0};
-  if (bossCount === 1) return {n:2,s:6,b:0};
-  return {n:2,s:6,b:2}; // zone 3: extra +2 damage for high-tier enemies
-}
-
-// Archers, gunners and spellcasters can reach the back row.
-const RANGED_ENEMIES = new Set(['Ungor Skirmisher','Ratling Gun Team','Warlock Engineer','Blue Horror','Brimstone Horror','Banshee','Grey Seer Skrittar','Bray-Shaman Ghorros',"Daemon Prince Vhar'kul",'Skaldrak the Elder Wyrm','Nurgle Cultist']);
-// Endless Mode keeps counting bosses past three; each one beyond the third is a tier.
-const endlessTier = bossCount => Math.max(0, (bossCount||0) - 2);
-const runWon = gs => !gs.endless && (gs.depth >= 30 || gs.bossCount >= 3);
-function scaleEnemy(tmpl, playerCount, isElite, bossCount) {
-  const e = JSON.parse(JSON.stringify(tmpl));
-  if (RANGED_ENEMIES.has(e.name)) e.ranged = true;
-  const bossHpMult = bossCount>=2 ? 1.40 : bossCount===1 ? 1.25 : 1.0; // tougher scaling post-boss
-  const bossHpFlat = bossCount >= 2 ? 30 : bossCount === 1 ? 15 : 0; // +15 post-boss1, +30 post-boss2
-  const tier = endlessTier(bossCount); // 0 in a normal run; +1 for every boss past the third in Endless
-  e.hp = e.maxHp = Math.round(e.hp * (1 + (playerCount-1)*0.9) * bossHpMult * (1 + 0.4*tier + 0.05*tier*tier)) + bossHpFlat + 20*tier;
-  if (e.threat === 'Boss' && playerCount === 1) e.hp = e.maxHp = Math.round(e.hp * (bossCount >= 1 ? 0.78 : 0.88)); // a lone warrior faces smaller bosses, especially later on
-  e.conditions = []; e.activeDebuffs = []; e.isElite = isElite;
-  const dd = enemyDmgDice(e.threat, isElite, bossCount);
-  e.dmgNum=dd.n; e.dmgSides=dd.s; e.dmgBonus=dd.b;
-  if (tier) {
-    e.dmgBonus += Math.round(tier*1.5); e.atk = (e.atk||0) + tier; e.ac = (e.ac||10) + Math.floor(tier/2);
-    if (Array.isArray(e.gold)) e.gold = e.gold.map(g => Math.round(g * (1 + 0.25*tier)));
-    e.endlessTier = tier;
-  }
-  if (isElite && e.threat!=='Boss') {
-    e.hp = e.maxHp = Math.round(e.hp * 1.5); // 1.5× HP for elites
-    e.atk = (e.atk||0) + 2;
-    e.dmgBonus = (e.dmgBonus||0) + 3;
-    e.threat='Elite';
-    foes.applyEliteAffix(e);
-  }
-  prepareEnemy(e, bossCount);
-  e.dmgDisplay=`${e.dmgNum}d${e.dmgSides}${e.dmgBonus?'+'+e.dmgBonus:''}`;
-  return e;
-}
-
-function pickEnemy(depth, isElite, isBoss, playerCount, bossCount) {
-  let pool;
-  if (isBoss) {
-    if (bossCount >= 3)      pool=[ENEMY_POOLS.boss1,ENEMY_POOLS.boss2,ENEMY_POOLS.boss3][bossCount%3]; // Endless: the bosses come round again, stronger
-    else if (depth >= 30)    pool=ENEMY_POOLS.boss3;
-    else if (bossCount===0)  pool=ENEMY_POOLS.boss1;
-    else if (bossCount===1)  pool=ENEMY_POOLS.boss2;
-    else                     pool=ENEMY_POOLS.boss3;
-  }
-  else if (depth>20) pool=isElite?ENEMY_POOLS.high:ENEMY_POOLS.high;
-  else if (depth>10) pool=isElite?ENEMY_POOLS.mid:ENEMY_POOLS.mid;
-  else               pool=isElite?ENEMY_POOLS.low:ENEMY_POOLS.low;
-  const validPool = pool.filter(e => e && e.threat && e.name && e.hp); // safety: skip non-enemy items
-  if (!validPool.length) { console.error('pickEnemy: no valid enemies in pool', pool); return scaleEnemy(pool[0], playerCount, isElite, bossCount); }
-  return scaleEnemy(validPool[Math.floor(Math.random()*validPool.length)], playerCount, isElite, bossCount);
-}
+// ─── GAME MODULES ─────────────────────────────────────────────────────────────
+// castings: spell pools · spawn: picking and scaling enemies · records: daily run
+// and run logging · character: building characters · zones: the three regions ·
+// campfire: rest or upgrade. Each gets the server helpers it needs via bind().
+const { maxCastings, uniqRanks, refreshCastingPools, restoreCastingPools, castingsLeft, spendCasting, regainCasting, getSpellsForPower } = require('./game/castings');
+const spawn = require('./game/spawn');
+const { enemyDmgDice, endlessTier, runWon, scaleEnemy, pickEnemy } = spawn;
+const records = require('./game/records');
+const { hasDaily, startDailyRun, applyDailyToEnemies, chronicleLine, recordRunEnd } = records;
+const character = require('./game/character');
+const { applyLoneSurvivor, buildChar, talentHeal } = character;
+const zones = require('./game/zones');
+const campfire = require('./game/campfire');
 
 // Enemy mechanics, gear rules and shared helpers live in game/.
 const { pickRandom, aliveEnemies } = require('./game/util');
@@ -240,23 +126,15 @@ const { applyCharm, hasRangedWeapon, armorTraits, charmKey, cleanseCurses, gearR
 const events = require('./game/events');
 const enemies = require('./game/enemies');
 const { enemyAfterHit, enemyDamageMods, enemyDefence, enemyOnWeaponHit, enemyPostTurn, enemyPreTurn, isEnemyHidden, onCombatStart, onEnemyDeath, prepareEnemy, refreshEnemyAuras, sortTurnOrder } = enemies;
+spawn.bind({ prepareEnemy, foes });
+records.bind({ addLog, addToInventory });
+character.bind({ addLog });
+campfire.bind({ addLog, addBuff, cleanseCurses, restorePower, dark, foes });
 enemies.bind({ addLog, addBuff, addDebuff, checkDeath, resolveEnemyDeath, scaleEnemy, hasRelic, dark });
 relics.bind({ addLog, refreshCastingPools, genLegendaryItem, addToInventory, showPathChoices });
 foes.bind({ addLog, checkDeath, resolveEnemyDeath, summonEnemy: enemies.summonEnemy, isBlocking: enemies.isBlocking, immuneToPoison, pickEnemy, relics, dark });
-dark.bind({ addLog, addBuff, addDebuff, resistsInsanity });
+dark.bind({ addLog, addBuff, addDebuff, resistsInsanity, refreshCastingPools });
 events.bind({ foes, dark, startFight:(room,kind)=>startNodeContent(room,kind), addLog, addBuff, checkDeath, addToInventory, genArmor, genWpn, refreshCastingPools, SCROLL_SPELLS_LIST, makeCharm: gear.makeCharm, makeCursedItem: gear.makeCursedItem });
-
-// ─── CHARACTER BUILDER ───────────────────────────────────────────────────────
-// Lone Survivor: Warriors, Wizards, Priests and Witch Hunters who start a run alone get a little extra staying power.
-// Warrior: +6 max HP, the others +5 max HP; all +1 HP per level.
-const LONE_SURVIVOR = { warrior:{hp:6, power:0}, wizard:{hp:5, power:0}, priest:{hp:5, power:0}, witchhunter:{hp:6, power:0}, engineer:{hp:5, power:0}, waywatcher:{hp:4, power:0} };
-function applyLoneSurvivor(room, player){
-  const ls=LONE_SURVIVOR[player.career]; if(!ls||!player.char) return;
-  const c=player.char; c.loneSurvivor=true;
-  c.maxHealth+=ls.hp; c.health+=ls.hp;
-  if(ls.power){ c.power+=ls.power; c.maxPower=(c.maxPower||0)+ls.power; refreshCastingPools(c); }
-  addLog(room,`🕯 <strong>Lone Survivor</strong> — ${player.name} walks the dark road alone: +${ls.hp} max HP${ls.power?', +1 Power':''}.`,'loot');
-}
 
 // ─── ABILITY COOLDOWNS ─────────────────────────────────────────────────────────
 // Called at the end of every combat round. An ability used this round starts its
@@ -328,202 +206,6 @@ function takeOverSeat(ws, room, name){
   addLog(room,`🛡 <strong>${seat.name}</strong> takes up ${oldName}'s arms and joins the warband.`,'loot');
   resumeRoom(room);
   broadcastState(room.code);
-}
-
-// ─── DAILY RUN ────────────────────────────────────────────────────────────────
-function hasDaily(gs,id){ return !!(gs.dailyMods&&gs.dailyMods.includes(id)); }
-function startDailyRun(room){
-  const gs=room.gs; gs.dailyKey=runlog.todayKey(); const mods=runlog.dailyMods(gs.dailyKey); gs.dailyMods=mods.map(m=>m.id);
-  const seed=rng.seedFromString('daily:'+gs.dailyKey); // same seed for everyone today
-  if(!gs.rng) gs.rng=rng.makeRng(seed); gs.rng.seed=seed; gs.rng.s=seed; // reseed in place: it is the generator active right now
-  addLog(room,`📜 <strong>Daily Run</strong> — ${mods.map(m=>`<strong>${m.name}</strong>: ${m.desc}`).join(' · ')}`,'loot');
-  if(hasDaily(gs,'provisioned')) room.players.forEach(p=>{ if(!p.char) return; addToInventory(p.char,'Healing Draught'); addToInventory(p.char,'Healing Draught'); p.char.gold+=20; });
-}
-function applyDailyToEnemies(gs, list){
-  if(!gs.dailyMods) return;
-  list.forEach(e=>{
-    if(hasDaily(gs,'ironHide')){ e.maxHp=Math.round(e.maxHp*1.2); e.hp=e.maxHp; }
-    if(hasDaily(gs,'bloodMoon')){ e.dmgBonus=(e.dmgBonus||0)+1; e.dmgDisplay=`${e.dmgNum}d${e.dmgSides}${e.dmgBonus?'+'+e.dmgBonus:''}`; }
-    if(hasDaily(gs,'brittleFoes')) e.ac=Math.max(5,(e.ac||10)-1);
-    if(hasDaily(gs,'hardened')) e.ac=(e.ac||10)+1;
-  });
-}
-
-// ─── RUN RECORDS ──────────────────────────────────────────────────────────────
-// Every finished run is logged once (for /api/stats); daily runs also go on the board.
-function stripTags(h){ return String(h||'').replace(/<[^>]+>/g,'').trim(); }
-// One line for the end screen, history and share card.
-function chronicleLine(room,victory,killer){
-  const gs=room.gs, party=room.players.filter(p=>p.char);
-  const who=party.length===1?`${party[0].name} the ${CAREERS[party[0].career]?CAREERS[party[0].career].label:party[0].career}`:`A warband of ${party.length}`;
-  const relicN=party.reduce((a,p)=>a+((p.char.relics||[]).length),0);
-  const bits=[];
-  if(gs.bossCount) bits.push(`slew ${gs.bossCount} boss${gs.bossCount>1?'es':''}`);
-  if(gs.cursedTaken) bits.push(`walked ${gs.cursedTaken} cursed path${gs.cursedTaken>1?'s':''}`);
-  if(relicN) bits.push(`carried ${relicN} relic${relicN>1?'s':''}`);
-  const did=bits.length?bits.join(', ').replace(/, ([^,]*)$/,' and $1'):'fought on';
-  return victory?`${who} ${did}, and conquered the depths in ${gs.totalRounds||'?'} rounds.`:`${who} ${did}, before falling at depth ${gs.depth}${gs.endless?' in Endless Mode':''}${killer?' to '+killer:''}.`;
-}
-function recordRunEnd(room){
-  const gs=room.gs; if(gs._recorded) return; gs._recorded=true;
-  if(gs.practice) return; // practice fights don't count
-  const victory=gs.phase==='victory';
-  let killer=null;
-  if(!victory){ const m=stripTags(gs.deathCause).match(/^(?:[^\w]*\s*)?(.+?) (?:hits|crits|strikes|slams|mauls)/); killer=m?m[1]:((gs.enemies||[]).find(e=>e)||{}).name||null; }
-  gs.chronicle=chronicleLine(room,victory,killer);
-  const rec={ ts:new Date().toISOString(), victory, depth:gs.depth||0, bosses:gs.bossCount||0, difficulty:gs.difficulty||0,
-    daily:gs.dailyKey||null, endless:!!gs.endless, killer, rounds:gs.totalRounds||0, cursed:gs.cursedTaken||0, chronicle:gs.chronicle,
-    players:room.players.filter(p=>p.char).map(p=>({ name:p.name, career:p.career, level:p.char.level, expert:p.char.expertPath||null, master:p.char.masterPath||null, title:p.title||null, relics:(p.char.relics||[]).length })) };
-  runlog.appendRun(rec);
-  if(gs.dailyKey) runlog.addDailyScore(gs.dailyKey,{ names:rec.players.map(p=>p.name), careers:rec.players.map(p=>p.career), depth:rec.depth, bosses:rec.bosses, victory, rounds:gs.totalRounds||0, ts:rec.ts });
-}
-
-function buildChar(career) {
-  const c = CAREERS[career];
-  const attrs = {...c.startAttrs};
-  const baseDefense = attrs.agi + c.armorDef;
-  const wpnDmgStr=c.weaponDmg||'1d6'; const wpnBonusParts=wpnDmgStr.split('+'); const wpnDicePart=wpnBonusParts[0]; const wpnStartBonus=parseInt(wpnBonusParts[1]||'0')||0;
-  const _wpnStat=c.weaponIntBased?'int':c.weaponWilBased?'wil':c.weaponStr?'str':'agi';
-  const _wpnType=c.weaponType||(c.weaponStr||c.weaponIntBased?'blunt':'slashing');
-  const startWpn = {id:'w_start_'+uuidv4(),name:'Starting Weapon',dice:wpnDicePart,stat:_wpnStat,bonus:wpnStartBonus,dmgType:_wpnType,type:'weapon',desc:`${wpnDmgStr}+${wpnStartBonus} — starting gear`};
-  const startArmor = c.armorDef>0 ? {id:'a_start_'+uuidv4(),name:'Starting Armour',defBonus:c.armorDef,type:'armor',desc:`+${c.armorDef} Defense`} : null;
-  return {
-    career, attrs,
-    health:c.startHp, maxHealth:c.startHp,
-    defense:baseDefense, baseAgiDef:attrs.agi,
-    perception:attrs.int,
-    power:0, maxPower:0, castingPools:{}, castingsUsed:0, // castingsUsed kept for compat
-    insanity:0, corruption:0, conditions:[], activeBuffs:[], _poisonedStacks:0,
-    inventory:[
-      {name:'Healing Draught',qty:2},
-      {itemObj:startWpn,name:startWpn.name,qty:1,type:'weapon'},
-      ...(startArmor?[{itemObj:startArmor,name:startArmor.name,qty:1,type:'armor'}]:[]),
-    ],
-    gold:15,
-    level:1, xp:0,
-    novicePath:null, expertPath:null, masterPath:null,
-    block:true, _blockUsed:false, revive:true, _reviveUsed:false, row:(career==='wizard'||career==='witchhunter'||c.startRow==='back')?'back':'front', mutations:[], disorders:[], relics:[],
-    pendingLevelUp:false, pendingPathTier:null,  // 'novice'|'expert'|'master'
-    weaponTraining:false, catchBreath:false, catchBreathUsed:false,
-    combatProwess:false, combatExpertise:false,
-    pacedStrikes:false, pacedStrikesUsed:false,
-    rage:false, rageBoon:false,
-    quickStep:false,
-    bloodOffering:false,
-    utilityFocus:false,
-    assassination:false,
-    swiftFeet:false,
-    trickery:false, trickeryUsed:false, _trickeryPoisonProc:0, _trickeryFirstHit:false,
-    nimbleRecovery:false, nimbleUsed:false,
-    spellRecovery:false, spellRecoveryUsed:false,
-    sharedRecovery:false, sharedUsed:false,
-    shieldwall:false, toughness:false,
-    quickstrike:false, evasion:false, _quickstrikeUsed:false,
-    deathblow:false, shadowstep:false,
-    overcast:false, metamagic:false, metamagicUsed:false,
-    burningSoul:false, firewall:false, curse:false, _curseUsed:false, _curseTarget:null, _pacedHitCount:0,
-    weaponMaster:false,
-    druidFervor:false, druidsFury:false, _druidsFuryUsed:false, _druidsFuryRounds:0,
-    holyFervor:false, divineSmite:false, divineSmiteUsed:false,
-    massHeal:false, massHealUsed:false, resurrection:false, resurrectionUsed:false,
-    warlordAura:false, unstoppable:false, unstoppableUsed:false,
-    rallyingCry:false, rallyingUsed:false, sweepingBlow:false,
-    phantomStrike:false, _phantomStrikeUsed:false, bladestorm:false,
-    spellsurge:false, spellsurgeUsed:false, catastrophe:false,
-    holyAura:false, miracleHeal:false, miracleUsed:false,
-    equippedWeapon:startWpn, equippedArmor:startArmor,
-    weaponDmgBonus:0, weaponAtkBonus:0,
-    // Talent flags
-    pendingStatBoost:false, bleedOnCrit:false, bleedOnHit:false, deepBleed:false, venomOnFirstHit:false,
-    poisonBlade:false, burnOnSpell:false, _venomHitUsed:false,
-    // Defence passives
-    ironResolve:false, bulwark:false, rageTrigger:false,
-    frenzy:false, huntersMark:false, _huntersMarkTarget:null, skirmish:false, pressTheAdvantage:false, weaponAptitude:false,
-    layOnHands:false, _layOnHandsCount:0, sacredAegis:false, fadePassive:false, _fadedLastRound:false, smokeScreen:false,
-    _smokeScreenUsed:false,
-    // Rogue talents
-    shadowOpening:false, _shadowOpeningUsed:false, deadMansHand:false, quickHands:false, exploitWeakness:false,
-
-    // Arcane talents
-    arcaneStrike:false, flameEdge:false,
-    // Fire talents
-    conflagration:false, overload:false, _overloadUsed:false,
-    resonance:false, surge:false, chainReaction:false, darkPact:false, _darkPactUsed:false, hungeringFlame:false,
-    preparedSpell:false, _preparedSpellUsed:false, lingeringMagic:false,
-    // Support talents
-    triage:false, _triageUsed:false, natureBond:false,
-    evilEye:false, _evilEyeUsed:false, hex:false, divineFavour:false,
-    // Divine talents
-    foresight:false, _foresightUsed:false,
-    revelation:false, _revelationUsed:false, righteousFury:false, wrathOfSigmar:false,
-    // Martial masters
-    shieldBash:false, _shieldBashUsed:false,
-    fortressStance:false, bodyguard:false, _bodyguardUsed:false, perfectDefence:false, _perfectDefenceUsed:false, vengeancePassive:false,
-    relentless:false, _relentlessCount:0, battleOrders:false, _battleOrdersUsed:false,
-    // Command talents
-    intercept:false, _interceptUsed:false,
-    devastatingCharge:false, _devastatingChargeUsed:false, killingMomentum:false, _killingMomentumUsed:false, inspire:false, warCry:false,
-    _warCryUsed:false, markHeretic:false, _markHereticTarget:null, purgeTheWicked:false,
-    // Shadow talents
-    shadowStep:false, _shadowStepUsed:false,
-    vanish:false, acrobaticRiposte:false, _acrobaticRiposteUsed:false, flicker:false, _flickerUsed:false,
-    // Executioner talents
-    cleanup:false,
-    _cleanupUsed:false, deadAim:false, _deadAimUsed:false, unrelenting:false, flurryBleed:false,
-    // Arcane masters
-    elementalAttunement:false, _volatileFormUsed:false,
-    ballLightning:false, overcharge:false, _overchargeUsed:false,
-    // Necro talents
-    lifeDrain:false, arcaneSurge:false, _arcaneSurgeUsed:false, spellLeech:false, glamourVeil:false, _glamourUsed:false, misdirection:false, _misdirectArmed:false, undyingHunger:false, chaosTouch:false, _chaosTouchActive:false,
-    uncontrolledPower:false, _uncontrolledPowerUsed:false,
-    // Protection talents
-    counterspell:false, _counterspellUsed:false, ward:false, doubleCharge:false,
-    _doubleChargeCount:0, forceOfWill:false,
-    // Archmage talents
-    esotericKnowledge:false, _esotericKnowledgeUsed:false, arcaneMastery:false, _arcaneMasteryApplied:false,
-    spellEcho:false, _spellEchoUsed:false,
-    // Divine masters
-    overflowingGrace:false, protectiveBlessing:false, lastRites:false, vigil:false,
-    divineVessel:false, _divineVesselApplied:false, grace:false, _graceUsed:false, blessedBlade:false, holyFire:false,
-
-    // Exorcist talents
-    banish:false, _banishUsed:false, sanctify:false,
-    // Brute talents
-    fortitude:false, endure:false,
-    // Combat state flags
-    rageTriggerActive:false,
-    _armorLastTarget:false,
-    // Armour special flags
-    _armorFireImmune:false, _armorFlatDR:false, _armorChaosWard:false, _armorPackScorn:false, _armorSpellbound:false,
-    _armorBloodscent:false, _armorRighteous:false, _dwarfForgedStunUsed:false, _spellboundR0Used:false,
-    // Weapon special flags
-    _wpnBladeguard:false, _wpnBladeguardDef:false,
-    _wpnChannelFaith:false, _wpnHolySmoke:false, _wpnHolySmokeProc:false, _wpnBlessedStrike:false, _wpnArcaneFocus:false, _wpnArcaneFocusMissed:false,
-    _wpnSpellblade:false, _wpnSpellbladeUsed:false, _wpnSmite:false, _wpnSmiteUsed:false, _wpnSunder:false, _wpnOpeningShot:false,
-    _wpnOpeningShotFired:false, _wpnReloading:false, _wpnMarksmanship:false,
-    // Weapon combat flags
-    _wpnCleave:false, _wpnCleaveReady:false, _wpnCleaveBonus:false,
-    _wpnReach:false, _wpnRiposte:false, _wpnRiposteUsedThisRound:false, _wpnSilverEdge:false, _wpnUnstable:false, _wpnRuneStrike:false,
-    _wpnRuneStrikeUsed:false, _wpnRuneStrikeActive:false,
-    // Legendary item flags
-    _legVenomFang:false, _legVenomFangProc:false, _legBeastlordMaul:false, _legBeastlordMaulUsed:false,
-    _legVarghulfTalon:false, _legVarghulfLeech:0, _legChainbreaker:false, _legSunstoneBlade:false, _legPrimordialStaff:false, _legExtinctionAegis:false,
-    _legAncientScale:false, _legAncientScaleUsed:false, _legShroud:false, _legShroudUsed:false, _legShroudActive:false, _legBloodDrinker:false,
-    _legRatking:false, _chainbreakerCritProc:false, _legBerserk:false, _legBerserkUsed:false, _legBerserkBonusActive:false,
-    _legWarpstoneGauntlet:false, _warpstoneKillStr:0, _legPrimordialTalisman:false, _primordialTalismanUsed:false,
-    traditions:[], scrollSpells:{}, stimulantBoon:0, sharpeningStone:false, luckyPendant:false,
-    alive:true,
-    spellcaster:c.spellcaster, tradition:c.tradition||null,
-    knownSpells:[],
-    pendingSpellChoices:0,
-    merchantStock:null, lootOptions:null, pendingRevive:false,
-  };
-}
-
-function talentHeal(char) {
-  const attrs = char.attrs || {};
-  const highestMod = Math.max(0, ...Object.values(attrs).map(v => Math.floor((v-10)/2)));
-  return rd(1,6) + highestMod; // nerfed from *2 (Catch Breath, Nimble Recovery, Rallying Cry)
 }
 
 // ─── BATTLE SPOILS & AFTERMATH ───────────────────────────────────────────────
@@ -1007,6 +689,7 @@ function handlePlayerAction(room,playerId,payload,ws){
     if(alive.every(p=>gs.lootPicked.includes(p.id))){gs.phase='event';gs.lootRoom=null;addLog(room,'Loot divided. Press onward.','sys');}
     return;
   }
+  if(action==='CAMPFIRE'){ campfire.choose(room,playerId,data&&data.choice,data&&data.slot); return; }
   if(action==='PICK_RELIC'){ relics.pickRelic(room,playerId,data&&data.key); return; }
   if(action==='VOTE_PRIZE'){ relics.votePrize(room,playerId,data&&data.choice); return; }
   if(action==='SET_ROW'){ const r=data&&data.row; if(r!=='front'&&r!=='back') return;
@@ -1191,6 +874,7 @@ function unblockAfterDisconnect(room, player){
   if(!here.length) return;
   if(gs.phase==='aftermath') aftermathReady(room);
   else if(gs.phase==='relic'&&gs.relic) relics.maybeFinish(room);
+  else if(gs.phase==='campfire'&&gs.campfire) campfire.maybeFinish(room);
   else if(gs.phase==='choice'&&gs.choice&&here.every(p=>gs.choice.votes[p.id])) events.resolveChoice(room);
   else if(gs.phase==='path'&&gs.pathChoices&&here.every(p=>gs.pathVotes[p.id])) resolvePath(room);
   else if(gs.phase==='loot'&&gs.lootRoom&&here.every(p=>gs.lootPicked.includes(p.id))){ gs.phase='event'; gs.lootRoom=null; addLog(room,'Loot divided. Press onward.','sys'); }
@@ -1200,7 +884,7 @@ function unblockAfterDisconnect(room, player){
 
 // Hand every split-out module the helpers it uses. Runs once all of server.js
 // has been evaluated, so constants defined anywhere in this file are ready.
-const MODULE_API = { ARMOR_BASES, CAREERS, CHARMS, CHARM_SHOP_KEYS, DIFFICULTIES, ENEMY_DROPS, EXPERT_PATHS, LEGENDARY_ITEMS, LOOT_CONS_LIST, MASTER_PATHS, NODE_TYPES, NOVICE_PATHS, POISON_CAP, SCROLL_SPELLS_LIST, SCROLL_SPELLS_SHOP, SELF_TICK_DOTS, SHOP_CONSUMABLES, TRADITIONS, WEAPON_BASES, XP_THRESHOLDS, addBuff, addDebuff, addLog, advanceTurn, aliveEnemies, applyBleed, applyBurn, applyCharm, applyDailyToEnemies, applyPoison, armorTraits, broadcastState, buildPlayerShop, buildTurnOrder, castingsLeft, charmKey, checkDeath, cleanseCurses, d, dark, enemyAfterHit, enemyDamageMods, enemyDefence, enemyOnWeaponHit, enemyPostTurn, enemyPreTurn, engineerRoundTick, events, foes, gearRoundTick, gearVsEnemyAttack, getSpellsForPower, getTargetEnemy, hasRangedWeapon, hasRelic, immuneToPoison, isCursed, isEnemyHidden, labelOf, lore, makeCharm, makeCursedItem, maxCastings, modVal, onCombatStart, pickEnemy, pickRandom, rd, refreshCastingPools, regainCasting, relics, resolveEnemyDeath, restoreCastingPools, rollAttack, rollEnemyAttack, rollTraits, scaleEnemy, sendTo, sortTurnOrder, spendCasting, startSpoils, talentHeal, tickBuffs, tickCooldowns, tickDebuffs, triggerGameover, uniqRanks, uuidv4, weaponTraits };
+const MODULE_API = { ARMOR_BASES, CAREERS, CHARMS, CHARM_SHOP_KEYS, DIFFICULTIES, ENEMY_DROPS, EXPERT_PATHS, LEGENDARY_ITEMS, LOOT_CONS_LIST, MASTER_PATHS, NODE_TYPES, NOVICE_PATHS, POISON_CAP, SCROLL_SPELLS_LIST, SCROLL_SPELLS_SHOP, SELF_TICK_DOTS, SHOP_CONSUMABLES, TRADITIONS, WEAPON_BASES, XP_THRESHOLDS, addBuff, addDebuff, addLog, advanceTurn, aliveEnemies, applyBleed, applyBurn, applyCharm, applyDailyToEnemies, applyPoison, armorTraits, broadcastState, buildPlayerShop, buildTurnOrder, campfire, castingsLeft, charmKey, checkDeath, cleanseCurses, d, dark, enemyAfterHit, enemyDamageMods, enemyDefence, enemyOnWeaponHit, enemyPostTurn, enemyPreTurn, engineerRoundTick, events, foes, gearRoundTick, gearVsEnemyAttack, getSpellsForPower, getTargetEnemy, hasRangedWeapon, hasRelic, immuneToPoison, isCursed, isEnemyHidden, labelOf, lore, makeCharm, makeCursedItem, maxCastings, modVal, onCombatStart, pickEnemy, pickRandom, rd, refreshCastingPools, regainCasting, relics, resolveEnemyDeath, restoreCastingPools, rollAttack, rollEnemyAttack, rollTraits, scaleEnemy, sendTo, sortTurnOrder, spendCasting, startSpoils, talentHeal, tickBuffs, tickCooldowns, tickDebuffs, triggerGameover, uniqRanks, uuidv4, weaponTraits, zones };
 [combatMod, pathsMod, nodesMod, turnsMod, itemsMod, actionsMod].forEach(m => m.bind(MODULE_API));
 
 // Start the server when run directly (node server.js). Tests require() this file

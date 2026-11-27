@@ -2,9 +2,9 @@
 // The road: path votes, room contents, unknown-room encounters and loot rooms.
 // Moved out of server.js unchanged. The server hands this module the helpers it
 // uses through bind() once everything is defined (see the bottom of server.js).
-let ARMOR_BASES, CHARM_SHOP_KEYS, DIFFICULTIES, LOOT_CONS_LIST, NODE_TYPES, SCROLL_SPELLS_LIST, WEAPON_BASES, addBuff, addDebuff, addLog, advanceTurn, applyDailyToEnemies, buildPlayerShop, buildTurnOrder, cleanseCurses, d, dark, events, foes, hasRelic, lore, makeCharm, maxCastings, onCombatStart, pickEnemy, pickRandom, refreshCastingPools, relics, restoreCastingPools, rollTraits, startSpoils, uniqRanks, uuidv4;
+let ARMOR_BASES, CHARM_SHOP_KEYS, DIFFICULTIES, LOOT_CONS_LIST, NODE_TYPES, SCROLL_SPELLS_LIST, WEAPON_BASES, addDebuff, addLog, advanceTurn, applyDailyToEnemies, buildPlayerShop, buildTurnOrder, campfire, d, dark, events, foes, hasRelic, lore, makeCharm, maxCastings, onCombatStart, pickEnemy, pickRandom, refreshCastingPools, relics, restoreCastingPools, rollTraits, startSpoils, uniqRanks, uuidv4, zones;
 function bind(api) {
-  ({ ARMOR_BASES, CHARM_SHOP_KEYS, DIFFICULTIES, LOOT_CONS_LIST, NODE_TYPES, SCROLL_SPELLS_LIST, WEAPON_BASES, addBuff, addDebuff, addLog, advanceTurn, applyDailyToEnemies, buildPlayerShop, buildTurnOrder, cleanseCurses, d, dark, events, foes, hasRelic, lore, makeCharm, maxCastings, onCombatStart, pickEnemy, pickRandom, refreshCastingPools, relics, restoreCastingPools, rollTraits, startSpoils, uniqRanks, uuidv4 } = api);
+  ({ ARMOR_BASES, CHARM_SHOP_KEYS, DIFFICULTIES, LOOT_CONS_LIST, NODE_TYPES, SCROLL_SPELLS_LIST, WEAPON_BASES, addDebuff, addLog, advanceTurn, applyDailyToEnemies, buildPlayerShop, buildTurnOrder, campfire, d, dark, events, foes, hasRelic, lore, makeCharm, maxCastings, onCombatStart, pickEnemy, pickRandom, refreshCastingPools, relics, restoreCastingPools, rollTraits, startSpoils, uniqRanks, uuidv4, zones } = api);
 }
 // ─── PATH/NODE LOGIC ─────────────────────────────────────────────────────────
 function pickThreeNodes() {
@@ -77,6 +77,9 @@ function startNodeContent(room, nodeType) {
 
 function enterNode(room, nodeType) {
   const gs=room.gs; gs.depth++; gs.pathChoices=null; gs.pathVotes={};
+  // Crossing into a new region.
+  const z=zones.zoneFor(gs.depth);
+  if(gs.zoneId!==z.id){ gs.zoneId=z.id; addLog(room,`${z.icon} <strong>${z.name}.</strong> ${z.blurb}`,'boss'); gs.bossBanner={name:`${z.icon} ${z.name}`,text:z.blurb,ts:Date.now(),zone:true}; }
   const playerCount=room.players.filter(p=>p.connected&&p.char&&p.char.alive).length;
   _runNodeContent(room, gs, nodeType, playerCount);
 }
@@ -139,37 +142,7 @@ function _runNodeContent(room, gs, nodeType, playerCount) {
     if(_ft&&_ft.type==='enemy'){ gs.activeTurnIdx=-1; advanceTurn(room); } // enemy has the first strike
     return;
   }
-  if(nodeType==='rest') {
-    gs.phase='event';
-    room.players.forEach(p=>{ if(p.char) p.char.activeBuffs=(p.char.activeBuffs||[]).filter(b=>b.duration<100); });
-    addLog(room,'🔥 A campfire. The warband rests.','heal');
-    room.players.forEach(p=>{
-      if(!p.char||!p.char.alive) return;
-      const amt=Math.ceil(p.char.maxHealth*0.5*dark.restFactor(p.char)*(foes.hasMutator(gs,'leanTimes')?0.5:1)*(foes.hasMutator(gs,'vampiricPact')?0:1));
-      if(p.char.insanity) dark.loseInsanity(p.char,1);
-      p.char.health=Math.min(p.char.maxHealth,p.char.health+amt);
-      p.char.catchBreathUsed=false; p.char.nimbleUsed=false; p.char.sharedUsed=false;
-      p.char.pacedStrikesUsed=false; p.char.rageBoon=false; p.char.metamagicUsed=false; p.char.overcastUsed=false;
-      p.char.trickeryUsed=false; p.char.sharpeningStone=false;
-      p.char.divineSmiteUsed=false;
-      cleanseCurses(p.char,true);
-    p.char.massHealUsed=false;
-    p.char.resurrectionUsed=false;
-      p.char._divineSmiteCount=0;
-      // unstoppableUsed intentionally NOT reset per-combat (once per run)
-    p.char.rallyingUsed=false;
-    p.char.spellsurgeUsed=false;
-    p.char.miracleUsed=false;
-      p.char.conditions=p.char.conditions.filter(c=>c==='Diseased');
-    (p.char.activeBuffs||[]).forEach(b=>{ if(b.defBonus) p.char.defense-=b.defBonus; }); // undo buff defence before clearing
-    p.char.activeBuffs=[];
-      addLog(room,`${p.name} recovers ${amt} HP.`,'heal');
-    });
-    restorePower(room,'Rest site');
-    room.players.forEach(p=>{if(p.char&&p.char.alive)addBuff(p.char,'Well Rested',{atkBoon:1,consumeOnAttack:true},99);});
-    addLog(room,'Rest complete — warband ready. First attack next combat has 1 boon.','sys');
-    return;
-  }
+  if(nodeType==='rest') { campfire.startCampfire(room); return; }
   if(nodeType==='merchant') {
     gs.phase='merchant';
     room.players.forEach(p=>{ if(!p.char||!p.char.alive) return;

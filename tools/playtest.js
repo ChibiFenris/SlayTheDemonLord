@@ -52,6 +52,7 @@ function run(nPlayers, comp, seedLabel){ return new Promise(res=>{
         if(!c.alive) return;
         if(gs.phase==='choice'&&gs.choice&&!gs.choice.votes[b.id]) return act('CHOOSE_EVENT',{option:pick(gs.choice.options).id});
         if(gs.phase==='aftermath'&&gs.aftermath&&!gs.aftermath.ready.includes(b.id)) return act('CONTINUE_AFTERMATH');
+        if(gs.phase==='campfire'&&gs.campfire&&!gs.campfire.choices[b.id]){ const o=c.campOptions||[]; return (o.length&&Math.random()<0.4)?act('CAMPFIRE',{choice:'upgrade',slot:pick(o).slot}):act('CAMPFIRE',{choice:'rest'}); }
         if(gs.phase==='relic'&&gs.relic){ if(!gs.relic.picked.includes(b.id)&&c.relicOptions&&c.relicOptions.length) return act('PICK_RELIC',{key:pick(c.relicOptions)}); if(gs.relic.prize&&!gs.relic.prize.votes[b.id]) return act('VOTE_PRIZE',{choice:pick(['need','pass'])}); }
         if(gs.phase==='path'&&gs.pathChoices&&!(gs.pathVotes||{})[b.id]) return act('VOTE_PATH',{nodeType:pick(gs.pathChoices)});
         if(gs.phase==='loot') return act('PICK_LOOT',{pick:pick(['coins','consumable','weapon','armor','charm'])});

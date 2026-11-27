@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Ledger of the Road — Shadows Over Reikland</title>
+<meta name="description" content="How warbands fare on the road: win rates by career, the deadliest foes, the paths and relics players choose.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Grenze+Gotisch:wght@500;700&family=Alegreya:ital,wght@0,400;0,500;0,700;1,400&family=Alegreya+SC:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .ledger{max-width:1100px;margin:0 auto;padding:24px 16px 60px}
+  .ledger-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line-strong);padding-bottom:14px;margin-bottom:22px}
+  .ledger-head h1{font-family:var(--f-display);font-size:clamp(30px,6vw,52px);color:var(--blood-bright);line-height:1}
+  .ledger-head p{color:var(--ash);font-style:italic}
+  .ledger-head a{color:var(--brass-bright);font-family:var(--f-label)}
+  .tally{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);margin-bottom:26px}
+  .tally div{background:var(--iron);padding:12px 14px}
+  .tally b{display:block;font-family:var(--f-display);font-size:30px;color:var(--bone);line-height:1.1}
+  .tally span{font-family:var(--f-label);color:var(--ash);font-size:13px}
+  .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,480px),1fr));gap:22px}
+  section.card{background:var(--iron);border:1px solid var(--iron-edge);padding:16px 16px 12px}
+  section.card h2{font-family:var(--f-label);color:var(--brass-bright);font-size:18px;margin-bottom:4px}
+  section.card .note{color:var(--ash);font-size:14px;margin-bottom:12px}
+  .rows{display:grid;grid-template-columns:minmax(110px,auto) 1fr auto;gap:6px 10px;align-items:center;font-size:15px}
+  .rows .lbl{color:var(--bone)}
+  .rows .lbl small{color:var(--ash-deep);display:block;font-size:12px}
+  .bar{height:12px;background:var(--iron-deep);border:1px solid var(--iron-edge);position:relative}
+  .bar i{position:absolute;inset:0 auto 0 0;background:var(--brass)}
+  .bar.win i{background:var(--verdigris)}
+  .bar.death i{background:var(--blood-bright)}
+  .rows .num{font-variant-numeric:tabular-nums;color:var(--ash);text-align:right;min-width:72px}
+  .rows .num b{color:var(--bone)}
+  .empty{color:var(--ash);font-style:italic}
+  .recent{list-style:none;display:grid;gap:8px}
+  .recent li{border-left:3px solid var(--iron-edge);padding:2px 0 2px 10px;font-size:15px}
+  .recent li.won{border-color:var(--verdigris)}
+  .recent li.lost{border-color:var(--blood)}
+  .recent small{color:var(--ash);display:block}
+  .wide{grid-column:1/-1}
+  @media (max-width:520px){ .rows{grid-template-columns:minmax(90px,auto) 1fr auto;font-size:14px} .rows .num{min-width:60px} }
+</style>
+</head>
+<body>
+<main class="ledger">
+  <header class="ledger-head">
+    <div><h1>The Ledger of the Road</h1><p>How warbands have fared on the road to the Final Abyss.</p></div>
+    <a href="./">← Back to the game</a>
+  </header>
+  <div id="ledger" aria-live="polite"><p class="empty">Reading the ledger…</p></div>
+</main>
+<script src="js/stats-page.js"></script>
+</body>
+</html>

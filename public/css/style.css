@@ -792,3 +792,12 @@ body.ui-mobile .path-node{min-height:var(--tap);}
 .dpip.boss:not(.done):not(.cur){border-color:var(--blood-bright)}
 
 .dark-line{font-size:.85em;color:var(--ash)}
+
+/* Zones: a tint over the page for each region */
+.map-zone,.m-zone{font-size:.8em;color:var(--ash);letter-spacing:.02em}
+.m-zone{display:block}
+body[data-zone]::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;transition:background .8s}
+body[data-zone="drakwald"]::before{background:radial-gradient(ellipse 100% 70% at 50% -10%,rgba(60,96,48,.30),transparent 70%)}
+body[data-zone="undercity"]::before{background:radial-gradient(ellipse 100% 70% at 50% -10%,rgba(96,84,52,.30),transparent 70%)}
+body[data-zone="wastes"]::before{background:radial-gradient(ellipse 100% 70% at 50% -10%,rgba(140,28,48,.34),transparent 70%)}
+.stats-link{margin-top:10px;font-size:.9em}.stats-link a{color:var(--brass-bright)}

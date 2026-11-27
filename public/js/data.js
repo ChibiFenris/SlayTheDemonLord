@@ -578,13 +578,14 @@ function relicChipsHtml(c){
 }
 
 // Paths open to each career (with their career names) and the lores each may learn: sent by the server.
-let CAREER_PATHS_C={}, TRADITION_ACCESS_C={}, MUTATIONS_C={}, DISORDERS_C={}, MUTATORS_C={}, AFFIXES_C={};
+let PATRONS_C={}, CAREER_PATHS_C={}, TRADITION_ACCESS_C={}, MUTATIONS_C={}, DISORDERS_C={}, MUTATORS_C={}, AFFIXES_C={};
 function darkHtml(c){
   const muts=(c.mutations||[]).map(k=>{const m=MUTATIONS_C[k]||{label:k,desc:''};return `<span class="chip chip-bad tip" tabindex="0">🧬 ${m.label}<span class="tiptext">${m.desc}</span></span>`;});
   const dis=(c.disorders||[]).map(k=>{const m=DISORDERS_C[k]||{label:k,desc:''};return `<span class="chip chip-bad tip" tabindex="0">🌀 ${m.label}<span class="tiptext">${m.desc}</span></span>`;});
+  if(c.patron){ const m=PATRONS_C[c.patron]||{label:c.patron,icon:'☠',desc:''}; muts.unshift(`<span class="chip chip-bad tip patron" tabindex="0">${m.icon} ${m.label}<span class="tiptext">${m.desc}</span></span>`); }
   return {muts,dis,line:`☢ ${c.corruption||0} Corruption · 🌀 ${c.insanity||0}/${insanityLimit(c)} Insanity`};
 }
-function insanityLimit(c){ return 4+Math.max(0,Math.floor((((c.attrs&&c.attrs.wil)||10)-10)/2))+((c.career==='witchhunter'||c.career==='slayer')?1:0); }
+function insanityLimit(c){ return 4+(c.patron==='slaanesh'?-1:0)+Math.max(0,Math.floor((((c.attrs&&c.attrs.wil)||10)-10)/2))+((c.career==='witchhunter'||c.career==='slayer')?1:0); }
 
 // One line of Warhammer flavour for each career's paths (the mechanics follow underneath).
 const PATH_FLAVOUR={
@@ -604,4 +605,21 @@ const PATH_FLAVOUR={
     guildMaster:'A Guild Master of the Engineers\' Guild of Nuln.', longRifle:'A marksman with a Hochland long rifle. One shot, one kill.' },
   waywatcher:{ ranger:'A Waystalker of Athel Loren, hunting those who trespass in the forest.', assassin:'A shadow-walker who moves unseen through the trees.',
     shadowblade:'A Shadow Warrior, grim and silent, striking from where no one looks.', executioner:'A Wardancer of Loec, all blades and acrobatics.' },
+};
+
+// ─── ZONES ────────────────────────────────────────────────────────────────────
+// Three regions of ten depths each (Endless loops them). Names come from the server.
+let ZONES_C=[];
+const zoneIdx=d=>Math.floor(Math.max(0,(d||1)-1)/10)%3;
+function zoneOf(gs){ return ZONES_C[zoneIdx(gs&&gs.depth)]||null; }
+function placeName(gs){ const z=zoneOf(gs); return z?z.places[Math.max(0,((gs.depth||1)-1))%10]:LOCS[Math.min((gs&&gs.depth)||0,LOCS.length-1)]; }
+// Music for each region, chosen from the game's tracks to fit its mood:
+// the Drakwald gets the airy explore theme and the brisk battle theme; the
+// Undercity the brooding main theme and the fast, bass-heavy second battle theme;
+// the Chaos Wastes the slow, sparse defeat theme while exploring and the elite
+// and second boss themes in its fights, so everything there feels like a big fight.
+const ZONE_TRACKS={
+  drakwald: { explore:'music/explore-theme.mp3', battle:'music/battle-theme.mp3',     elite:'music/elite-theme.mp3',      boss:'music/1stboss-theme.mp3' },
+  undercity:{ explore:'music/main-theme.mp3',    battle:'music/2ndbattle-theme.mp3',  elite:'music/elite-theme.mp3',      boss:'music/2ndboss-theme.mp3' },
+  wastes:   { explore:'music/defeat-theme.mp3',  battle:'music/elite-theme.mp3',      elite:'music/2ndboss-theme.mp3',    boss:'music/final-boss-theme.mp3' },
 };

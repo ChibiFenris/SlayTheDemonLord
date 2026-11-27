@@ -14,6 +14,8 @@ fetch('api/game-data').then(r=>r.json()).then(g=>{
   if(g.difficulties) GAME_DIFFICULTIES=g.difficulties;
   if(g.cooldowns) COOLDOWNS_C=g.cooldowns;
   if(g.relics) RELICS_C=g.relics;
+  if(g.zones) ZONES_C=g.zones;
+  if(g.patrons) PATRONS_C=g.patrons;
   if(g.careerPaths) CAREER_PATHS_C=g.careerPaths;
   if(g.traditionAccess) TRADITION_ACCESS_C=g.traditionAccess;
   if(g.mutations) MUTATIONS_C=g.mutations;

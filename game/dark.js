@@ -39,7 +39,33 @@ const MADNESS = [
   { label: 'Dark Visions',  desc: 'your next attack is a critical hit, but you take 1d6 damage', fx: c => { c._deadAimArmed = true; c.health = Math.max(1, c.health - rd(1, 6)); } },
 ];
 
-const limit = c => 4 + Math.max(0, Math.floor((((c.attrs && c.attrs.wil) || 10) - 10) / 2)) + (c.career === 'witchhunter' || c.career === 'slayer' ? 1 : 0);
+// At 9 Corruption one of the Dark Gods claims you. Each mark is a great gift
+// with a matching curse. Which god depends on how you fight (and a little luck).
+const PATRONS = {
+  khorne:   { label: 'Mark of Khorne',   icon: '🩸', desc: '+2 weapon damage and +6 max HP, but the Blood God despises cowards: you can no longer Block.',
+    apply(c) { c.weaponDmgBonus = (c.weaponDmgBonus || 0) + 2; c.maxHealth += 6; c.health += 6; c.block = false; } },
+  nurgle:   { label: 'Mark of Nurgle',   icon: '🪰', desc: '+12 max HP and immune to poison, but your rotting flesh slows you: −2 Defence.',
+    apply(c) { c.maxHealth += 12; c.health += 12; c.defense -= 2; c._nurgleMark = true; } },
+  tzeentch: { label: 'Mark of Tzeentch', icon: '🔮', desc: 'Spellcasters gain +1 Power, others +2 to hit, but the Changer of Ways toys with you: each fight starts with a random boon or bane.',
+    apply(c) { if (c.spellcaster) { c.power += 1; c.maxPower = (c.maxPower || 0) + 1; if (S.refreshCastingPools) S.refreshCastingPools(c); } else c.weaponAtkBonus = (c.weaponAtkBonus || 0) + 2; } },
+  slaanesh: { label: 'Mark of Slaanesh', icon: '💜', desc: '+1 AGI and Evasion (the first attack against you each round has a bane), but excess frays the mind: your Insanity limit drops by 1.',
+    apply(c) { c.attrs.agi += 1; c.baseAgiDef = (c.baseAgiDef || 0) + 1; c.defense += 1; c.evasion = true; } },
+};
+function patronFor(c) {
+  if (Math.random() < 0.25) return pickRandom(Object.keys(PATRONS));
+  if (c.spellcaster) return 'tzeentch';
+  if (c.career === 'warrior' || c.career === 'slayer') return 'khorne';
+  if (c.career === 'rogue' || c.career === 'waywatcher') return 'slaanesh';
+  return 'nurgle';
+}
+function claimByPatron(room, p) {
+  const c = p.char; if (c.patron) return;
+  const k = patronFor(c); c.patron = k; PATRONS[k].apply(c);
+  S.addLog(room, `${PATRONS[k].icon} <strong>${p.name} is claimed!</strong> The Dark Gods have noticed them: <strong>${PATRONS[k].label}</strong> — ${PATRONS[k].desc}`, 'crit');
+  room.gs.bossBanner = { name: `${PATRONS[k].icon} ${PATRONS[k].label}`, text: `${p.name} has been claimed by the Dark Gods.`, ts: Date.now() };
+}
+
+const limit = c => 4 + (c.patron === 'slaanesh' ? -1 : 0) + Math.max(0, Math.floor((((c.attrs && c.attrs.wil) || 10) - 10) / 2)) + (c.career === 'witchhunter' || c.career === 'slayer' ? 1 : 0);
 const resists = c => S.resistsInsanity && S.resistsInsanity(c);
 
 function gainCorruption(room, p, n, source) {
@@ -55,6 +81,7 @@ function gainCorruption(room, p, n, source) {
       S.addLog(room, `🧬 <strong>Mutation!</strong> Chaos changes ${p.name}: <strong>${MUTATIONS[k].label}</strong> — ${MUTATIONS[k].desc}`, 'crit');
     }
   }
+  if (before < 9 && c.corruption >= 9) claimByPatron(room, p);
 }
 function loseCorruption(c, n) { c.corruption = Math.max(0, (c.corruption || 0) - n); }
 
@@ -81,6 +108,7 @@ function loseInsanity(c, n) { c.insanity = Math.max(0, (c.insanity || 0) - n); }
 function onFightStart(room) {
   room.players.forEach(p => {
     const c = p.char; if (!c || !c.alive) return;
+    if (c.patron === 'tzeentch') { if (Math.random() < 0.5) { S.addBuff(c, "Tzeentch's Favour", { atkBoon: 1 }, 2); S.addLog(room, `🔮 Tzeentch smiles on ${p.name} — 1 boon for 2 rounds.`, 'spell'); } else { S.addBuff(c, "Tzeentch's Jest", { bane: 1 }, 2); S.addLog(room, `🔮 Tzeentch laughs at ${p.name} — 1 bane for 2 rounds.`, 'chaos'); } }
     if ((c.disorders || []).includes('haunted')) S.addBuff(c, 'Haunted', { bane: 1, consumeOnAttack: true }, 99);
   });
   if (room.players.some(p => p.char && p.char.alive && (p.char.mutations || []).includes('daemonVisage')))
@@ -94,4 +122,4 @@ const restFactor = c => (c.disorders || []).includes('nightTerrors') ? 0.75 : 1;
 const shopFactor = c => (c.mutations || []).includes('daemonVisage') ? 1.25 : 1;
 const has = (c, k) => !!(c && ((c.mutations || []).includes(k) || (c.disorders || []).includes(k)));
 
-module.exports = { bind, MUTATIONS, DISORDERS, MADNESS, limit, gainCorruption, loseCorruption, gainInsanity, loseInsanity, onFightStart, onRoundEnd, restFactor, shopFactor, has };
+module.exports = { bind, PATRONS, claimByPatron, MUTATIONS, DISORDERS, MADNESS, limit, gainCorruption, loseCorruption, gainInsanity, loseInsanity, onFightStart, onRoundEnd, restFactor, shopFactor, has };

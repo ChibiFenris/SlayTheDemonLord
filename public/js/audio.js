@@ -10,23 +10,27 @@ function getTrackKey(gs, players) {
   if (gs.phase === 'gameover') return 'defeat';
   if (gs.phase === 'victory')  return 'victory';
   if (gs.phase === 'merchant') return 'merchant';
-  if (gs.phase === 'loot' || gs.phase === 'event' || gs.phase === 'path') return 'explore';
+  const zid = (typeof zoneOf === 'function' && zoneOf(gs)) ? zoneOf(gs).id : null;
+  const z = k => (zid && ZONE_TRACKS[zid] && ZONE_TRACKS[zid][k]) ? `${k}@${zid}` : k;
+  if (gs.phase === 'loot' || gs.phase === 'event' || gs.phase === 'path' || gs.phase === 'campfire' || gs.phase === 'relic' || gs.phase === 'choice') return z('explore');
   if (gs.phase === 'combat' && gs.enemy) {
     const threat = gs.enemy.threat;
     if (threat === 'Boss') {
+      if (gs.endless && gs.bossCount >= 3) return z('boss');
       if (gs.depth >= 30) return 'boss3';
       if (gs.bossCount === 0) return 'boss1';
       if (gs.bossCount === 1) return 'boss2';
       return 'boss3';
     }
-    if (threat === 'Elite') return 'elite';
-    return 'battle';
+    if (threat === 'Elite') return z('elite');
+    return z('battle');
   }
-  return 'explore';
+  return z('explore');
 }
 
 function pickTrackSrc(key) {
-  const t = TRACKS[key];
+  const [k, zid] = key.split('@');
+  const t = zid ? ZONE_TRACKS[zid][k] : TRACKS[key];
   if (!t) return null;
   if (Array.isArray(t)) return t[Math.floor(Math.random() * t.length)];
   return t;
@@ -82,7 +86,7 @@ function initAudio() {
 
 function updateAudio(gs, players) {
   const key = getTrackKey(gs, players);
-  if (key === 'battle' && currentTrackKey !== 'battle') {
+  if (key.startsWith('battle') && currentTrackKey !== key) {
     currentTrackKey = null; // force re-pick
   }
   playTrack(key);
