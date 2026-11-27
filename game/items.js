@@ -196,7 +196,7 @@ function equipItem(char, inventoryIndex) {
 function handleBuy(room,player,itemId){
   const char=player.char, stock=char.merchantStock;
   if(!stock){sendTo(player.ws,{type:'ERROR',payload:{msg:'No shop open.'}});return;}
-  const all=[stock.weaponEnhance,stock.statBoost,stock.weapon1,stock.weapon2,stock.weapon3,stock.armor,stock.armor2,stock.charm,stock.charm2,stock.scroll,...stock.consumables].filter(Boolean);
+  const all=[stock.weaponEnhance,stock.statBoost,stock.weapon1,stock.weapon2,stock.weapon3,stock.armor,stock.armor2,stock.charm,stock.charm2,stock.scroll,stock.heirloom,...stock.consumables].filter(Boolean);
   const item=all.find(i=>i.id===itemId);
   if(!item||item.bought){sendTo(player.ws,{type:'ERROR',payload:{msg:'Already purchased.'}});return;}
   if(char.gold<item.cost){sendTo(player.ws,{type:'ERROR',payload:{msg:`Need ${item.cost} ss, have ${char.gold}.`}});return;}

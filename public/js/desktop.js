@@ -764,11 +764,12 @@ function renderLoot(gs,me){
   lootOpt(opts,'⚔',o.weapon.name,`${o.weapon.dice}+${o.weapon.bonus} · ${o.weapon.stat.toUpperCase()}${traitText(o.weapon)}`,()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'weapon'}}));
   lootOpt(opts,'🛡',o.armor.name,`+${o.armor.defBonus} Defence${traitText(o.armor)}`,()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'armor'}}));
   if(o.charm) lootOpt(opts,'📿',o.charm.name,o.charm.desc,()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'charm'}}));
+  if(o.heirloom) lootOpt(opts,'🏺',o.heirloom.name,o.heirloom.desc,()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'heirloom'}}),'heirloom');
 }
 // The traits part of an item's description, for compact cards.
 function traitText(item){ const d=(item&&item.desc)||''; const i=d.indexOf('Traits: '); return i>=0?` · ${d.slice(i+8)}`:''; }
-function lootOpt(parent,icon,name,desc,onClick){
-  const d=document.createElement('div'); d.className='loot-opt';
+function lootOpt(parent,icon,name,desc,onClick,extraCls){
+  const d=document.createElement('div'); d.className='loot-opt'+(extraCls?' '+extraCls:'');
   d.innerHTML=`<div class="loot-icon">${icon}</div><div class="loot-name">${name}</div><div class="loot-desc">${desc}</div>`;
   d.onclick=onClick; parent.appendChild(d);
 }
@@ -778,12 +779,12 @@ function renderShop(stock,myGold){
   const grid=el('g-shop-items'); grid.innerHTML='';
   const L=document.createElement('div'); L.className='shop-col';
   const R=document.createElement('div'); R.className='shop-col';
-  [stock.weaponEnhance,stock.statBoost,stock.weapon1,stock.weapon2,stock.weapon3,stock.armor,stock.armor2].forEach(it=>{if(it)L.appendChild(shopEl(it,myGold));});
+  [stock.heirloom,stock.weaponEnhance,stock.statBoost,stock.weapon1,stock.weapon2,stock.weapon3,stock.armor,stock.armor2].forEach(it=>{if(it)L.appendChild(shopEl(it,myGold));});
   [stock.charm,stock.charm2,...(stock.consumables||[]),stock.scroll].forEach(it=>{if(it)R.appendChild(shopEl(it,myGold));});
   grid.appendChild(L); grid.appendChild(R);
 }
 function shopEl(item,gold){
-  const d=document.createElement('div'); d.className='shop-item'+(item.bought?' sold':'');
+  const d=document.createElement('div'); d.className='shop-item'+(item.bought?' sold':'')+(item.heirloom?' heirloom':'');
   const desc=(item.itemObj&&item.itemObj.desc)||item.desc||ITEM_DESCS[item.name]||'';
   d.innerHTML=`<span class="si-name tip">${item.name}<span class="tiptext">${desc}</span></span><span class="si-desc">${item.desc||''}</span><div class="si-row"><span class="si-cost">${item.cost} ss</span><button class="buy-btn" onclick="buyItem('${item.id}')" ${item.bought||gold<item.cost?'disabled':''}>${item.bought?'Sold':'Buy'}</button></div>`;
   return d;

@@ -16,8 +16,8 @@ const PATHS = Object.fromEntries(Object.entries(D.CAREER_PATHS).map(([k,v])=>[k,
 const TRADS = Object.keys(D.TRADITIONS);
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const avgDice = s => { const m = /(\d+)d(\d+)/.exec(s || '1d6'); return m ? m[1] * (+m[2] + 1) / 2 : 3.5; };
-const wpnScore = w => w ? avgDice(w.dice) + (w.bonus || 0) - ((w.traits || []).includes('notched') ? 1 : 0) - (w.cursed ? 1.5 : 0) : 0;
-const armScore = a => a ? (a.defBonus || 0) - (a.cursed ? 1 : 0) : 0;
+const wpnScore = w => w ? avgDice(w.dice) + (w.bonus || 0) + (w.heirloom ? 3 : 0) - ((w.traits || []).includes('notched') ? 1 : 0) - (w.cursed ? 1.5 : 0) : 0;
+const armScore = a => a ? (a.defBonus || 0) + (a.heirloom ? 2 : 0) - (a.cursed ? 1 : 0) : 0;
 
 function runGame(careers, opts = {}) {
   return new Promise(resolve => {
@@ -88,7 +88,7 @@ function runGame(careers, opts = {}) {
       }
       if (gs.phase === 'loot' && gs.lootRoom && !(gs.lootPicked || []).includes(myId)) {
         const o = c.lootOptions || {};
-        const p = o.weapon && wpnScore(o.weapon) > wpnScore(c.equippedWeapon) + 1 ? 'weapon' : o.armor && armScore(o.armor) > armScore(c.equippedArmor) ? 'armor' : (o.charm && !c.equippedCharm ? 'charm' : 'consumable');
+        const p = o.heirloom ? 'heirloom' : o.weapon && wpnScore(o.weapon) > wpnScore(c.equippedWeapon) + 1 ? 'weapon' : o.armor && armScore(o.armor) > armScore(c.equippedArmor) ? 'armor' : (o.charm && !c.equippedCharm ? 'charm' : 'consumable');
         return send(sk, 'PICK_LOOT', { pick: p });
       }
       if (gs.phase === 'merchant' && c.merchantStock) {

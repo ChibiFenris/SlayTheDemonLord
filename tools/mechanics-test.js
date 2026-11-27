@@ -498,7 +498,6 @@ const logHas=(room,re)=>room.gs.log.some(l=>re.test(l.msg));
   ok(require('fs').existsSync(require('path').join(__dirname,'..','public','stats.html')),'and its page'); }
 // 44. Every active ability uses your turn; team abilities also cover you when alone
 { const src=require('fs').readFileSync(require('path').join(__dirname,'..','public','js','data.js'),'utf8')+require('fs').readFileSync(require('path').join(__dirname,'..','public','js','desktop.js'),'utf8');
-  const listed=k=>{ const i=src.indexOf(k); return i; };
   const ea=src.slice(src.indexOf('const EXTRA_ACTIVES'),src.indexOf('];',src.indexOf('const EXTRA_ACTIVES')));
   const at=src.slice(src.indexOf('const ACTIVE_TALENTS'),src.indexOf('];',src.indexOf('const ACTIVE_TALENTS')));
   const actives=[...new Set([...ea.matchAll(/\['(\w+)',/g),...at.matchAll(/\['(\w+)',/g)].map(m=>m[1]))];
@@ -559,5 +558,24 @@ const logHas=(room,re)=>room.gs.log.some(l=>re.test(l.msg));
     const st=(a.char.activeBuffs||[]).find(b=>b.skipTurn); ok(st&&st.duration===1,'alone, a slam stuns for one turn, not two'); }
   { const {room}=mkRoom(['empire','dwarf']); const [a]=room.players; combat(room,['Skaven Clanrat']); S.enemyAfterHit(room,room.gs.enemies[0],a,5,{hit:true},{onHit:'slamStun'});
     const st=(a.char.activeBuffs||[]).find(b=>b.skipTurn); ok(st&&st.duration===2,'in a warband it is still two'); }
+}
+// 48. Heirlooms of the peoples, and on-hit bonuses that actually land
+{ const H=require('../game/heirlooms.js');
+  const peoples=['empire','bretonnia','dwarf','highelf','woodelf'];
+  ok(peoples.every(pp=>Object.values(H.HEIRLOOMS).filter(h=>h.people===pp).length===3),'every people has three heirlooms');
+  { const c={career:'dwarf'}; const keys=new Set(); for(let i=0;i<3;i++) keys.add(H.roll(c,0).heirloom); ok(keys.size===3&&[...keys].every(k=>H.HEIRLOOMS[k].people==='dwarf'),'a warrior finds their own people\'s heirlooms, a new one each time'); }
+  { const axe=H.make('runeAxe',0); const dw={career:'dwarf',equippedWeapon:axe}, hu={career:'empire',equippedWeapon:axe}; const e={damageReduction:2,threat:'Normal'};
+    ok(H.onHit(dw,e,{},{poison(){},burn(){}},'p').bonus===4&&H.onHit(hu,e,{},{poison(){},burn(){}},'p').bonus===0,'the Rune Axe wakes for a Dwarf (+2, ignores 2 DR), not for a human'); }
+  { const c={career:'bretonnia',equippedCharm:H.make('ladysFavour')}; H.fightStart(c); const a=H.onHitTaken(c,{},7,'p'), b=H.onHitTaken(c,{},7,'p'); ok(a.dmg===0&&b.dmg===7,"The Lady's Favour turns aside the first hit each fight"); }
+  { const c={career:'dwarf',equippedArmor:H.make('gromrilMail')}; ok(H.onHitTaken(c,{},5,'p').dmg===4,'Gromril Mail takes 1 off every hit'); }
+  { const c={career:'highelf',equippedArmor:H.make('phoenixPlate'),maxHealth:40,health:0}; H.fightStart(c); ok(H.cheatDeath(c)&&c.health===10&&!H.cheatDeath(c),'Phoenix-Crested Ithilmar saves a High Elf once per fight'); }
+  { const {room}=mkRoom(['highelf']); const p=room.players[0]; const st=H.make('seerstone'); const pw=p.char.power; p.char.inventory.push({name:st.name,qty:1,type:'charm',itemObj:st}); S.equipItem(p.char,p.char.inventory.length-1);
+    ok(p.char.power===pw+1,'the Seerstone gives a High Elf +1 Power'); }
+  { const {room}=mkRoom(['empire']); const p=room.players[0]; room.gs.phase='path'; let seen=false; for(let i=0;i<40&&!seen;i++){ room.gs.phase='path'; S.enterNode(room,'loot'); seen=!!(p.char.lootOptions&&p.char.lootOptions.heirloom); if(!seen){ room.gs.lootPicked=[p.id]; room.gs.phase='event'; } }
+    ok(seen&&p.char.lootOptions.heirloom.people==='empire','treasure caches can hold an heirloom of your people');
+    room.gs.lootPicked=[]; S.handlePlayerAction(room,p.id,{action:'PICK_LOOT',data:{pick:'heirloom'}}); ok(p.char.inventory.some(i=>i.itemObj&&i.itemObj.heirloom),'and you can take it'); }
+  { const {room}=mkRoom(['empire']); const p=room.players[0]; combat(room,['Undead Skeleton','Undead Skeleton']); const e=room.gs.enemies[0]; room.gs.activeEnemyIdx=0; e.hp=e.maxHp=500; e.ac=0; e.damageReduction=0; p.char.silverShot=true;
+    let landed=false; for(let i=0;i<6&&!landed;i++){ room.gs.activeTurnIdx=room.gs.turnOrder.findIndex(t=>t.id===p.id); room.gs.playersActedThisRound=[]; S.handlePlayerAction(room,p.id,{action:'ATTACK'}); landed=logHas(room,/bonus damage/); }
+    ok(landed,'on-hit bonuses such as Silver Shot now really come off the enemy\'s HP'); }
 }
 console.log(fails?fails+' FAILED':'all passed'); process.exit(fails?1:0);

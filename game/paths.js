@@ -76,7 +76,7 @@ function applyNovicePath(char, pathId) {
     'toughness','bleedOnCrit','bleedOnHit','evasion','venomOnFirstHit','burningSoul','burnOnSpell',
     'holyFervor','divineFavour','bleedDeep','deepBleed','poisonBlade','curse','_curseUsed','druidFervor','druidsFury','weaponMaster',
     'condemn','silverShot','firstVolley','slayerOath','deathWish','rage',
-    'turret','grenade','tinkerer','hawkEye','arrowStorm','virtue','stubborn','valourOfAges','shieldwall','fortitude','pressTheAdvantage',
+    'turret','grenade','tinkerer','hawkEye','arrowStorm','virtue','stubborn','valourOfAges','shieldwall','fortitude','pressTheAdvantage','shadowOpening',
   ];
   NOVICE_FLAGS.forEach(f=>{ if(np[f]) char[f]=true; });
   if(np.tinkerer) char.defense+=1; // riveted plate

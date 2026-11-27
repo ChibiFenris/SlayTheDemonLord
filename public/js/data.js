@@ -16,7 +16,7 @@ const CAREER_DETAILS={
   bretonnia:{
     name:'Human (Bretonnia)',
     stats:'STR 10 · AGI 10 · INT 10 · WIL 14 (+4 WIL)',
-    armor:'Knightly Plate (+4 Def)', hp:'33 HP', defence:'14 (+2) Defence',
+    armor:'Knightly Plate (+4 Def)', hp:'35 HP', defence:'14 (+2) Defence',
     weapon:'Knightly Sword 1d8+5 (WIL)',
     role:'Knights of the Lady: faith guides the blade. Charges, holy smites, a healing Damsel or a greenwood outlaw.',
     level1:'Knightly Virtue (steadier mind) · The Charge (+1 boon on your first attack) · Lady\'s Blessing (+2 Defence) · Challenge (Taunt) · Catch Breath (cooldown 12)'
@@ -27,7 +27,7 @@ const CAREER_DETAILS={
     armor:'Dwarf Mail (+3 Def)', hp:'32 HP', defence:'13 Defence',
     weapon:'Dwarf Axe 1d8+4 (STR)',
     role:'Stubborn, tough and hard-hitting. Slayers, Ironbreakers, Thunderers with handguns, or Runesmiths.',
-    level1:'Dwarf-hard (10% less damage) · Stubborn (never stunned) · Dwarf Constitution (immune to bleed and poison) · Catch Breath (cooldown 12)'
+    level1:'Dwarf-hard (10% less damage) · Stubborn (never stunned) · Catch Breath (cooldown 12)'
   },
   highelf:{
     name:'High Elf',
@@ -43,15 +43,15 @@ const CAREER_DETAILS={
     armor:'Woodland Cloak (no armour)', hp:'21 HP', defence:'14 Defence',
     weapon:'Asrai Longbow 1d6+4 (AGI)',
     role:'Archers and dancers of Athel Loren. Shoots from the back row. Waystalkers, Wardancers, Spellsingers, Deepwood Scouts.',
-    level1:'Hawk Eye (+1 to hit from the back row) · Nimble Recovery (cooldown 12)'
+    level1:'Strike from Hiding (+1 boon on your first attack each fight) · Nimble Recovery (cooldown 12)'
   },
 };
 const NOVICE_INFO={
   empire:{name:'Human (Empire)', gains:'Lv1: +5 Max HP. Drilled: +1 boon on attacks. Combined Arms: each hit gives +1 boon on your next attack. Shield Bash (cooldown 8). Catch Breath (cooldown 12).'},
   bretonnia:{name:'Human (Bretonnia)', gains:'Lv1: +5 Max HP. Knightly Virtue: Insanity limit +1. The Charge: +1 boon on your first attack. Lady\'s Blessing: +2 Defence. Challenge (Taunt). Catch Breath (cooldown 12).'},
-  dwarf:{name:'Dwarf', gains:'Lv1: +6 Max HP. Dwarf-hard: 10% less damage. Stubborn: never stunned, Insanity limit +1. Dwarf Constitution: immune to bleed and poison. Catch Breath (cooldown 12).'},
+  dwarf:{name:'Dwarf', gains:'Lv1: +6 Max HP. Dwarf-hard: 10% less damage. Stubborn: never stunned, Insanity limit +1. Catch Breath (cooldown 12).'},
   highelf:{name:'High Elf', gains:'Lv1: +5 Max HP. Power 1 and the Lore of Light. Asur Discipline: +1 boon on attacks. Valour of Ages: +1 boon and +2 damage vs elites and bosses. Spell Recovery (cooldown 12).'},
-  woodelf:{name:'Wood Elf', gains:'Lv1: +4 Max HP. Hawk Eye: +1 to hit from the back row. Nimble Recovery (cooldown 12).'},
+  woodelf:{name:'Wood Elf', gains:'Lv1: +4 Max HP. Strike from Hiding: +1 boon on your first attack each fight. Nimble Recovery (cooldown 12).'},
   engineer:{name:'Engineer', gains:'Lv1: +4 Max HP. Volley Gun (uses your turn): a turret fires at a foe at the end of each round for 3 rounds (cooldown 8). Bomb: 2d6+INT to every enemy (cooldown 6). Tinkerer: +1 Defence, Healing Draughts heal 2 more. Gunnery Drill: +1 boon on attacks. Riveted Plate: 10% less damage taken. Catch Breath (cooldown 12).'},
   waywatcher:{name:'Waywatcher', gains:'Lv1: +4 Max HP. Hawk Eye: +2 to hit from the back row. Arrow Storm: 1d6+AGI to every enemy (cooldown 8). Evasion. Nimble Recovery (cooldown 12).'},
   warrior:{name:'Warrior',    gains:'Lv1: +5 Max HP. Weapon Training: +1 boon on all attacks. Catch Breath: heal 1d6+STR, cooldown 12. Shield Bash: stun one enemy for 2 turns, cooldown 8. Taunt: for 2 rounds all enemies attack only you (ready again after 3 rounds). Bleed on Hit: every weapon hit applies 1 Bleed stack.'},

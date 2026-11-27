@@ -1,4 +1,5 @@
 'use strict';
+const heirlooms = require('./heirlooms');
 // Player combat actions: attacking, casting spells and using talents.
 // Moved out of server.js unchanged. The server hands this module the helpers it
 // uses through bind() once everything is defined (see the bottom of server.js).
@@ -62,6 +63,7 @@ function actAttack({room,playerId,data,ws,player,gs,char}){
     if(_prBuff){ finalDmg=Math.max(1,Math.floor(finalDmg*(1-_prBuff.dmgReductionPct))); }
     finalDmg=enemyOnWeaponHit(room, player, targetEnemy, finalDmg);
     targetEnemy.hp=Math.max(0, targetEnemy.hp-finalDmg);
+    const _dealtDmg=finalDmg; // on-hit bonuses below add to finalDmg; the difference is dealt at the end of this block
     const cl=r.forceCrit?' ⚡ Lucky Pendant CRIT!':r.crit?' 💥 CRITICAL HIT!':'';
     const boonStr=r.boonInfo?(r.final!==r.base?`${r.boonInfo}→<strong>${r.final}</strong>`:`${r.boonInfo}`):'';
     const rollBreak=`d20:<strong>${r.base}</strong>${boonStr}+atk<strong>${r.atkMod>=0?'+':''}${r.atkMod}</strong>=<strong>${r.total}</strong> vs Def<strong>${targetEnemy.ac}</strong>`;
@@ -127,6 +129,7 @@ function actAttack({room,playerId,data,ws,player,gs,char}){
           if(char.burnTheWitch) applyBurn(targetEnemy,1,room);
         }
         if(char.silverShot && isUnholy(targetEnemy)){ finalDmg+=2; }
+        { const hb=heirlooms.onHit(char,targetEnemy,r,{poison:n=>applyPoison(targetEnemy,n,room),burn:n=>applyBurn(targetEnemy,n,room)},playerId); if(hb.bonus){ finalDmg+=hb.bonus; if(hb.notes.length) addLog(room,`🏺 <strong>${hb.notes.join(', ')}</strong>`,'crit'); } } // heirlooms
         if(char.valourOfAges && (targetEnemy.threat==='Boss'||targetEnemy.threat==='Elite'||targetEnemy.isElite)){ finalDmg+=2; } // High Elf: Valour of Ages
         if(char.slayerOath && (targetEnemy.threat==='Boss'||targetEnemy.isElite)){ const so=rd(1,6); finalDmg+=so; addLog(room,`🪓 <strong>Slayer's Oath!</strong> +${so} dmg against a worthy foe.`,'crit'); }
         if(char.deathWish && char.health < char.maxHealth/2){ finalDmg+=2; }
@@ -190,6 +193,9 @@ function actAttack({room,playerId,data,ws,player,gs,char}){
       }
       if(char._wpnMarksmanship && r.crit){ addDebuff(targetEnemy,'Marksmanship',{bane:1},1); addLog(room,`🎯 Marksmanship crit! ${targetEnemy.name} has 1 bane on their next attack.`,'sys'); }
       if(char._wpnUnstable && r.crit){ addDebuff(targetEnemy,'Acid Splash',{dotDmg:rd(1,6),name:'Acid Splash'},1); addLog(room,`⚗ Unstable Charge! ${targetEnemy.name} will take acid splash dmg next turn.`,'spell'); }
+      // Apply the on-hit bonuses (Condemn, Hunter's Mark, Slayer's Oath, relics, combos, heirlooms...) that were added after the first blow landed.
+      const _bonusDmg=finalDmg-_dealtDmg;
+      if(_bonusDmg>0&&targetEnemy.hp>0){ targetEnemy.hp=Math.max(0,targetEnemy.hp-_bonusDmg); addLog(room,`&nbsp;↳ +<strong class="num-dmg">${_bonusDmg}</strong> bonus damage → ${targetEnemy.name} ${targetEnemy.hp}/${targetEnemy.maxHp} HP`,'dmg'); }
     } else {
       char._trickeryPoisonProc=0; char._wpnHolySmokeProc=false;
       if(char.frenzy && char._rageSpent){ char._rageSpent=false; char.rageBoon=true; addLog(room,`🔥 <strong>Frenzy!</strong> ${player.name}'s kill extends the rage!`,'chaos'); }

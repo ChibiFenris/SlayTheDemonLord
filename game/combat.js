@@ -1,4 +1,5 @@
 'use strict';
+const heirlooms = require('./heirlooms');
 // Attack and damage rolls, buffs and debuffs, damage over time.
 // Moved out of server.js unchanged. The server hands this module the helpers it
 // uses through bind() once everything is defined (see the bottom of server.js).
@@ -26,7 +27,7 @@ function rollAttack(char, enemy, extraBoons=0) {
   const _charmAtk=(CHARMS[_ch]&&CHARMS[_ch].atkMod)||0;
   const traitAtk=(_wt.includes('balanced')?1:0)-(_wt.includes('clumsy')?1:0)+_charmAtk-(_at.includes('heavy')&&wpnStat==='agi'?1:0)
     +((wpn&&wpn.special&&wpn.special.key==='flailSwing'&&enemy&&enemy.ac>=15)?2:0);
-  const atkMod=modVal(char.attrs[wpnStat])+char.weaponAtkBonus+warCryBonus+traitAtk+(char.hawkEye&&char.row==='back'?(char.career==='woodelf'?1:2):0); // Hawk Eye (+1 for Wood Elves, who already shoot with +4 AGI)
+  const atkMod=modVal(char.attrs[wpnStat])+char.weaponAtkBonus+warCryBonus+traitAtk+(char.hawkEye&&char.row==='back'?(char.career==='woodelf'?1:2):0)+heirlooms.attackMods(char).atk; // Hawk Eye (+1 for Wood Elves, who already shoot with +4 AGI)
   let boons=0, banes=0;
   if(_wt.includes('unwieldy')&&!char._unwieldyUsed){ char._unwieldyUsed=true; banes++; }
   if(char.row==='back'&&!hasRangedWeapon(char)) banes++; // swinging a melee weapon from the back row
@@ -66,11 +67,12 @@ function rollAttack(char, enemy, extraBoons=0) {
   if (baneBuff) banes += baneBuff;
   const forceCrit=char.luckyPendant||forceCritDeadAim; if(char.luckyPendant) char.luckyPendant=false;
   const atkBuff=getBuffVal(char,'atkBoon'); boons+=atkBuff;
+  const _hm=heirlooms.attackMods(char); boons+=_hm.boons; // heirlooms (Reiksguard Plate...)
   let {base,final,boonDie,baneDie}=rollD20boons(boons,banes);
   const _fs=(char.activeBuffs||[]).find(b=>b.foresightRerolls>0); // Foresight: roll twice, keep the higher
   if(_fs){ const r2=rollD20boons(boons,banes); if(r2.final>final){ ({base,final,boonDie,baneDie}=r2); } _fs.foresightRerolls--; if(_fs.foresightRerolls<=0) char.activeBuffs=char.activeBuffs.filter(b=>b!==_fs); }
   char.activeBuffs=(char.activeBuffs||[]).filter(b=>!b.consumeOnAttack);
-  const _keen=_wt.includes('keen')||(wpn&&wpn.special&&wpn.special.key==='twinBlades');
+  const _keen=_wt.includes('keen')||(wpn&&wpn.special&&wpn.special.key==='twinBlades')||_hm.keen;
   const fumble=base===1&&!forceCrit, crit=forceCrit||base===20||(_keen&&base>=19);
   const phantomThisHit=char.phantomStrike&&!char._phantomStrikeUsed;
   if(phantomThisHit) char._phantomStrikeUsed=true;

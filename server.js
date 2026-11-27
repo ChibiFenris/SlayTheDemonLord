@@ -106,6 +106,7 @@ function publicState(room) {
 }
 
 // ─── GAME MODULES ─────────────────────────────────────────────────────────────
+const heirlooms = require('./game/heirlooms'); // gear of each people (game/heirlooms.js)
 // castings: spell pools · spawn: picking and scaling enemies · records: daily run
 // and run logging · character: building characters · zones: the three regions ·
 // campfire: rest or upgrade. Each gets the server helpers it needs via bind().
@@ -329,6 +330,8 @@ function resolveEnemyDeath(room, deadEnemy) {
     if(_combatOver) resetCombatState(p);
   });
   rollEnemyDrop(e, room);
+  // Elites and bosses sometimes carry an heirloom taken from one of your people.
+  if(!e.summoned&&Math.random()<(e.threat==='Boss'?0.5:(e.isElite||e.threat==='Elite')?0.15:0)){ const owner=pickRandom(room.players.filter(p=>p.char&&p.char.alive)); const h=owner&&heirlooms.roll(owner.char,gs.bossCount||0); if(h){ addToInventory(owner.char,h.name,h); addLog(room,`🏺 ${e.name} was carrying <strong>${h.name}</strong>, an heirloom of ${heirlooms.PEOPLE_NAMES[h.people]} — ${owner.name} takes it back.`,'loot'); } }
   gs.enemies=(gs.enemies||[]).filter(en=>en!==e&&en.hp>0);
   refreshEnemyAuras(gs);
   if(gs.enemies&&gs.enemies.length>0){
@@ -684,6 +687,7 @@ function handlePlayerAction(room,playerId,payload,ws){
     else if(data.pick==='weapon'&&opts.weapon){addToInventory(char,opts.weapon.name,opts.weapon);addLog(room,`${player.name} takes ${opts.weapon.name}.`,'loot');}
     else if(data.pick==='armor'&&opts.armor){addToInventory(char,opts.armor.name,opts.armor);addLog(room,`${player.name} takes ${opts.armor.name}.`,'loot');}
     else if(data.pick==='charm'&&opts.charm){addToInventory(char,opts.charm.name,opts.charm);addLog(room,`${player.name} takes ${opts.charm.name}.`,'loot');}
+    else if(data.pick==='heirloom'&&opts.heirloom){addToInventory(char,opts.heirloom.name,opts.heirloom);addLog(room,`🏺 ${player.name} takes the heirloom <strong>${opts.heirloom.name}</strong>.`,'loot');}
     else{addLog(room,`${player.name} takes nothing.`,'sys');}
     const alive=room.players.filter(p=>p.char&&p.char.alive&&p.connected);
     if(alive.every(p=>gs.lootPicked.includes(p.id))){gs.phase='event';gs.lootRoom=null;addLog(room,'Loot divided. Press onward.','sys');}

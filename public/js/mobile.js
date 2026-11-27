@@ -284,6 +284,7 @@ function mRenderGame(gs,players,me){
         opt('⚔',o.weapon.name,`${o.weapon.dice}+${o.weapon.bonus} · ${o.weapon.stat.toUpperCase()}${traitText(o.weapon)}`,'weapon');
         opt('🛡',o.armor.name,`+${o.armor.defBonus} Defence${traitText(o.armor)}`,'armor');
         if(o.charm) opt('📿',o.charm.name,o.charm.desc,'charm');
+        if(o.heirloom) opt('🏺',o.heirloom.name,o.heirloom.desc,'heirloom');
         act.appendChild(grid);
       }
     }
@@ -291,10 +292,10 @@ function mRenderGame(gs,players,me){
     const stock=char.merchantStock;
     heading('Merchant');
     act.appendChild(mEl('div','m-sub',`Your silver: <b>${char.gold} ss</b>`));
-    [stock.weaponEnhance,stock.statBoost,stock.weapon1,stock.weapon2,stock.weapon3,stock.armor,stock.armor2,stock.charm,stock.charm2,...(stock.consumables||[]),stock.scroll].filter(Boolean).forEach(item=>{
+    [stock.heirloom,stock.weaponEnhance,stock.statBoost,stock.weapon1,stock.weapon2,stock.weapon3,stock.armor,stock.armor2,stock.charm,stock.charm2,...(stock.consumables||[]),stock.scroll].filter(Boolean).forEach(item=>{
       const desc=(item.itemObj&&item.itemObj.desc)||item.desc||ITEM_DESCS[item.name]||'';
       const afford=char.gold>=item.cost;
-      act.appendChild(mEl('div','m-shop-item'+(item.bought?' sold':''),`
+      act.appendChild(mEl('div','m-shop-item'+(item.bought?' sold':'')+(item.heirloom?' heirloom':''),`
         <div class="m-shop-text"><div class="m-shop-name">${item.name}</div><div class="m-shop-desc">${desc}</div></div>
         <button class="m-btn use" onclick="buyItem('${item.id}')" ${item.bought||!afford?'disabled':''}>${item.bought?'Sold':`${item.cost} ss`}</button>`));
     });

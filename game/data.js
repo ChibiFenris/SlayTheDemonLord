@@ -873,7 +873,7 @@ Object.assign(CAREERS, {
   // Human (Empire): +1 to every attribute — good at everything, master of nothing.
   empire:    { label:'Human (Empire)',    race:true, weaponName:'Hand Weapon', armorName:'State Troop Mail', startHp:32, startAttrs:{str:11,agi:11,int:11,wil:11}, armorDef:3, weaponDmg:'1d8+2', weaponStr:true,  weaponType:'slashing', spellcaster:false },
   // Human (Bretonnia): +4 WIL — knights and damsels of the Lady; faith drives the blade.
-  bretonnia: { label:'Human (Bretonnia)', race:true, weaponName:'Knightly Sword', armorName:'Knightly Plate', startHp:28, startAttrs:{str:10,agi:10,int:10,wil:14}, armorDef:4, weaponDmg:'1d8+1', weaponWilBased:true, weaponType:'slashing', spellcaster:false },
+  bretonnia: { label:'Human (Bretonnia)', race:true, weaponName:'Knightly Sword', armorName:'Knightly Plate', startHp:30, startAttrs:{str:10,agi:10,int:10,wil:14}, armorDef:4, weaponDmg:'1d8+1', weaponWilBased:true, weaponType:'slashing', spellcaster:false },
   // Dwarf: +4 STR — stubborn, tough and hard-hitting.
   dwarf:     { label:'Dwarf',             race:true, weaponName:'Dwarf Axe', armorName:'Dwarf Mail', startHp:26, startAttrs:{str:14,agi:10,int:10,wil:10}, armorDef:3, weaponDmg:'1d8', weaponStr:true,  weaponType:'slashing', spellcaster:false },
   // High Elf: +4 INT — born to magic; even their blades are guided by the mind.
@@ -887,12 +887,12 @@ Object.assign(NOVICE_PATHS, {
     desc:'Drilled: +1 boon on attacks. Combined Arms: each hit gives +1 boon on your next attack. Shield Bash (cooldown 8). Catch Breath (cooldown 12). +1 to every attribute.' },
   bretonnia: { hpGain:5, power:0, virtue:true, taunt:true, firstVolley:true, shieldwall:true, catchBreath:true,
     desc:'Knightly Virtue: your Insanity limit is 1 higher. The Charge: +1 boon on your first attack each fight. Lady\'s Blessing: +2 Defence. Challenge (Taunt): enemies attack only you for 2 rounds. Catch Breath (cooldown 12). Your blade is guided by WIL.' },
-  dwarf:     { hpGain:6, power:0, toughness:true, stubborn:true, fortitude:true, catchBreath:true,
-    desc:'Dwarf-hard: 10% less damage taken. Stubborn: you can never be stunned, and you keep a cooler head (Insanity limit +1). Dwarf Constitution: immune to bleed and poison. Catch Breath (cooldown 12).' },
+  dwarf:     { hpGain:6, power:0, toughness:true, stubborn:true, catchBreath:true,
+    desc:'Dwarf-hard: 10% less damage taken. Stubborn: you can never be stunned, and you keep a cooler head (Insanity limit +1). Catch Breath (cooldown 12).' },
   highelf:   { hpGain:5, power:1, spellRecovery:true, valourOfAges:true, weaponTraining:true,
     desc:'Power 1 and the Lore of Light (Celestial). Valour of Ages: +1 boon against elites and bosses. Spell Recovery (cooldown 12). Your blade is guided by INT.' },
-  woodelf:   { hpGain:4, power:0, hawkEye:true, nimbleRecovery:true,
-    desc:'Hawk Eye: +1 to hit from the back row. Nimble Recovery (cooldown 12). Starts with a longbow; no armour, but quick (Defence from AGI).' },
+  woodelf:   { hpGain:4, power:0, shadowOpening:true, nimbleRecovery:true,
+    desc:'Strike from Hiding: your first attack each fight has an extra boon. Nimble Recovery (cooldown 12). Starts with a longbow; no armour, but quick (Defence from AGI).' },
 });
 
 // ── The forty classes (new ones; the rest reuse existing paths) ───────────

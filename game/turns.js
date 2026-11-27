@@ -1,4 +1,5 @@
 'use strict';
+const heirlooms = require('./heirlooms');
 // Combat flow: turn order, the party turn timer, enemy turns, rounds and deaths.
 // Moved out of server.js unchanged. The server hands this module the helpers it
 // uses through bind() once everything is defined (see the bottom of server.js).
@@ -462,6 +463,7 @@ function fireEnemyTurn(room, ae) {
           room.players.filter(q=>q.char&&q.char.alive).forEach(q=>{ addBuff(q.char,'Bloodscent',{atkBoon:1},1); });
           addLog(room,`🐾 <strong>Bloodscent!</strong> ${p.name}'s wounds ignite the warband — all allies gain 1 boon!`,'chaos');
         }
+        { const hh=heirlooms.onHitTaken(p.char,ae,dmg,p.id); dmg=hh.dmg; if(hh.note) addLog(room,`🏺 <strong>${hh.note}</strong> — ${p.name} takes no damage.`,'spell'); } // heirlooms
         p.char.health = Math.max(0, p.char.health - dmg); // APPLY DAMAGE
         // Bloodied (a quarter of max HP or less), first time this fight: Vengeance and Last Rites answer.
         if(p.char.health>0&&p.char.health<=p.char.maxHealth/4){
@@ -600,6 +602,7 @@ function checkDeath(room, player) {
       const graceUser=room.players.find(p=>p.char&&p.char.alive&&p.char.grace&&!p.char._graceUsed);
       if(graceUser){ graceUser.char._graceUsed=true; player.char.health=1; addLog(room,`🕊 <strong>Grace!</strong> ${graceUser.name}'s faith catches ${player.name} — survives at 1 HP!`,'heal'); return; }
     }
+    if(heirlooms.cheatDeath(player.char)){ addLog(room,`🔥 <strong>Phoenix-Crested Ithilmar!</strong> ${player.name} rises from the killing blow with ${player.char.health} HP.`,'heal'); return; }
     if((player.char.activeBuffs||[]).some(b=>b.resurrectionShield)){
       player.char.health=Math.floor(player.char.maxHealth*0.5);
       player.char.activeBuffs=player.char.activeBuffs.filter(b=>!b.resurrectionShield);

@@ -1,4 +1,5 @@
 'use strict';
+const heirlooms = require('./heirlooms');
 // The road: path votes, room contents, unknown-room encounters and loot rooms.
 // Moved out of server.js unchanged. The server hands this module the helpers it
 // uses through bind() once everything is defined (see the bottom of server.js).
@@ -120,6 +121,7 @@ function _runNodeContent(room, gs, nodeType, playerCount) {
       c._devastatingChargeProc=!!c.devastatingCharge; // Devastating Charge: first hit each fight
       c._overcastFired=0;                              // Overcast: first attack spell(s) each fight
       c._vengeanceLowFired=false; c._lastRitesFired=false; c.rageTriggerActive=false;
+      heirlooms.fightStart(c);
     });
     if(room.players.some(p=>p.char&&p.char.alive&&hasRelic(p.char,'tollingBell'))) gs.enemies.forEach(e=>addDebuff(e,'Shaken',{bane:1,consumeOnAttack:true},2));
     if(gs._nextCombatHalfHP){ gs._nextCombatHalfHP=false; gs.enemies.forEach(e=>{e.hp=Math.ceil(e.hp/2); e.maxHp=e.hp;}); addLog(room,`🔴 Ritual disruption — enemies enter at half HP!`,'chaos'); }
@@ -151,6 +153,7 @@ function _runNodeContent(room, gs, nodeType, playerCount) {
     gs.phase='merchant';
     room.players.forEach(p=>{ if(!p.char||!p.char.alive) return;
       const st=buildPlayerShop(gs.bossCount), f=dark.shopFactor(p.char)*(foes.hasMutator(gs,'plunder')?0.5:1);
+      if(Math.random()<0.3){ const h=heirlooms.roll(p.char,gs.bossCount); if(h){ h.cost=60+20*Math.min(3,gs.bossCount||0); st.heirloom=h; } } // a merchant sometimes has something from home
       if(f!==1) Object.values(st).flat().forEach(it=>{ if(it&&typeof it.cost==='number') it.cost=Math.max(1,Math.round(it.cost*f)); });
       p.char.merchantStock=st; });
     gs.merchantVisits=(gs.merchantVisits||0)+1;
@@ -161,7 +164,7 @@ function _runNodeContent(room, gs, nodeType, playerCount) {
     gs.phase='loot';
     const coins=25+Math.floor(Math.random()*26); // 25-50 silver
     gs.lootRoom={coins}; gs.lootPicked=[];
-    room.players.forEach(p=>{if(p.char&&p.char.alive) p.char.lootOptions=buildLootOptions(gs.bossCount);});
+    room.players.forEach(p=>{if(p.char&&p.char.alive){ p.char.lootOptions=buildLootOptions(gs.bossCount); if(Math.random()<(gs.bossCount?0.35:0.25)) p.char.lootOptions.heirloom=heirlooms.roll(p.char,gs.bossCount); }});
     addLog(room,`📦 A cache! ${coins} coins — each warrior finds their own haul.`,'loot');
     return;
   }

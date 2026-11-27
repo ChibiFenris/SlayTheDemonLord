@@ -4,6 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 const { d } = require('./dice');
 const { alivePlayers, pickRandom } = require('./util');
 const { CHARMS, WEAPON_TRAITS, ARMOR_TRAITS, CURSED_GEAR } = require('./data');
+const heirlooms = require('./heirlooms');
 
 // ═════════════════════════════════════════════════════════════════════════════
 // ITEM TRAITS, CHARMS AND CURSED GEAR
@@ -24,7 +25,7 @@ function weaponIsHoly(c){
   const k=w.special&&w.special.key;
   return weaponTraits(c).includes('blessed')||['blessedStrike','silverEdge','smiteTheFallen','channelFaith','holySmoke'].includes(k);
 }
-function resistsInsanity(c){ return armorTraits(c).includes('warded')||!!c._armorWitchCoat; }
+function resistsInsanity(c){ return armorTraits(c).includes('warded')||!!c._armorWitchCoat||heirlooms.resistsInsanity(c); }
 function immuneToPoison(c){ return !!(c._nurgleMark||(c.equippedArmor&&c.equippedArmor.special&&c.equippedArmor.special.key==='nurgleMask')); }
 function isCursed(item){ return !!(item&&(item.cursed||(item.special&&/^Cursed/.test(item.special.desc||'')))); }
 
@@ -66,6 +67,7 @@ function applyCharm(c, charm, on){
   if(!charm) return;
   const C=CHARMS[charm.key]||{};
   const s=on?1:-1;
+  heirlooms.applyCharm(c, charm, on);
   if(C.defMod) c.defense+=s*C.defMod;
   if(charm.key==='warpAmulet'){ c.power=Math.max(0,(c.power||0)+s); }
   if(charm.key==='tzeentchLens'){
@@ -87,6 +89,7 @@ function gearRoundTick(room){
     const c=p.char;
     if((armorTraits(c).includes('sanctified')||charmKey(c)==='grailToken')&&c.health<c.maxHealth) c.health=Math.min(c.maxHealth,c.health+1);
     if(c.equippedArmor&&c.equippedArmor.special&&c.equippedArmor.special.key==='shroudFlies'&&c.health>1) c.health-=1;
+    heirlooms.roundTick(c);
   });
 }
 // Per-fight cleanup for charm/trait state.
@@ -102,6 +105,7 @@ function gearVsEnemyAttack(enemy, c, room){
   if(ch==='morrFeather'&&enemy.tags&&enemy.tags.includes('undead')) banes++;
   if(c.equippedArmor&&c.equippedArmor.special&&c.equippedArmor.special.key==='shroudFlies') banes++;
   if(armorTraits(c).includes('creaking')&&room&&room.gs&&room.gs.roundNumber===1) atk+=1;
+  banes+=heirlooms.banesAgainst(c);
   if(enemy.skirmisher&&c.equippedWeapon&&c.equippedWeapon.special&&RANGED_KEYS.includes(c.equippedWeapon.special.key)) banes++;
   return {atk,banes};
 }
