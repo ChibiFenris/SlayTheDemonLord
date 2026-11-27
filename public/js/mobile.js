@@ -280,11 +280,11 @@ function mRenderGame(gs,players,me){
           b.onclick=()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick}}); grid.appendChild(b);
         };
         opt('💰',`${gs.lootRoom.coins} silver`,'Coin from the cache.','coins');
-        opt('🧪',consName,o.scrollSpell?o.scrollSpell.desc:ITEM_DESCS[o.consumable]||'','consumable');
-        opt('⚔',o.weapon.name,`${o.weapon.dice}+${o.weapon.bonus} · ${o.weapon.stat.toUpperCase()}${traitText(o.weapon)}`,'weapon');
-        opt('🛡',o.armor.name,`+${o.armor.defBonus} Defence${traitText(o.armor)}`,'armor');
-        if(o.charm) opt('📿',o.charm.name,o.charm.desc,'charm');
-        if(o.heirloom) opt('🏺',o.heirloom.name,o.heirloom.desc,'heirloom');
+        opt(iconImg(iconItem({name:consName}),'ico-loot')||'🧪',consName,o.scrollSpell?o.scrollSpell.desc:ITEM_DESCS[o.consumable]||'','consumable');
+        opt(iconImg(iconWeapon(o.weapon.name),'ico-loot'),o.weapon.name,`${o.weapon.dice}+${o.weapon.bonus} · ${o.weapon.stat.toUpperCase()}${traitText(o.weapon)}`,'weapon');
+        opt(iconImg(iconArmor(o.armor.name),'ico-loot'),o.armor.name,`+${o.armor.defBonus} Defence${traitText(o.armor)}`,'armor');
+        if(o.charm) opt(iconImg(iconItem({type:'charm',...o.charm}),'ico-loot')||'📿',o.charm.name,o.charm.desc,'charm');
+        if(o.heirloom) opt(iconImg(iconItem(o.heirloom),'ico-loot')||'🏺',o.heirloom.name,o.heirloom.desc,'heirloom');
         act.appendChild(grid);
       }
     }
@@ -296,7 +296,7 @@ function mRenderGame(gs,players,me){
       const desc=(item.itemObj&&item.itemObj.desc)||item.desc||ITEM_DESCS[item.name]||'';
       const afford=char.gold>=item.cost;
       act.appendChild(mEl('div','m-shop-item'+(item.bought?' sold':'')+(item.heirloom?' heirloom':''),`
-        <div class="m-shop-text"><div class="m-shop-name">${item.name}</div><div class="m-shop-desc">${desc}</div></div>
+        <div class="m-shop-text"><div class="m-shop-name">${iconImg(iconItem(item),'ico-inv')}${item.name}</div><div class="m-shop-desc">${desc}</div></div>
         <button class="m-btn use" onclick="buyItem('${item.id}')" ${item.bought||!afford?'disabled':''}>${item.bought?'Sold':`${item.cost} ss`}</button>`));
     });
     const leave=mEl('button','btn btn-w','Done shopping'); leave.onclick=leaveShop; act.appendChild(leave);
@@ -345,7 +345,7 @@ function mBuildKit(char,gs){
     if(char.rageBoon){ const r=mEl('button','m-pill armed','Rage armed'); r.onclick=()=>mTapTalent('rage',char); wrap.appendChild(r); }
     keys.forEach(k=>{
       const used=talentUsed(k,char);
-      const p=mEl('button','m-pill'+(used===null?' passive':used?' used':' ready'),labelFromKey(k)+(used&&COOLDOWNS_C[k]?` ⏳${cooldownLeft(char,k)}`:''));
+      const p=mEl('button','m-pill'+(used===null?' passive':used?' used':' ready'),iconImg(iconTalent(k),'ico-sm')+labelFromKey(k)+(used&&COOLDOWNS_C[k]?` ⏳${cooldownLeft(char,k)}`:''));
       p.onclick=()=>mTapTalent(k,char); wrap.appendChild(p);
     });
     if(!keys.length&&!char.rageBoon) wrap.innerHTML='<span class="empty">No talents yet.</span>';
@@ -361,7 +361,7 @@ function mBuildKit(char,gs){
     inv.forEach((item,idx)=>{
       const o=item.itemObj;
       const isEq=(item.type==='weapon'&&char.equippedWeapon&&o&&o.id===char.equippedWeapon.id)||(item.type==='armor'&&char.equippedArmor&&o&&o.id===char.equippedArmor.id)||(item.type==='charm'&&char.equippedCharm&&o&&o.id===char.equippedCharm.id);
-      const p=mEl('button','m-pill'+(isEq?' equipped':''),`${item.name}${item.qty>1?` ×${item.qty}`:''}${isEq?' ★':''}`);
+      const p=mEl('button','m-pill'+(isEq?' equipped':''),`${iconImg(iconItem(item),'ico-sm')}${item.name}${item.qty>1?` ×${item.qty}`:''}${isEq?' ★':''}`);
       p.onclick=()=>mTapItem(idx,char,inCombat); wrap.appendChild(p);
     });
     if(!inv.length) wrap.innerHTML='<span class="empty">Your pack is empty.</span>';

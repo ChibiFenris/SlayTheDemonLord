@@ -245,7 +245,7 @@ function renderSidebars(players,gs,me){
 function hasActedThisRound(gs,id){ return gs.phase==='combat'&&gs.playersActedThisRound&&gs.playersActedThisRound.includes(id); }
 
 function statusChips(c){
-  const conds=(c.conditions||[]).map(cd=>`<span class="chip chip-bad e-chip-clickable" onmouseenter="showDebuffTip('${esc(cd)}',false,event)" onmouseleave="hideDebuffTip()">${cd}</span>`);
+  const conds=(c.conditions||[]).map(cd=>`<span class="chip chip-bad e-chip-clickable" onmouseenter="showDebuffTip('${esc(cd)}',false,event)" onmouseleave="hideDebuffTip()">${iconImg(iconCondition(String(cd).replace(/\s*\(.*$/,'').replace(/\s+\d+$/,'')),'ico-chip')}${cd}</span>`);
   const buffs=(c.activeBuffs||[]).map(b=>`<span class="chip chip-good e-chip-clickable" onmouseenter="showDebuffTip('${esc(b.name)}',false,event)" onmouseleave="hideDebuffTip()">${b.name} · ${b.duration}r</span>`);
   const all=[...conds,...buffs];
   return all.length?`<div class="chip-row">${all.join('')}</div>`:'';
@@ -277,12 +277,12 @@ function buildCard(p,gs){
       <div><dt>Defence</dt><dd>${c.defense}${defBuff?` <small>(+${defBuff})</small>`:''}</dd></div>
       <div><dt>Power</dt><dd>${c.power}</dd></div>
       <div><dt>Silver</dt><dd class="silver">${c.gold} ss</dd></div>
-      <div class="wide"><dt>Weapon</dt><dd>${w?`${w.name} ${w.dice}+${w.bonus||0} ${w.dmgType==='blunt'?'🔨':'⚔'}`:'Unarmed'}</dd></div>
-      <div class="wide"><dt>Armour</dt><dd>${a?`${a.name} +${a.defBonus}`:'None'}</dd></div>
+      <div class="wide"><dt>Weapon</dt><dd>${w?`${iconImg(iconWeapon(w.name),'ico-inv')}${w.name} ${w.dice}+${w.bonus||0} ${w.dmgType==='blunt'?'🔨':'⚔'}`:'Unarmed'}</dd></div>
+      <div class="wide"><dt>Armour</dt><dd>${a?`${iconImg(iconArmor(a.name),'ico-inv')}${a.name} +${a.defBonus}`:'None'}</dd></div>
       <div class="wide"><dt>Row</dt><dd>${c.row==='back'?'Back':'Front'}${p.id===myId&&c.alive?` <button class="mini-btn" onclick="setRow('${c.row==='back'?'front':'back'}')" title="Front: melee enemies can reach you. Back: only ranged enemies reach you, but melee weapons get 1 bane.">Move ${c.row==='back'?'forward':'back'}</button>`:''}</dd></div>${relicChipsHtml(c)}
       <div class="wide"><dt>Taint</dt><dd class="dark-line" title="Corruption brings a mutation every 3 points. Insanity at its limit makes you snap: a short madness and a lasting disorder.">${dk.line}</dd></div>
       ${dk.muts.length||dk.dis.length?`<div class="wide"><dt>Marks</dt><dd class="relic-chips">${dk.muts.join('')}${dk.dis.join('')}</dd></div>`:''}
-      <div class="wide"><dt>Charm</dt><dd${c.equippedCharm?` title="${c.equippedCharm.desc.replace(/"/g,'&quot;')}"`:''}>${c.equippedCharm?c.equippedCharm.name:'None'}${c.equippedCharm&&p.id===myId?` <button class="mini-btn" onclick="unequipCharm()" title="Take the charm off and put it in your pack">Remove</button>`:''}</dd></div>
+      <div class="wide"><dt>Charm</dt><dd${c.equippedCharm?` title="${c.equippedCharm.desc.replace(/"/g,'&quot;')}"`:''}>${c.equippedCharm?iconImg(iconItem({type:'charm',...c.equippedCharm}),'ico-inv')+c.equippedCharm.name:'None'}${c.equippedCharm&&p.id===myId?` <button class="mini-btn" onclick="unequipCharm()" title="Take the charm off and put it in your pack">Remove</button>`:''}</dd></div>
     </dl>
     ${statusChips(c)}
     ${!c.alive?'<div class="dead-label">Fallen</div>':''}`;
@@ -360,23 +360,24 @@ function passiveKeys(c){
 }
 const SPELL_ELEMENT_ICON={fire:'🔥',holy:'✨',lightning:'⚡',dark:'🌑',arcane:'🔮'};
 function spellIcon(name){
-  return SPELL_ELEMENT_ICON[SPELL_ELEMENT[name]]||'🔮';
+  const pic=typeof iconSpell==='function'&&iconSpell(name);
+  return pic?iconImg(pic,'ico-sm'):(SPELL_ELEMENT_ICON[SPELL_ELEMENT[name]]||'🔮');
 }
 
-function talentRow(name,badgeCls,badge,desc){
-  return `<div class="ab-item tip"><span class="ab-name">${name}</span><span class="badge ${badgeCls}">${badge}</span><span class="tiptext">${desc}</span></div>`;
+function talentRow(name,badgeCls,badge,desc,key){
+  return `<div class="ab-item tip"><span class="ab-name">${key?iconImg(iconTalent(key),'ico-sm'):''}${name}</span><span class="badge ${badgeCls}">${badge}</span><span class="tiptext">${desc}</span></div>`;
 }
 function talentsHtml(c){
   const actives=ACTIVE_TALENTS.filter(([k])=>c[k]).map(([k,label,usedKey])=>{
     const used=usedKey?!!c[usedKey]:false;
-    return talentRow(label,used?'badge-bad':'badge-good',used?cooldownText(c,k):'Ready',TALENT_DESCS[k]||label);
+    return talentRow(label,used?'badge-bad':'badge-good',used?cooldownText(c,k):'Ready',TALENT_DESCS[k]||label,k);
   });
   EXTRA_ACTIVES.forEach(([k,lbl,sub,used])=>{
     if(!c[k]||ACTIVE_TALENTS.some(t=>t[0]===k)) return;
     const u=used(c,(lastState&&lastState.gs)||{});
-    actives.push(talentRow(lbl.replace(/^\S+ /,''),u?'badge-bad':'badge-good',u?(k==='taunt'?'Recharging':cooldownText(c,k)):'Ready',TALENT_DESCS[k]||sub));
+    actives.push(talentRow(lbl.replace(/^\S+ /,''),u?'badge-bad':'badge-good',u?(k==='taunt'?'Recharging':cooldownText(c,k)):'Ready',TALENT_DESCS[k]||sub,k));
   });
-  const passives=passiveKeys(c).map(k=>talentRow(labelFromKey(k),'badge-dim','Passive',TALENT_DESCS[k]||labelFromKey(k)));
+  const passives=passiveKeys(c).map(k=>talentRow(labelFromKey(k),'badge-dim','Passive',TALENT_DESCS[k]||labelFromKey(k),k));
   let h='';
   if(actives.length) h+=`<div class="ab-section"><div class="ab-title">Active <span class="ab-note">each one uses your turn</span></div>${actives.join('')}</div>`;
   if(passives.length) h+=`<div class="ab-section"><div class="ab-title">Passive <span class="ab-note">always on, no button</span></div>${passives.join('')}</div>`;
@@ -422,7 +423,7 @@ function inventoryHtml(c,inCombat,atMerchant){
     const open=(isWpn||isArmor||isCharm)?` onclick="openItemPopout(${idx},this)" role="button" tabindex="0"`:'';
     const cursed=o&&o.cursed?'<span class="cursed-mark" title="Cursed: once equipped it can\'t be removed until you rest">⛓ Cursed</span>':'';
     const tip=!open&&ITEM_DESCS[item.name]?` title="${ITEM_DESCS[item.name].replace(/"/g,'&quot;')}"`:'';
-    h+=`<li class="${isEq?'equipped':''}"><span class="iname${open?' clickable':''}"${open}${tip}>${item.name}${item.qty>1?` ×${item.qty}`:''}<small>${stat}</small>${special}${cursed}${isEq?'<span class="eq-mark">Equipped</span>':''}</span><span class="inv-btns">${btns}</span></li>`;
+    h+=`<li class="${isEq?'equipped':''}"><span class="iname${open?' clickable':''}"${open}${tip}>${iconImg(iconItem(item),'ico-inv')}${item.name}${item.qty>1?` ×${item.qty}`:''}<small>${stat}</small>${special}${cursed}${isEq?'<span class="eq-mark">Equipped</span>':''}</span><span class="inv-btns">${btns}</span></li>`;
   });
   return h||'<li class="empty">Your pack is empty.</li>';
 }
@@ -678,7 +679,7 @@ function renderActions(gs,players,me){
       : _dtype==='slashing'&&_te&&_te.ac<=14
       ? ' [×1.5 vs light armour!]'
       : '';
-    const _atkLabel=`${_dtIcon} Attack${_bonus}`;
+    const _atkLabel=`${iconImg(_wpn?iconWeapon(_wpn.name):ICONS.weaponDefault,'ico-btn')||_dtIcon} Attack${_bonus}`;
     const _atkTip=`${_dtIcon} ${_dtype==='blunt'?'Blunt — ×1.5 dmg vs AC ≥ 16 (heavy armour)':'Slashing — ×1.5 dmg vs AC ≤ 14 (light/no armour)'}. ${wpnStr}.`;
     addBtn(g,_atkLabel,wpnStr,'am-',()=>send('PLAYER_ACTION',{action:'ATTACK'}),false,_atkTip);
     const noSpells=char.equippedCharm&&char.equippedCharm.key==='brassSkull'; // Brass Skull of Khorne forbids spells
@@ -698,19 +699,19 @@ function renderActions(gs,players,me){
         addBtn(g,`${elemIcon} ${sp.name}`,`Attack·R${sp.rank}`,'as-',()=>send('PLAYER_ACTION',{action:'CAST_SPELL',data:{spellName:sp.name}}),!avail,desc);
       }
     });
-    if(char.catchBreath&&!char.catchBreathUsed) addBtn(g,'Catch Breath','Heal 2d6+best attr','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'catchBreath'}}),false,TALENT_DESCS.catchBreath);
-    if(char.shieldBash&&!char._shieldBashUsed) addBtn(g,'🛡 Shield Bash','Stun enemy','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'shieldBash'}}),false,TALENT_DESCS.shieldBash);
-    if(char.nimbleRecovery&&!char.nimbleUsed)   addBtn(g,'Nimble Recovery','Heal 2d6+best attr','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'nimbleRecovery'}}),false,TALENT_DESCS.nimbleRecovery);
-    if(char.sharedRecovery&&!char.sharedUsed)   addBtn(g,'Shared Recovery','You + allies heal 2d6','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'sharedRecovery'}}),false,TALENT_DESCS.sharedRecovery);
-    if(char.spellRecovery&&!char.spellRecoveryUsed) addBtn(g,'Spell Recovery','Heal+casting','as-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'spellRecovery'}}),false,TALENT_DESCS.spellRecovery);
-    if(char.divineSmite&&!char.divineSmiteUsed)  addBtn(g,'⚡ Divine Smite','+3d6 holy dmg','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'divineSmite'}}),false,TALENT_DESCS.divineSmite);
-    if(char.massHeal&&!char.massHealUsed)        addBtn(g,'✨ Mass Heal','All allies 1d6','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'massHeal'}}),false,TALENT_DESCS.massHeal||'Heal all living allies 1d6. Once per combat.');
-    if(char.resurrection&&!char.resurrectionUsed)addBtn(g,'✝ Resurrection','Shield weakest ally','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'resurrection'}}),false,TALENT_DESCS.resurrection);
-    if(char.rallyingCry&&!char.rallyingUsed)     addBtn(g,'📯 Rallying Cry','You + allies heal 2d6','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'rallyingCry'}}),false,TALENT_DESCS.rallyingCry);
-    if(char.bloodOffering)                        addBtn(g,'🩸 Blood Offering','−1d6 HP → castings','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'bloodOffering'}}),false,TALENT_DESCS.bloodOffering);
-    if(char.metamagic&&!char.metamagicUsed)       addBtn(g,'🔮 Metamagic','Next spell free','as-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'metamagic'}}),false,TALENT_DESCS.metamagic);
-    if(char.catastrophe&&!char.catastropheUsed)   addBtn(g,'💥 Catastrophe','10d6 all enemies','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'catastrophe'}}),false,TALENT_DESCS.catastrophe);
-    EXTRA_ACTIVES.forEach(([k,lbl,sub,used,show])=>{ if(show&&!show(gs,players)) return; if(char[k]&&!used(char,gs)) addBtn(g,lbl,sub,'at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:k}}),false,TALENT_DESCS[k]||sub); });
+    if(char.catchBreath&&!char.catchBreathUsed) addBtn(g,talentLabel('catchBreath','Catch Breath'),'Heal 2d6+best attr','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'catchBreath'}}),false,TALENT_DESCS.catchBreath);
+    if(char.shieldBash&&!char._shieldBashUsed) addBtn(g,talentLabel('shieldBash','🛡 Shield Bash'),'Stun enemy','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'shieldBash'}}),false,TALENT_DESCS.shieldBash);
+    if(char.nimbleRecovery&&!char.nimbleUsed)   addBtn(g,talentLabel('nimbleRecovery','Nimble Recovery'),'Heal 2d6+best attr','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'nimbleRecovery'}}),false,TALENT_DESCS.nimbleRecovery);
+    if(char.sharedRecovery&&!char.sharedUsed)   addBtn(g,talentLabel('sharedRecovery','Shared Recovery'),'You + allies heal 2d6','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'sharedRecovery'}}),false,TALENT_DESCS.sharedRecovery);
+    if(char.spellRecovery&&!char.spellRecoveryUsed) addBtn(g,talentLabel('spellRecovery','Spell Recovery'),'Heal+casting','as-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'spellRecovery'}}),false,TALENT_DESCS.spellRecovery);
+    if(char.divineSmite&&!char.divineSmiteUsed)  addBtn(g,talentLabel('divineSmite','⚡ Divine Smite'),'+3d6 holy dmg','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'divineSmite'}}),false,TALENT_DESCS.divineSmite);
+    if(char.massHeal&&!char.massHealUsed)        addBtn(g,talentLabel('massHeal','✨ Mass Heal'),'All allies 1d6','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'massHeal'}}),false,TALENT_DESCS.massHeal||'Heal all living allies 1d6. Once per combat.');
+    if(char.resurrection&&!char.resurrectionUsed)addBtn(g,talentLabel('resurrection','✝ Resurrection'),'Shield weakest ally','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'resurrection'}}),false,TALENT_DESCS.resurrection);
+    if(char.rallyingCry&&!char.rallyingUsed)     addBtn(g,talentLabel('rallyingCry','📯 Rallying Cry'),'You + allies heal 2d6','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'rallyingCry'}}),false,TALENT_DESCS.rallyingCry);
+    if(char.bloodOffering)                        addBtn(g,talentLabel('bloodOffering','🩸 Blood Offering'),'−1d6 HP → castings','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'bloodOffering'}}),false,TALENT_DESCS.bloodOffering);
+    if(char.metamagic&&!char.metamagicUsed)       addBtn(g,talentLabel('metamagic','🔮 Metamagic'),'Next spell free','as-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'metamagic'}}),false,TALENT_DESCS.metamagic);
+    if(char.catastrophe&&!char.catastropheUsed)   addBtn(g,talentLabel('catastrophe','💥 Catastrophe'),'10d6 all enemies','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'catastrophe'}}),false,TALENT_DESCS.catastrophe);
+    EXTRA_ACTIVES.forEach(([k,lbl,sub,used,show])=>{ if(show&&!show(gs,players)) return; if(char[k]&&!used(char,gs)) addBtn(g,talentLabel(k,lbl),sub,'at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:k}}),false,TALENT_DESCS[k]||sub); });
     // Recharging abilities stay visible, greyed out, with the rounds left.
     ACTIVE_TALENTS.forEach(([k,label,usedKey])=>{ if(char[k]&&usedKey&&char[usedKey]&&COOLDOWNS_C[k]) addBtn(g,'⏳ '+label,cooldownText(char,k),'at-',null,true,TALENT_DESCS[k]||label); });
     EXTRA_ACTIVES.forEach(([k,lbl,sub,used,show])=>{ if(show&&!show(gs,players)) return; if(char[k]&&used(char,gs)&&COOLDOWNS_C[k]) addBtn(g,'⏳ '+lbl.replace(/^\S+ /,''),cooldownText(char,k),'at-',null,true,TALENT_DESCS[k]||sub); });
@@ -760,11 +761,11 @@ function renderLoot(gs,me){
   const consName=o.consumable==='Spell Scroll'&&o.scrollSpell?`Scroll: ${o.scrollSpell.name}`:o.consumable;
   const consDesc=o.scrollSpell?o.scrollSpell.desc:ITEM_DESCS[o.consumable]||o.consumable;
   lootOpt(opts,'💰',`${loot.coins} Silver`,'Coin from the cache.',()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'coins'}}));
-  lootOpt(opts,'🧪',consName,consDesc,()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'consumable'}}));
-  lootOpt(opts,'⚔',o.weapon.name,`${o.weapon.dice}+${o.weapon.bonus} · ${o.weapon.stat.toUpperCase()}${traitText(o.weapon)}`,()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'weapon'}}));
-  lootOpt(opts,'🛡',o.armor.name,`+${o.armor.defBonus} Defence${traitText(o.armor)}`,()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'armor'}}));
-  if(o.charm) lootOpt(opts,'📿',o.charm.name,o.charm.desc,()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'charm'}}));
-  if(o.heirloom) lootOpt(opts,'🏺',o.heirloom.name,o.heirloom.desc,()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'heirloom'}}),'heirloom');
+  lootOpt(opts,iconImg(iconItem({name:consName}),'ico-loot')||'🧪',consName,consDesc,()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'consumable'}}));
+  lootOpt(opts,iconImg(iconWeapon(o.weapon.name),'ico-loot'),o.weapon.name,`${o.weapon.dice}+${o.weapon.bonus} · ${o.weapon.stat.toUpperCase()}${traitText(o.weapon)}`,()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'weapon'}}));
+  lootOpt(opts,iconImg(iconArmor(o.armor.name),'ico-loot'),o.armor.name,`+${o.armor.defBonus} Defence${traitText(o.armor)}`,()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'armor'}}));
+  if(o.charm) lootOpt(opts,iconImg(iconItem({type:'charm',...o.charm}),'ico-loot')||'📿',o.charm.name,o.charm.desc,()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'charm'}}));
+  if(o.heirloom) lootOpt(opts,iconImg(iconItem(o.heirloom),'ico-loot')||'🏺',o.heirloom.name,o.heirloom.desc,()=>send('PLAYER_ACTION',{action:'PICK_LOOT',data:{pick:'heirloom'}}),'heirloom');
 }
 // The traits part of an item's description, for compact cards.
 function traitText(item){ const d=(item&&item.desc)||''; const i=d.indexOf('Traits: '); return i>=0?` · ${d.slice(i+8)}`:''; }
@@ -786,7 +787,7 @@ function renderShop(stock,myGold){
 function shopEl(item,gold){
   const d=document.createElement('div'); d.className='shop-item'+(item.bought?' sold':'')+(item.heirloom?' heirloom':'');
   const desc=(item.itemObj&&item.itemObj.desc)||item.desc||ITEM_DESCS[item.name]||'';
-  d.innerHTML=`<span class="si-name tip">${item.name}<span class="tiptext">${desc}</span></span><span class="si-desc">${item.desc||''}</span><div class="si-row"><span class="si-cost">${item.cost} ss</span><button class="buy-btn" onclick="buyItem('${item.id}')" ${item.bought||gold<item.cost?'disabled':''}>${item.bought?'Sold':'Buy'}</button></div>`;
+  d.innerHTML=`<span class="si-name tip">${iconImg(iconItem(item),'ico-inv')}${item.name}<span class="tiptext">${desc}</span></span><span class="si-desc">${item.desc||''}</span><div class="si-row"><span class="si-cost">${item.cost} ss</span><button class="buy-btn" onclick="buyItem('${item.id}')" ${item.bought||gold<item.cost?'disabled':''}>${item.bought?'Sold':'Buy'}</button></div>`;
   return d;
 }
 function buyItem(id){ send('PLAYER_ACTION',{action:'BUY_ITEM',data:{itemId:id}}); }
