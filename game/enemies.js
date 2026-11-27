@@ -314,7 +314,7 @@ function enemyAfterHit(room, ae, p, dmg, r, plan){
   if(ae.vanish&&ae.hp>0&&aliveEnemies(gs).length>1){ ae._vanished=true; S.addLog(room,`💨 ${ae.name} melts into the shadows — it can't be targeted until its next turn.`,'chaos'); }
   if(ae.bloodgreedKill&&!c.alive&&ae.hp>0){ ae.hp=ae.maxHp; S.addLog(room,`🐂 <strong>Bloodgreed!</strong> ${ae.name} roars over the fallen ${p.name} — fully healed!`,'chaos'); }
   if(plan&&plan.onHit==='leapBleed'&&c.alive){ S.addBuff(c,'Bleed',{dotDmg:rd(1,3)},2); S.addBuff(c,'Bleed',{dotDmg:rd(1,3)},2); }
-  if(plan&&plan.onHit==='slamStun'&&c.alive){ S.addBuff(c,'Stunned',{skipTurn:true},2); S.addLog(room,`💫 ${p.name} is <strong>STUNNED</strong> by the slam!`,'chaos'); }
+  if(plan&&plan.onHit==='slamStun'&&c.alive){ S.addBuff(c,'Stunned',{skipTurn:true},alivePlayers(room).length===1?1:2); /* a lone warrior loses one turn, not two */ S.addLog(room,`💫 ${p.name} is <strong>STUNNED</strong> by the slam!`,'chaos'); }
   if(plan&&plan.onHit==='prone'&&c.alive){ S.addBuff(c,'Prone',{bane:1,consumeOnAttack:true},2); }
 }
 // A player's weapon hit lands on an enemy. Returns the damage that actually applies.

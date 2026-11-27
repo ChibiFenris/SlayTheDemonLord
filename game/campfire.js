@@ -39,7 +39,8 @@ function choose(room, playerId, choice, slot) {
 
 function rest(room, p) {
   const gs = room.gs, c = p.char;
-  const amt = Math.ceil(c.maxHealth * 0.5 * S.dark.restFactor(c) * (S.foes.hasMutator(gs, 'leanTimes') ? 0.5 : 1) * (S.foes.hasMutator(gs, 'vampiricPact') ? 0 : 1));
+  const share = alive(room).length === 1 ? 0.65 : 0.5; // a lone warrior has nobody to share the watch, so sleeps deeper
+  const amt = Math.ceil(c.maxHealth * share * S.dark.restFactor(c) * (S.foes.hasMutator(gs, 'leanTimes') ? 0.5 : 1) * (S.foes.hasMutator(gs, 'vampiricPact') ? 0 : 1));
   c.health = Math.min(c.maxHealth, c.health + amt);
   if (c.insanity) S.dark.loseInsanity(c, 1);
   S.cleanseCurses(c, true);

@@ -42,7 +42,7 @@ function mTapTalent(key,char){
   const isActive=used!==null;
   const inCombat=lastState&&lastState.gs&&lastState.gs.phase==='combat';
   const btn=isActive&&!used&&inCombat?sheetButtons(`<button class="m-btn use" onclick="mUseTalent('${key}')">Use ${label}</button>`):sheetButtons('');
-  mSheet(label,isActive?'Active talent':'Passive talent',TALENT_DESCS[key]||label,[],
+  mSheet(label,isActive?'Active — uses your turn':'Passive — always on',TALENT_DESCS[key]||label,[],
     isActive?(used?'off':'ok'):'ok',isActive?(used?(key==='taunt'?'Recharging':cooldownText(char,key)):'Ready'):'Always active',btn);
 }
 function mUseTalent(t){ mCloseSheet(); send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:t}}); }

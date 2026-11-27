@@ -88,7 +88,7 @@ const logHas=(room,re)=>room.gs.log.some(l=>re.test(l.msg));
   ok(room.gs.phase==='event'&&a.char.health>5,'majority option resolves and heals'); }
 // 8. Every choice event resolves every option without errors
 { for(const [key,ev] of Object.entries(S.events.CHOICE_EVENTS)) for(const o of ev.options){
-    const {room}=mkRoom(o.needs?['warrior',[].concat(o.needs)[0]]:['warrior','wizard']); room.gs.phase='event'; room.gs.depth=25; room.players.forEach(p=>{p.char.gold=50;});
+    const {room}=mkRoom(o.needs?['warrior',[].concat(o.needs)[0].replace('caster','wizard')]:['warrior','wizard']); room.gs.phase='event'; room.gs.depth=25; room.players.forEach(p=>{p.char.gold=50;});
     let err=null; try{ S.events.startChoiceEvent(room,key); room.players.forEach(p=>S.events.voteChoice(room,p.id,o.id)); }catch(e){ err=e; }
     if(err||room.gs.phase==='choice') ok(false,`event ${key}/${o.id} failed: ${err&&err.message}`);
   } ok(true,'all choice events resolve');
@@ -527,5 +527,37 @@ const logHas=(room,re)=>room.gs.log.some(l=>re.test(l.msg));
   { const {room}=mkRoom(['warrior']); const p=room.players[0]; p.char.grace=true; room.gs.inCombat=true; p.char.health=0; S.checkDeath(room,p); ok(p.char.alive&&p.char.health===1,'Grace saves you as well as allies'); }
   { const {room}=mkRoom(['warrior']); const p=room.players[0]; p.char.devastatingCharge=true; room.gs.phase='path'; S.enterNode(room,'combat');
     ok(room.gs.inCombat&&p.char._devastatingChargeProc===true,'Devastating Charge is ready on its own when a fight starts'); }
+}
+// 45. Passive audit fixes
+{ const atk=(room,p)=>{ room.gs.activeTurnIdx=room.gs.turnOrder.findIndex(t=>t.id===p.id); room.gs.playersActedThisRound=[]; S.handlePlayerAction(room,p.id,{action:'ATTACK'}); };
+  { const {room}=mkRoom(['warrior','priest']); const [a,b]=room.players; combat(room,['Skaven Clanrat']); room.gs.enemies[0].hp=999; room.gs.enemies[0].maxHp=999; b.char.warlordAura=true; b.char.vigil=true;
+    atk(room,a); ok(a.char._allyAura===true&&a.char._allyVigil===true,'Warlord Aura and Vigil reach allies, not just the holder'); }
+  { const {room}=mkRoom(['warrior']); const [a]=room.players; combat(room,['Skaven Clanrat']); const e=room.gs.enemies[0]; e.hp=999; e.maxHp=999; e.ac=99; e.defense=99; a.char.relentless=true; const base=a.char.weaponAtkBonus||0;
+    for(let i=0;i<8;i++) atk(room,a);
+    ok((a.char.weaponAtkBonus||0)-base===5,'Relentless misses add up to +5 to hit, no more ('+((a.char.weaponAtkBonus||0)-base)+')');
+    S.resetCombatState(a); ok((a.char.weaponAtkBonus||0)===base,'and resets when the fight ends'); }
+  { const {room}=mkRoom(['slayer']); const [a]=room.players; combat(room,['Skaven Clanrat','Skaven Clanrat']); const e=room.gs.enemies[0]; room.gs.activeEnemyIdx=0; e.ac=0; a.char.frenzy=true; e.hp=1;
+    for(let i=0;i<6&&e.hp>0;i++){ a.char.rageBoon=true; atk(room,a); } ok(e.hp<=0&&a.char.rageBoon===true,'Frenzy: a kill made with a rage strike keeps the rage ready'); }
+}
+// 46. Events for each people
+{ const E=S0.events||require('../game/events.js');
+  const run=(race,key,opt)=>{ const {room}=mkRoom([race]); room.gs.depth=5; room.gs.phase='event'; E.startChoiceEvent(room,key); const ch=room.gs.choice; const opts=ch?ch.options.map(o=>o.id):[]; const p=room.players[0]; const before=JSON.parse(JSON.stringify({str:p.char.attrs.str,agi:p.char.attrs.agi,max:p.char.maxHealth,bonus:p.char.equippedWeapon&&p.char.equippedWeapon.bonus}));
+    if(ch&&opt) S.handlePlayerAction(room,p.id,{action:'CHOOSE_EVENT',data:{option:opt}}); return {room,p,opts,before}; };
+  { const {p,opts,before,room}=run('dwarf','dwarfGrudge','avenge'); ok(opts.includes('avenge')&&p.char.attrs.str===before.str+1&&room.gs.inCombat,'Dwarf: settling a grudge gives +1 STR and starts an elite fight'); }
+  { const {p,opts,before}=run('bretonnia','grailChapel','vow'); ok(opts.includes('vow')&&p.char.maxHealth===before.max+5,'Bretonnia: the Questing Vow gives +5 max HP'); }
+  { const {p,opts,before}=run('woodelf','waystone','attune'); ok(opts.includes('attune')&&p.char.attrs.agi===before.agi+1,'Wood Elf: the waystone gives +1 AGI'); }
+  { const {p,opts,before}=run('highelf','ulthuanEnvoy','audience'); ok(opts.includes('audience')&&p.char.maxHealth===before.max+5&&p.char.inventory.some(i=>i.name==='Greater Healing Draught'),'High Elf: the envoy gives Ithilmar and a draught'); }
+  { const {p,opts,before}=run('empire','stateMuster','drill'); ok(opts.includes('drill')&&p.char.equippedWeapon.bonus===(before.bonus||0)+1,'Empire: the muster re-forges your weapon (+1 damage)'); }
+  { const {opts}=run('empire','dwarfGrudge',null); ok(!opts.includes('avenge'),'a people\'s own option only shows when that people is in the warband'); }
+  { const {room}=mkRoom(['dwarf']); room.gs.depth=5; let seen=false; for(let i=0;i<60&&!seen;i++){ room.gs.phase='event'; room.gs.choice=null; E.startChoiceEvent(room); seen=room.gs.choice&&room.gs.choice.key==='dwarfGrudge'; } ok(seen,'people events turn up on their own'); }
+  { const {opts}=run('dwarf','trollToll',null); ok(opts.includes('challenge')&&!opts.includes('trick'),'old career options now follow the peoples (Dwarf challenges the troll)'); }
+}
+// 47. Solo adjustments
+{ { const {room}=mkRoom(['empire']); const [a]=room.players; a.char.health=1; room.gs.phase='path'; S.enterNode(room,'rest'); S.handlePlayerAction(room,a.id,{action:'CAMPFIRE',data:{choice:'rest'}});
+    ok(a.char.health>=1+Math.ceil(a.char.maxHealth*0.6),'alone, resting heals about two thirds'); }
+  { const {room}=mkRoom(['empire']); const [a]=room.players; combat(room,['Skaven Clanrat']); S.enemyAfterHit(room,room.gs.enemies[0],a,5,{hit:true},{onHit:'slamStun'});
+    const st=(a.char.activeBuffs||[]).find(b=>b.skipTurn); ok(st&&st.duration===1,'alone, a slam stuns for one turn, not two'); }
+  { const {room}=mkRoom(['empire','dwarf']); const [a]=room.players; combat(room,['Skaven Clanrat']); S.enemyAfterHit(room,room.gs.enemies[0],a,5,{hit:true},{onHit:'slamStun'});
+    const st=(a.char.activeBuffs||[]).find(b=>b.skipTurn); ok(st&&st.duration===2,'in a warband it is still two'); }
 }
 console.log(fails?fails+' FAILED':'all passed'); process.exit(fails?1:0);

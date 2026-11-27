@@ -83,7 +83,7 @@ Share this URL with your friends — that's your game server.
 - Enemy HP scales with player count (+50% per extra player)
 - Shared gold pool, individual inventories
 - Boss fight every 10 nodes — no fleeing allowed
-- Rest nodes restore 60% HP and refresh all abilities
+- Campfires: rest (heal half your HP, two thirds when alone) or upgrade a weapon or armour; abilities refresh either way
 - Levels 1, 3, and 7 trigger path selection screens
 
 ## Races
@@ -173,12 +173,15 @@ Every finished run adds one line to `runs.jsonl` in the data folder: party, clas
 - **Cursed Paths (☠):** a relic now, but enemies get +15% HP and +1 damage per curse (max two) until the next boss dies. +5 Renown each.
 - **Road ahead:** the crossroads shows the next two crossroads, and they don't change.
 - **Rows:** front or back. Melee enemies only reach the front row while someone stands there; melee weapons from the back row get 1 bane.
-- **Block and Revive:** every career has Block (free, halves damage until your next turn, 5-round cooldown) and Revive (uses your turn, raises a fallen ally at 25% HP, 12-round cooldown).
+- **Block and Revive:** every career has Block (uses your turn, halves damage until your next turn, 5-round cooldown) and Revive (uses your turn, raises a fallen ally at 25% HP, 12-round cooldown).
 - **Enemy intents:** each enemy card says who it will attack next. **Combos:** stunned/skipped targets take +1d6 (Exploit), Condemned + burning +1d6 (Purge), poisoned + bleeding +2 (Festering).
 - **Recurring characters (`game/lore.js`, `events.js`):** Old Grete the merchant, Ulla Kranz and the Black Ravens (three meetings), Brother Aldric the witch hunter (two). How you treat them first changes later meetings. Bosses speak when they appear and when they die.
 - **Endless mode:** the host turns it on in the lobby. No final victory: a boss every 10 depths (the three boss tiers cycle), and each boss past the third adds a tier — foes get much more HP (growing faster each tier), +1.5 damage, +1 to hit and more silver per tier; shop and loot weapons get +1 per tier and armour +1 every other tier, legendaries +1 per tier, and the Weapon Enhancement cap rises. Runs end when the warband falls.
 - **Races and classes:** players choose a people, not a career: Human (Empire) +1 to every attribute, Human (Bretonnia) +4 WIL, Dwarf +4 STR, High Elf +4 INT, Wood Elf +4 AGI; each fights with its best attribute and has its own level-1 gifts. At level 3 each people picks one of four expert classes and at level 7 one of four master classes (`CAREER_PATHS` in `game/data.js`), e.g. Dwarf: Troll Slayer / Ironbreaker / Thunderer / Runesmith, then Daemon Slayer / Thane / Ironbeard Marksman / Runelord. Masters carry their own core abilities, classes that teach magic (`lores`) make you a spellcaster in your people's lores, and some come with gear (`gift`). The old careers remain only as archetype kits for the tests.
 - **Corruption and Insanity (`game/dark.js`):** Corruption from Cursed Paths, cursed gear, warpstone and dark lores gives a mutation every 3 points (max 3). Insanity from terror, bosses and fallen allies; at the limit you snap (short madness + lasting disorder). Sigmarite Incense and Laudanum at the merchant, campfires remove 1 Insanity.
+- **Abilities:** every active ability uses your turn; passives always work and never appear as buttons. Team abilities (War Cry, Battle Orders, Intercept, Counterspell, Grace, Last Rites) also cover you, so they work solo.
+- **Events of the peoples:** each people has its own once-per-run encounter (Dwarf grudge, Grail chapel, Wood Elf waystone, Ulthuan envoy, State Troop muster).
+- **Solo:** smaller bosses, smaller elite pairs, stuns last one turn and campfires heal more when you play alone.
 - **Boss phases, elite modifiers, greenskins (`game/foes.js`):** every boss changes at half HP (scaled down for solo players); elites roll one of nine modifiers; Night Goblins, Squigs, Fanatics, Orc Boyz, Shamans, Black Orcs and Warboss Grubnak join the road.
 - **Endless mutators:** after each Endless boss past the third the warband votes for one of three lasting changes.
 - **Zones (`game/zones.js`):** the road runs through the Drakwald (beastmen, greenskins), the Altdorf Undercity (Skaven, undead) and the Chaos Wastes (Chaos, daemons), ten depths each; each region's factions turn up far more often, it has its own place names, a tint, and its own explore/battle/elite/boss music picked from the existing tracks (`ZONE_TRACKS` in `public/js/data.js`). Endless loops the regions.

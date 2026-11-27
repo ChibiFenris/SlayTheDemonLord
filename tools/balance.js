@@ -128,7 +128,10 @@ function runGame(careers, opts = {}) {
       if (c.condemn && !c._condemnUsed && !c._condemnTargetId) return send(sk, 'USE_TALENT', { talent: 'condemn' });
       for (const t of ['turret', 'arrowStorm', 'grenade', 'steamBarrage', 'divineSmite', 'warCry', 'deadAim', 'curse', 'massHeal']) if (c[t] && !c[t + 'Used'] && !c['_' + t + 'Used']) return send(sk, 'USE_TALENT', { talent: t });
       const atkSpell = spells.filter(s => s.type === 'attack' && left(s) > 0).sort((a, b) => b.rank - a.rank)[0];
-      if (atkSpell && c.spellcaster && (atkSpell.rank > 0 || (c.equippedWeapon && c.equippedWeapon.stat === 'int'))) return send(sk, 'CAST_SPELL', { spellName: atkSpell.name });
+      // Rank 0 spells only when they hit harder than the weapon (a High Elf's Ithilmar blade usually beats Burning Beam).
+      const avg = str => { const m = /^(\d+)d(\d+)(?:\+(\d+))?/.exec(String(str || '')); return m ? m[1] * (+m[2] + 1) / 2 + (+(m[3] || 0)) : 0; };
+      const w = c.equippedWeapon || {};
+      if (atkSpell && c.spellcaster && (atkSpell.rank > 0 || avg(atkSpell.dmg || atkSpell.dmgDice) > avg(w.dice) + (w.bonus || 0))) return send(sk, 'CAST_SPELL', { spellName: atkSpell.name });
       return send(sk, 'ATTACK');
     }
     socks.forEach(sk => { if (sk.last) schedule(); });

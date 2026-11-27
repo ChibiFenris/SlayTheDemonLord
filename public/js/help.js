@@ -36,6 +36,7 @@ const HELP_SECTIONS=[
   ['Champion\'s Prize','After a boss in a party, one extra legendary item drops. Everyone picks Need or Pass; a d20 decides among those who need it. If nobody does, it is sold for silver.'],
   ['Road ahead','The crossroads screen shows what the next two crossroads offer, so you can plan around rests, merchants and bosses.'],
   ['Rows','Stand in the front or back row (switch on your turn). Melee enemies can only reach the front row while anyone stands there; archers, gunners and casters reach everyone. Melee weapons swung from the back row get 1 bane.'],
+  ['Events of the peoples','Each people has its own encounter on the road, once per run: a Dwarf grudge to settle, a Bretonnian Grail chapel, a Wood Elf waystone, an envoy from Ulthuan for the High Elves and a State Troop muster for the Empire. They only appear when that people marches with you, and the best option needs one of them in the warband.'],
   ['Abilities and your turn','Every active ability uses your turn, just like attacking or casting. Passives work on their own and never appear as buttons. Abilities that help the warband (War Cry, Battle Orders, Intercept, Counterspell, Grace, Last Rites) always cover you as well, so they are worth taking when you play alone.'],
   ['Block','Every career can Block. It uses your turn: damage you take is halved until your next turn. It recharges in 5 rounds.'],
   ['Enemy intents','Each enemy shows what it will do next: who it will attack and for how much, a big attack it is winding up, or that it is stunned.'],

@@ -9,6 +9,10 @@ function bind(api) {
 // ─── COMBAT ACTIONS ──────────────────────────────────────────────────────────
 // Weapon attack against the current target. Returns true when the action used the turn; undefined aborts with no turn spent.
 function actAttack({room,playerId,data,ws,player,gs,char}){
+  // Party passives that help every warrior's attacks (Warlord Aura, Vigil).
+  char._rageSpent=false;
+  char._allyAura=room.players.some(p=>p.char&&p.char.alive&&p.char.warlordAura);
+  char._allyVigil=room.players.some(p=>p.char&&p.char.alive&&p.char.vigil);
   let acted=false;
   const targetEnemy=getTargetEnemy(gs);
   // Condemn: once the condemned foe is gone, the mark passes to whoever the Witch Hunter attacks next.
@@ -123,6 +127,7 @@ function actAttack({room,playerId,data,ws,player,gs,char}){
           if(char.burnTheWitch) applyBurn(targetEnemy,1,room);
         }
         if(char.silverShot && isUnholy(targetEnemy)){ finalDmg+=2; }
+        if(char.valourOfAges && (targetEnemy.threat==='Boss'||targetEnemy.threat==='Elite'||targetEnemy.isElite)){ finalDmg+=2; } // High Elf: Valour of Ages
         if(char.slayerOath && (targetEnemy.threat==='Boss'||targetEnemy.isElite)){ const so=rd(1,6); finalDmg+=so; addLog(room,`🪓 <strong>Slayer's Oath!</strong> +${so} dmg against a worthy foe.`,'crit'); }
         if(char.deathWish && char.health < char.maxHealth/2){ finalDmg+=2; }
         // Relics on a hit
@@ -140,7 +145,7 @@ function actAttack({room,playerId,data,ws,player,gs,char}){
       }
       if(char.markHeretic && r.hit && !char._markHereticTarget){ char._markHereticTarget=targetEnemy; addLog(room,`⚖ <strong>Mark Heretic!</strong> ${targetEnemy.name} is marked — attacks gain +2 boons!`,'sys'); }
       if(char.markHeretic && char._markHereticTarget && targetEnemy!==char._markHereticTarget && r.hit){ char._markHereticTarget=targetEnemy; }
-      if(char.relentless){ char._relentlessCount=Math.min(5,(char._relentlessCount||0)+1); if(r.hit){ finalDmg+=char._relentlessCount; } else { char.weaponAtkBonus=(char.weaponAtkBonus||0)+1; } }
+      if(char.relentless){ char._relentlessCount=Math.min(5,(char._relentlessCount||0)+1); finalDmg+=char._relentlessCount; } // the miss half is in the miss branch; both reset when the fight ends
       if(char.pressTheAdvantage && r.hit){ char._pressAdvantageReady=true; }
       if(char.bleedOnCrit && r.crit && (((char.equippedWeapon&&char.equippedWeapon.dmgType)==='slashing')||!char.equippedWeapon)){
         applyBleed(targetEnemy,room);
@@ -187,7 +192,7 @@ function actAttack({room,playerId,data,ws,player,gs,char}){
       if(char._wpnUnstable && r.crit){ addDebuff(targetEnemy,'Acid Splash',{dotDmg:rd(1,6),name:'Acid Splash'},1); addLog(room,`⚗ Unstable Charge! ${targetEnemy.name} will take acid splash dmg next turn.`,'spell'); }
     } else {
       char._trickeryPoisonProc=0; char._wpnHolySmokeProc=false;
-      if(char.frenzy && char.rageBoon){ char.rageBoon=true; addLog(room,`🔥 <strong>Frenzy!</strong> ${player.name}'s kill extends the rage!`,'chaos'); }
+      if(char.frenzy && char._rageSpent){ char._rageSpent=false; char.rageBoon=true; addLog(room,`🔥 <strong>Frenzy!</strong> ${player.name}'s kill extends the rage!`,'chaos'); }
       if(char._wpnCleave){ char._wpnCleaveReady=true; addLog(room,`🪓 Cleave! ${player.name}'s next attack deals +1d6 bonus dmg.`,'crit'); }
       if(char._legVarghulfLeech && char._legVarghulfLeech>0){
         const l=char._legVarghulfLeech; char._legVarghulfLeech=0;
@@ -227,6 +232,7 @@ function actAttack({room,playerId,data,ws,player,gs,char}){
     }
     if(targetEnemy.hp<=0){resolveEnemyDeath(room,targetEnemy);return;}
   } else {
+    if(char.relentless&&(char._relentlessAtk||0)<5){ char._relentlessAtk=(char._relentlessAtk||0)+1; char.weaponAtkBonus=(char.weaponAtkBonus||0)+1; } // Relentless: each miss sharpens the next swing
     const rerollBuff=(char.activeBuffs||[]).find(b=>b.rerollMiss);
     if(rerollBuff){
       addLog(room,`${player.name} misses — <strong>Rewrite Moment</strong> triggers, rerolling!`,'spell');
@@ -605,7 +611,16 @@ function actCastSpell({room,playerId,data,ws,player,gs,char}){
         if(char.spellLeech){ const sl=rd(1,6); char.health=Math.min(char.maxHealth,char.health+sl); addLog(room,`🩸 <strong>Spell Leech!</strong> ${player.name} drains the dying foe — +${sl} HP!`,'heal'); }
         if(char.lifeDrain){ const ld=rd(1,4); char.health=Math.min(char.maxHealth,char.health+ld); addLog(room,`💀 <strong>Life Drain!</strong> ${player.name} absorbs life — +${ld} HP!`,'heal'); }
       } }
-    if(isAoe){ _hitTargets.filter(_t=>_t.hp<=0).forEach(_t=>{ resolveEnemyDeath(room,_t); }); if(!gs.inCombat){acted=true;return;} }
+    { // Surge, Ball Lightning and Chain Reaction (they used to work only on scrolls)
+      const _tk=Object.keys(TRADITIONS).find(k=>TRADITIONS[k].spells&&TRADITIONS[k].spells.some(s=>s.name===spell.name)); const _el=(TRADITIONS[_tk]||{}).elemType;
+      const _killed=_hitTargets.filter(_t=>_t&&_t.hp<=0);
+      if(_killed.length&&char.surge&&char.castingPools&&char.knownSpells){ char.knownSpells.filter(sp=>sp.rank<=1).forEach(sp=>{ char.castingPools['R'+sp.rank]=maxCastings(char.power,sp.rank); }); addLog(room,`⚡ <strong>Surge!</strong> ${player.name}'s kill refills their rank 0–1 castings.`,'spell'); }
+      const _arc=(label,dice)=>{ const adj=(gs.enemies||[]).find(e=>e&&e.hp>0&&!_hitTargets.includes(e)); if(!adj) return; const a=rd(dice,6); adj.hp=Math.max(0,adj.hp-a); addLog(room,`⚡ <strong>${label}!</strong> Lightning arcs to ${adj.name} — <strong class="num-dmg">−${a}</strong>`,'spell'); if(adj.hp<=0) resolveEnemyDeath(room,adj); };
+      if(_el==='lightning'&&_killed.length&&char.ballLightning) _arc('Ball Lightning',1);
+      if(_el==='lightning'&&spell.type==='attack'&&char.chainReaction&&Math.random()<0.25){ const ct=spellTarget&&spellTarget.hp>0?spellTarget:null; if(ct){ ct.hp=Math.max(0,ct.hp-total); addLog(room,`⚡ <strong>Chain Reaction!</strong> The bolt strikes ${ct.name} again — <strong class="num-dmg">−${total}</strong>`,'spell'); } }
+      if(!gs.inCombat){acted=true;return true;}
+    }
+    if(isAoe){ _hitTargets.filter(_t=>_t.hp<=0).forEach(_t=>{ resolveEnemyDeath(room,_t); }); if(!gs.inCombat){acted=true;return true;} }
     // CANNIBALIZE MAGIC: regain casting on hit
     if(spell.name==='Cannibalize Magic' && total>0 && spellTarget){
       // Regain 1 rank-1 casting on hit
@@ -673,8 +688,7 @@ function actCastSpell({room,playerId,data,ws,player,gs,char}){
       addLog(room,`🌿 ${spellTarget.name} is ensnared — 2 banes on its attacks for 3 rounds!`,'spell');
     }
     if(spell.chaosBolt&&total>0){
-      const chRoll=d(20);
-      addLog(room,`🎲 Chaos roll: d20 = <strong>${chRoll}</strong> (need 12+)...`,'spell');
+      const chRoll=char.chaosTouch?20:d(20); addLog(room,`🎲 Chaos roll: d20 = <strong>${chRoll}</strong> (need 12+)...`,'spell');
       if(chRoll>=12){ const ex=rd(2,6); spellTarget.hp=Math.max(0,spellTarget.hp-ex); addLog(room,`🌀 <strong>Chaos surge!</strong> +${ex} extra chaos damage!`,'crit'); }
     }
     if(spell.healthPenalty&&spellTarget){
@@ -828,8 +842,8 @@ function actUseTalent({room,playerId,data,ws,player,gs,char}){
     addLog(room,`🎃 <strong>Curse!</strong> ${player.name} curses ${ce.name} — all attacks gain 1 boon and +1 damage until it dies!`,'spell');
     acted=true;
   }
-  else if(t==='catchBreath'){if(char.catchBreathUsed){addLog(room,`${player.name}: already used.`,'sys');return;}char.catchBreathUsed=true;const h=talentHeal(char);char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} uses Catch Your Breath — +<strong>${h}</strong> HP (1d6+attr×2).`,'heal');}
-  else if(t==='nimbleRecovery'){if(char.nimbleUsed){addLog(room,`${player.name}: already used.`,'sys');return;}char.nimbleUsed=true;const h=talentHeal(char);char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} uses Nimble Recovery — +<strong>${h}</strong> HP (1d6+attr×2).`,'heal');}
+  else if(t==='catchBreath'){if(char.catchBreathUsed){addLog(room,`${player.name}: already used.`,'sys');return;}char.catchBreathUsed=true;const h=talentHeal(char);char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} uses Catch Your Breath — +<strong>${h}</strong> HP (2d6 + best attribute).`,'heal');}
+  else if(t==='nimbleRecovery'){if(char.nimbleUsed){addLog(room,`${player.name}: already used.`,'sys');return;}char.nimbleUsed=true;const h=talentHeal(char);char.health=Math.min(char.maxHealth,char.health+h);addLog(room,`${player.name} uses Nimble Recovery — +<strong>${h}</strong> HP (2d6 + best attribute).`,'heal');}
   else if(t==='sharedRecovery'){if(char.sharedUsed){addLog(room,`${player.name}: already used.`,'sys');return;}char.sharedUsed=true;room.players.filter(p=>p.char&&p.char.alive).forEach(p=>{const h=talentHeal(char);p.char.health=Math.min(p.char.maxHealth,p.char.health+h);});addLog(room,`${player.name} uses Shared Recovery — all allies healed 1d6+attr×2 HP!`,'heal');}
   else if(t==='spellRecovery'){if(char.spellRecoveryUsed){addLog(room,`${player.name}: already used.`,'sys');return;}char.spellRecoveryUsed=true;const h=talentHeal(char);char.health=Math.min(char.maxHealth,char.health+h);if(char.castingPools){char.knownSpells.filter(sp=>sp.rank===0).forEach(sp=>{char.castingPools['R'+sp.rank]=maxCastings(char.power,0);});} addLog(room,`${player.name} uses Spell Recovery — +<strong>${h}</strong> HP + all rank-0 castings restored!`,'spell');}
   else if(t==='divineSmite'){if(char.divineSmiteUsed){addLog(room,`${player.name}: Divine Smite is recharging.`,'sys');return;}char._divineSmiteCount=(char._divineSmiteCount||0)+1;char.divineSmiteUsed=true;const _te=getTargetEnemy(gs);if(!_te)return;
@@ -890,7 +904,7 @@ function actUseTalent({room,playerId,data,ws,player,gs,char}){
     addLog(room,`🎯 <strong>${player.name}</strong> takes Dead Aim — next attack is a guaranteed critical hit!`,'crit');
     acted=true;
   }
-  else if(t==='rallyingCry'){if(char.rallyingUsed){addLog(room,`${player.name}: Rallying Cry already used.`,'sys');return;}char.rallyingUsed=true;room.players.forEach(p=>{if(p.char&&p.char.alive){const h=talentHeal(p.char);p.char.health=Math.min(p.char.maxHealth,p.char.health+h);addLog(room,`${p.name} rallies — +<strong>${h}</strong> HP (1d6+attr×2).`,'heal');}});}
+  else if(t==='rallyingCry'){if(char.rallyingUsed){addLog(room,`${player.name}: Rallying Cry already used.`,'sys');return;}char.rallyingUsed=true;room.players.forEach(p=>{if(p.char&&p.char.alive){const h=talentHeal(p.char);p.char.health=Math.min(p.char.maxHealth,p.char.health+h);addLog(room,`${p.name} rallies — +<strong>${h}</strong> HP (2d6 + best attribute).`,'heal');}});}
   else if(t==='massHeal'){if(char.massHealUsed){addLog(room,`${player.name}: Mass Heal already used.`,'sys');return;}char.massHealUsed=true;
     const mhDice=char.triage?2:1; // Shallya path healer gets enhanced 2d6
     room.players.forEach(p=>{if(p.char&&p.char.alive){const h=rd(mhDice,6);p.char.health=Math.min(p.char.maxHealth,p.char.health+h);addLog(room,`${p.name} healed <strong>${h}</strong> HP.`,'heal');

@@ -165,7 +165,7 @@ function buildChar(career) {
 function talentHeal(char) {
   const attrs = char.attrs || {};
   const highestMod = Math.max(0, ...Object.values(attrs).map(v => Math.floor((v-10)/2)));
-  return rd(1,6) + highestMod; // nerfed from *2 (Catch Breath, Nimble Recovery, Rallying Cry)
+  return rd(2,6) + highestMod; // Catch Breath, Nimble Recovery, Spell Recovery, Rallying Cry: these cost a whole turn, so they heal 2d6
 }
 
 module.exports = { bind, LONE_SURVIVOR, applyLoneSurvivor, buildChar, talentHeal };

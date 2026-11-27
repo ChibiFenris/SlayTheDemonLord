@@ -28,7 +28,8 @@ function showPathPick(me){
   Object.entries(infoMap).filter(([id])=>tier==='novice'||!allowed||allowed[id]).map(([id,info])=>[id,allowed&&allowed[id]?{...info,name:allowed[id],desc:flav[id]||info.desc}:info]).forEach(([id,info])=>{
     const btn=document.createElement('button'); btn.className='pp-btn';
     const hint='';
-    btn.innerHTML=`<span class="ppn">${info.name}</span><span class="ppd">${info.desc||''}</span><span class="ppb">${hint}${info.gains}</span>`;
+    const tok=tier!=='novice'&&tokenSrc(me.career+'/'+id);
+    btn.innerHTML=`<span class="pp-head">${tok?`<img class="pp-tok" src="${tok}" alt="">`:''}<span><span class="ppn">${info.name}</span><span class="ppd">${info.desc||''}</span></span></span><span class="ppb">${hint}${info.gains}</span>`;
     btn.onclick=()=>confirmPath(id,info.name,`${info.desc||''}<br><br>${info.gains}`);
     grid.appendChild(btn);
   });
@@ -377,8 +378,8 @@ function talentsHtml(c){
   });
   const passives=passiveKeys(c).map(k=>talentRow(labelFromKey(k),'badge-dim','Passive',TALENT_DESCS[k]||labelFromKey(k)));
   let h='';
-  if(actives.length) h+=`<div class="ab-section"><div class="ab-title">Active</div>${actives.join('')}</div>`;
-  if(passives.length) h+=`<div class="ab-section"><div class="ab-title">Passive</div>${passives.join('')}</div>`;
+  if(actives.length) h+=`<div class="ab-section"><div class="ab-title">Active <span class="ab-note">each one uses your turn</span></div>${actives.join('')}</div>`;
+  if(passives.length) h+=`<div class="ab-section"><div class="ab-title">Passive <span class="ab-note">always on, no button</span></div>${passives.join('')}</div>`;
   return h||'<div class="empty">No talents yet.</div>';
 }
 function spellsHtml(c){
@@ -697,15 +698,15 @@ function renderActions(gs,players,me){
         addBtn(g,`${elemIcon} ${sp.name}`,`Attack·R${sp.rank}`,'as-',()=>send('PLAYER_ACTION',{action:'CAST_SPELL',data:{spellName:sp.name}}),!avail,desc);
       }
     });
-    if(char.catchBreath&&!char.catchBreathUsed) addBtn(g,'Catch Breath','Heal 1d6+best attr','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'catchBreath'}}),false,TALENT_DESCS.catchBreath);
+    if(char.catchBreath&&!char.catchBreathUsed) addBtn(g,'Catch Breath','Heal 2d6+best attr','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'catchBreath'}}),false,TALENT_DESCS.catchBreath);
     if(char.shieldBash&&!char._shieldBashUsed) addBtn(g,'🛡 Shield Bash','Stun enemy','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'shieldBash'}}),false,TALENT_DESCS.shieldBash);
-    if(char.nimbleRecovery&&!char.nimbleUsed)   addBtn(g,'Nimble Recovery','Heal 1d6+best attr','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'nimbleRecovery'}}),false,TALENT_DESCS.nimbleRecovery);
-    if(char.sharedRecovery&&!char.sharedUsed)   addBtn(g,'Shared Recovery','Party heals 1d6+attr','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'sharedRecovery'}}),false,TALENT_DESCS.sharedRecovery);
+    if(char.nimbleRecovery&&!char.nimbleUsed)   addBtn(g,'Nimble Recovery','Heal 2d6+best attr','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'nimbleRecovery'}}),false,TALENT_DESCS.nimbleRecovery);
+    if(char.sharedRecovery&&!char.sharedUsed)   addBtn(g,'Shared Recovery','You + allies heal 2d6','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'sharedRecovery'}}),false,TALENT_DESCS.sharedRecovery);
     if(char.spellRecovery&&!char.spellRecoveryUsed) addBtn(g,'Spell Recovery','Heal+casting','as-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'spellRecovery'}}),false,TALENT_DESCS.spellRecovery);
     if(char.divineSmite&&!char.divineSmiteUsed)  addBtn(g,'⚡ Divine Smite','+3d6 holy dmg','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'divineSmite'}}),false,TALENT_DESCS.divineSmite);
     if(char.massHeal&&!char.massHealUsed)        addBtn(g,'✨ Mass Heal','All allies 1d6','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'massHeal'}}),false,TALENT_DESCS.massHeal||'Heal all living allies 1d6. Once per combat.');
     if(char.resurrection&&!char.resurrectionUsed)addBtn(g,'✝ Resurrection','Shield weakest ally','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'resurrection'}}),false,TALENT_DESCS.resurrection);
-    if(char.rallyingCry&&!char.rallyingUsed)     addBtn(g,'📯 Rallying Cry','Heal all 1d6+attr','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'rallyingCry'}}),false,TALENT_DESCS.rallyingCry);
+    if(char.rallyingCry&&!char.rallyingUsed)     addBtn(g,'📯 Rallying Cry','You + allies heal 2d6','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'rallyingCry'}}),false,TALENT_DESCS.rallyingCry);
     if(char.bloodOffering)                        addBtn(g,'🩸 Blood Offering','−1d6 HP → castings','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'bloodOffering'}}),false,TALENT_DESCS.bloodOffering);
     if(char.metamagic&&!char.metamagicUsed)       addBtn(g,'🔮 Metamagic','Next spell free','as-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'metamagic'}}),false,TALENT_DESCS.metamagic);
     if(char.catastrophe&&!char.catastropheUsed)   addBtn(g,'💥 Catastrophe','10d6 all enemies','at-',()=>send('PLAYER_ACTION',{action:'USE_TALENT',data:{talent:'catastrophe'}}),false,TALENT_DESCS.catastrophe);

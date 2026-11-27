@@ -31,7 +31,7 @@ function scaleEnemy(tmpl, playerCount, isElite, bossCount) {
   const bossHpFlat = bossCount >= 2 ? 30 : bossCount === 1 ? 15 : 0; // +15 post-boss1, +30 post-boss2
   const tier = endlessTier(bossCount); // 0 in a normal run; +1 for every boss past the third in Endless
   e.hp = e.maxHp = Math.round(e.hp * (1 + (playerCount-1)*0.9) * bossHpMult * (1 + 0.4*tier + 0.05*tier*tier)) + bossHpFlat + 20*tier;
-  if (e.threat === 'Boss' && playerCount === 1) e.hp = e.maxHp = Math.round(e.hp * (bossCount >= 1 ? 0.78 : 0.88)); // a lone warrior faces smaller bosses, especially later on
+  if (e.threat === 'Boss' && playerCount === 1) e.hp = e.maxHp = Math.round(e.hp * (bossCount >= 1 ? 0.72 : 0.8)); // a lone warrior faces smaller bosses, especially later on
   e.conditions = []; e.activeDebuffs = []; e.isElite = isElite;
   const dd = enemyDmgDice(e.threat, isElite, bossCount);
   e.dmgNum=dd.n; e.dmgSides=dd.s; e.dmgBonus=dd.b;

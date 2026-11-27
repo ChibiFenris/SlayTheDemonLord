@@ -93,7 +93,8 @@ function _runNodeContent(room, gs, nodeType, playerCount) {
       const e1=pickEnemy(gs.depth,false,false,playerCount,gs.bossCount);
       const e2=pickEnemy(gs.depth,false,false,playerCount,gs.bossCount);
       e1.id='e1'; e2.id='e2'; e1.isElite=true; e2.isElite=true; // double XP for elite room
-      foes.applyEliteAffix(e1); foes.applyEliteAffix(e2);
+      if(playerCount===1){ [e1,e2].forEach(e=>{ e.maxHp=e.hp=Math.round(e.maxHp*0.7); }); foes.applyEliteAffix(e1); } // alone: a smaller pair, and only one of them has an elite trait
+      else { foes.applyEliteAffix(e1); foes.applyEliteAffix(e2); }
       gs.enemies=[e1,e2];
       gs.enemy=gs.enemies[0];
       addLog(room,`⚔ Elite Encounter — Two enemies appear!`,'dmg');

@@ -38,7 +38,7 @@ function rollAttack(char, enemy, extraBoons=0) {
   const _eDef=enemy?enemyDefence(char,enemy):{banes:0,ac:0}; banes+=_eDef.banes;
   if (char.weaponTraining) boons++;
   if (char.swiftFeet) boons+=2;
-  if (char.vigil && char.health===char.maxHealth) boons++;
+  if ((char.vigil||char._allyVigil) && char.health===char.maxHealth) boons++; // Vigil: anyone at full HP
   if (char._vengeanceReady){ char._vengeanceReady=false; boons+=2; } // vengeancePassive: 2 boons after ally falls
   if ((char.rage||char.rageTrigger)&&char.rageBoon) { boons++; } // rage boon — dmg applied on hit, flag cleared there
   if (char.stimulantBoon>0) { boons++; char.stimulantBoon--; }
@@ -58,7 +58,7 @@ function rollAttack(char, enemy, extraBoons=0) {
   if(char.shadowStep) boons++; // shadowStep: all attacks have +1 boon
   const forceCritDeadAim=char._deadAimArmed; if(forceCritDeadAim){ char._deadAimArmed=false; }
   if(char._pressAdvantageReady){ char._pressAdvantageReady=false; boons++; } // boon vs undead/chaos
-  if (char.warlordAura) boons++; // aura from warlord
+  if (char.warlordAura||char._allyAura) boons++; // Warlord Aura: the Warlord and every ally
   if (char.conditions.includes('Frightened')) banes++;
   if (char.conditions.includes('Stunned'))    banes++;
   // skavencunning now applies poison on hit (handled in enemy attack section)
@@ -131,7 +131,7 @@ function rollAttack(char, enemy, extraBoons=0) {
     }
     const pacedBuff=(char.activeBuffs||[]).find(b=>b.pacedDmg);
     if(pacedBuff){ const pr=rd(3,6);dmg+=pr;dmgParts.push(`+${pr} Paced Strikes`); char.activeBuffs=char.activeBuffs.filter(b=>!b.pacedDmg); }
-    if((char.rage||char.rageTrigger)&&char.rageBoon){ const rb=rd(1,6);dmg+=rb;dmgParts.push(`+${rb} rage`);char.rageBoon=false; } // consume rage proc
+    if((char.rage||char.rageTrigger)&&char.rageBoon){ const rb=rd(1,6);dmg+=rb;dmgParts.push(`+${rb} rage`);char.rageBoon=false;char._rageSpent=true; } // consume rage proc
     const corrodedBuff=(char.activeBuffs||[]).find(b=>b.dmgPenalty);
     if(corrodedBuff&&dmg>0){ dmg=Math.max(0,dmg-corrodedBuff.dmgPenalty); }
     if(char._wpnRuneStrikeActive && enemy && enemy.damageReduction){ dmg+=enemy.damageReduction; dmgParts.push(`+${enemy.damageReduction} rune`); char._wpnRuneStrikeActive=false; }

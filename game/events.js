@@ -13,7 +13,9 @@ const heal = (c, n) => { c.health = Math.min(c.maxHealth, c.health + n); };
 const hurt = (room, p, n) => { p.char.health = Math.max(0, p.char.health - n); S.checkDeath(room, p); };
 const nextFight = (c, name, fx) => S.addBuff(c, name, fx, 99); // 99-round buffs clear when the next fight ends
 
-const partyHas = (room, career) => alive(room).some(p => [].concat(career).includes(p.career)); // one career or a list
+// An option's `needs`: a people (empire, dwarf...), an old career id, or 'caster' for any spellcaster.
+const partyHas = (room, needs) => { const n = [].concat(needs); return alive(room).some(p => n.includes(p.career) || (n.includes('caster') && p.char.spellcaster)); };
+const isDwarf = p => p.career === 'dwarf' || p.career === 'slayer';
 const cursedInPack = c => (c.inventory || []).filter(i => i.itemObj && i.itemObj.cursed);
 
 const CHOICE_EVENTS = {
@@ -232,14 +234,14 @@ const CHOICE_EVENTS = {
     options: [
       { id: 'pay', label: 'Pay the toll (20 silver each)', desc: 'Cross safely.' },
       { id: 'wade', label: 'Wade across downstream', desc: 'Everyone takes 1d6 from the freezing current.' },
-      { id: 'trick', label: 'Trick it (Roadwarden)', desc: 'Cross for free, and lift 20 silver each from its hoard.', needs: 'rogue' },
-      { id: 'challenge', label: 'Challenge it (Slayer)', desc: 'The Slayer trades blows (2d6) — the troll respects it and lets everyone pass with a Troll Blood draught.', needs: 'slayer' },
+      { id: 'trick', label: 'Trick it (Wood Elf)', desc: 'Cross for free, and lift 20 silver each from its hoard.', needs: ['woodelf', 'rogue'] },
+      { id: 'challenge', label: 'Challenge it (Dwarf)', desc: 'The Dwarf trades blows (2d6) — the troll respects it and lets everyone pass with a Troll Blood draught.', needs: ['dwarf', 'slayer'] },
     ],
     resolve(room, opt) {
       const ps = alive(room);
       if (opt === 'pay') { ps.forEach(p => { p.char.gold = Math.max(0, p.char.gold - 20); }); return S.addLog(room, '🪙 The troll counts every coin, then waves you across.', 'sys'); }
-      if (opt === 'trick') { ps.forEach(p => { p.char.gold += 20; }); return S.addLog(room, '🎭 The Roadwarden distracts the troll with a riddle while the warband helps itself — <strong>+20 silver</strong> each.', 'loot'); }
-      if (opt === 'challenge') { ps.filter(p => p.career === 'slayer').forEach(p => hurt(room, p, rd(2, 6))); ps.forEach(p => S.addToInventory(p.char, 'Troll Blood')); return S.addLog(room, '🪓 The Slayer and the troll trade blows until the troll laughs and offers each of you a flask of <strong>Troll Blood</strong>.', 'loot'); }
+      if (opt === 'trick') { ps.forEach(p => { p.char.gold += 20; }); return S.addLog(room, '🎭 Elvish riddling distracts the troll with a riddle while the warband helps itself — <strong>+20 silver</strong> each.', 'loot'); }
+      if (opt === 'challenge') { ps.filter(isDwarf).forEach(p => hurt(room, p, rd(2, 6))); ps.forEach(p => S.addToInventory(p.char, 'Troll Blood')); return S.addLog(room, '🪓 The Dwarf and the troll trade blows until the troll laughs and offers each of you a flask of <strong>Troll Blood</strong>.', 'loot'); }
       ps.forEach(p => hurt(room, p, rd(1, 6)));
       S.addLog(room, '🌊 The warband fords the icy river downstream.', 'dmg');
     },
@@ -265,7 +267,7 @@ const CHOICE_EVENTS = {
     text: 'Silver light falls on a ring of standing stones. The air hums. Something old is listening.',
     options: [
       { id: 'rest', label: 'Rest inside the ring', desc: 'Everyone heals 1d6+2.' },
-      { id: 'commune', label: 'Commune with it (Priest or Wizard)', desc: 'Every spellcaster regains all castings and gets 1 boon next fight.', needs: ['priest', 'wizard'] },
+      { id: 'commune', label: 'Commune with it (spellcaster)', desc: 'Every spellcaster regains all castings and gets 1 boon next fight.', needs: 'caster' },
       { id: 'dig', label: 'Dig at the centre stone', desc: '40 silver for one of you, but everyone is Cursed (1 bane) next fight.' },
     ],
     resolve(room, opt) {
@@ -285,7 +287,7 @@ const CHOICE_EVENTS = {
     options: [
       { id: 'sell', label: 'Sell your cursed gear', desc: 'Every unequipped cursed item in your packs sells for 40 silver.' },
       { id: 'buy', label: 'Buy a cursed relic', desc: 'Anyone with 40 silver buys a random cursed relic.' },
-      { id: 'haggle', label: 'Haggle (Roadwarden)', desc: 'Everyone with 20 silver buys a cursed relic at half price.', needs: 'rogue' },
+      { id: 'haggle', label: 'Haggle (Empire)', desc: 'Everyone with 20 silver buys a cursed relic at half price.', needs: ['empire', 'rogue'] },
       { id: 'leave', label: 'Move along', desc: 'Nothing gained, nothing lost.' },
     ],
     resolve(room, opt) {
@@ -317,7 +319,7 @@ const CHOICE_EVENTS = {
     text: 'A great stone door carved with runes blocks a side-passage. Dwarfish words are cut above it: an oath of passage.',
     options: [
       { id: 'force', label: 'Force the gate', desc: 'Everyone strains (1d4 damage). Half the time, one of you finds dwarf-forged armour.' },
-      { id: 'oath', label: 'Speak the oath-words (Slayer)', desc: 'The gate opens: a Greater Healing Draught each, and the Slayer gains +1 STR.', needs: 'slayer' },
+      { id: 'oath', label: 'Speak the oath-words (Dwarf)', desc: 'The gate opens: a Greater Healing Draught each, and every Dwarf gains +1 STR.', needs: ['dwarf', 'slayer'] },
       { id: 'leave', label: 'Leave it sealed', desc: 'The dwarfs sealed it for a reason.' },
     ],
     resolve(room, opt) {
@@ -325,7 +327,7 @@ const CHOICE_EVENTS = {
       if (opt === 'leave') return S.addLog(room, 'The runes stay dark. The warband moves on.', 'sys');
       if (opt === 'oath') {
         ps.forEach(p => S.addToInventory(p.char, 'Greater Healing Draught'));
-        ps.filter(p => p.career === 'slayer').forEach(p => { p.char.attrs.str++; S.addLog(room, `🪓 ${p.name} speaks the oath of Grimnir — the ancestors grant <strong>+1 STR</strong>.`, 'loot'); });
+        ps.filter(isDwarf).forEach(p => { p.char.attrs.str++; S.addLog(room, `🪓 ${p.name} speaks the oath of Grimnir — the ancestors grant <strong>+1 STR</strong>.`, 'loot'); });
         return S.addLog(room, '⛏ The gate grinds open on a forgotten storeroom — a <strong>Greater Healing Draught</strong> each.', 'loot');
       }
       ps.forEach(p => hurt(room, p, rd(1, 4)));
@@ -342,8 +344,8 @@ const CHOICE_EVENTS = {
     text: "A chapel of Sigmar, its altar smeared with the eight-pointed star. The cult's offerings are still warm.",
     options: [
       { id: 'smash', label: 'Smash the altar', desc: 'Everyone takes 1d6 from the backlash; the warband fights the next battle with 1 boon.' },
-      { id: 'consecrate', label: 'Consecrate it (Priest)', desc: 'Everyone heals 2d6 and fights the next battle with 1 boon.', needs: 'priest' },
-      { id: 'purge', label: 'Purge it with fire (Witch Hunter)', desc: "Burn the cult's hoard out of the walls: +40 silver each.", needs: 'witchhunter' },
+      { id: 'consecrate', label: 'Consecrate it (Bretonnia)', desc: 'Everyone heals 2d6 and fights the next battle with 1 boon.', needs: ['bretonnia', 'priest'] },
+      { id: 'purge', label: 'Purge it with fire (Empire)', desc: "Burn the cult's hoard out of the walls: +40 silver each.", needs: ['empire', 'witchhunter'] },
       { id: 'take', label: 'Take the offerings', desc: '+25 silver each, but the Dark Gods notice: 1 Insanity each.' },
     ],
     resolve(room, opt) {
@@ -360,7 +362,7 @@ const CHOICE_EVENTS = {
     text: 'Three starving State troops huddle round a dead fire. Their sergeant is gone, their officer is worse.',
     options: [
       { id: 'supply', label: 'Share your supplies', desc: 'Pay 25 silver each (if you can): you gain +3 max HP for the rest of the run.' },
-      { id: 'rally', label: 'Rally them (State Soldier)', desc: 'They follow you: the whole warband fights the next battle with 2 boons.', needs: 'warrior' },
+      { id: 'rally', label: 'Rally them (Empire)', desc: 'They follow you: the whole warband fights the next battle with 2 boons.', needs: ['empire', 'warrior'] },
       { id: 'strip', label: 'Take their weapons', desc: 'Each warrior gets a random weapon. They will not forget it.' },
       { id: 'leave', label: 'Leave them', desc: 'Nothing gained, nothing lost.' },
     ],
@@ -671,6 +673,87 @@ const CHOICE_EVENTS = {
       ps.filter(p => p.char.patron).forEach(p => { S.dark.loseCorruption(p.char, 3); p.char.maxHealth = Math.max(5, p.char.maxHealth - 4); p.char.health = Math.min(p.char.health, p.char.maxHealth); S.addLog(room, `🔥 ${p.name} endures the purge: −3 Corruption, −4 max HP.`, 'chaos'); });
     },
   },
+  // ── The peoples: one event each, once per run, only when that people marches with you ──
+  dwarfGrudge: {
+    title: 'An Unpaid Grudge', icon: '📕', minDepth: 2, people: 'dwarf', requires: (gs, room) => partyHas(room, ['dwarf', 'slayer']) && !flag(gs, 'dwarfGrudge'),
+    text: 'A cairn of goblin skulls, and above it an axe-rune cut in anger: a tribe here once broke an oath to a dwarf hold. The grudge was never paid.',
+    options: [
+      { id: 'avenge', label: 'Settle the grudge (Dwarf)', desc: 'Hunt the tribe down: an elite fight now. Every Dwarf gains +1 STR for honouring the debt.', needs: ['dwarf', 'slayer'] },
+      { id: 'record', label: 'Write it in the Book of Grudges', desc: 'Every Dwarf fights the next battle with +3 damage on every hit; everyone else gets 1 boon.' },
+      { id: 'leave', label: 'Leave the dead to their cairn', desc: 'Nothing happens.' },
+    ],
+    resolve(room, opt) {
+      const gs = room.gs, ps = alive(room); setFlag(gs, 'dwarfGrudge', opt);
+      if (opt === 'leave') return S.addLog(room, '📕 The warband passes the cairn. Somewhere, an ancestor frowns.', 'sys');
+      if (opt === 'record') { ps.forEach(p => nextFight(p.char, isDwarf(p) ? 'Grudgebearer' : 'Grim Resolve', isDwarf(p) ? { dmgBonus: 3 } : { atkBoon: 1, consumeOnAttack: true })); return S.addLog(room, '📕 The grudge is written in a careful hand. The Dwarves will collect: <strong>+3 damage</strong> on every hit next fight.', 'loot'); }
+      ps.filter(isDwarf).forEach(p => { p.char.attrs.str++; S.addLog(room, `🪓 ${p.name} swears the grudge will be paid in full — <strong>+1 STR</strong>.`, 'loot'); });
+      S.addLog(room, '📕 "Grudge-settling it is." The warband goes looking for goblins.', 'dmg');
+      S.startFight(room, 'elite');
+    },
+  },
+  grailChapel: {
+    title: 'A Grail Chapel', icon: '🏆', minDepth: 2, people: 'bretonnia', requires: (gs, room) => partyHas(room, 'bretonnia') && !flag(gs, 'grailChapel'),
+    text: 'A tiny chapel of white stone stands where no chapel should be. A spring rises at the altar, and the water glows like dawn.',
+    options: [
+      { id: 'vow', label: 'Swear the Questing Vow (Bretonnia)', desc: 'Every Bretonnian gains +5 max HP and loses all Insanity. Everyone else heals 2d6.', needs: 'bretonnia' },
+      { id: 'drink', label: 'Everyone drinks', desc: 'Everyone heals fully, but those not of Bretonnia feel unworthy: 1 Insanity each.' },
+      { id: 'leave', label: 'Bow and walk on', desc: 'Nothing happens.' },
+    ],
+    resolve(room, opt) {
+      const gs = room.gs, ps = alive(room); setFlag(gs, 'grailChapel', opt);
+      if (opt === 'leave') return S.addLog(room, '🏆 The warband bows its heads. When they look back, the chapel is gone.', 'sys');
+      if (opt === 'drink') { ps.forEach(p => { p.char.health = p.char.maxHealth; if (p.career !== 'bretonnia') S.dark.gainInsanity(room, p, 1, "the Lady's gaze"); }); return S.addLog(room, '🏆 The water tastes of cold light. Everyone is <strong>fully healed</strong>.', 'heal'); }
+      ps.forEach(p => { if (p.career === 'bretonnia') { p.char.maxHealth += 5; p.char.health += 5; S.dark.loseInsanity(p.char, 99); S.addLog(room, `🏆 ${p.name} kneels and swears the Questing Vow — <strong>+5 max HP</strong>, mind made clear.`, 'loot'); } else heal(p.char, rd(2, 6)); });
+    },
+  },
+  waystone: {
+    title: 'A Singing Waystone', icon: '🌀', minDepth: 2, people: 'woodelf', requires: (gs, room) => partyHas(room, 'woodelf') && !flag(gs, 'waystone'),
+    text: 'An old waystone hums in an overgrown clearing. The winds of magic run thick here, and the trees seem to lean in to listen.',
+    options: [
+      { id: 'attune', label: 'Sing to the stone (Wood Elf)', desc: 'Every spellcaster regains all castings; every Wood Elf gains +1 AGI. The whole warband gets 1 boon next fight.', needs: 'woodelf' },
+      { id: 'hide', label: 'Take the hidden paths', desc: 'The forest hides you: in the next fight, enemies attack everyone with 1 bane.' },
+      { id: 'leave', label: 'Leave the stone be', desc: 'Nothing happens.' },
+    ],
+    resolve(room, opt) {
+      const gs = room.gs, ps = alive(room); setFlag(gs, 'waystone', opt);
+      if (opt === 'leave') return S.addLog(room, '🌀 The stone falls silent as the warband passes.', 'sys');
+      if (opt === 'hide') { ps.forEach(p => nextFight(p.char, 'Forest Cover', { enemyBane: 1 })); return S.addLog(room, '🌿 The Wood Elves lead the warband down paths only they can see. (Enemies have 1 bane against you next fight.)', 'heal'); }
+      ps.forEach(p => { if (p.char.spellcaster) S.refreshCastingPools(p.char); if (p.career === 'woodelf') { p.char.attrs.agi++; S.addLog(room, `🌀 ${p.name} sings with the stone — <strong>+1 AGI</strong>.`, 'loot'); } nextFight(p.char, 'Waystone Song', { atkBoon: 1, consumeOnAttack: true }); });
+      S.addLog(room, '🌀 The waystone answers. Castings return, and every warrior goes into the next fight with 1 boon.', 'spell');
+    },
+  },
+  ulthuanEnvoy: {
+    title: 'An Envoy of Ulthuan', icon: '🕊', minDepth: 2, people: 'highelf', requires: (gs, room) => partyHas(room, 'highelf') && !flag(gs, 'ulthuanEnvoy'),
+    text: 'Lady Ilthariel of Saphery rides with a silent escort of Sea Guard. She regards the warband as one regards weather.',
+    options: [
+      { id: 'audience', label: 'Request an audience (High Elf)', desc: 'She gifts each High Elf an Ithilmar mail shirt (+5 max HP) and the warband a Greater Healing Draught each.', needs: 'highelf' },
+      { id: 'trade', label: 'Buy elven wine', desc: 'Pay 20 silver each: heal fully and 1 boon next fight.' },
+      { id: 'leave', label: 'Let her pass', desc: 'Nothing happens.' },
+    ],
+    resolve(room, opt) {
+      const gs = room.gs, ps = alive(room); setFlag(gs, 'ulthuanEnvoy', opt);
+      if (opt === 'leave') return S.addLog(room, '🕊 The envoy rides on without a backward glance.', 'sys');
+      if (opt === 'trade') { ps.forEach(p => { if (p.char.gold < 20) return S.addLog(room, `${p.name} cannot afford the wine.`, 'sys'); p.char.gold -= 20; p.char.health = p.char.maxHealth; nextFight(p.char, 'Elven Wine', { atkBoon: 1, consumeOnAttack: true }); }); return S.addLog(room, '🍷 Wine from the vineyards of Ulthuan — wounds close, spirits lift.', 'heal'); }
+      ps.forEach(p => { S.addToInventory(p.char, 'Greater Healing Draught'); if (p.career === 'highelf') { p.char.maxHealth += 5; p.char.health += 5; S.addLog(room, `🕊 ${p.name} receives a shirt of Ithilmar — <strong>+5 max HP</strong>.`, 'loot'); } });
+      S.addLog(room, '🕊 "For the cousins in the north." Each of you receives a <strong>Greater Healing Draught</strong>.', 'loot');
+    },
+  },
+  stateMuster: {
+    title: 'A State Troop Muster', icon: '🦅', minDepth: 2, people: 'empire', requires: (gs, room) => partyHas(room, 'empire') && !flag(gs, 'stateMuster'),
+    text: 'A muster post under the Imperial eagle. The sergeant is short of men and long on supplies, and eyes the warband hopefully.',
+    options: [
+      { id: 'drill', label: 'Drill with the troops (Empire)', desc: 'Every soldier of the Empire has their weapon re-forged: +1 damage, permanently. Everyone takes 1d4 from the drill.', needs: 'empire' },
+      { id: 'supplies', label: 'Buy from the quartermaster', desc: 'Pay 15 silver each for a Healing Draught each.' },
+      { id: 'leave', label: 'March on', desc: 'Nothing happens.' },
+    ],
+    resolve(room, opt) {
+      const gs = room.gs, ps = alive(room); setFlag(gs, 'stateMuster', opt);
+      if (opt === 'leave') return S.addLog(room, '🦅 The sergeant sighs and goes back to his ledger.', 'sys');
+      if (opt === 'supplies') { ps.forEach(p => { if (p.char.gold < 15) return S.addLog(room, `${p.name} cannot afford it.`, 'sys'); p.char.gold -= 15; S.addToInventory(p.char, 'Healing Draught'); }); return S.addLog(room, '🦅 The quartermaster hands over Healing Draughts.', 'loot'); }
+      ps.forEach(p => { hurt(room, p, rd(1, 4)); if (p.career === 'empire' && p.char.equippedWeapon) { const w = p.char.equippedWeapon; w.bonus = (w.bonus || 0) + 1; S.addLog(room, `🦅 The regimental smith re-forges ${p.name}'s <strong>${w.name}</strong> — <strong>+1 damage</strong>.`, 'loot'); } });
+      S.addLog(room, '🦅 "Again! And this time like you mean it!" The drill is brutal, but it works.', 'sys');
+    },
+  },
   // ── Party decisions ──────────────────────────────────────────────────────
   forkInTheRoad: {
     title: 'The Fork in the Road', icon: '🔀', minDepth: 3, requires: (gs, room) => alive(room).length >= 2,
@@ -697,6 +780,8 @@ function startChoiceEvent(room, key) {
   // A recurring character whose next meeting is due shows up more often than a random event.
   const story = pool.filter(x => /^(ravens|aldric)[23]$|^aldricHunt$/.test(x));
   if (!key && story.length && Math.random() < 0.5) key = pickRandom(story);
+  const peoples = pool.filter(x => CHOICE_EVENTS[x].people);
+  if (!key && peoples.length && Math.random() < 0.4) key = pickRandom(peoples);
   const k = key || pickRandom(pool);
   const ev = CHOICE_EVENTS[k];
   // Career options only show when that career is in the warband.

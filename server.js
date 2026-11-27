@@ -425,7 +425,7 @@ function resetCombatState(p){
     p.char._spellEchoUsed=false;
     p.char._graceUsed=false;
     p.char._banishUsed=false;
-    p.char._relentlessCount=0;
+    p.char._relentlessCount=0; if(p.char._relentlessAtk){ p.char.weaponAtkBonus=(p.char.weaponAtkBonus||0)-p.char._relentlessAtk; p.char._relentlessAtk=0; }
     p.char._fadedLastRound=false;
     p.char.rageTriggerActive=false;
     p.char._huntersMarkTarget=null; p.char._condemnTargetId=null; p.char._condemnUsed=false; p.char._doubleChargeUsed=false; p.char._firstVolleyUsed=false;
