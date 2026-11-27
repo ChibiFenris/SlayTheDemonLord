@@ -312,7 +312,7 @@ function mRenderGame(gs,players,me){
       const c=p.char, pct=c.health/c.maxHealth*100;
       const row=mEl('div','m-ally'+(c.alive?'':' is-dead'),`
         <div class="m-ally-name">${p.name}<small>${CAREER_LABELS[p.career]||''} · Lv ${c.level}${hasActedThisRound(gs,p.id)?' · <span class="ok">Acted</span>':''}${!p.connected?' · Offline':''}</small></div>
-        <div class="m-hp-row">${mBar(pct,'hp '+hpClass(pct))}<span class="m-hp-val">${c.alive?`${c.health}/${c.maxHealth}`:'Fallen'}</span></div>`);
+        <div class="m-hp-row">${mBar(pct,'hp '+hpClass(pct))}<span class="m-hp-val">${c.alive?`${c.health}/${c.maxHealth}`:'Fallen'}</span></div>${gs.phase==='combat'?battleChips(c):''}`);
       row.dataset.pname=p.name;
       wrap.appendChild(row);
     });

@@ -816,3 +816,5 @@ body[data-zone="wastes"]::before{background:radial-gradient(ellipse 100% 70% at 
 .m-choice-icon .ico-loot{width:40px;height:40px;}
 .heirloom .ico{border-color:#d4a72c;box-shadow:0 0 6px rgba(212,167,44,.5);}
 .ico-chip{width:16px;height:16px;margin-right:4px;border:none;background:none;}
+.tok-chips{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px;max-width:340px;}
+.bchip{display:inline-flex;align-items:center;padding:0 6px;font-size:12px;line-height:1.55;border:1px solid var(--line);border-radius:2px;cursor:default;white-space:nowrap;}

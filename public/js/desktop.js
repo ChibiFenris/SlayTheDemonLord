@@ -205,6 +205,7 @@ function renderBattle(gs,players,me){
         <div class="tok-sub">${CAREER_LABELS[p.career]||''}${p.title?` · <em>${escapeHtml(p.title)}</em>`:''}</div>
         <div class="tok-hp-track"><div class="tok-hp-fill ${hpClass(hp)}" style="width:${hp}%"></div></div>
         <div class="tok-hp-txt">${c.health}/${c.maxHealth} HP</div>
+        ${battleChips(c)}
         ${badge}
       </div>`;
     pEl.appendChild(row);
@@ -244,6 +245,28 @@ function renderSidebars(players,gs,me){
 
 function hasActedThisRound(gs,id){ return gs.phase==='combat'&&gs.playersActedThisRound&&gs.playersActedThisRound.includes(id); }
 
+// What a buff does, in a few words, for its tooltip.
+function buffEffectText(b){
+  const n=(v,l)=>v?`${v>0?'+':''}${v} ${l}`:null;
+  const parts=[n(b.defBonus,'Defence'),n(b.dmgBonus,'damage'),n(b.atkBonus,'to hit'),b.atkBoon?`+${b.atkBoon} boon`:null,b.atkBane?`${b.atkBane} bane on your attacks`:null,
+    b.bane?`enemies get ${b.bane} bane`:null,b.enemyBane?`enemies get ${b.enemyBane} bane`:null,n(b.damageReduction,'damage reduction'),
+    (b.regenHp||b.regenPerRound)?`heals ${b.regenHp||b.regenPerRound} a round`:null,b.dotDmg?`${b.dotDmg} damage a round`:null,b.tempHp?`${b.tempHp} temporary HP`:null,
+    b.skipTurn?'loses their turn':null,b.immune||b.immuneThisRound?'immune to attacks':null,b.taunting?'drawing enemy attacks':null].filter(Boolean);
+  return parts.join(', ');
+}
+// A buff is bad news if it costs the warrior something.
+function buffIsBad(b){ return (b.defBonus||0)<0||(b.dmgBonus||0)<0||(b.atkBonus||0)<0||b.atkBane||b.dotDmg||b.skipTurn||b.dmgPenalty; }
+// Conditions and buffs shown under a warrior's portrait in the battle view.
+function battleChips(c){
+  if(!c.alive) return '';
+  const conds=(c.conditions||[]).map(cd=>`<span class="bchip chip-bad e-chip-clickable" onmouseenter="showDebuffTip('${esc(cd)}',false,event)" onmouseleave="hideDebuffTip()">${iconImg(iconCondition(String(cd).replace(/\s*\(.*$/,'').replace(/\s+\d+$/,'')),'ico-chip')}${cd}</span>`);
+  const buffs=(c.activeBuffs||[]).filter(b=>b.name).map(b=>{
+    const fx=buffEffectText(b), left=b.duration>=90?'':` · ${b.duration}r`;
+    return `<span class="bchip ${buffIsBad(b)?'chip-bad':'chip-good'}" title="${escapeHtml(b.name+(fx?': '+fx:'')+(left?` (${b.duration} round${b.duration===1?'':'s'} left)`:''))}">${escapeHtml(b.name)}${left}</span>`;
+  });
+  const all=[...conds,...buffs];
+  return all.length?`<div class="tok-chips">${all.join('')}</div>`:'';
+}
 function statusChips(c){
   const conds=(c.conditions||[]).map(cd=>`<span class="chip chip-bad e-chip-clickable" onmouseenter="showDebuffTip('${esc(cd)}',false,event)" onmouseleave="hideDebuffTip()">${iconImg(iconCondition(String(cd).replace(/\s*\(.*$/,'').replace(/\s+\d+$/,'')),'ico-chip')}${cd}</span>`);
   const buffs=(c.activeBuffs||[]).map(b=>`<span class="chip chip-good e-chip-clickable" onmouseenter="showDebuffTip('${esc(b.name)}',false,event)" onmouseleave="hideDebuffTip()">${b.name} · ${b.duration}r</span>`);
