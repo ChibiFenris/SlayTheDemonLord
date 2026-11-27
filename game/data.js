@@ -567,6 +567,8 @@ const WEAPON_BASES=[
 ];
 
 const ARMOR_BASES=[
+  {name:'Embroidered Robes', def:1, special:null},
+  {name:'Warded Robes',      def:2, special:null},
   {name:'Leather Jack',      def:1, special:null},
   {name:'Chain Shirt',       def:2, special:null},
   {name:'Breastplate',       def:3, special:null},
@@ -873,7 +875,7 @@ Object.assign(CAREERS, {
   // Human (Empire): +1 to every attribute — good at everything, master of nothing.
   empire:    { label:'Human (Empire)',    race:true, weaponName:'Hand Weapon', armorName:'State Troop Mail', startHp:32, startAttrs:{str:11,agi:11,int:11,wil:11}, armorDef:3, weaponDmg:'1d8+2', weaponStr:true,  weaponType:'slashing', spellcaster:false },
   // Human (Bretonnia): +4 WIL — knights and damsels of the Lady; faith drives the blade.
-  bretonnia: { label:'Human (Bretonnia)', race:true, weaponName:'Knightly Sword', armorName:'Knightly Plate', startHp:30, startAttrs:{str:10,agi:10,int:10,wil:14}, armorDef:4, weaponDmg:'1d8+1', weaponWilBased:true, weaponType:'slashing', spellcaster:false },
+  bretonnia: { label:'Human (Bretonnia)', race:true, weaponName:'Knightly Sword', armorName:'Knightly Plate', startHp:30, startAttrs:{str:10,agi:10,int:10,wil:14}, armorDef:5, weaponDmg:'1d8+1', weaponWilBased:true, weaponType:'slashing', spellcaster:false },
   // Dwarf: +4 STR — stubborn, tough and hard-hitting.
   dwarf:     { label:'Dwarf',             race:true, weaponName:'Dwarf Axe', armorName:'Dwarf Mail', startHp:26, startAttrs:{str:14,agi:10,int:10,wil:10}, armorDef:3, weaponDmg:'1d8', weaponStr:true,  weaponType:'slashing', spellcaster:false },
   // High Elf: +4 INT — born to magic; even their blades are guided by the mind.

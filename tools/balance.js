@@ -17,7 +17,8 @@ const TRADS = Object.keys(D.TRADITIONS);
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const avgDice = s => { const m = /(\d+)d(\d+)/.exec(s || '1d6'); return m ? m[1] * (+m[2] + 1) / 2 : 3.5; };
 const wpnScore = w => w ? avgDice(w.dice) + (w.bonus || 0) + (w.heirloom ? 3 : 0) - ((w.traits || []).includes('notched') ? 1 : 0) - (w.cursed ? 1.5 : 0) : 0;
-const armScore = a => a ? (a.defBonus || 0) + (a.heirloom ? 2 : 0) - (a.cursed ? 1 : 0) : 0;
+const AR = require('../game/armour');
+const armScore = (a, c) => !a ? 0 : (c && !AR.canWear(c, a)) ? -99 : (AR.finish(a).dr || 0) + (a.dodge || 0) * 0.7 + (a.heirloom ? 2 : 0) - (a.cursed ? 1 : 0);
 
 function runGame(careers, opts = {}) {
   return new Promise(resolve => {
@@ -74,7 +75,7 @@ function runGame(careers, opts = {}) {
       if (gs.phase !== 'combat') {
         const wi = inv.findIndex(i => i.type === 'weapon' && i.itemObj && wpnScore(i.itemObj) > wpnScore(c.equippedWeapon) + 0.5 && i.itemObj.stat === (c.equippedWeapon && c.equippedWeapon.stat || i.itemObj.stat));
         if (wi >= 0 && !(c._curseLock && c._curseLock.weapon)) return send(sk, 'EQUIP_ITEM', { inventoryIndex: wi });
-        const ai = inv.findIndex(i => i.type === 'armor' && i.itemObj && armScore(i.itemObj) > armScore(c.equippedArmor));
+        const ai = inv.findIndex(i => i.type === 'armor' && i.itemObj && armScore(i.itemObj, c) > armScore(c.equippedArmor, c));
         if (ai >= 0 && !(c._curseLock && c._curseLock.armor)) return send(sk, 'EQUIP_ITEM', { inventoryIndex: ai });
         const ci = inv.findIndex(i => i.type === 'charm' && i.itemObj && !i.itemObj.cursed);
         if (ci >= 0 && !c.equippedCharm) return send(sk, 'EQUIP_ITEM', { inventoryIndex: ci });
@@ -88,7 +89,7 @@ function runGame(careers, opts = {}) {
       }
       if (gs.phase === 'loot' && gs.lootRoom && !(gs.lootPicked || []).includes(myId)) {
         const o = c.lootOptions || {};
-        const p = o.heirloom ? 'heirloom' : o.weapon && wpnScore(o.weapon) > wpnScore(c.equippedWeapon) + 1 ? 'weapon' : o.armor && armScore(o.armor) > armScore(c.equippedArmor) ? 'armor' : (o.charm && !c.equippedCharm ? 'charm' : 'consumable');
+        const p = o.heirloom ? 'heirloom' : o.weapon && wpnScore(o.weapon) > wpnScore(c.equippedWeapon) + 1 ? 'weapon' : o.armor && armScore(o.armor, c) > armScore(c.equippedArmor, c) ? 'armor' : (o.charm && !c.equippedCharm ? 'charm' : 'consumable');
         return send(sk, 'PICK_LOOT', { pick: p });
       }
       if (gs.phase === 'merchant' && c.merchantStock) {
@@ -96,7 +97,7 @@ function runGame(careers, opts = {}) {
         const lockW = c._curseLock && c._curseLock.weapon, lockA = c._curseLock && c._curseLock.armor;
         const buy = all.find(it => !it.bought && it.cost <= c.gold && (
           (it.type === 'weapon' && !lockW && it.stat === (c.equippedWeapon && c.equippedWeapon.stat || it.stat) && wpnScore(it) > wpnScore(c.equippedWeapon) + 1) ||
-          (it.type === 'armor' && !lockA && armScore(it) > armScore(c.equippedArmor)) ||
+          (it.type === 'armor' && !lockA && armScore(it, c) > armScore(c.equippedArmor, c)) ||
           (/Healing/.test(it.name) && c.gold - it.cost >= 15)));
         if (buy) return send(sk, 'BUY_ITEM', { itemId: buy.id });
         return send(sk, 'LEAVE_SHOP');

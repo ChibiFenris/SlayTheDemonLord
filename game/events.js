@@ -208,7 +208,7 @@ const CHOICE_EVENTS = {
       const ps = alive(room);
       if (opt === 'right') { ps.forEach(p => { p.char.gold += 25; }); return S.addLog(room, '🛒 The grateful owner catches up and pays <strong>25 silver</strong> each.', 'loot'); }
       const t = pickRandom(ps);
-      if (d(2) === 1) { const it = d(2) === 1 ? S.genWpn(room.gs.bossCount || 0) : S.genArmor(room.gs.bossCount || 0); S.addToInventory(t.char, it.name, it); return S.addLog(room, `🛒 ${t.name} finds <strong>${it.name}</strong> in a crate. (In inventory.)`, 'loot'); }
+      if (d(2) === 1) { const it = d(2) === 1 ? S.genWpn(room.gs.bossCount || 0) : S.genArmor(room.gs.bossCount || 0, t.char); S.addToInventory(t.char, it.name, it); return S.addLog(room, `🛒 ${t.name} finds <strong>${it.name}</strong> in a crate. (In inventory.)`, 'loot'); }
       S.addLog(room, `🐀 A rat the size of a dog bites ${t.name}!`, 'dmg'); hurt(room, t, rd(1, 6));
     },
   },
@@ -718,7 +718,7 @@ const CHOICE_EVENTS = {
       const gs = room.gs, ps = alive(room); setFlag(gs, 'waystone', opt);
       if (opt === 'leave') return S.addLog(room, '🌀 The stone falls silent as the warband passes.', 'sys');
       if (opt === 'hide') { ps.forEach(p => nextFight(p.char, 'Forest Cover', { enemyBane: 1 })); return S.addLog(room, '🌿 The Wood Elves lead the warband down paths only they can see. (Enemies have 1 bane against you next fight.)', 'heal'); }
-      ps.forEach(p => { if (p.char.spellcaster) S.refreshCastingPools(p.char); if (p.career === 'woodelf') { p.char.attrs.agi++; S.addLog(room, `🌀 ${p.name} sings with the stone — <strong>+1 AGI</strong>.`, 'loot'); } nextFight(p.char, 'Waystone Song', { atkBoon: 1, consumeOnAttack: true }); });
+      ps.forEach(p => { if (p.char.spellcaster) S.refreshCastingPools(p.char); if (p.career === 'woodelf') { p.char.attrs.agi++; p.char.defense++; S.addLog(room, `🌀 ${p.name} sings with the stone — <strong>+1 AGI</strong>.`, 'loot'); } nextFight(p.char, 'Waystone Song', { atkBoon: 1, consumeOnAttack: true }); });
       S.addLog(room, '🌀 The waystone answers. Castings return, and every warrior goes into the next fight with 1 boon.', 'spell');
     },
   },

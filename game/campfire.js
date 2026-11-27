@@ -2,12 +2,13 @@
 // The campfire: each warrior chooses to rest (heal half, steady the mind, shake
 // off curses, a boon in the next fight) or to spend the night upgrading their
 // weapon or armour instead. Everyone gets their abilities and castings back.
+const armour = require('./armour');
 const S = {};
 function bind(api) { Object.assign(S, api); }
 
 const MAX_UPGRADES = 3;          // weapons
 const ARMOR_UPGRADES = 2;        // armour
-const ARMOR_UPGRADE_MAX_DEF = 5; // armour above +5 Defence can't be reinforced
+const ARMOR_UPGRADE_MAX_DR = 6;  // armour soaking more than 6 can't be reinforced
 const alive = room => room.players.filter(p => p.char && p.char.alive);
 
 function upgradeOptions(c) {
@@ -15,7 +16,7 @@ function upgradeOptions(c) {
   const w = c.equippedWeapon, a = c.equippedArmor;
   if (w && (w.upgrades || 0) < MAX_UPGRADES) out.push({ slot: 'weapon', name: w.name, now: w.upgrades || 0, max: MAX_UPGRADES, what: '+1 damage' });
   // Armour: twice at most, and only light-to-medium armour (+5 or less) — heavy armour can't be reinforced further.
-  if (a && (a.upgrades || 0) < ARMOR_UPGRADES && (a.defBonus || 0) <= ARMOR_UPGRADE_MAX_DEF) out.push({ slot: 'armor', name: a.name, now: a.upgrades || 0, max: ARMOR_UPGRADES, what: '+1 Defence' });
+  if (a && (a.upgrades || 0) < ARMOR_UPGRADES && armour.dr(c) <= ARMOR_UPGRADE_MAX_DR) out.push({ slot: 'armor', name: a.name, now: a.upgrades || 0, max: ARMOR_UPGRADES, what: '+1 damage reduction' });
   return out;
 }
 
@@ -55,9 +56,9 @@ function upgrade(room, p, slot) {
     w.desc = `${w.dice}+${w.bonus} · ${String(w.stat || '').toUpperCase()} · ${w.dmgType || ''}${w.special ? ' — ' + w.special.desc : ''} · honed ×${w.upgrades}`;
     S.addLog(room, `⚒ ${p.name} hones the <strong>${w.name}</strong> through the night — <strong>+1 damage</strong> (upgrade ${w.upgrades}/${MAX_UPGRADES}).`, 'loot');
   } else if (slot === 'armor' && c.equippedArmor) {
-    const a = c.equippedArmor; a.upgrades = (a.upgrades || 0) + 1; a.defBonus = (a.defBonus || 0) + 1; c.defense += 1;
-    a.desc = `+${a.defBonus} Defence${a.special ? ' — ' + a.special.desc : ''} · reinforced ×${a.upgrades}`;
-    S.addLog(room, `⚒ ${p.name} rivets and patches the <strong>${a.name}</strong> — <strong>+1 Defence</strong> (upgrade ${a.upgrades}/${ARMOR_UPGRADES}).`, 'loot');
+    const a = armour.finish(c.equippedArmor); a.upgrades = (a.upgrades || 0) + 1; a.dr = (a.dr || 0) + 1;
+    a.desc = `${armour.summary(a)}${a.special ? ' — ' + a.special.desc : ''} · reinforced ×${a.upgrades}`;
+    S.addLog(room, `⚒ ${p.name} rivets and patches the <strong>${a.name}</strong> — <strong>+1 damage reduction</strong> (upgrade ${a.upgrades}/${ARMOR_UPGRADES}).`, 'loot');
   }
 }
 
@@ -88,4 +89,4 @@ function maybeFinish(room) {
   S.addLog(room, 'The fire burns low. The warband is ready to move on.', 'sys');
 }
 
-module.exports = { bind, MAX_UPGRADES, ARMOR_UPGRADES, ARMOR_UPGRADE_MAX_DEF, upgradeOptions, startCampfire, choose, maybeFinish };
+module.exports = { bind, MAX_UPGRADES, ARMOR_UPGRADES, ARMOR_UPGRADE_MAX_DR, upgradeOptions, startCampfire, choose, maybeFinish };

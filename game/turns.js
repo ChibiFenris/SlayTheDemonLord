@@ -1,5 +1,6 @@
 'use strict';
 const heirlooms = require('./heirlooms');
+const armour = require('./armour');
 // Combat flow: turn order, the party turn timer, enemy turns, rounds and deaths.
 // Moved out of server.js unchanged. The server hands this module the helpers it
 // uses through bind() once everything is defined (see the bottom of server.js).
@@ -382,14 +383,14 @@ function fireEnemyTurn(room, ae) {
   alive.forEach(p => {
     const auraBonus  = room.players.some(q=>q.char&&q.char.alive&&q.char.holyAura)?2:0;
     const shieldBonus = p.char.shieldwall ? 2 : 0;
-    const ignoresDef  = (ae.ignoresDef || 0) + (ae.hellblade && p.char.equippedArmor ? (p.char.equippedArmor.defBonus||0) : 0); // Hellblade ignores armour
+    const ignoresDef  = ae.ignoresDef || 0;
     if(p.char.flicker && !p.char._flickerUsed){ p.char._flickerUsed=true; addLog(room,`🤸 <strong>Flicker!</strong> ${p.name} simply isn't there — attack negated!`,'spell'); return; }
     const aegisBonus  = room.players.some(q=>q.char&&q.char.alive&&q.char._legExtinctionAegis)?2:0;
     const wardBonus   = room.players.some(q=>q.char&&q.char.alive&&q.char.ward)?1:0; // Ward talent
     if(p.char._legShroud && p.char.health>0 && p.char.health<=Math.floor(p.char.maxHealth*0.25)){
       p.char._legShroudActive=true;
     } else { p.char._legShroudActive=false; }
-    const defTotal    = Math.max(10, p.char.defense + auraBonus + shieldBonus + aegisBonus + wardBonus - ignoresDef);
+    const defTotal    = Math.max(5, p.char.defense + auraBonus + shieldBonus + aegisBonus + wardBonus - ignoresDef);
 
     for (let atk_i = 0; atk_i < baseAttacks; atk_i++) {
       if (!p.char.alive) break;
@@ -422,6 +423,8 @@ function fireEnemyTurn(room, ae) {
         if (ae.recklessCharge && recklessBoon)                        { dmg += rd(1,6); }
         if (ae._rageActive)                                           { dmg += rd(1,6); }
         dmg = enemyDamageMods(room, ae, p, dmg, r, plan);
+        // Armour soaks the blow (up to half of it) — unless a Hellblade cuts straight through.
+        const _soak = ae.hellblade ? {dmg, soaked:0} : armour.soak(p.char, dmg); dmg = _soak.dmg;
         const isImmune = (p.char.activeBuffs||[]).some(b=>b.immune);
         const drBuff   = (p.char.activeBuffs||[]).find(b=>b.damageReduction);
         if (isImmune)  { dmg = 0; addLog(room, `🛡 ${p.name} is IMMUNE — blocked!`, 'spell'); }
@@ -475,7 +478,7 @@ function fireEnemyTurn(room, ae) {
         checkDeath(room, p);
         if(!p.char.alive && !p.char.pendingRevive){ p.char.pendingRevive=true; }
         const critLabel = r.crit ? ' 💥 CRIT!' : '';
-        const dmgBreak  = `${ae.dmgNum}d${ae.dmgSides}(${r.dmgRoll})${ae.dmgBonus?'+'+ae.dmgBonus:''}${r.critRoll?'+'+r.critRoll+' crit':''}`;
+        const dmgBreak  = `${ae.dmgNum}d${ae.dmgSides}(${r.dmgRoll})${ae.dmgBonus?'+'+ae.dmgBonus:''}${r.critRoll?'+'+r.critRoll+' crit':''}${_soak.soaked?` −${_soak.soaked} armour`:''}`;
         if(p.char.fadePassive) p.char._wasAttackedThisRound=true;
         addLog(room, `${ae.name} hits <strong>${p.name}</strong> — <strong class="num-dmg">-${dmg} dmg</strong>${critLabel} [d20:<strong>${r.base}</strong>+atk<strong>${aeProxy.atk>=0?'+':''}${aeProxy.atk}</strong>=<strong>${r.total}</strong> vs Def<strong>${defTotal}</strong>] [${dmgBreak}] → ${p.name} <strong>${p.char.health}</strong>/${p.char.maxHealth} HP`, 'dmg-taken');
 

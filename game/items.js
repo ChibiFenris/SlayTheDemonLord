@@ -6,6 +6,7 @@ let ARMOR_BASES, CHARM_SHOP_KEYS, ENEMY_DROPS, LEGENDARY_ITEMS, SCROLL_SPELLS_SH
 function bind(api) {
   ({ ARMOR_BASES, CHARM_SHOP_KEYS, ENEMY_DROPS, LEGENDARY_ITEMS, SCROLL_SPELLS_SHOP, SHOP_CONSUMABLES, WEAPON_BASES, addBuff, addDebuff, addLog, applyCharm, broadcastState, charmKey, checkDeath, cleanseCurses, d, dark, getTargetEnemy, isCursed, makeCharm, makeCursedItem, maxCastings, modVal, rd, resolveEnemyDeath, rollTraits, sendTo, uniqRanks, uuidv4 } = api);
 }
+const armour = require('./armour');
 // ─── MERCHANT & ITEMS ───────────────────────────────────────────────────────
 function genLegendaryItem(bossIndex) {
   const key = bossIndex===0?'boss1':bossIndex===1?'boss2':'boss3';
@@ -24,7 +25,7 @@ function genLegendaryItem(bossIndex) {
   item.sellCost = 5; // legendaries can be sold for more
   item.cost = 0; // not purchasable
   item.bought = false;
-  return item;
+  return armour.finish(item);
 }
 
 function genWpn(bossCount=0){
@@ -33,9 +34,11 @@ function genWpn(bossCount=0){
   const b=pool[Math.floor(Math.random()*pool.length)], bonus=d(6)+Math.max(0,bossCount-2); // Endless: +1 per tier
   const specDesc2=b.special?` — ${b.special.desc}`:''; return rollTraits({id:'w'+uuidv4(),name:b.name,dice:b.dice,stat:b.stat,bonus,dmgType:b.dmgType,special:b.special||null,cost:Math.max(5,(heavy.includes(b)?20:15)+bonus*8+(b.special?10:0)),sellCost:3,bought:false,type:'weapon',desc:`${b.dice}+${bonus} · ${b.stat.toUpperCase()} · ${b.dmgType}${specDesc2}`},'weapon');
 }
-function genArmor(bossCount=0){
-  const basePool=ARMOR_BASES.filter(ab=>!ab.special);
-  const specialPool=ARMOR_BASES.filter(ab=>ab.special);
+// c (optional): only offer armour that warrior is trained to wear.
+function wearable(bases,c){ if(!c) return bases; const ok=bases.filter(b=>armour.TYPES[armour.typeOf(b.name)].rank<=armour.maxRank(c)); return ok.length?ok:bases; }
+function genArmor(bossCount=0,c=null){
+  const basePool=wearable(ARMOR_BASES.filter(ab=>!ab.special),c);
+  const specialPool=wearable(ARMOR_BASES.filter(ab=>ab.special),c);
   let pool=basePool;
   if(bossCount>=1&&d(4)===1) pool=[...basePool,...specialPool]; // 25% chance of special post-boss-1
   if(bossCount>=2&&d(3)===1) pool=[...basePool,...specialPool,...specialPool]; // more common post-boss-2
@@ -50,7 +53,7 @@ function genShopScroll(){
   const sp=SCROLL_SPELLS_SHOP[Math.floor(Math.random()*SCROLL_SPELLS_SHOP.length)];
   return{id:'sc'+uuidv4(),name:`Scroll: ${sp.name}`,spell:sp,cost:35,sellCost:3,bought:false,type:'scroll',desc:sp.desc};
 }
-function buildPlayerShop(bossCount=0){
+function buildPlayerShop(bossCount=0,c=null){
   const hd1={id:'hd1'+uuidv4(),name:'Healing Draught',cost:10,sellCost:3,desc:'Heal 1d6 + your level HP',bought:false,type:'consumable'};
   const hd2={id:'hd2'+uuidv4(),name:'Healing Draught',cost:10,sellCost:3,desc:'Heal 1d6 + your level HP',bought:false,type:'consumable'};
   // Two Healing Draughts plus four other consumables, all different.
@@ -59,7 +62,7 @@ function buildPlayerShop(bossCount=0){
   const charmKeys=CHARM_SHOP_KEYS.slice().sort(()=>Math.random()-0.5);
   // No two weapons or armours with the same name on one visit.
   const distinct=(gen,n)=>{ const out=[]; for(let i=0;i<n*6&&out.length<n;i++){ const it=gen(bossCount); if(!out.some(o=>o.name===it.name)) out.push(it); } while(out.length<n) out.push(gen(bossCount)); return out; };
-  const wpns=distinct(genWpn,3), arms=distinct(genArmor,2);
+  const wpns=distinct(genWpn,3), arms=distinct(b=>genArmor(b,c),2);
   return{
     weaponEnhance:{id:'we'+uuidv4(),name:'Weapon Enhancement',desc:'+1 dmg AND +1 to hit on equipped weapon (cap +6)',cost:30,bought:false,type:'enhance'},
     statBoost:    {id:'sb'+uuidv4(),name:'+1 Primary Stat',desc:'Increase highest attribute by 1',cost:35,bought:false,type:'statboost'},
@@ -92,7 +95,7 @@ function applyWpnSpecial(char, special, equip){
   const v=equip;
   if(special.key==='bladeguard'){
     if(v){ char._wpnBladeguard=true; if(!char._wpnBladeguardDef){ char._wpnBladeguardDef=true; char.defense++; } }
-    else { char._wpnBladeguard=false; if(char._wpnBladeguardDef){ char._wpnBladeguardDef=false; char.defense=Math.max(char.baseAgiDef||0,char.defense-1); } }
+    else { char._wpnBladeguard=false; if(char._wpnBladeguardDef){ char._wpnBladeguardDef=false; char.defense=Math.max(1,char.defense-1); } }
   }
   if(special.key==='greatBlade'){
     if(v&&!char._wpnGreatBladeDef){ char._wpnGreatBladeDef=true; char.defense-=1; }
@@ -152,7 +155,9 @@ function equipItem(char, inventoryIndex) {
     return `Equipped ${item.name} (${item.dice}+${item.bonus})${specNote}`;
   }
   if(item.type==='armor'){
-    const oldBonus=char.equippedArmor?char.equippedArmor.defBonus:0;
+    armour.finish(item);
+    if(!armour.canWear(char,item)) return `can't wear ${item.name} — ${armour.TYPES[item.armorType].label.toLowerCase()} is too heavy for your class (you can wear ${armour.wearText(char)})`;
+    const oldDodge=armour.dodgeOf(char.equippedArmor);
     if(char.equippedArmor){
       if(char.equippedArmor.legendary && char.equippedArmor.special) applyLegendaryArmourPassive(char, char.equippedArmor.special.key, false);
       const olds=char.equippedArmor.special;
@@ -171,7 +176,7 @@ function equipItem(char, inventoryIndex) {
       char.inventory.push({name:char.equippedArmor.name,qty:1,type:'armor',itemObj:char.equippedArmor,sellCost:3});
     }
     char.equippedArmor=item;
-    char.defense+= (item.defBonus||0) - oldBonus; // swap armour only; keep talent/buff/debuff defence changes
+    char.defense+= armour.dodgeOf(item) - oldDodge; // heavier armour makes you slower to dodge; talent/buff changes stay
     if(item.legendary && item.special) applyLegendaryArmourPassive(char, item.special.key, true);
     if(item.special){
       const sp=item.special.key;
@@ -188,7 +193,7 @@ function equipItem(char, inventoryIndex) {
     }
     char.inventory.splice(inventoryIndex,1);
     const specNote=item.special?` [${item.special.desc}]`:'';
-    return `Equipped ${item.name} (+${item.defBonus} Def, now ${char.defense})${specNote}`;
+    return `Equipped ${item.name} (${armour.summary(item)}; Defence now ${char.defense})${specNote}`;
   }
   return false;
 }
@@ -226,7 +231,7 @@ function handleBuy(room,player,itemId){
     addLog(room,`${player.name} visits the apothecary — choose an attribute to increase.`,'loot');
   }
   else if(item.type==='weapon'){addToInventory(char,item.name,item);addLog(room,`${player.name} buys ${item.name} (${item.dice}+${item.bonus}) — in inventory.`,'loot');}
-  else if(item.type==='armor'){addToInventory(char,item.name,item);addLog(room,`${player.name} buys ${item.name} (+${item.defBonus} Def) — in inventory.`,'loot');}
+  else if(item.type==='armor'){addToInventory(char,item.name,item);addLog(room,`${player.name} buys ${item.name} (${armour.summary(armour.finish(item))}) — in inventory.`,'loot');}
   else if(item.type==='charm'){addToInventory(char,item.name,item);addLog(room,`${player.name} buys ${item.name} — in inventory.`,'loot');}
   else if(item.type==='scroll'){addToInventory(char,item.name);char.scrollSpells[item.name]=item.spell;addLog(room,`${player.name} buys ${item.name}.`,'loot');}
   else if(item.type==='consumable'){addToInventory(char,item.name);addLog(room,`${player.name} buys ${item.name}.`,'loot');}
@@ -244,7 +249,7 @@ function itemValue(entry){
     if(o.cursed) return 40;
     if(o.type==='charm') return 28;
     if(o.type==='weapon'){ const heavy=!['1d6','1d8','2d4'].includes(o.dice); return Math.max(5,(heavy?20:15)+(o.bonus||0)*8+(o.special?10:0)); }
-    if(o.type==='armor') return Math.max(5,12+(o.defBonus||0)*8+(o.special?15:0));
+    if(o.type==='armor') return Math.max(5,8+(armour.finish(o).dr||0)*8+(o.special?15:0));
   }
   const shop=SHOP_CONSUMABLES.find(c=>c.name===entry.name); if(shop) return shop.cost;
   if(/^Scroll: /.test(entry.name)) return 35;

@@ -818,3 +818,6 @@ body[data-zone="wastes"]::before{background:radial-gradient(ellipse 100% 70% at 
 .ico-chip{width:16px;height:16px;margin-right:4px;border:none;background:none;}
 .tok-chips{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px;max-width:340px;}
 .bchip{display:inline-flex;align-items:center;padding:0 6px;font-size:12px;line-height:1.55;border:1px solid var(--line);border-radius:2px;cursor:default;white-space:nowrap;}
+.cast-count{display:inline-block;margin-left:6px;padding:0 5px;font-size:11px;line-height:1.5;border-radius:2px;border:1px solid rgba(120,140,200,.45);color:#b9c6ee;background:rgba(60,80,140,.2);font-variant-numeric:tabular-nums;vertical-align:middle;}
+.cast-count.empty{color:var(--ember);border-color:rgba(200,64,47,.4);background:rgba(142,28,20,.18);}
+.armour-sub{display:block;font-size:12px;color:var(--ink-dim,#a89c86);margin-top:1px;}

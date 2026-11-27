@@ -86,7 +86,7 @@ function mTapItem(idx,char,inCombat){
     return;
   }
   if(isWpn||isArm){
-    const stat=isWpn&&o?`${o.dice}+${o.bonus||0} · ${(o.stat||'').toUpperCase()} · ${o.dmgType||''}`:isArm&&o?`+${o.defBonus} Defence`:'';
+    const stat=isWpn&&o?`${o.dice}+${o.bonus||0} · ${(o.stat||'').toUpperCase()} · ${o.dmgType||''}`:isArm&&o?armourLine(o):'';
     const isEq=(isWpn&&char.equippedWeapon&&o&&o.id===char.equippedWeapon.id)||(isArm&&char.equippedArmor&&o&&o.id===char.equippedArmor.id);
     let primary=isEq?'':`<button class="m-btn use" onclick="mEquip(${idx})">Equip</button>`;
     if(atMerchant&&!isEq) primary+=`<button class="m-btn" onclick="mCloseSheet();sellItem(${idx})">Sell ${entry.sellCost||1} ss</button>`;
@@ -212,7 +212,7 @@ function mRenderGame(gs,players,me){
       <div class="m-hp-row"><span class="m-hp-label">XP</span>${mBar(xp.pct,'xp')}<span class="m-hp-val">${c.level>=10?'Max':`${c.xp}/${xp.next}`}</span></div>
       ${c.equippedCharm?`<div class="m-stats">📿 ${c.equippedCharm.name} <button class="mini-btn" onclick="unequipCharm()">Remove</button></div>`:''}
       <div class="m-stats">${c.row==='back'?'🏹 Back row':'🛡 Front row'} <button class="mini-btn" onclick="setRow('${c.row==='back'?'front':'back'}')">Move ${c.row==='back'?'forward':'back'}</button></div><div class="m-stats dark-line">${darkHtml(c).line}</div>${c.patron||(c.mutations||[]).length||(c.disorders||[]).length?`<div class="m-stats relic-chips">${darkHtml(c).muts.join('')}${darkHtml(c).dis.join('')}</div>`:''}${c.relics&&c.relics.length?`<div class="m-stats relic-chips">${c.relics.map(k=>{const r=RELICS_C[k]||{name:k,icon:'✨',desc:''};return `<span class="relic-chip" title="${r.name}: ${r.desc}">${r.icon} ${r.name}</span>`;}).join('')}</div>`:''}
-      <div class="m-stats">Def <b>${c.defense}</b>${c.power>0?` · Power <b>${c.power}</b>`:''} · STR <b>${c.attrs.str}</b> · AGI <b>${c.attrs.agi}</b> · INT <b>${c.attrs.int}</b> · WIL <b>${c.attrs.wil}</b></div>
+      <div class="m-stats">Def <b>${c.defense}</b> · DR <b>${armourDR(c)}</b>${c.power>0?` · Power <b>${c.power}</b>`:''} · STR <b>${c.attrs.str}</b> · AGI <b>${c.attrs.agi}</b> · INT <b>${c.attrs.int}</b> · WIL <b>${c.attrs.wil}</b></div>
       ${chips.length?`<div class="chip-row">${chips.join('')}</div>`:''}
       ${c.alive?'':'<div class="dead-label">Fallen</div>'}`);
     card.dataset.pname=me.name;
@@ -282,7 +282,7 @@ function mRenderGame(gs,players,me){
         opt('💰',`${gs.lootRoom.coins} silver`,'Coin from the cache.','coins');
         opt(iconImg(iconItem({name:consName}),'ico-loot')||'🧪',consName,o.scrollSpell?o.scrollSpell.desc:ITEM_DESCS[o.consumable]||'','consumable');
         opt(iconImg(iconWeapon(o.weapon.name),'ico-loot'),o.weapon.name,`${o.weapon.dice}+${o.weapon.bonus} · ${o.weapon.stat.toUpperCase()}${traitText(o.weapon)}`,'weapon');
-        opt(iconImg(iconArmor(o.armor.name),'ico-loot'),o.armor.name,`+${o.armor.defBonus} Defence${traitText(o.armor)}`,'armor');
+        opt(iconImg(iconArmor(o.armor.name),'ico-loot'),o.armor.name,`${armourLine(o.armor)}${traitText(o.armor)}`,'armor');
         if(o.charm) opt(iconImg(iconItem({type:'charm',...o.charm}),'ico-loot')||'📿',o.charm.name,o.charm.desc,'charm');
         if(o.heirloom) opt(iconImg(iconItem(o.heirloom),'ico-loot')||'🏺',o.heirloom.name,o.heirloom.desc,'heirloom');
         act.appendChild(grid);
@@ -354,7 +354,7 @@ function mBuildKit(char,gs){
     card.appendChild(mEl('div','pools',ranks.map(r=>`<span class="pool">Rank ${r} <b>${castingsLeftC(char,'',r)}/${maxCastingsC(char.power,r)}</b></span>`).join('')));
     spells.forEach(sp=>{
       const left=castingsLeftC(char,sp.name,sp.rank);
-      const p=mEl('button','m-pill spell'+(left>0?'':' used'),`${spellIcon(sp.name)} ${sp.name}`);
+      const p=mEl('button','m-pill spell'+(left>0?'':' used'),`${spellIcon(sp.name)} ${sp.name}${castCount(char,sp)}`);
       p.onclick=()=>mTapSpell(sp.name,char); wrap.appendChild(p);
     });
   } else {

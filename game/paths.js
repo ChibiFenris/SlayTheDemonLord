@@ -6,6 +6,7 @@ let EXPERT_PATHS, MASTER_PATHS, NOVICE_PATHS, TRADITIONS, XP_THRESHOLDS, getSpel
 function bind(api) {
   ({ EXPERT_PATHS, MASTER_PATHS, NOVICE_PATHS, TRADITIONS, XP_THRESHOLDS, getSpellsForPower, isEnemyHidden, refreshCastingPools, traditionAllowed } = api);
 }
+const armour = require('./armour');
 // ─── LEVEL UP & PATHS ────────────────────────────────────────────────────────
 
 function checkLevelUp(char) {
@@ -51,7 +52,7 @@ function applyLevelGains(char, level) {
 function applyTalentList(char, talents) {
   talents.forEach(t => {
     if (t==='+1str') char.attrs.str++;
-    else if (t==='+1agi') { char.attrs.agi++; char.baseAgiDef=char.attrs.agi; char.defense++; } // Defence = AGI + armour
+    else if (t==='+1agi') { char.attrs.agi++; char.baseAgiDef=char.attrs.agi; char.defense++; } // Defence (dodging) comes from AGI
     else if (t==='+1int') char.attrs.int++;
     else if (t==='+1wil') char.attrs.wil++;
     else char[t]=true;
@@ -99,6 +100,8 @@ function grantTradition(char, tradId) {
 function applyExpertPath(char, pathId) {
   char.expertPath=pathId; char.pendingLevelUp=false; char.pendingPathTier=null;
   const ep=EXPERT_PATHS[pathId]; if(!ep) return;
+  // A new class may not be trained for the armour you wear: it goes back in your pack.
+  if(char.equippedArmor&&!armour.canWear(char,char.equippedArmor)){ const a=char.equippedArmor; char.defense-=armour.dodgeOf(a); char.equippedArmor=null; char.inventory.push({name:a.name,qty:1,type:'armor',itemObj:a,sellCost:3}); char._armourRemovedNote=`took off the ${a.name} (a ${a.armorType==='plate'||a.armorType==='mail'?'heavy':'leather'} armour your class can't wear)`; }
   char.maxHealth+=ep.hpGain; char.health=Math.min(char.health+ep.hpGain,char.maxHealth);
   if (ep.power) { char.power+=ep.power; char.maxPower+=ep.power; refreshCastingPools(char); }
   if (ep.levelGains&&ep.levelGains[3]) applyTalentList(char, ep.levelGains[3]);

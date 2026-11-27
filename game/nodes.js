@@ -1,5 +1,6 @@
 'use strict';
 const heirlooms = require('./heirlooms');
+const armour = require('./armour');
 // The road: path votes, room contents, unknown-room encounters and loot rooms.
 // Moved out of server.js unchanged. The server hands this module the helpers it
 // uses through bind() once everything is defined (see the bottom of server.js).
@@ -152,7 +153,7 @@ function _runNodeContent(room, gs, nodeType, playerCount) {
   if(nodeType==='merchant') {
     gs.phase='merchant';
     room.players.forEach(p=>{ if(!p.char||!p.char.alive) return;
-      const st=buildPlayerShop(gs.bossCount), f=dark.shopFactor(p.char)*(foes.hasMutator(gs,'plunder')?0.5:1);
+      const st=buildPlayerShop(gs.bossCount,p.char), f=dark.shopFactor(p.char)*(foes.hasMutator(gs,'plunder')?0.5:1);
       if(Math.random()<0.3){ const h=heirlooms.roll(p.char,gs.bossCount); if(h){ h.cost=60+20*Math.min(3,gs.bossCount||0); st.heirloom=h; } } // a merchant sometimes has something from home
       if(f!==1) Object.values(st).flat().forEach(it=>{ if(it&&typeof it.cost==='number') it.cost=Math.max(1,Math.round(it.cost*f)); });
       p.char.merchantStock=st; });
@@ -164,7 +165,7 @@ function _runNodeContent(room, gs, nodeType, playerCount) {
     gs.phase='loot';
     const coins=25+Math.floor(Math.random()*26); // 25-50 silver
     gs.lootRoom={coins}; gs.lootPicked=[];
-    room.players.forEach(p=>{if(p.char&&p.char.alive){ p.char.lootOptions=buildLootOptions(gs.bossCount); if(Math.random()<(gs.bossCount?0.35:0.25)) p.char.lootOptions.heirloom=heirlooms.roll(p.char,gs.bossCount); }});
+    room.players.forEach(p=>{if(p.char&&p.char.alive){ p.char.lootOptions=buildLootOptions(gs.bossCount,p.char); if(Math.random()<(gs.bossCount?0.35:0.25)) p.char.lootOptions.heirloom=heirlooms.roll(p.char,gs.bossCount); }});
     addLog(room,`📦 A cache! ${coins} coins — each warrior finds their own haul.`,'loot');
     return;
   }
@@ -193,12 +194,12 @@ function resolveUnknownEvent(room){
 }
 
 // ─── LOOT ROOM ───────────────────────────────────────────────────────────────
-function buildLootOptions(bossCount=0) {
+function buildLootOptions(bossCount=0,c=null) {
   const useScroll=d(6)>=4;
   const consumable=useScroll?'Spell Scroll':LOOT_CONS_LIST[Math.floor(Math.random()*LOOT_CONS_LIST.length)];
   const scrollSpell=useScroll?SCROLL_SPELLS_LIST[Math.floor(Math.random()*SCROLL_SPELLS_LIST.length)]:null;
   const charm=Math.random()<0.35?makeCharm(pickRandom(CHARM_SHOP_KEYS)):null;
-  return {consumable,scrollSpell,weapon:genSpecialWpn(bossCount),armor:genSpecialArmor(bossCount),charm};
+  return {consumable,scrollSpell,weapon:genSpecialWpn(bossCount),armor:genSpecialArmor(bossCount,c),charm};
 }
 function genSpecialWpn(bossCount=0){
   const specials=WEAPON_BASES.filter(b=>b.special);
@@ -207,8 +208,9 @@ function genSpecialWpn(bossCount=0){
   const bonus=bossCount===0?d(3):bossCount===1?d(2)+2:d(2)+4;
   return rollTraits({id:'w'+uuidv4(),name:base.name,dice:base.dice,stat:base.stat,bonus,dmgType:base.dmgType,special:base.special,cost:0,sellCost:3,bought:false,type:'weapon',desc:`${base.dice}+${bonus} · ${base.stat.toUpperCase()} · ${base.dmgType} — ${base.special.desc}`},'weapon');
 }
-function genSpecialArmor(bossCount=0){
-  const specials=ARMOR_BASES.filter(ab=>ab.special);
+function genSpecialArmor(bossCount=0,c=null){
+  let specials=ARMOR_BASES.filter(ab=>ab.special);
+  if(c){ const ok=specials.filter(b=>armour.TYPES[armour.typeOf(b.name)].rank<=armour.maxRank(c)); if(ok.length) specials=ok; }
   const base=specials[Math.floor(Math.random()*specials.length)];
   const bonus=bossCount===0?d(3):bossCount===1?d(2)+1:d(3)+2;
   const totalDef=base.def+bonus;

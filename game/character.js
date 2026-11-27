@@ -5,6 +5,7 @@ const { v4: uuidv4 } = require('uuid');
 const { CAREERS } = require('./data');
 const { rd } = require('./dice');
 const { refreshCastingPools } = require('./castings');
+const armour = require('./armour');
 
 const S = {};
 function bind(api) { Object.assign(S, api); }
@@ -23,12 +24,12 @@ function applyLoneSurvivor(room, player){
 function buildChar(career) {
   const c = CAREERS[career];
   const attrs = {...c.startAttrs};
-  const baseDefense = attrs.agi + c.armorDef;
   const wpnDmgStr=c.weaponDmg||'1d6'; const wpnBonusParts=wpnDmgStr.split('+'); const wpnDicePart=wpnBonusParts[0]; const wpnStartBonus=parseInt(wpnBonusParts[1]||'0')||0;
   const _wpnStat=c.weaponIntBased?'int':c.weaponWilBased?'wil':c.weaponStr?'str':'agi';
   const _wpnType=c.weaponType||(c.weaponStr||c.weaponIntBased?'blunt':'slashing');
   const startWpn = {id:'w_start_'+uuidv4(),name:c.weaponName||'Starting Weapon',dice:wpnDicePart,stat:_wpnStat,bonus:wpnStartBonus,dmgType:_wpnType,type:'weapon',desc:`${wpnDmgStr}+${wpnStartBonus} — starting gear`};
-  const startArmor = c.armorDef>0 ? {id:'a_start_'+uuidv4(),name:c.armorName||'Starting Armour',defBonus:c.armorDef,type:'armor',desc:`+${c.armorDef} Defense`} : null;
+  const startArmor = c.armorDef>0 ? armour.finish({id:'a_start_'+uuidv4(),name:c.armorName||'Starting Armour',defBonus:Math.max(1,c.armorDef||0),type:'armor',desc:'starting gear'}) : null;
+  const baseDefense = attrs.agi + armour.GUARD + armour.dodgeOf(startArmor); // Defence is dodging: AGI, nudged by how heavy your armour is
   return {
     career, attrs,
     health:c.startHp, maxHealth:c.startHp,

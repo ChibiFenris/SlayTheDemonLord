@@ -640,6 +640,7 @@ function handlePlayerAction(room,playerId,payload,ws){
       if(!pathAllowed(char.career,tier,data.pathId)){ sendTo(ws,{type:'ERROR',payload:{msg:'That path is not open to your career.'}}); return; }
       if(tier==='expert') applyExpertPath(char,data.pathId); else applyMasterPath(char,data.pathId);
       addLog(room,`${player.name} ${tier==='expert'?'becomes':'ascends as'} a <strong>${pathLabel(char.career,tier,data.pathId)}</strong>.`,'spell');
+      if(char._armourRemovedNote){ addLog(room,`🛡 ${player.name} ${char._armourRemovedNote}.`,'loot'); delete char._armourRemovedNote; }
     }
     if(!char.pendingLevelUp){ const _lv=checkLevelUp(char); if(_lv.leveled) addLog(room,`🌟 ${player.name} reaches <strong>Level ${_lv.newLevel}</strong>! (+${_lv.hpGain} max HP)${char.pendingLevelUp?' — Choose a path!':''}`,'spell'); }
     return;
@@ -663,7 +664,7 @@ function handlePlayerAction(room,playerId,payload,ws){
     if(!['str','agi','int','wil'].includes(attr)){sendTo(player.ws,{type:'ERROR',payload:{msg:'Invalid attribute.'}});return;}
     char2.pendingStatBoost=false;
     char2.attrs[attr]++;
-    if(attr==='agi'){ char2.baseAgiDef=char2.attrs.agi; char2.defense++; } // Defence = AGI + armour
+    if(attr==='agi'){ char2.baseAgiDef=char2.attrs.agi; char2.defense++; } // Defence (dodging) comes from AGI
     addLog(room,`${player.name}: +1 ${attr.toUpperCase()} (now ${char2.attrs[attr]}).`,'loot');
     broadcastState(room.code); return;
   }

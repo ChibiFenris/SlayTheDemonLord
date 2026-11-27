@@ -230,7 +230,7 @@ function tickBuffs(char){
     b.duration--;
     if(b.duration<=0){
       // lingeringMagic: DoT doubling handled in applyBurn/applyPoison/applyBleed
-      if(b.defBonus) char.defense=Math.max(char.baseAgiDef||0, char.defense-b.defBonus);
+      if(b.defBonus) char.defense=Math.max(1, char.defense-b.defBonus);
       if(b.name==='Corroded') char._corroded=false; // allow reapplication next hit
       return false;
     }

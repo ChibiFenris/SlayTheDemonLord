@@ -32,3 +32,12 @@ function iconPeople(id){ return ICONS.peoples[id]||null; }
 function iconImg(src,cls,alt){ return src?`<img class="ico ${cls||''}" src="${src}" alt="${alt||''}" loading="lazy">`:''; }
 // A button label with the ability's picture in place of its emoji.
 function talentLabel(key,label){ const s=iconTalent(key); return s?iconImg(s,'ico-btn')+String(label).replace(/^[^A-Za-z(]+/,''):label; }
+// Armour summary: type, damage reduction and its effect on dodging.
+const ARMOUR_LABEL={cloth:'Cloth',leather:'Leather',mail:'Mail',shield:'Shield',plate:'Plate'};
+function armourLine(o){
+  if(!o) return '';
+  if(!o.armorType) return `+${o.defBonus||0} Defence`;
+  const dg=o.dodge||0;
+  return `${ARMOUR_LABEL[o.armorType]||o.armorType} · DR ${o.dr}${dg?` · ${dg>0?'+':'−'}${Math.abs(dg)} Defence`:''}`;
+}
+const armourDR=c=>(c&&c.equippedArmor&&c.equippedArmor.dr)||0;

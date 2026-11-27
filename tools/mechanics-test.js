@@ -214,7 +214,7 @@ const logHas=(room,re)=>room.gs.log.some(l=>re.test(l.msg));
 // 19. New classes
 { const {room}=mkRoom(['witchhunter','slayer']); const wh=room.players[0].char, sl=room.players[1].char;
   ok(wh.condemn&&wh.silverShot&&wh.firstVolley&&wh.catchBreath&&wh.maxHealth===31,'Witch Hunter starts with Condemn, Silver Shot, First Volley (31 HP)');
-  ok(sl.slayerOath&&sl.deathWish&&sl.rage&&sl.maxHealth===34&&sl.defense===10,'Dwarf Slayer starts with Oath, Death Wish, Rage (34 HP, Defence 10)');
+  ok(sl.slayerOath&&sl.deathWish&&sl.rage&&sl.maxHealth===34&&sl.defense===sl.attrs.agi+3,'Dwarf Slayer starts with Oath, Death Wish, Rage (34 HP, Defence = AGI + 3, no armour)');
   ok(wh.equippedWeapon.dmgType==='piercing'&&sl.equippedWeapon.dice==='1d8','new classes get their own weapons');
   combat(room,['Undead Skeleton','Skaven Clanrat']); room.gs.activeEnemyIdx=0;
   const pIdx=room.gs.turnOrder.findIndex(t=>t.id===room.players[0].id); room.gs.activeTurnIdx=pIdx;
@@ -577,5 +577,20 @@ const logHas=(room,re)=>room.gs.log.some(l=>re.test(l.msg));
   { const {room}=mkRoom(['empire']); const p=room.players[0]; combat(room,['Undead Skeleton','Undead Skeleton']); const e=room.gs.enemies[0]; room.gs.activeEnemyIdx=0; e.hp=e.maxHp=500; e.ac=0; e.damageReduction=0; p.char.silverShot=true;
     let landed=false; for(let i=0;i<6&&!landed;i++){ room.gs.activeTurnIdx=room.gs.turnOrder.findIndex(t=>t.id===p.id); room.gs.playersActedThisRound=[]; S.handlePlayerAction(room,p.id,{action:'ATTACK'}); landed=logHas(room,/bonus damage/); }
     ok(landed,'on-hit bonuses such as Silver Shot now really come off the enemy\'s HP'); }
+}
+// 49. Defence is dodging (AGI); armour soaks damage; armour types follow the class
+{ const A=require('../game/armour.js');
+  const plate=A.finish({type:'armor',name:'Full Plate',defBonus:4}), robe=A.finish({type:'armor',name:'Embroidered Robes',defBonus:1});
+  ok(plate.armorType==='plate'&&plate.dr===4&&robe.armorType==='cloth'&&robe.dr===1,'armour gets a type and damage reduction');
+  ok(A.soak({equippedArmor:plate},10).dmg===6&&A.soak({equippedArmor:plate},5).dmg===3&&A.soak({equippedArmor:plate},1).dmg===1,'armour takes its DR off a hit, but never more than half of it');
+  { const {room}=mkRoom(['bretonnia']); const c=room.players[0].char; ok(c.defense===c.attrs.agi+A.GUARD+A.dodgeOf(c.equippedArmor)&&c.equippedArmor.armorType==='plate','starting Defence is AGI, less a little for heavy armour');
+    const d0=c.defense; c.inventory.push({name:robe.name,qty:1,type:'armor',itemObj:robe}); S.equipItem(c,c.inventory.length-1); ok(c.defense===d0+3,'swapping plate for robes: lighter armour, easier to dodge'); }
+  { const {room}=mkRoom(['empire']); const c=room.players[0].char; c.inventory.push({name:'Full Plate',qty:1,type:'armor',itemObj:A.finish({type:'armor',name:'Full Plate',defBonus:4})});
+    S.applyExpertPath(c,'elementalist'); const r=S.equipItem(c,c.inventory.length-1); ok(/too heavy/.test(r||'')&&(!c.equippedArmor||c.equippedArmor.armorType!=='plate'),'a Bright Wizard can\'t put on plate');
+    ok(!c.equippedArmor||A.canWear(c,c.equippedArmor),'and taking up a caster class takes off mail they can no longer wear'); }
+  { const {room}=mkRoom(['empire']); const c=room.players[0].char; S.applyExpertPath(c,'elementalist'); let fine=true; for(let i=0;i<30;i++){ const it=S.genArmor(1,c); if(it.armorType!=='cloth') fine=false; } ok(fine,'casters are only offered cloth'); }
+  { const {room}=mkRoom(['woodelf']); const c=room.players[0].char; let fine=true; for(let i=0;i<30;i++){ const it=S.genArmor(1,c); if(A.TYPES[it.armorType].rank>2) fine=false; } ok(fine,'ranged warriors are offered leather or cloth'); }
+  { const {room}=mkRoom(['dwarf']); const a=room.players[0]; combat(room,['Skaven Clanrat']); const e=room.gs.enemies[0]; e.atk=99; e.dmgNum=2; e.dmgSides=1; e.dmgBonus=8; e.onHit=null; const hp=a.char.health;
+    room.gs.activeTurnIdx=room.gs.turnOrder.findIndex(t=>t.type==='enemy'); S.fireEnemyTurn&&S.fireEnemyTurn(room,e); ok(logHas(room,/armour/),'enemy hits show what the armour soaked'); }
 }
 console.log(fails?fails+' FAILED':'all passed'); process.exit(fails?1:0);

@@ -5,6 +5,7 @@ const { d } = require('./dice');
 const { alivePlayers, pickRandom } = require('./util');
 const { CHARMS, WEAPON_TRAITS, ARMOR_TRAITS, CURSED_GEAR } = require('./data');
 const heirlooms = require('./heirlooms');
+const armour = require('./armour');
 
 // ═════════════════════════════════════════════════════════════════════════════
 // ITEM TRAITS, CHARMS AND CURSED GEAR
@@ -39,7 +40,7 @@ function rollTraits(item, kind){
     const pool=Object.keys(table).filter(k=>table[k].good===good&&!traits.includes(k));
     if(pool.length) traits.push(pickRandom(pool));
   }
-  if(!traits.length) return item;
+  if(!traits.length) return armour.finish(item);
   item.traits=traits;
   if(kind==='armor'){
     if(traits.includes('reinforced')) item.defBonus+=1;
@@ -50,7 +51,7 @@ function rollTraits(item, kind){
   const tdesc=traits.map(t=>`${table[t].label} (${table[t].desc})`).join(', ');
   item.desc=(kind==='armor'?`+${item.defBonus} Defense`:item.desc.split(' — ')[0])+(item.special?` — ${item.special.desc}`:'')+` · Traits: ${tdesc}`;
   if(item.cost) item.cost=Math.max(5,item.cost+traits.reduce((a,t)=>a+(table[t].good?8:-6),0));
-  return item;
+  return armour.finish(item);
 }
 function makeCharm(key){
   const C=CHARMS[key];
@@ -60,7 +61,7 @@ function makeCursedGear(key){
   const g=CURSED_GEAR[key];
   if(g.type==='weapon') return {id:'w'+uuidv4(),type:'weapon',name:g.name,dice:g.dice,stat:g.stat,bonus:g.bonus,dmgType:g.dmgType,special:g.special,cursed:true,cost:0,sellCost:3,bought:false,desc:`${g.dice}+${g.bonus} · ${g.stat.toUpperCase()} · ${g.dmgType} — ${g.special.desc}`};
   const def=g.def+d(2);
-  return {id:'a'+uuidv4(),type:'armor',name:g.name,defBonus:def,special:g.special,cursed:true,cost:0,sellCost:3,bought:false,desc:`+${def} Defense — ${g.special.desc}`};
+  return armour.finish({id:'a'+uuidv4(),type:'armor',name:g.name,defBonus:def,special:g.special,cursed:true,cost:0,sellCost:3,bought:false,desc:`+${def} Defense — ${g.special.desc}`});
 }
 function makeCursedItem(key){ return CHARMS[key]?makeCharm(key):makeCursedGear(key); }
 function applyCharm(c, charm, on){

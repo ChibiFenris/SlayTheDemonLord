@@ -6,6 +6,7 @@
 const { v4: uuidv4 } = require('uuid');
 const { rd, d } = require('./dice');
 const { pickRandom } = require('./util');
+const armour = require('./armour');
 
 const HEIRLOOMS = {
   // ── Dwarf ──────────────────────────────────────────────────────────────────
@@ -58,7 +59,7 @@ function make(key, bossCount = 0) {
   }
   if (h.type === 'armor') {
     const def = h.def + Math.min(2, bossCount);
-    return { ...base, id: 'ha' + uuidv4(), type: 'armor', defBonus: def, special: null, desc: `+${def} Defence — ${from}: ${h.power}` };
+    return armour.finish({ ...base, id: 'ha' + uuidv4(), type: 'armor', defBonus: def, special: null, desc: `+${def} Defence — ${from}: ${h.power}` });
   }
   return { ...base, id: 'hc' + uuidv4(), type: 'charm', key: 'heirloom_' + key, desc: `${from}: ${h.power}` };
 }
