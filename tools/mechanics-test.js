@@ -649,4 +649,12 @@ const logHas=(room,re)=>room.gs.log.some(l=>re.test(l.msg));
       room.gs.activeTurnIdx=room.gs.turnOrder.findIndex(t=>t.id===p.id); S.handlePlayerAction(room,p.id,{action:'CAST_SPELL',data:{spellName:sp.name}});
       ok(e1.hp>0||acted(room,p),'killing one of two foes with a spell ends your turn'); } else ok(true,'(no attack spell to test)'); }
 }
+// 54. Cooldowns: every ability is fresh for the next fight, and Divine Favour can't refresh itself
+{ const D=require('../game/data.js');
+  { const {room}=mkRoom(['empire']); const p=room.players[0], c=p.char; for(const d of Object.values(D.COOLDOWNS)) c[d.flag]=true; c._cd={shieldBash:3};
+    S.resetCombatState(p); ok(Object.values(D.COOLDOWNS).every(d=>!c[d.flag])&&!Object.keys(c._cd).length,'every recharging ability (Volley Gun, Bomb, Mass Heal, Rallying Cry...) is ready again after a fight'); }
+  { const {room}=mkRoom(['empire','dwarf']); const p=room.players[0], c=p.char; c.divineFavour=true; combat(room,['Skaven Clanrat']);
+    const go=()=>{ room.gs.playersActedThisRound=[]; room.gs.activeTurnIdx=room.gs.turnOrder.findIndex(t=>t.id===p.id); S.handlePlayerAction(room,p.id,{action:'USE_TALENT',data:{talent:'divineFavour'}}); };
+    go(); go(); ok(logHas(room,/Divine Favour is recharging/),'Divine Favour has to recharge before it can be used again'); }
+}
 console.log(fails?fails+' FAILED':'all passed'); process.exit(fails?1:0);

@@ -960,7 +960,7 @@ function actUseTalent({room,playerId,data,ws,player,gs,char}){
     room.players.filter(p=>p.char&&p.char.alive).forEach(p=>{addBuff(p.char,'Sacred Ground',{regenPerRound:true,regenDice:'1d6'},2);addBuff(p.char,'Sacred Ground Boons',{atkBoon:3},2);});
     addLog(room,`⛪ <strong>Sacred Ground!</strong> ${player.name} consecrates the ground — all allies regen 1d6 HP/round and gain 3 boons for 2 rounds!`,'heal');
   }
-  else if(t==='divineFavour'){ char._divineFavourUsed=true;
+  else if(t==='divineFavour'){ if(char._divineFavourUsed){addLog(room,`${player.name}: Divine Favour is recharging.`,'sys');return;} char._divineFavourUsed=true;
     char.catchBreathUsed=false;char.nimbleUsed=false;char.sharedUsed=false;char.spellRecoveryUsed=false;
     char.resurrectionUsed=false;char.massHealUsed=false;char._shieldBashUsed=false;char._darkPactUsed=false;char._triageUsed=false;
     if((char._divineSmiteCount||0)>0)char._divineSmiteCount--;char.divineSmiteUsed=false;

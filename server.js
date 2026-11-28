@@ -356,6 +356,9 @@ function resolveEnemyDeath(room, deadEnemy) {
 // Everything that lasts "one combat" is cleared here (called when combat ends by victory or by fleeing)
 function resetCombatState(p){
   p.char._evadeRound=null;
+  // Every recharging ability is ready again for the next fight, with no countdown carried over.
+  for(const def of Object.values(COOLDOWNS)) p.char[def.flag]=false;
+  p.char._cd={};
     resetGearCombatState(p.char);
     if(p.char._vigorBonus){ p.char.maxHealth-=p.char._vigorBonus; p.char.health=Math.min(p.char.health,p.char.maxHealth); p.char._vigorBonus=0; } // Vigor lasts one combat
     p.char.sharpeningStone=false;
