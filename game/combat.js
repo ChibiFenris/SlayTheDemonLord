@@ -33,6 +33,7 @@ function rollAttack(char, enemy, extraBoons=0) {
   const _ax=affixes.attackMods(char); boons+=_ax.boons; banes+=_ax.banes;
   if(_wt.includes('unwieldy')&&!char._unwieldyUsed){ char._unwieldyUsed=true; banes++; }
   if(char.row==='back'&&!hasRangedWeapon(char)) banes++; // swinging a melee weapon from the back row
+  if(enemy&&enemy._screened&&!hasRangedWeapon(char)) banes++; // reaching past the enemy's front line
   if(char.valourOfAges&&enemy&&(enemy.isElite||enemy.threat==='Boss'||enemy.threat==='Elite')) boons++; // High Elf: Valour of Ages
 
   const _isChaos=enemy&&(enemy.chaos||(enemy.tags&&enemy.tags.includes('chaos')));

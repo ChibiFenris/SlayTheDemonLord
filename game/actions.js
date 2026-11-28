@@ -238,7 +238,7 @@ function actAttack({room,playerId,data,ws,player,gs,char}){
       if(char._legWarpstoneGauntlet && targetEnemy && targetEnemy.hp<=0 && (char._warpstoneKillStr||0)<3){ char._warpstoneKillStr=(char._warpstoneKillStr||0)+1; char.attrs.str+=1; addLog(room,`💎 <strong>Warpstone Gauntlet!</strong> ${(player&&player.name)||'Warrior'} gains +1 STR from the kill (${char._warpstoneKillStr}/3)!`,'crit'); }
     if(char.deadMansHand && targetEnemy && targetEnemy.hp<=0){ const dmhHeal=rd(2,6)+Math.max(0,modVal(char.attrs.agi)); char.health=Math.min(char.maxHealth,char.health+dmhHeal); addLog(room,`☠ <strong>Dead Man's Hand!</strong> ${player.name} kills ${targetEnemy.name} and heals <strong>${dmhHeal}</strong> HP (2d6+AGI)!`,'heal'); }
     }
-    if(targetEnemy.hp<=0){resolveEnemyDeath(room,targetEnemy);return;}
+    if(targetEnemy.hp<=0){resolveEnemyDeath(room,targetEnemy);return gs.inCombat?true:undefined;} // a kill still uses the turn
   } else {
     if(char.relentless&&(char._relentlessAtk||0)<5){ char._relentlessAtk=(char._relentlessAtk||0)+1; char.weaponAtkBonus=(char.weaponAtkBonus||0)+1; } // Relentless: each miss sharpens the next swing
     const rerollBuff=(char.activeBuffs||[]).find(b=>b.rerollMiss);
@@ -249,7 +249,7 @@ function actAttack({room,playerId,data,ws,player,gs,char}){
         targetEnemy.hp=Math.max(0, targetEnemy.hp-r2.dmg);
         const dmgBreak2=r2.dmgParts.length?` [dmg: ${r2.dmgParts.join(' ')} = <strong>${r2.dmg}</strong>]`:'';
         addLog(room,`${player.name} reroll ${r2.crit?'<strong>CRITS</strong>':'hits'} ${targetEnemy.name} — <strong class="num-dmg">−${r2.dmg} dmg</strong>${dmgBreak2} → ${targetEnemy.name} ${Math.max(0,targetEnemy.hp)}/${targetEnemy.maxHp} HP`,r2.crit?'crit':'dmg');
-        if(targetEnemy.hp<=0){resolveEnemyDeath(room,targetEnemy);return;}
+        if(targetEnemy.hp<=0){resolveEnemyDeath(room,targetEnemy);return gs.inCombat?true:undefined;} // a kill still uses the turn
       } else {
         addLog(room,`${player.name} reroll also misses.`,'sys');
       }
@@ -276,7 +276,7 @@ function actAttack({room,playerId,data,ws,player,gs,char}){
         if(char._legVenomFangProc){ char._legVenomFangProc=false; if(targetEnemy.hp>0) applyPoison(targetEnemy,2,room); }
         if(char._legVarghulfTalon && targetEnemy.hp<=0){ char.health=char.maxHealth; addLog(room,`🩸 <strong>Varghulf's Talon!</strong> ${player.name} <strong>fully heals</strong> on kill!`,'heal'); }
         if(char.flurryBleed && rbs.hit && targetEnemy.hp>0){ applyBleed(targetEnemy,room); addLog(room,`🩸 <strong>Flurry Bleed!</strong> ${player.name}'s bladestorm hit applies Bleed!`,'spell'); }
-        if(targetEnemy.hp<=0){resolveEnemyDeath(room,targetEnemy);return;}
+        if(targetEnemy.hp<=0){resolveEnemyDeath(room,targetEnemy);return gs.inCombat?true:undefined;} // a kill still uses the turn
       } else {
         addLog(room,`Bladestorm strike misses — d20:${rbs.base}+${rbs.atkMod>=0?'+':''}${rbs.atkMod}=${rbs.total} vs Def${targetEnemy.ac}.`,'sys');
       }
@@ -303,7 +303,7 @@ function actAttack({room,playerId,data,ws,player,gs,char}){
       const qsBreak=rqs.dmgParts.length?` [${rqs.dmgParts.join(' ')} = <strong>${rqs.dmg}</strong>]`:'';
       addLog(room,`Quick Strike ${rqs.crit?'<strong>CRITS</strong>':'hits'} — <strong class="num-dmg">−${rqs.dmg} dmg</strong>${qsBreak} → ${targetEnemy.name} ${Math.max(0,targetEnemy.hp)}/${targetEnemy.maxHp} HP`,rqs.crit?'crit':'dmg');
       if(rqs.hit && char._trickeryPoisonProc && targetEnemy.hp>0){ const ts=char._trickeryPoisonProc; char._trickeryPoisonProc=0; applyPoison(targetEnemy,ts,room); }
-      if(targetEnemy.hp<=0){resolveEnemyDeath(room,targetEnemy);return;}
+      if(targetEnemy.hp<=0){resolveEnemyDeath(room,targetEnemy);return gs.inCombat?true:undefined;} // a kill still uses the turn
     } else {
       addLog(room,`Quick Strike misses — d20:${rqs.base}+${rqs.atkMod>=0?'+':''}${rqs.atkMod}=${rqs.total} vs Def${targetEnemy.ac}.`,'sys');
     }
@@ -709,7 +709,7 @@ function actCastSpell({room,playerId,data,ws,player,gs,char}){
 
     addLog(room,`${spellTarget.name}: <strong>${Math.max(0,spellTarget.hp)}</strong>/${spellTarget.maxHp} HP remaining.`,'sys');
     // fire immunity removed — all enemies take fire damage
-    if(spellTarget.hp<=0){resolveEnemyDeath(room,spellTarget);return;}
+    if(spellTarget.hp<=0){resolveEnemyDeath(room,spellTarget);return gs.inCombat?true:undefined;} // a kill still uses the turn
     // Overload: cast twice
     const _overloadBuff=(char.activeBuffs||[]).find(b=>b.overloadReady);
     if(_overloadBuff&&spell.type==='attack'){

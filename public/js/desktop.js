@@ -148,6 +148,13 @@ function tipChip(cls,name,label,isEnemy){
   return `<span class="e-status-chip ${cls} e-chip-clickable" onmouseenter="showDebuffTip('${esc(name)}',${isEnemy},event)" onmouseleave="hideDebuffTip()">${label}</span>`;
 }
 
+// Two lanes per side: the front line next to the VS, the back line behind it.
+function makeLanes(host,isFoe,showBack,exposed){
+  const mk=(cls,title,hint)=>{ const box=document.createElement('div'); box.className='lane '+cls; box.innerHTML=`<div class="lane-head"><span class="lane-title">${title}</span><span class="lane-hint">${hint}</span></div>`; const body=document.createElement('div'); body.className='lane-body'; box.appendChild(body); host.appendChild(box); return body; };
+  const front=mk('lane-front','Front line',isFoe?'':'melee foes reach you here');
+  const back=showBack?mk('lane-back'+(exposed?' exposed':''),'Back line',isFoe?'screened while their front line stands':exposed?'⚠ exposed — nobody holds the front':'only archers, gunners and casters reach you'):document.createElement('div');
+  return {front,back};
+}
 function renderBattle(gs,players,me){
   const panel=el('g-battle');
   if(gs.phase!=='combat'||!gs.enemy){ panel.hidden=true; return; }
@@ -156,6 +163,7 @@ function renderBattle(gs,players,me){
   const activeIdx=gs.activeEnemyIdx||0;
   const multi=enemies.filter(e=>e&&e.hp>0).length>1;
   const eEl=el('ba-enemy'); eEl.innerHTML='';
+  const eLanes=makeLanes(eEl,true,enemies.some(e=>e&&e.hp>0&&e.row==='back'));
   enemies.forEach((e,idx)=>{
     if(!e||e.hp<=0)return;
     const eTok=tokenSrc(e.name);
@@ -170,6 +178,8 @@ function renderBattle(gs,players,me){
         :tipChip('e-chip-debuff',d.name,`${DEBUFF_ICON[d.name]||'⚠'} ${d.name} · ${d.duration}r`,true));
     });
     (e.tags||[]).forEach(t=>{ if(ENEMY_TAG_LABEL[t]) chips.push(`<span class="e-status-chip e-chip-tag">${ENEMY_TAG_LABEL[t]}</span>`); });
+    if(e.ranged) chips.unshift('<span class="e-status-chip e-chip-line" title="Archers, gunners and casters reach your back line.">🏹 Reaches your back line</span>');
+    if(e._screened) chips.unshift('<span class="e-status-chip e-chip-line" title="While their front line stands, melee attacks on this enemy have 1 bane. Spells and ranged weapons hit it normally.">🛡 Screened</span>');
     chips.push(...enemyAbilityChips(e));
     (e.tags||[]).forEach(t=>{ if(ENEMY_WEAKNESS[t]) chips.push(`<span class="e-status-chip e-chip-weak">${ENEMY_WEAKNESS[t]}</span>`); });
     const target=!multi?'':isTarget
@@ -186,9 +196,17 @@ function renderBattle(gs,players,me){
         ${chips.length?`<div class="e-status-box">${chips.join('')}</div>`:''}${target}
       </div>
       ${eTok?`<img class="tok enemy" src="${eTok}" alt="${e.name}">`:'<div class="tok-ph">💀</div>'}`;
-    eEl.appendChild(eRow);
+    (e.row==='back'?eLanes.back:eLanes.front).appendChild(eRow);
   });
   const pEl=el('ba-players'); pEl.innerHTML='';
+  const pLanes=makeLanes(pEl,false,true,lineExposed(players));
+  const meP=players.find(p=>p.id===myId), mv=meP&&meP.char?rowMoveState(meP.char,gs):{ok:false};
+  // Drag your own portrait to the other line.
+  [['front',pLanes.front],['back',pLanes.back]].forEach(([r,lane])=>{
+    lane.parentNode.addEventListener('dragover',ev=>{ if(mv.ok&&meP.char.row!==r){ ev.preventDefault(); lane.parentNode.classList.add('drop-ok'); } });
+    lane.parentNode.addEventListener('dragleave',()=>lane.parentNode.classList.remove('drop-ok'));
+    lane.parentNode.addEventListener('drop',ev=>{ ev.preventDefault(); lane.parentNode.classList.remove('drop-ok'); if(mv.ok&&meP.char.row!==r) setRow(r); });
+  });
   players.forEach(p=>{
     if(!p.char)return;
     const c=p.char,isMe=p.id===myId;
@@ -198,17 +216,20 @@ function renderBattle(gs,players,me){
     const tokCls=['tok',!c.alive?'fallen':acted?'acted':'',isMe?'mine':'',p.frame?'frame-'+p.frame:''].join(' ').trim();
     const badge=!c.alive?'<span class="tok-badge tb-f">Fallen</span>':acted?'<span class="tok-badge tb-a">Acted ✓</span>':'';
     const row=document.createElement('div'); row.className='token-row';
+    const moveBtn=isMe&&c.alive?`<button class="mini-btn line-btn" ${mv.ok?'':'disabled'} title="${mv.ok?(gs.phase==='combat'?'Free, once per turn':''):mv.why}" onclick="setRow('${c.row==='back'?'front':'back'}')">${c.row==='back'?'⇡ Step up':'⇣ Fall back'}</button>`:'';
     row.innerHTML=`
-      ${src?`<img class="${tokCls}" src="${src}" alt="${p.name}">`:'<div class="tok-ph">⚔</div>'}
+      ${src?`<img class="${tokCls}" src="${src}" alt="${p.name}" ${isMe&&mv.ok?'draggable="true" title="Drag to the other line"':''}>`:'<div class="tok-ph">⚔</div>'}
       <div class="tok-info">
         <div class="tok-name">${p.name}${isMe?' <small>(you)</small>':''}</div>
         <div class="tok-sub">${CAREER_LABELS[p.career]||''}${p.title?` · <em>${escapeHtml(p.title)}</em>`:''}</div>
         <div class="tok-hp-track"><div class="tok-hp-fill ${hpClass(hp)}" style="width:${hp}%"></div></div>
         <div class="tok-hp-txt">${c.health}/${c.maxHealth} HP</div>
         ${battleChips(c)}
+        ${isMe&&c.alive?`<div class="line-note">${rowNote(c)} ${moveBtn}</div>`:''}
         ${badge}
       </div>`;
-    pEl.appendChild(row);
+    if(isMe&&mv.ok){ const img=row.querySelector('img.tok'); if(img) img.addEventListener('dragstart',ev=>{ ev.dataTransfer.setData('text/plain','row'); }); }
+    (c.row==='back'?pLanes.back:pLanes.front).appendChild(row);
   });
 }
 
@@ -302,7 +323,7 @@ function buildCard(p,gs){
       <div><dt>Silver</dt><dd class="silver">${c.gold} ss</dd></div>
       <div class="wide"><dt>Weapon</dt><dd>${w?`${iconImg(iconItem(w),'ico-inv')}${w.name} ${w.dice}+${w.bonus||0} ${w.dmgType==='blunt'?'🔨':'⚔'}`:'Unarmed'}</dd></div>
       <div class="wide"><dt>Armour</dt><dd title="When a blow lands, your armour takes its DR off the damage — but never more than half of the blow.">${a?`${iconImg(iconItem(a),'ico-inv')}${a.name}<small class="armour-sub">${armourLine(a)}</small>`:'None'}</dd></div>
-      <div class="wide"><dt>Row</dt><dd>${c.row==='back'?'Back':'Front'}${p.id===myId&&c.alive?` <button class="mini-btn" onclick="setRow('${c.row==='back'?'front':'back'}')" title="Front: melee enemies can reach you. Back: only ranged enemies reach you, but melee weapons get 1 bane.">Move ${c.row==='back'?'forward':'back'}</button>`:''}</dd></div>${relicChipsHtml(c)}
+      <div class="wide"><dt>Line</dt><dd title="${rowNote(c)}">${c.row==='back'?'Back line':'Front line'}${p.id===myId&&c.alive?(()=>{ const mvs=rowMoveState(c,lastState&&lastState.gs); return ` <button class="mini-btn" ${mvs.ok?'':'disabled'} title="${mvs.ok?rowNote(c):mvs.why}" onclick="setRow('${c.row==='back'?'front':'back'}')">${c.row==='back'?'Step up':'Fall back'}</button>`; })():''}</dd></div>${relicChipsHtml(c)}
       <div class="wide"><dt>Taint</dt><dd class="dark-line" title="Corruption brings a mutation every 3 points. Insanity at its limit makes you snap: a short madness and a lasting disorder.">${dk.line}</dd></div>
       ${dk.muts.length||dk.dis.length?`<div class="wide"><dt>Marks</dt><dd class="relic-chips">${dk.muts.join('')}${dk.dis.join('')}</dd></div>`:''}
       <div class="wide"><dt>Charm</dt><dd${c.equippedCharm?` title="${c.equippedCharm.desc.replace(/"/g,'&quot;')}"`:''}>${c.equippedCharm?iconImg(iconItem({type:'charm',...c.equippedCharm}),'ico-inv')+c.equippedCharm.name:'None'}${c.equippedCharm&&p.id===myId?` <button class="mini-btn" onclick="unequipCharm()" title="Take the charm off and put it in your pack">Remove</button>`:''}</dd></div>
@@ -704,7 +725,8 @@ function renderActions(gs,players,me){
       : '';
     const _atkLabel=`${iconImg(_wpn?iconItem(_wpn):ICONS.weaponDefault,'ico-btn')||_dtIcon} Attack${_bonus}`;
     const _atkTip=`${_dtIcon} ${_dtype==='blunt'?'Blunt — ×1.5 dmg vs AC ≥ 16 (heavy armour)':'Slashing — ×1.5 dmg vs AC ≤ 14 (light/no armour)'}. ${wpnStr}.`;
-    addBtn(g,_atkLabel,wpnStr,'am-',()=>send('PLAYER_ACTION',{action:'ATTACK'}),false,_atkTip);
+    const _lineNotes=attackLineNotes(char,_te);
+    addBtn(g,_atkLabel,_lineNotes.length?`${wpnStr}<br><span class="line-warn">${_lineNotes.join(' · ')}</span>`:wpnStr,'am-',()=>send('PLAYER_ACTION',{action:'ATTACK'}),false,_atkTip+(_lineNotes.length?' '+_lineNotes.join('. ')+'.':''));
     const noSpells=char.equippedCharm&&char.equippedCharm.key==='brassSkull'; // Brass Skull of Khorne forbids spells
     (char.knownSpells||[]).forEach(sp=>{
       const left=castingsLeftC(char,sp.name,sp.rank), avail=!noSpells&&left>0;

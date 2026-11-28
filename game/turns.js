@@ -2,12 +2,13 @@
 const heirlooms = require('./heirlooms');
 const armour = require('./armour');
 const affixes = require('./affixes');
+const rows = require('./rows');
 // Combat flow: turn order, the party turn timer, enemy turns, rounds and deaths.
 // Moved out of server.js unchanged. The server hands this module the helpers it
 // uses through bind() once everything is defined (see the bottom of server.js).
-let SELF_TICK_DOTS, addBuff, addDebuff, addLog, aliveEnemies, applyPoison, broadcastState, charmKey, d, dark, enemyAfterHit, enemyDamageMods, enemyPostTurn, enemyPreTurn, engineerRoundTick, gearRoundTick, hasRelic, immuneToPoison, rd, resolveEnemyDeath, rollAttack, rollEnemyAttack, scaleEnemy, sortTurnOrder, tickBuffs, tickCooldowns, tickDebuffs, triggerGameover;
+let refreshEnemyAuras, SELF_TICK_DOTS, addBuff, addDebuff, addLog, aliveEnemies, applyPoison, broadcastState, charmKey, d, dark, enemyAfterHit, enemyDamageMods, enemyPostTurn, enemyPreTurn, engineerRoundTick, gearRoundTick, hasRelic, immuneToPoison, rd, resolveEnemyDeath, rollAttack, rollEnemyAttack, scaleEnemy, sortTurnOrder, tickBuffs, tickCooldowns, tickDebuffs, triggerGameover;
 function bind(api) {
-  ({ SELF_TICK_DOTS, addBuff, addDebuff, addLog, aliveEnemies, applyPoison, broadcastState, charmKey, d, dark, enemyAfterHit, enemyDamageMods, enemyPostTurn, enemyPreTurn, engineerRoundTick, gearRoundTick, hasRelic, immuneToPoison, rd, resolveEnemyDeath, rollAttack, rollEnemyAttack, scaleEnemy, sortTurnOrder, tickBuffs, tickCooldowns, tickDebuffs, triggerGameover } = api);
+  ({ refreshEnemyAuras, SELF_TICK_DOTS, addBuff, addDebuff, addLog, aliveEnemies, applyPoison, broadcastState, charmKey, d, dark, enemyAfterHit, enemyDamageMods, enemyPostTurn, enemyPreTurn, engineerRoundTick, gearRoundTick, hasRelic, immuneToPoison, rd, resolveEnemyDeath, rollAttack, rollEnemyAttack, scaleEnemy, sortTurnOrder, tickBuffs, tickCooldowns, tickDebuffs, triggerGameover } = api);
 }
 // ─── COMBAT FLOW: TURN ORDER ───────────────────────────────────────────────────────
 
@@ -321,16 +322,15 @@ function fireEnemyTurn(room, ae) {
     ae._packBonus = skavenCount >= 2 ? 1 : 0;
   }
   if (ae.scurryAway) {
-    const clanratsAlive = (gs.enemies||[]).filter(e=>e&&e.hp>0&&e.name==='Skaven Clanrat').length;
-    ae._scurryDefBonus = clanratsAlive>0 ? 3 : 0;
+    refreshEnemyAuras(gs); // Scurry Away's Defence depends on clanrats still standing
   }
   ae._chosenThisRound=false;
   if (ae.seethingRage && !ae._rageActive && ae.hp < ae.maxHp * 0.4) {
     ae._rageActive = true;
     const clanrats=(gs.enemies||[]).filter(e=>e&&e.hp>0&&e.name==='Skaven Clanrat');
     const defBonus=clanrats.length*2;
-    if(defBonus>0){ ae.ac=(ae.ac||15)+defBonus; addLog(room,`⚔ <strong>Skaven Warlord's Decree!</strong> ${ae.name} — +${defBonus} Defence from ${clanrats.length} clanrats!`,'chaos'); }
-    clanrats.forEach(c=>{ c.dmgBonus=(c.dmgBonus||0)+2; addLog(room,`🐀 Clanrat surges — +2 damage!`,'chaos'); });
+    ae._decree=true; clanrats.forEach(c=>{ c._rallied=true; }); refreshEnemyAuras(gs); // the bonuses shrink as clanrats fall, and end with the Warlord
+    if(defBonus>0){ addLog(room,`⚔ <strong>Skaven Warlord's Decree!</strong> ${ae.name} — +${defBonus} Defence from ${clanrats.length} clanrats (−2 for each that falls)!`,'chaos'); addLog(room,`🐀 The clanrats surge — +2 damage while their Warlord lives!`,'chaos'); }
     if(!clanrats.length) addLog(room,`⚔ <strong>Skaven Warlord's Decree!</strong> ${ae.name} — no clanrats to rally.`,'chaos');
   }
   if (ae.extinctionPulse && !ae._pulseUsed && ae.hp < ae.maxHp * 0.3) {
@@ -617,6 +617,7 @@ function checkDeath(room, player) {
       addLog(room,`✨ <strong>Resurrection Shield!</strong> ${player.name} is saved by Sigmar's grace — ${player.char.health} HP and 2 boons!`,'heal');
       return;
     }
+    const _wasFront=player.char.row!=='back';
     player.char.alive=false; player.char.health=0; player.char._killedThisTurn=true;
     addLog(room,`💀 <strong>${player.name}</strong> has fallen!`,'death');
     room.players.filter(o=>o!==player&&o.char&&o.char.alive).forEach(o=>dark.gainInsanity(room,o,1,`seeing ${player.name} fall`));
@@ -631,6 +632,7 @@ function checkDeath(room, player) {
       player.char.health=rd(1,6);
       addLog(room,`🌑 <strong>Shroud of Undeath!</strong> ${player.name} rises from death at ${player.char.health} HP!`,'chaos');
     }
+    if(!player.char.alive&&_wasFront&&room.gs.inCombat) rows.closeRanks(room,addLog); // the back line steps up
   }
 }
 

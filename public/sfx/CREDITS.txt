@@ -1,0 +1,11 @@
+Combat sound effects in this folder are trimmed and re-encoded from
+PSFX - Peri's Sound Effects by Peri Eskell (the "psfx" Foundry VTT module).
+Used under the PSFX Non-Commercial Audio Library License v1.1: non-commercial use only;
+commercial use needs written permission from perisoundfx@gmail.com.
+
+hit1-4    weapon-attacks/sword/v1 (sword-001-02, -03, -04, -00)
+hurt1-4   impacts/bludgeoning/v1 (00-03)
+crit1-2   weapon-attacks/sword/v1 (sword-001-05, -01)
+miss1-4   weapon-swooshes/light/v1/group01 (00-03)
+block1-4  impacts/slashing/v1 (00-03)
+heal1     1st-level-spells/cure-wounds/v1 (00)

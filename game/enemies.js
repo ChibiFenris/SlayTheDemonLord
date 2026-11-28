@@ -6,6 +6,7 @@ const { d, rd } = require('./dice');
 const { aliveEnemies, alivePlayers, pickRandom } = require('./util');
 const { SUMMONS, ENEMY_POOLS } = require('./data');
 const foes = require('./foes');
+const rows = require('./rows');
 const { charmKey, armorTraits, immuneToPoison, weaponIsHoly, resistsInsanity } = require('./gear');
 
 const S = {};
@@ -47,11 +48,24 @@ function prepareEnemy(e, bossCount){
   if(e.swarm){ e.attacks=3; e.dmgNum=1; e.dmgSides=3; e.dmgBonus=bossCount||0; }
 }
 // Auras that depend on who else is alive: Skeleton shield wall, Plague Rat Lord.
+// Bonuses that only last while their source is alive. Each one remembers how much it
+// added, so it can be taken back off when the source (or the allies it counts) falls.
+function setAura(e, key, field, want){ const delta=want-(e[key]||0); if(delta){ e[field]=(e[field]||0)+delta; e[key]=want; return true; } return false; }
 function refreshEnemyAuras(gs){
+  rows.refreshEnemyRows(gs);
   foes.refreshMobAura(gs);
   const alive=aliveEnemies(gs);
   const lord=alive.some(e=>e.ratLord);
+  const clanrats=alive.filter(e=>e.name==='Skaven Clanrat').length;
+  const decreeLord=alive.some(e=>e._decree);
+  const waaagh=alive.filter(e=>e._waaagh||e._waaaghBoss).length; // each roaring greenskin still standing
   alive.forEach(e=>{
+    let dmgChanged=false;
+    if(e._decree) setAura(e,'_decreeAc','ac',2*clanrats);                 // Warlord's Decree: +2 Defence per living clanrat
+    if(e.scurryAway) e._scurryDefBonus=clanrats>0?3:0;                     // Scurry Away: only with clanrats to hide behind
+    dmgChanged=setAura(e,'_decreeDmg','dmgBonus',(e._rallied&&decreeLord)?2:0)||dmgChanged; // rallied clanrats, while their Warlord lives
+    dmgChanged=setAura(e,'_waaaghDmg','dmgBonus',(e.tags||[]).includes('greenskin')?waaagh:0)||dmgChanged; // WAAAGH!, while the roarer lives
+    if(dmgChanged) e.dmgDisplay=`${e.dmgNum}d${e.dmgSides}${e.dmgBonus?'+'+e.dmgBonus:''}`;
     e._wallActive=!!(e.shieldWall&&alive.some(o=>o!==e&&o.tags&&o.tags.includes('undead')));
     const want=(lord&&!e.ratLord&&e.tags&&e.tags.includes('skaven'))?1:0;
     const delta=want-(e._ratAura||0);

@@ -29,6 +29,7 @@ app.get('/stats', (req, res) => res.sendFile(path.join(__dirname, 'public', 'sta
 app.set('trust proxy', 1);
 // Music and portraits rarely change: let browsers cache them for a week.
 app.use('/music', express.static(path.join(__dirname, 'public', 'music'), { maxAge: '7d' }));
+app.use('/sfx', express.static(path.join(__dirname, 'public', 'sfx'), { maxAge: '7d' }));
 // Portraits cache for a week, but the name→file list must always be fresh,
 // or browsers miss portraits for anything added since their last visit.
 app.use('/tokens', express.static(path.join(__dirname, 'public', 'tokens'), {
@@ -39,6 +40,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const rooms = new Map();
 const affixes = require('./game/affixes');
+const rows = require('./game/rows');
 const persist = require('./game/persist');
 const runlog = require('./game/runlog');
 const rng = require('./game/rng');
@@ -134,7 +136,7 @@ character.bind({ addLog });
 campfire.bind({ addLog, addBuff, cleanseCurses, restorePower, dark, foes });
 enemies.bind({ addLog, addBuff, addDebuff, checkDeath, resolveEnemyDeath, scaleEnemy, hasRelic, dark });
 relics.bind({ addLog, refreshCastingPools, genLegendaryItem, addToInventory, showPathChoices });
-foes.bind({ addLog, checkDeath, resolveEnemyDeath, summonEnemy: enemies.summonEnemy, isBlocking: enemies.isBlocking, immuneToPoison, pickEnemy, relics, dark });
+foes.bind({ addLog, checkDeath, resolveEnemyDeath, summonEnemy: enemies.summonEnemy, isBlocking: enemies.isBlocking, immuneToPoison, pickEnemy, relics, dark, refreshEnemyAuras: enemies.refreshEnemyAuras });
 dark.bind({ addLog, addBuff, addDebuff, resistsInsanity, refreshCastingPools });
 events.bind({ foes, dark, startFight:(room,kind)=>startNodeContent(room,kind), addLog, addBuff, checkDeath, addToInventory, genArmor, genWpn, refreshCastingPools, SCROLL_SPELLS_LIST, makeCharm: gear.makeCharm, makeCursedItem: gear.makeCursedItem });
 
@@ -279,6 +281,7 @@ function resolveEnemyDeath(room, deadEnemy) {
   if(e){ if(e._deathResolved) return true; e._deathResolved=true; }
   addLog(room,`⚔ <strong>${e.name}</strong> is slain! FOR SIGMAR!`,'crit');
   if(!isSanctified) onEnemyDeath(room,e);
+  refreshEnemyAuras(room.gs); // bonuses that came from the fallen enemy (or from having it nearby) go away
   // Fallen allies are dragged back only once the LAST enemy falls (not mid-fight)
   const _combatOver=!(gs.enemies||[]).some(en=>en&&en!==e&&en.hp>0);
   if(_combatOver) room.players.forEach(p=>{
@@ -699,9 +702,10 @@ function handlePlayerAction(room,playerId,payload,ws){
   if(action==='CAMPFIRE'){ campfire.choose(room,playerId,data&&data.choice,data&&data.slot); return; }
   if(action==='PICK_RELIC'){ relics.pickRelic(room,playerId,data&&data.key); return; }
   if(action==='VOTE_PRIZE'){ relics.votePrize(room,playerId,data&&data.choice); return; }
-  if(action==='SET_ROW'){ const r=data&&data.row; if(r!=='front'&&r!=='back') return;
-    if(gs.phase==='combat'){ const cur=getCurrentTurn(gs); if(!cur||cur.id!==playerId){ sendTo(ws,{type:'ERROR',payload:{msg:'Change rows on your own turn.'}}); return; } }
-    char.row=r; addLog(room,`${player.name} moves to the <strong>${r} row</strong>.`,'sys'); return; }
+  if(action==='SET_ROW'){ const r=data&&data.row; const was=char.row;
+    const err=rows.setRow(room,player,r,gs.phase==='combat'?getCurrentTurn(gs):null);
+    if(err){ sendTo(ws,{type:'ERROR',payload:{msg:err}}); return; }
+    if(was!==r) addLog(room,`${player.name} ${r==='back'?'falls back to the <strong>back line</strong>':'steps up to the <strong>front line</strong>'}.`,'sys'); return; }
   if(action==='UNEQUIP_CHARM'){ const r=unequipCharm(char); if(r) addLog(room,`${player.name}: ${r}.`,'loot'); return; }
   if(action==='EQUIP_ITEM'){
     const idx=data.inventoryIndex;
@@ -891,7 +895,7 @@ function unblockAfterDisconnect(room, player){
 
 // Hand every split-out module the helpers it uses. Runs once all of server.js
 // has been evaluated, so constants defined anywhere in this file are ready.
-const MODULE_API = { ARMOR_BASES, CAREERS, CHARMS, CHARM_SHOP_KEYS, DIFFICULTIES, ENEMY_DROPS, EXPERT_PATHS, LEGENDARY_ITEMS, LOOT_CONS_LIST, MASTER_PATHS, NODE_TYPES, NOVICE_PATHS, POISON_CAP, SCROLL_SPELLS_LIST, SCROLL_SPELLS_SHOP, SELF_TICK_DOTS, SHOP_CONSUMABLES, TRADITIONS, WEAPON_BASES, XP_THRESHOLDS, addBuff, addDebuff, addLog, advanceTurn, aliveEnemies, applyBleed, applyBurn, applyCharm, applyDailyToEnemies, applyPoison, armorTraits, broadcastState, buildPlayerShop, buildTurnOrder, campfire, castingsLeft, charmKey, checkDeath, cleanseCurses, d, dark, enemyAfterHit, enemyDamageMods, enemyDefence, enemyOnWeaponHit, enemyPostTurn, enemyPreTurn, engineerRoundTick, events, foes, gearRoundTick, gearVsEnemyAttack, getSpellsForPower, getTargetEnemy, hasRangedWeapon, hasRelic, immuneToPoison, isCursed, isEnemyHidden, labelOf, lore, makeCharm, makeCursedItem, maxCastings, modVal, onCombatStart, pickEnemy, pickRandom, rd, refreshCastingPools, regainCasting, relics, resolveEnemyDeath, restoreCastingPools, rollAttack, rollEnemyAttack, rollTraits, scaleEnemy, sendTo, sortTurnOrder, spendCasting, startSpoils, talentHeal, tickBuffs, tickCooldowns, tickDebuffs, traditionAllowed, triggerGameover, uniqRanks, uuidv4, weaponTraits, zones };
+const MODULE_API = { refreshEnemyAuras, ARMOR_BASES, CAREERS, CHARMS, CHARM_SHOP_KEYS, DIFFICULTIES, ENEMY_DROPS, EXPERT_PATHS, LEGENDARY_ITEMS, LOOT_CONS_LIST, MASTER_PATHS, NODE_TYPES, NOVICE_PATHS, POISON_CAP, SCROLL_SPELLS_LIST, SCROLL_SPELLS_SHOP, SELF_TICK_DOTS, SHOP_CONSUMABLES, TRADITIONS, WEAPON_BASES, XP_THRESHOLDS, addBuff, addDebuff, addLog, advanceTurn, aliveEnemies, applyBleed, applyBurn, applyCharm, applyDailyToEnemies, applyPoison, armorTraits, broadcastState, buildPlayerShop, buildTurnOrder, campfire, castingsLeft, charmKey, checkDeath, cleanseCurses, d, dark, enemyAfterHit, enemyDamageMods, enemyDefence, enemyOnWeaponHit, enemyPostTurn, enemyPreTurn, engineerRoundTick, events, foes, gearRoundTick, gearVsEnemyAttack, getSpellsForPower, getTargetEnemy, hasRangedWeapon, hasRelic, immuneToPoison, isCursed, isEnemyHidden, labelOf, lore, makeCharm, makeCursedItem, maxCastings, modVal, onCombatStart, pickEnemy, pickRandom, rd, refreshCastingPools, regainCasting, relics, resolveEnemyDeath, restoreCastingPools, rollAttack, rollEnemyAttack, rollTraits, scaleEnemy, sendTo, sortTurnOrder, spendCasting, startSpoils, talentHeal, tickBuffs, tickCooldowns, tickDebuffs, traditionAllowed, triggerGameover, uniqRanks, uuidv4, weaponTraits, zones };
 [combatMod, pathsMod, nodesMod, turnsMod, itemsMod, actionsMod].forEach(m => m.bind(MODULE_API));
 
 // Start the server when run directly (node server.js). Tests require() this file

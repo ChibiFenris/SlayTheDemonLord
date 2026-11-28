@@ -176,6 +176,9 @@ function mRenderGame(gs,players,me){
       if(enemy.mutationLabel) chips.push(`<span class="chip chip-warn">🧬 ${enemy.mutationLabel}</span>`);
       if(enemy.affixLabel) chips.push(`<span class="chip chip-warn">★ ${enemy.affixLabel}</span>`);
       if(enemy.phaseName) chips.push(`<span class="chip chip-warn">🔥 ${enemy.phaseName}</span>`);
+      if(enemy._screened) chips.unshift('<span class="chip chip-line">🛡 Back line · screened</span>');
+      else if(enemy.row==='back') chips.unshift('<span class="chip chip-line">Back line</span>');
+      if(enemy.ranged) chips.unshift('<span class="chip chip-line">🏹 Reaches your back line</span>');
       if(enemy._poisonStacks>0) chips.push(`<span class="chip chip-bad">☠ ${enemy._poisonStacks}</span>`);
       (enemy.activeDebuffs||[]).forEach(d=>chips.push(`<span class="chip chip-bad">${d.name} ${d.duration}r</span>`));
       (enemy.tags||[]).forEach(t=>{ if(ENEMY_WEAKNESS[t]) chips.push(`<span class="chip chip-warn">${ENEMY_WEAKNESS[t]}</span>`); });
@@ -211,7 +214,7 @@ function mRenderGame(gs,players,me){
       <div class="m-hp-row"><span class="m-hp-label">HP</span>${mBar(pct,'hp '+hpClass(pct))}<span class="m-hp-val">${c.health}/${c.maxHealth}</span></div>
       <div class="m-hp-row"><span class="m-hp-label">XP</span>${mBar(xp.pct,'xp')}<span class="m-hp-val">${c.level>=10?'Max':`${c.xp}/${xp.next}`}</span></div>
       ${c.equippedCharm?`<div class="m-stats">📿 ${c.equippedCharm.name} <button class="mini-btn" onclick="unequipCharm()">Remove</button></div>`:''}
-      <div class="m-stats">${c.row==='back'?'🏹 Back row':'🛡 Front row'} <button class="mini-btn" onclick="setRow('${c.row==='back'?'front':'back'}')">Move ${c.row==='back'?'forward':'back'}</button></div><div class="m-stats dark-line">${darkHtml(c).line}</div>${c.patron||(c.mutations||[]).length||(c.disorders||[]).length?`<div class="m-stats relic-chips">${darkHtml(c).muts.join('')}${darkHtml(c).dis.join('')}</div>`:''}${c.relics&&c.relics.length?`<div class="m-stats relic-chips">${c.relics.map(k=>{const r=RELICS_C[k]||{name:k,icon:'✨',desc:''};return `<span class="relic-chip" title="${r.name}: ${r.desc}">${r.icon} ${r.name}</span>`;}).join('')}</div>`:''}
+      ${c.alive?(()=>{ const mv=rowMoveState(c,gs); return `<div class="m-stats m-line ${c.row==='back'?'back':'front'}"><span><b>${c.row==='back'?'Back line':'Front line'}</b> — ${rowNote(c).replace(/^[^:]+: /,'')}${c.row==='back'&&lineExposed(players)?' <b class="warn">⚠ Exposed: nobody holds the front.</b>':''}</span> <button class="mini-btn" ${mv.ok?'':'disabled'} onclick="setRow('${c.row==='back'?'front':'back'}')">${c.row==='back'?'⇡ Step up':'⇣ Fall back'}</button>${mv.ok||!mv.why?'':` <small class="dim">${mv.why}</small>`}</div>`; })():''}<div class="m-stats dark-line">${darkHtml(c).line}</div>${c.patron||(c.mutations||[]).length||(c.disorders||[]).length?`<div class="m-stats relic-chips">${darkHtml(c).muts.join('')}${darkHtml(c).dis.join('')}</div>`:''}${c.relics&&c.relics.length?`<div class="m-stats relic-chips">${c.relics.map(k=>{const r=RELICS_C[k]||{name:k,icon:'✨',desc:''};return `<span class="relic-chip" title="${r.name}: ${r.desc}">${r.icon} ${r.name}</span>`;}).join('')}</div>`:''}
       <div class="m-stats">Def <b>${c.defense}</b> · DR <b>${armourDR(c)}</b>${c.power>0?` · Power <b>${c.power}</b>`:''} · STR <b>${c.attrs.str}</b> · AGI <b>${c.attrs.agi}</b> · INT <b>${c.attrs.int}</b> · WIL <b>${c.attrs.wil}</b></div>
       ${chips.length?`<div class="chip-row">${chips.join('')}</div>`:''}
       ${c.alive?'':'<div class="dead-label">Fallen</div>'}`);
@@ -311,7 +314,7 @@ function mRenderGame(gs,players,me){
     allies.forEach(p=>{
       const c=p.char, pct=c.health/c.maxHealth*100;
       const row=mEl('div','m-ally'+(c.alive?'':' is-dead'),`
-        <div class="m-ally-name">${p.name}<small>${CAREER_LABELS[p.career]||''} · Lv ${c.level}${hasActedThisRound(gs,p.id)?' · <span class="ok">Acted</span>':''}${!p.connected?' · Offline':''}</small></div>
+        <div class="m-ally-name">${p.name}<small>${c.alive?(c.row==='back'?'Back line · ':'Front line · '):''}${CAREER_LABELS[p.career]||''} · Lv ${c.level}${hasActedThisRound(gs,p.id)?' · <span class="ok">Acted</span>':''}${!p.connected?' · Offline':''}</small></div>
         <div class="m-hp-row">${mBar(pct,'hp '+hpClass(pct))}<span class="m-hp-val">${c.alive?`${c.health}/${c.maxHealth}`:'Fallen'}</span></div>${gs.phase==='combat'?battleChips(c):''}`);
       row.dataset.pname=p.name;
       wrap.appendChild(row);

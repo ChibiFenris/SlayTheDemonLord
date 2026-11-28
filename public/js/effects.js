@@ -3,10 +3,10 @@
 const prevHp = {}; // key: playerId or 'enemy'
 let prevLogLen = 0; // track log length to detect new entries
 
-function spawnFloat(anchorEl, text, type='dmg'){
+function spawnFloat(anchorEl, text, type='dmg', sound){
+  playSfx(sound||type); // play even if the token isn't on screen (e.g. phone layout scrolled away)
   if(!anchorEl) return;
   const rect=anchorEl.getBoundingClientRect();
-  playSfx(type);
   const float=document.createElement('div');
   float.className='float-num '+type;
   float.textContent=text;
@@ -68,9 +68,9 @@ function checkFloats(gs,players){
     const prev=prevHp[key];
     if(prev!==undefined&&e.hp<prev){
       const diff=prev-e.hp;
-      const eRows=document.querySelectorAll('#ba-enemy .token-row');
-      const eEl=eRows[idx]?eRows[idx].querySelector('.tok'):null;
-      spawnFloat(eEl,'-'+diff,diff>15?'crit':'dmg');
+      const eRow=document.querySelector(`#ba-enemy .token-row[data-eidx="${idx}"]`);
+      const eEl=eRow?eRow.querySelector('.tok,.tok-ph'):null;
+      spawnFloat(eEl,'-'+diff,diff>15?'crit':'dmg',diff>15?'crit':'hit');
     }
     prevHp[key]=e.hp;
   });
@@ -82,8 +82,8 @@ function checkFloats(gs,players){
     if(prev!==undefined&&p.char.health!==prev){
       const diff=p.char.health-prev;
       const targetEl=getPlayerTok(p.name);
-      if(diff<0) spawnFloat(targetEl,String(diff),Math.abs(diff)>15?'crit':'dmg');
-      else if(diff>0) spawnFloat(targetEl,'+'+diff,'heal');
+      if(diff<0) spawnFloat(targetEl,String(diff),Math.abs(diff)>15?'crit':'dmg',Math.abs(diff)>15?'crit':'hurt');
+      else if(diff>0) spawnFloat(targetEl,'+'+diff,'heal',diff>=3?'heal':'none'); // small trickles (1 HP a round) stay quiet
     }
     prevHp[p.id]=p.char.health;
   });
@@ -98,6 +98,15 @@ function checkFloats(gs,players){
     const plain=msg.replace(/<[^>]*>/g,'');
     juiceOnEntry(plain,entry.type);
 
+    // Blows that are blocked, parried or turned aside.
+    const blockMatch=plain.match(/(?:Block!|Shield Block!|Perfect Defence!|IMMUNE|Flicker!|turns the blow aside|Lucky Rat-Tail!|Glamour Veil!|Scale of the Ancient!|parr(?:y|ies))/i);
+    if(blockMatch){
+      const p=players.find(pl=>plain.includes(pl.name));
+      spawnFloat(p?getPlayerTok(p.name):null,'Blocked!','miss','block');
+      return;
+    }
+    // Armour soaking a blow adds a clang under the hit.
+    if(/−\d+ armour/.test(plain)) setTimeout(()=>playSfx('block'),60);
     const playerMissMatch=plain.match(/^(\S+)\s+misses\s+—/);
     if(playerMissMatch){
       const nameGuess=playerMissMatch[1];

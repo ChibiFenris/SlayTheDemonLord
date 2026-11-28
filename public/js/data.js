@@ -414,6 +414,36 @@ function castingsLeftC(char, spellName, rank) {
 // Ability cooldowns (rounds), filled in from the server's rules on load.
 let COOLDOWNS_C={};
 // What an enemy will do on its next turn, worked out from what the client can see.
+// ── Front and back lines ─────────────────────────────────────────────────────
+// Bows, guns and other ranged weapons work from the back line (mirrors the server).
+function rangedWeaponC(c){
+  const w=c&&c.equippedWeapon; if(!w) return false;
+  if(w.special&&['openingShot','marksmanship','longbow'].includes(w.special.key)) return true;
+  if(w.dmgType==='piercing') return true;
+  return /bow|pistol|gun|sling|javelin|blunderbuss|handgun|rifle/i.test(w.name||'');
+}
+function myTurnNow(gs){ const t=gs&&gs.turnOrder&&gs.turnOrder.length?gs.turnOrder[gs.activeTurnIdx||0]:null; return !!(t&&t.type==='player'&&t.id===myId); }
+// Can this warrior change line right now? {ok, why}
+function rowMoveState(c,gs){
+  if(!c||!c.alive) return {ok:false,why:'Fallen'};
+  if(!gs||gs.phase!=='combat') return {ok:true,why:''};
+  if(!myTurnNow(gs)) return {ok:false,why:'On your turn'};
+  if(c._rowMovedRound===gs.roundNumber) return {ok:false,why:'Already moved this turn'};
+  return {ok:true,why:'Free, once per turn'};
+}
+// One line on what your line means for you.
+function rowNote(c){
+  if(c.row==='back') return rangedWeaponC(c)?'Back line: only archers, gunners and casters can reach you.':'Back line: safe from melee foes, but your melee attacks have 1 bane.';
+  return 'Front line: melee foes can reach you.';
+}
+const lineExposed=players=>{ const a=(players||[]).filter(p=>p.char&&p.char.alive); return a.length>0&&a.every(p=>p.char.row==='back'); };
+// Banes your next weapon attack will have from where everyone stands (for the Attack button).
+function attackLineNotes(c,target){
+  const out=[]; if(!c) return out;
+  if(c.row==='back'&&!rangedWeaponC(c)) out.push('1 bane: melee from the back line');
+  if(target&&target._screened&&!rangedWeaponC(c)) out.push('1 bane: target is behind their front line');
+  return out;
+}
 function enemyIntent(e,gs,players){
   if((e.activeDebuffs||[]).some(d=>d.skipTurn)) return {cls:'calm',text:'💫 Stunned — loses its next turn'};
   if(e._windup) return {cls:'alert',text:`⚠ Next: ${(typeof TELEGRAPH_NAMES!=='undefined'&&TELEGRAPH_NAMES[e._windup])||'a big attack'}`};
@@ -422,8 +452,10 @@ function enemyIntent(e,gs,players){
   const n=e.attacks||(e.multi?2:1), dmg=`${e.dmgDisplay||'1d6'}${n>1?' ×'+n:''}`;
   if(taunter) return {cls:'',text:`⚔ Next: attacks ${taunter.name} (taunted) · ${dmg}`};
   const front=alive.filter(p=>p.char.row!=='back');
-  const who=alive.length<=1?(alive[0]?alive[0].name:'you'):(e.ranged||!front.length)?'everyone':front.length===1?front[0].name:'the front row';
-  return {cls:'',text:`${e.ranged?'🏹':'⚔'} Next: attacks ${who} · ${dmg}`};
+  const who=alive.length<=1?(alive[0]?alive[0].name:'you'):(e.ranged||!front.length)?'everyone':front.length===1?front[0].name:'the front line';
+  const me=alive.find(p=>p.id===myId);
+  const safe=me&&alive.length>1&&!e.ranged&&front.length&&me.char.row==='back';
+  return {cls:safe?'calm':'',text:`${e.ranged?'🏹':'⚔'} Next: attacks ${who} · ${dmg}${safe?' — can\'t reach you':''}`};
 }
 // How many rounds until a used ability is ready; null if it isn't recharging.
 function cooldownLeft(c,k){

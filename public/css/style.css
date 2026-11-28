@@ -821,3 +821,31 @@ body[data-zone="wastes"]::before{background:radial-gradient(ellipse 100% 70% at 
 .cast-count{display:inline-block;margin-left:6px;padding:0 5px;font-size:11px;line-height:1.5;border-radius:2px;border:1px solid rgba(120,140,200,.45);color:#b9c6ee;background:rgba(60,80,140,.2);font-variant-numeric:tabular-nums;vertical-align:middle;}
 .cast-count.empty{color:var(--ember);border-color:rgba(200,64,47,.4);background:rgba(142,28,20,.18);}
 .armour-sub{display:block;font-size:12px;color:var(--ink-dim,#a89c86);margin-top:1px;}
+
+/* Front and back lines */
+.lane{border:1px solid rgba(184,149,90,.18);border-radius:4px;padding:4px 6px 6px;background:rgba(0,0,0,.12);transition:background .15s,border-color .15s;}
+.lane+.lane{margin-top:6px;}
+.lane-head{display:flex;align-items:baseline;gap:8px;font-family:var(--f-label);font-size:11px;letter-spacing:.06em;color:var(--ash);margin-bottom:2px;}
+.lane-title{text-transform:uppercase;color:var(--bone-dim);}
+.lane-hint{font-style:italic;letter-spacing:0;text-transform:none;opacity:.8;}
+.lane-body{display:flex;flex-direction:column;gap:6px;min-height:28px;}
+.lane-back{border-style:dashed;background:rgba(0,0,0,.22);}
+#ba-players .lane-back{margin-right:44px;}
+#ba-enemy .lane-back{margin-left:44px;}
+#ba-enemy .lane{width:100%;}
+#ba-enemy .lane-head{justify-content:flex-end;}
+.lane-back .tok,.lane-back .tok-ph{width:84px;height:84px;}
+.lane.exposed{border-color:rgba(200,64,47,.55);}
+.lane.exposed .lane-hint{color:var(--ember);font-style:normal;}
+.lane.drop-ok{border-color:var(--brass);background:rgba(184,149,90,.12);}
+.tok[draggable="true"]{cursor:grab;}
+.line-note{font-size:12.5px;color:var(--ash);margin-top:4px;line-height:1.35;}
+.line-btn{margin-left:4px;vertical-align:middle;}
+.line-btn:disabled{opacity:.5;cursor:not-allowed;}
+.line-warn{color:var(--amber);font-size:11.5px;font-style:normal;}
+.e-chip-line{color:#c9b98e;border-color:rgba(184,149,90,.4);}
+.chip-line{color:#c9b98e;border-color:rgba(184,149,90,.4);background:rgba(184,149,90,.08);}
+.m-line{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+.m-line .warn{color:var(--ember);}
+.m-line .dim{color:var(--ash);}
+.lane-title{white-space:nowrap;}

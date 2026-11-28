@@ -613,4 +613,40 @@ const logHas=(room,re)=>room.gs.log.some(l=>re.test(l.msg));
   { let seen=false; for(let i=0;i<60;i++) if(R.optionsFor({relics:[],spellcaster:false}).includes('witchfire')) seen=true; ok(!seen,'the Witchfire Lantern is only offered to spellcasters'); }
   { const {room}=mkRoom(['empire']); const c=room.players[0].char; c.relics=['bloodRuby']; c.health=c.maxHealth-5; combat(room,['Skaven Clanrat']); const e=room.gs.enemies[0]; e.hp=0; S.resolveEnemyDeath(room,e); ok(c.health===c.maxHealth-3,'Blood Ruby: heal 2 whenever an enemy dies'); }
 }
+// 51. Bonuses that come from other enemies go away when those enemies fall
+{ all.push(...D.ENEMY_POOLS.boss1);
+  { const {room}=mkRoom(['empire']); combat(room,['Skaven Warlord Gnashteeth','Skaven Clanrat','Skaven Clanrat']); const gs=room.gs; const [w,c1,c2]=gs.enemies; const ac0=w.ac, r0=c1.dmgBonus||0;
+    w._decree=true; c1._rallied=c2._rallied=true; S.refreshEnemyAuras(gs);
+    ok(w.ac===ac0+4&&c1.dmgBonus===r0+2,"Warlord's Decree: +2 Defence per clanrat, and the clanrats hit harder");
+    c1.hp=0; S.resolveEnemyDeath(room,c1); ok(w.ac===ac0+2,'a clanrat falls: the Warlord loses 2 Defence');
+    c2.hp=0; S.resolveEnemyDeath(room,c2); ok(w.ac===ac0,'all clanrats gone: the Decree\'s Defence is gone'); }
+  { const {room}=mkRoom(['empire']); combat(room,['Skaven Warlord Gnashteeth','Skaven Clanrat']); const gs=room.gs; const [w,c1]=gs.enemies; const r0=c1.dmgBonus||0;
+    w._decree=true; c1._rallied=true; S.refreshEnemyAuras(gs); w.hp=0; S.resolveEnemyDeath(room,w); ok(c1.dmgBonus===r0,'the Warlord falls: his clanrats lose their rallied damage'); }
+  { const {room}=mkRoom(['empire']); combat(room,['Black Orc','Orc Boy']); const gs=room.gs; const bo=gs.enemies[0], boy=gs.enemies[1]; const b0=boy.dmgBonus||0;
+    bo._waaagh=true; S.refreshEnemyAuras(gs); const up=boy.dmgBonus===b0+1; bo.hp=0; S.resolveEnemyDeath(room,bo);
+    ok(up&&boy.dmgBonus===b0,'WAAAGH!: greenskins hit harder only while the roaring Black Orc stands'); }
+}
+// 52. Front and back lines
+{ const RW=require('../game/rows.js');
+  { const {room}=mkRoom(['empire','woodelf']); const [a,b]=room.players; RW.startOfFight(room,S.gear.hasRangedWeapon); ok(a.char.row==='front'&&b.char.row==='back','fights start with bows in the back line and blades in the front');
+    a.char.rowPref='back'; RW.startOfFight(room,S.gear.hasRangedWeapon); ok(a.char.row==='back','unless the warrior chose a line themselves'); }
+  { const {room}=mkRoom(['empire','woodelf']); const [a,b]=room.players; combat(room,['Skaven Clanrat']); a.char.row='front'; b.char.row='back';
+    a.char.health=0; S.checkDeath(room,a); ok(!a.char.alive&&b.char.row==='front'&&logHas(room,/steps? forward/),'when the front line falls, the back line steps forward'); }
+  { const {room}=mkRoom(['empire']); combat(room,['Skaven Clanrat']); const p=room.players[0]; room.gs.activeTurnIdx=room.gs.turnOrder.findIndex(t=>t.id===p.id); p.char.row='front';
+    S.handlePlayerAction(room,p.id,{action:'SET_ROW',data:{row:'back'}}); const moved=p.char.row==='back'; S.handlePlayerAction(room,p.id,{action:'SET_ROW',data:{row:'front'}});
+    ok(moved&&p.char.row==='back','changing line is free but once per turn'); }
+  { const {room}=mkRoom(['empire']); combat(room,['Skaven Clanrat','Skaven Clanrat']); const [e1,e2]=room.gs.enemies; e2.ranged=true; e2.row=null; e1.row=null; S.refreshEnemyAuras(room.gs);
+    ok(e2.row==='back'&&e2._screened&&!e1._screened,'enemy archers stand behind their front line and are screened');
+    e1.hp=0; S.resolveEnemyDeath(room,e1); ok(e2.row==='front'&&!e2._screened,'with their front line dead, the enemy back line steps up'); }
+}
+// 53. A kill still uses the turn when other foes remain
+{ const acted=(room,p)=>{ const gs=room.gs; const cur=gs.turnOrder[gs.activeTurnIdx||0]; return gs.playersActedThisRound.includes(p.id)||!cur||cur.id!==p.id; };
+  { const {room}=mkRoom(['empire']); combat(room,['Skaven Clanrat','Skaven Clanrat']); const p=room.players[0]; const [e1]=room.gs.enemies;
+    let done=false; for(let k=0;k<30&&!done;k++){ e1.hp=1; e1.ac=1; room.gs.playersActedThisRound=[]; room.gs.activeTurnIdx=room.gs.turnOrder.findIndex(t=>t.id===p.id); p.char.weaponAtkBonus=40; S.handlePlayerAction(room,p.id,{action:'ATTACK'}); done=e1.hp<=0; }
+    ok(done&&acted(room,p),'killing one of two foes with an attack ends your turn'); }
+  { const {room}=mkRoom(['highelf']); const p=room.players[0]; const c=p.char; S.applyExpertPath(c,'sorcerer'); combat(room,['Skaven Clanrat','Skaven Clanrat']); const [e1]=room.gs.enemies;
+    const sp=(c.knownSpells||[]).find(s=>s.type==='attack'&&!s.aoe); if(sp){ c.power=Math.max(c.power||0,6); S.refreshCastingPools(c); e1.hp=1; room.gs.activeEnemyIdx=0; room.gs.enemy=e1;
+      room.gs.activeTurnIdx=room.gs.turnOrder.findIndex(t=>t.id===p.id); S.handlePlayerAction(room,p.id,{action:'CAST_SPELL',data:{spellName:sp.name}});
+      ok(e1.hp>0||acted(room,p),'killing one of two foes with a spell ends your turn'); } else ok(true,'(no attack spell to test)'); }
+}
 console.log(fails?fails+' FAILED':'all passed'); process.exit(fails?1:0);

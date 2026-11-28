@@ -2,6 +2,8 @@
 const heirlooms = require('./heirlooms');
 const armour = require('./armour');
 const affixes = require('./affixes');
+const rows = require('./rows');
+const gear = require('./gear');
 // The road: path votes, room contents, unknown-room encounters and loot rooms.
 // Moved out of server.js unchanged. The server hands this module the helpers it
 // uses through bind() once everything is defined (see the bottom of server.js).
@@ -118,6 +120,7 @@ function _runNodeContent(room, gs, nodeType, playerCount) {
     // Cursed Path: tougher foes until the next boss falls.
     if(gs.curseStacks){ gs.enemies.forEach(e=>{ e.maxHp=Math.round(e.maxHp*(1+0.15*gs.curseStacks)); e.hp=e.maxHp; e.dmgBonus=(e.dmgBonus||0)+gs.curseStacks; e.dmgDisplay=`${e.dmgNum}d${e.dmgSides}${e.dmgBonus?'+'+e.dmgBonus:''}`; }); }
     // Relics that act when a fight begins.
+    rows.startOfFight(room, gear.hasRangedWeapon); // archers and casters to the back line, unless they chose otherwise
     room.players.forEach(p=>{ const c=p.char; if(!c||!c.alive) return;
       // Fight-start passives.
       c._devastatingChargeProc=!!c.devastatingCharge; // Devastating Charge: first hit each fight

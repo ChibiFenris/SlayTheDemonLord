@@ -61,7 +61,7 @@ const BOSS_PHASES = {
     apply(room, e) { e.ranged = true; return 'The wyrm takes to the air: it reaches the back row, and sweeps fire over everyone at the start of each of its turns.'; },
     tick(room) { S.addLog(room, '🐉 Fire rains from above!', 'chaos'); hitAll(room, () => solo(room) ? rd(1, 4) : rd(1, 6)); } },
   'Warboss Grubnak Skullsmasha': { name: 'WAAAGH!', line: 'WAAAGH! Get stuck in, ya gits!',
-    apply(room, e) { const n = summonSome(room, SUMMONS.orcBoy, Math.min(2, partyN(room))); aliveFoes(room.gs).filter(x => (x.tags || []).includes('greenskin')).forEach(x => { x.dmgBonus += 1; refreshDmg(x); }); return `${n} Orc Boyz charge in, and every greenskin hits 1 harder.`; } },
+    apply(room, e) { const n = summonSome(room, SUMMONS.orcBoy, Math.min(2, partyN(room))); e._waaaghBoss = true; S.refreshEnemyAuras(room.gs); return `${n} Orc Boyz charge in, and every greenskin hits 1 harder while the Warboss stands.`; } },
 };
 function checkBossPhase(room, e) {
   if (e.threat !== 'Boss' || e._phase2 || e.hp > e.maxHp / 2) return;
@@ -125,8 +125,8 @@ function preTurn(room, ae, alive, plan) {
   }
   // Black Orcs bellow once their mates start dropping.
   if (ae.waaaghCry && !ae._waaagh && ae.hp <= ae.maxHp / 2) {
-    ae._waaagh = true; aliveFoes(gs).filter(x => (x.tags || []).includes('greenskin')).forEach(x => { x.dmgBonus += 1; refreshDmg(x); });
-    S.addLog(room, `📣 <strong>${ae.name}:</strong> <em>“WAAAGH!”</em> Every greenskin hits 1 harder.`, 'crit');
+    ae._waaagh = true; S.refreshEnemyAuras(gs);
+    S.addLog(room, `📣 <strong>${ae.name}:</strong> <em>“WAAAGH!”</em> Every greenskin hits 1 harder while it stands.`, 'crit');
   }
   return null;
 }
